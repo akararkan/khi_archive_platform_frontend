@@ -3,9 +3,10 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { AuthShell } from '@/components/auth/AuthShell'
 import { Button } from '@/components/ui/button'
+import { FormErrorBox } from '@/components/ui/form-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { getErrorMessage } from '@/lib/get-error-message'
+import { formatApiError } from '@/lib/get-error-message'
 import { resetPassword } from '@/services/auth'
 
 function getApiMessage(data, fallbackMessage) {
@@ -34,7 +35,7 @@ function ResetPasswordPage() {
     confirmPassword: '',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
 
   const handleInputChange = (event) => {
@@ -48,7 +49,7 @@ function ResetPasswordPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    setErrorMessage('')
+    setErrorMessage(null)
     setSuccessMessage('')
 
     if (formData.newPassword !== formData.confirmPassword) {
@@ -70,7 +71,7 @@ function ResetPasswordPage() {
         confirmPassword: '',
       }))
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, 'Unable to reset password right now.'))
+      setErrorMessage(formatApiError(error, 'Unable to reset password right now.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -154,11 +155,7 @@ function ResetPasswordPage() {
           />
         </div>
 
-        {errorMessage ? (
-          <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {errorMessage}
-          </p>
-        ) : null}
+        <FormErrorBox error={errorMessage} />
 
         {successMessage ? (
           <p className="rounded-md border border-chart-2/35 bg-chart-2/12 px-3 py-2 text-sm text-foreground">

@@ -1,7 +1,7 @@
 const personFieldsMetadata = {
   personCode: {
     title: 'کۆدی کەس',
-    description: 'کۆدی تایبەتی ناساندنی کەسە. لە فۆڕمدا تەنها بەشی دوای KHI_ بنووسە.',
+    description: 'کۆدی تایبەتی ناساندنی کەسە. کۆدێکی تایبەت و یەکجارییە.',
   },
   fullName: {
     title: 'ناوی تەواو',

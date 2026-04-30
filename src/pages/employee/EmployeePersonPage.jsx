@@ -1,15 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Camera, X, RefreshCw, Search, Eye } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Camera, X, RefreshCw, Eye, Users } from 'lucide-react'
 
 import { EmployeeEntityPage } from '@/components/employee/EmployeeEntityPage'
 import { PersonDetailsModal } from '@/components/person/PersonDetailsModal'
 import { PersonFieldHelpButton } from '@/components/person/PersonFieldHelpButton'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { PersonPortrait } from '@/components/person/PersonPortrait'
+import { TypedConfirmDialog } from '@/components/ui/typed-confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
+import { CodeBadge } from '@/components/ui/code-badge'
+import { Highlight } from '@/components/ui/highlight'
+import { DataPagination } from '@/components/ui/pagination'
+import { EmptyState } from '@/components/ui/empty-state'
+import { EntityToolbar } from '@/components/ui/entity-toolbar'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TagsInput } from '@/components/ui/tags-input'
 import {
   Table,
   TableBody,
@@ -19,8 +26,17 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useToast } from '@/hooks/use-toast'
-import { getErrorMessage } from '@/lib/get-error-message'
-import { getPersons, createPerson, updatePerson, deletePerson } from '@/services/person'
+import { FormErrorBox } from '@/components/ui/form-error'
+import { formatApiError, getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
+import {
+  createPerson,
+  deletePerson,
+  getPersonsPage,
+  searchPersons,
+  updatePerson,
+} from '@/services/person'
+
+const PERSONS_PAGE_SIZE = 100
 
 function createInitialForm() {
   return {
@@ -29,7 +45,7 @@ function createInitialForm() {
     nickname: '',
     romanizedName: '',
     gender: '',
-    personType: '',
+    personType: [],
     region: '',
     dateOfBirthYear: '',
     dateOfBirthMonth: '',
@@ -40,20 +56,18 @@ function createInitialForm() {
     dateOfDeathDay: '',
     placeOfDeath: '',
     description: '',
-    tag: '',
-    keywords: '',
+    tag: [],
+    keywords: [],
     note: '',
     removeMediaPortrait: false,
   }
 }
 
-function parseList(value) {
-  if (!value) {
-    return []
-  }
-
-  return value
-    .split(',')
+function toArray(value) {
+  if (Array.isArray(value)) return value.filter(Boolean)
+  if (!value) return []
+  return String(value)
+    .split(/[,،;]/)
     .map((entry) => entry.trim())
     .filter(Boolean)
 }
@@ -107,15 +121,6 @@ function getLifespan(person) {
   return `${birthYear} - ${deathYear}`
 }
 
-function ensurePersonCodePrefix(code) {
-  const value = String(code || '').trim()
-  if (!value) {
-    return ''
-  }
-
-  return `KHI_${value.replace(/^KHI_/i, '')}`
-}
-
 function FieldLabel({ htmlFor, fieldKey, children }) {
   return (
     <div className="flex items-center justify-between gap-2">
@@ -145,27 +150,36 @@ function EmployeePersonPage() {
   const [previewImage, setPreviewImage] = useState(null)
 
   const [searchTerm, setSearchTerm] = useState('')
+  // Backend search results — populated by /api/person/search (across name,
+  // nickname, romanized name, description, tags, keywords, region, places,
+  // code, and person type) after a short debounce. `null` means "no active
+  // search; fall back to full list".
+  const [searchResults, setSearchResults] = useState(null)
+  const [isSearching, setIsSearching] = useState(false)
 
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [detailsTarget, setDetailsTarget] = useState(null)
 
-  const filteredPersons = useMemo(() => {
-    const normalizedTerm = searchTerm.trim().toLowerCase()
+  // Server-side pagination for the browse view. Search uses /person/search
+  // and returns top-ranked matches, so it bypasses pagination.
+  const [page, setPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
 
-    if (!normalizedTerm) {
-      return persons
-    }
+  const trimmedSearch = searchTerm.trim()
+  const isSearchActive = trimmedSearch.length > 0
 
-    return persons.filter((person) => {
-      const personType = Array.isArray(person.personType) ? person.personType.join(' ') : person.personType
-      const keywords = Array.isArray(person.keywords) ? person.keywords.join(' ') : person.keywords
-      const tags = Array.isArray(person.tag) ? person.tag.join(' ') : person.tag
+  // V3 trash model: backend's GET /person returns active records only;
+  // trashed records live at /person/trash and are managed from the admin
+  // Trash page.
+  const basePersons = useMemo(
+    () => (isSearchActive ? (searchResults ?? []) : persons),
+    [isSearchActive, searchResults, persons],
+  )
 
-      const value = `${person.personCode || ''} ${person.fullName || ''} ${personType || ''} ${person.region || ''} ${keywords || ''} ${tags || ''}`
-      return value.toLowerCase().includes(normalizedTerm)
-    })
-  }, [persons, searchTerm])
+  const visiblePersons = basePersons
+  const filteredPersons = visiblePersons
 
   const loadPersons = useCallback(async (options = {}) => {
     const { notifyError = false } = options
@@ -174,24 +188,59 @@ function EmployeePersonPage() {
     setError('')
 
     try {
-      const data = await getPersons()
-      setPersons(data || [])
+      const pageData = await getPersonsPage({ page, size: PERSONS_PAGE_SIZE })
+      setPersons(pageData?.content || [])
+      setTotalPages(pageData?.totalPages || 0)
+      setTotalElements(pageData?.totalElements || 0)
     } catch (err) {
-      const message = getErrorMessage(err, 'Failed to load persons')
-      setError(message)
+      setError(getErrorMessage(err, 'Failed to load persons'))
 
       if (notifyError) {
-        toast.error('Could not refresh persons', message)
+        toast.apiError(err, 'Could not refresh persons')
       }
     } finally {
       setIsLoading(false)
     }
-  }, [toast])
+  }, [page, toast])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadPersons()
   }, [loadPersons])
+
+  // Debounced backend search across name, nickname, romanized name, description,
+  // tags, keywords, region, places, code, and person type. Cancels in-flight
+  // requests when the user keeps typing or clears the box. Errors are silent
+  // — we just show no results rather than spamming a toast on every keystroke.
+  useEffect(() => {
+    if (!trimmedSearch) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSearchResults(null)
+      setIsSearching(false)
+      return undefined
+    }
+
+    const controller = new AbortController()
+    const timer = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const data = await searchPersons(trimmedSearch, {
+          limit: 50,
+          signal: controller.signal,
+        })
+        if (!controller.signal.aborted) setSearchResults(data || [])
+      } catch {
+        if (!controller.signal.aborted) setSearchResults([])
+      } finally {
+        if (!controller.signal.aborted) setIsSearching(false)
+      }
+    }, 220)
+
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [trimmedSearch])
 
   useEffect(() => {
     return () => {
@@ -213,12 +262,12 @@ function EmployeePersonPage() {
   const handleOpenEdit = (person) => {
     setCurrentPerson(person)
     setForm({
-      personCode: ensurePersonCodePrefix(person.personCode),
+      personCode: person.personCode || '',
       fullName: person.fullName || '',
       nickname: person.nickname || '',
       romanizedName: person.romanizedName || '',
       gender: person.gender || '',
-      personType: Array.isArray(person.personType) ? person.personType.join(', ') : person.personType || '',
+      personType: toArray(person.personType),
       region: person.region || '',
       dateOfBirthYear: person.dateOfBirthYear ?? getDatePart(person.dateOfBirth, 'year'),
       dateOfBirthMonth: person.dateOfBirthMonth ?? getDatePart(person.dateOfBirth, 'month'),
@@ -229,8 +278,8 @@ function EmployeePersonPage() {
       dateOfDeathDay: person.dateOfDeathDay ?? getDatePart(person.dateOfDeath, 'day'),
       placeOfDeath: person.placeOfDeath || '',
       description: person.description || '',
-      tag: Array.isArray(person.tag) ? person.tag.join(', ') : person.tag || '',
-      keywords: Array.isArray(person.keywords) ? person.keywords.join(', ') : person.keywords || '',
+      tag: toArray(person.tag),
+      keywords: toArray(person.keywords),
       note: person.note || '',
       removeMediaPortrait: false,
     })
@@ -281,7 +330,7 @@ function EmployeePersonPage() {
     setFormError('')
     setIsSaving(true)
 
-    const normalizedPersonCode = ensurePersonCodePrefix(form.personCode)
+    const normalizedPersonCode = form.personCode.trim()
 
     if (view === 'create' && !normalizedPersonCode) {
       const message = 'Person code is required.'
@@ -291,13 +340,14 @@ function EmployeePersonPage() {
       return
     }
 
+
     try {
       const payload = {
         fullName: form.fullName,
         nickname: form.nickname,
         romanizedName: form.romanizedName,
         gender: form.gender || null,
-        personType: parseList(form.personType),
+        personType: toArray(form.personType),
         region: form.region,
         dateOfBirthYear: parseInteger(form.dateOfBirthYear),
         dateOfBirthMonth: parseInteger(form.dateOfBirthMonth),
@@ -308,8 +358,8 @@ function EmployeePersonPage() {
         dateOfDeathDay: parseInteger(form.dateOfDeathDay),
         placeOfDeath: form.placeOfDeath,
         description: form.description,
-        tag: parseList(form.tag),
-        keywords: parseList(form.keywords),
+        tag: toArray(form.tag),
+        keywords: toArray(form.keywords),
         note: form.note,
         ...(view === 'edit' && form.removeMediaPortrait ? { removeMediaPortrait: true } : {}),
       }
@@ -326,40 +376,65 @@ function EmployeePersonPage() {
       await loadPersons()
       handleCloseForm()
     } catch (err) {
-      const message = getErrorMessage(err, 'Failed to save person record')
-      setFormError(message)
-      toast.error('Unable to save person', message)
+      // Optimistic-locking conflict — bounce back to list so the user
+      // can re-open the row and see the latest values.
+      if (isStaleVersionError(err)) {
+        toast.apiError(err, 'Reload required')
+        await loadPersons()
+        handleCloseForm()
+        return
+      }
+      setFormError(formatApiError(err, 'Failed to save person record'))
+      toast.apiError(err, 'Unable to save person')
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleDeleteRequest = (person) => {
-    setDeleteTarget(person)
-  }
-
   const handleOpenDetails = (person) => {
     setDetailsTarget({
       ...person,
-      personCode: ensurePersonCodePrefix(person.personCode),
+      personCode: person.personCode || '',
     })
   }
 
+  // Soft-trash with project cascade (V3). Backend trashes the person AND
+  // every project they own (each project itself cascades to its media).
+  // The response tells us how many projects were trashed and their codes
+  // — surfacing that in the toast so the user sees exactly what happened
+  // instead of being surprised when projects vanish from their list.
   const handleDeleteConfirm = async () => {
-    if (!deleteTarget) {
-      return
-    }
-
+    if (!deleteTarget) return
     setIsDeleting(true)
     try {
-      await deletePerson(deleteTarget.personCode)
-      toast.success('Person deleted', `${deleteTarget.fullName} was removed.`)
+      const result = await deletePerson(deleteTarget.personCode)
+      const trashedCount = result?.trashedProjectsCount ?? 0
+      const trashedCodes = Array.isArray(result?.trashedProjectCodes)
+        ? result.trashedProjectCodes
+        : []
+
+      let detail
+      if (trashedCount === 0) {
+        detail = `${deleteTarget.fullName} can be restored by an admin from Trash.`
+      } else {
+        // Show up to three project codes inline; collapse the rest into
+        // a "+N more" tail so a person with many projects doesn't make
+        // the toast unreadable.
+        const visible = trashedCodes.slice(0, 3).join(', ')
+        const extra = trashedCodes.length - 3
+        const codesPart = visible
+          ? ` ${visible}${extra > 0 ? ` +${extra} more` : ''}`
+          : ''
+        detail =
+          `${deleteTarget.fullName} and ${trashedCount} project${trashedCount === 1 ? '' : 's'}` +
+          ` were sent to trash:${codesPart}. An admin can restore from Trash.`
+      }
+      toast.success('Sent to trash', detail)
       setDeleteTarget(null)
       await loadPersons()
     } catch (err) {
-      const message = getErrorMessage(err, 'Failed to delete person record')
-      setError(message)
-      toast.error('Unable to delete person', message)
+      setError(getErrorMessage(err, 'Failed to send person to trash'))
+      toast.apiError(err, 'Unable to send person to trash')
     } finally {
       setIsDeleting(false)
     }
@@ -368,6 +443,7 @@ function EmployeePersonPage() {
   if (view === 'create' || view === 'edit') {
     return (
       <EmployeeEntityPage
+        eyebrow={view === 'create' ? 'New record' : 'Editing'}
         title={view === 'create' ? 'Add New Person' : 'Edit Person Record'}
         description="Provide comprehensive details about the person below."
       >
@@ -386,31 +462,23 @@ function EmployeePersonPage() {
                   {view === 'create' ? (
                     <div className="space-y-2 sm:col-span-2">
                       <FieldLabel htmlFor="personCode" fieldKey="personCode">
-                        Person Code Suffix <span className="text-destructive">*</span>
+                        Person Code <span className="text-destructive">*</span>
                       </FieldLabel>
-                      <div className="flex items-center">
-                        <span className="inline-flex h-9 items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-xs font-bold tracking-widest text-muted-foreground">
-                          KHI_
-                        </span>
-                        <Input
-                          id="personCode"
-                          value={form.personCode}
-                          onChange={(event) =>
-                            setForm({
-                              ...form,
-                              personCode: event.target.value.replace(/^KHI_/i, '').toUpperCase(),
-                            })
-                          }
-                          required
-                          placeholder="HZI"
-                          className="rounded-l-none font-mono tracking-wide"
-                        />
-                      </div>
+                      <Input
+                        id="personCode"
+                        value={form.personCode}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            personCode: event.target.value.toUpperCase(),
+                          })
+                        }
+                        required
+                        placeholder="e.g. HZI"
+                        className="font-mono tracking-wide"
+                      />
                       <p className="text-xs text-muted-foreground">
-                        Final code:{' '}
-                        <span className="font-mono font-semibold text-foreground">
-                          {ensurePersonCodePrefix(form.personCode) || 'KHI_…'}
-                        </span>
+                        Unique identifier. Cannot be changed after creation.
                       </p>
                     </div>
                   ) : (
@@ -484,13 +552,13 @@ function EmployeePersonPage() {
                   <div className="space-y-2 sm:col-span-2">
                     <FieldLabel htmlFor="personType" fieldKey="personType">
                       Roles / Types{' '}
-                      <span className="font-normal text-muted-foreground">(comma-separated)</span>
+                      <span className="font-normal text-muted-foreground">(press Enter to add)</span>
                     </FieldLabel>
-                    <Input
+                    <TagsInput
                       id="personType"
                       value={form.personType}
-                      onChange={(event) => setForm({ ...form, personType: event.target.value })}
-                      placeholder="Singer, Poet, Artist"
+                      onChange={(next) => setForm({ ...form, personType: next })}
+                      placeholder="Singer, Poet, Artist…"
                     />
                   </div>
                 </CardContent>
@@ -635,26 +703,26 @@ function EmployeePersonPage() {
                     <div className="space-y-2">
                       <FieldLabel htmlFor="tag" fieldKey="tag">
                         Tags{' '}
-                        <span className="font-normal text-muted-foreground">(comma-separated)</span>
+                        <span className="font-normal text-muted-foreground">(press Enter to add)</span>
                       </FieldLabel>
-                      <Input
+                      <TagsInput
                         id="tag"
                         value={form.tag}
-                        onChange={(event) => setForm({ ...form, tag: event.target.value })}
-                        placeholder="poet, revolutionary"
+                        onChange={(next) => setForm({ ...form, tag: next })}
+                        placeholder="poet, revolutionary…"
                       />
                     </div>
 
                     <div className="space-y-2">
                       <FieldLabel htmlFor="keywords" fieldKey="keywords">
                         Keywords{' '}
-                        <span className="font-normal text-muted-foreground">(comma-separated)</span>
+                        <span className="font-normal text-muted-foreground">(press Enter to add)</span>
                       </FieldLabel>
-                      <Input
+                      <TagsInput
                         id="keywords"
                         value={form.keywords}
-                        onChange={(event) => setForm({ ...form, keywords: event.target.value })}
-                        placeholder="music, folklore"
+                        onChange={(next) => setForm({ ...form, keywords: next })}
+                        placeholder="music, folklore…"
                       />
                     </div>
                   </div>
@@ -739,11 +807,7 @@ function EmployeePersonPage() {
                       </Label>
                     )}
 
-                    {formError ? (
-                      <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
-                        {formError}
-                      </div>
-                    ) : null}
+                    <FormErrorBox error={formError} />
                   </CardContent>
                   <CardFooter className="flex flex-col gap-2.5 border-t border-border pt-4">
                     <Button type="submit" className="w-full gap-2" disabled={isSaving}>
@@ -774,7 +838,11 @@ function EmployeePersonPage() {
 
   return (
     <EmployeeEntityPage
-      title="Persons Directory"
+      eyebrow="Directory"
+      title="Persons"
+      badge={!isLoading && !error
+        ? `${(isSearchActive ? visiblePersons.length : totalElements).toLocaleString()} total`
+        : null}
       description="Manage all person records with clear, searchable metadata and fast actions."
       action={
         <Button onClick={handleOpenCreate} className="gap-2 shrink-0">
@@ -783,40 +851,16 @@ function EmployeePersonPage() {
         </Button>
       }
     >
-      {/* Search / filter bar */}
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardContent className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm text-muted-foreground">
-            Showing{' '}
-            <span className="font-semibold tabular-nums text-foreground">{filteredPersons.length}</span>
-            {' '}of{' '}
-            <span className="font-semibold tabular-nums text-foreground">{persons.length}</span>
-            {' '}records
-          </div>
-
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <div className="relative w-full sm:w-96">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search by code, name, type, region, or tags…"
-                className="pl-8"
-              />
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2 shrink-0"
-              onClick={() => loadPersons({ notifyError: true })}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <EntityToolbar
+        filteredCount={filteredPersons.length}
+        totalCount={isSearchActive ? visiblePersons.length : totalElements}
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search across name, nickname, description, code, region, places, type, tags, or keywords…"
+        searchWidthClassName="sm:w-96"
+        onRefresh={() => loadPersons({ notifyError: true })}
+        isRefreshing={isLoading || isSearching}
+      />
 
       {/* States */}
       {isLoading ? (
@@ -824,8 +868,8 @@ function EmployeePersonPage() {
           <div className="divide-y divide-border">
             {[1, 2, 3, 4, 5].map((index) => (
               <div key={index} className="flex items-center gap-4 px-4 py-3">
-                <Skeleton className="size-9 shrink-0 rounded-full" />
-                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-14 w-11 shrink-0 rounded-lg" />
+                <Skeleton className="h-6 w-28 rounded-md" />
                 <Skeleton className="h-4 w-36" />
                 <Skeleton className="h-4 w-28" />
                 <Skeleton className="h-4 w-20" />
@@ -850,27 +894,25 @@ function EmployeePersonPage() {
           </CardContent>
         </Card>
       ) : persons.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-muted/20 py-24 text-center">
-          <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-muted text-muted-foreground">
-            <Plus className="size-6" />
-          </div>
-          <h3 className="text-lg font-semibold text-foreground">No persons registered</h3>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Add a new prominent figure or contributor to begin building the person records.
-          </p>
-          <Button onClick={handleOpenCreate} className="mt-6 gap-2">
-            <Plus className="size-4" />
-            Create Record
-          </Button>
-        </div>
+        <EmptyState
+          icon={Users}
+          title="No persons registered"
+          description="Add a new prominent figure or contributor to begin building the person records."
+          action={
+            <Button onClick={handleOpenCreate} className="gap-2">
+              <Plus className="size-4" />
+              Create Record
+            </Button>
+          }
+        />
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm shadow-black/5">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
                 <TableHead className="w-[52px] text-center">#</TableHead>
-                <TableHead className="w-[52px]"></TableHead>
-                <TableHead className="w-[140px]">Code</TableHead>
+                <TableHead className="w-[68px]"></TableHead>
+                <TableHead className="w-[160px]">Code</TableHead>
                 <TableHead className="w-[220px]">Full Name</TableHead>
                 <TableHead className="w-[220px]">Type</TableHead>
                 <TableHead className="w-[180px]">Region</TableHead>
@@ -883,7 +925,16 @@ function EmployeePersonPage() {
               {filteredPersons.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
-                    No matching people for this search.
+                    {isSearching ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Searching for &ldquo;{trimmedSearch}&rdquo;…
+                      </span>
+                    ) : isSearchActive ? (
+                      <>No matches for &ldquo;{trimmedSearch}&rdquo; in name, nickname, description, code, region, places, type, tags, or keywords.</>
+                    ) : (
+                      <>No people to show.</>
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -892,44 +943,55 @@ function EmployeePersonPage() {
                     ? person.personType.join(', ')
                     : person.personType || person.gender || '—'
 
-                  const initial = person.fullName?.charAt(0)?.toUpperCase() || 'P'
-
                   return (
-                    <TableRow key={person.personCode} className="group transition-colors">
+                    <TableRow
+                      key={person.personCode}
+                      className={`group transition-colors ${person.removedAt ? 'opacity-60' : ''}`}
+                    >
                       <TableCell className="text-center text-xs tabular-nums text-muted-foreground">
-                        {index + 1}
+                        {/* Absolute index across all pages. Search mode
+                            shows in-list rank since there's no global
+                            position for ranked results. */}
+                        {(isSearchActive ? 0 : page * PERSONS_PAGE_SIZE) + index + 1}
                       </TableCell>
                       <TableCell>
-                        {person.mediaPortrait ? (
-                          <div className="size-9 overflow-hidden rounded-full border-2 border-border shadow-sm">
-                            <img
-                              src={person.mediaPortrait}
-                              alt={person.fullName}
-                              className="size-full object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex size-9 items-center justify-center rounded-full border-2 border-border bg-muted/60 text-xs font-bold text-muted-foreground">
-                            {initial}
-                          </div>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetails(person)}
+                          className="block overflow-hidden rounded-lg ring-1 ring-border shadow-sm transition-all hover:ring-2 hover:ring-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          aria-label={`View ${person.fullName}`}
+                        >
+                          <PersonPortrait
+                            src={person.mediaPortrait}
+                            name={person.fullName}
+                            rounded="rounded-lg"
+                            className="h-14 w-11 text-lg"
+                          />
+                        </button>
                       </TableCell>
                       <TableCell>
-                        <span className="font-mono text-xs font-medium text-muted-foreground">
-                          {ensurePersonCodePrefix(person.personCode)}
-                        </span>
+                        <CodeBadge code={person.personCode} variant="subtle" highlightQuery={searchTerm} />
                       </TableCell>
                       <TableCell>
                         <div className="font-semibold leading-tight text-foreground">
-                          {person.fullName}
+                          <Highlight text={person.fullName || ''} query={searchTerm} />
                         </div>
                         {person.nickname && (
-                          <div className="mt-0.5 text-xs text-muted-foreground">{person.nickname}</div>
+                          <div className="mt-0.5 text-xs text-muted-foreground">
+                            <Highlight text={person.nickname} query={searchTerm} />
+                          </div>
+                        )}
+                        {person.removedAt && (
+                          <span className="mt-1 inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                            Removed
+                          </span>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{typeLabel}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {person.region || '—'}
+                        <Highlight text={String(typeLabel)} query={searchTerm} />
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {person.region ? <Highlight text={person.region} query={searchTerm} /> : '—'}
                       </TableCell>
                       <TableCell className="tabular-nums text-sm text-muted-foreground">
                         {getLifespan(person)}
@@ -939,7 +1001,11 @@ function EmployeePersonPage() {
                           className="truncate text-sm text-muted-foreground"
                           title={person.description || '—'}
                         >
-                          {person.description || '—'}
+                          {person.description ? (
+                            <Highlight text={person.description} query={searchTerm} />
+                          ) : (
+                            '—'
+                          )}
                         </p>
                       </TableCell>
                       <TableCell className="text-right">
@@ -959,6 +1025,7 @@ function EmployeePersonPage() {
                             size="icon-xs"
                             className="text-muted-foreground hover:text-foreground"
                             onClick={() => handleOpenEdit(person)}
+                            title="Edit"
                           >
                             <Pencil className="size-3.5" />
                             <span className="sr-only">Edit</span>
@@ -966,11 +1033,12 @@ function EmployeePersonPage() {
                           <Button
                             variant="ghost"
                             size="icon-xs"
-                            className="text-destructive/50 hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => handleDeleteRequest(person)}
+                            className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => setDeleteTarget(person)}
+                            title="Send to trash"
                           >
                             <Trash2 className="size-3.5" />
-                            <span className="sr-only">Delete</span>
+                            <span className="sr-only">Send to trash</span>
                           </Button>
                         </div>
                       </TableCell>
@@ -983,23 +1051,36 @@ function EmployeePersonPage() {
         </div>
       )}
 
-      <ConfirmDialog
+      {/* Server-side pagination — hidden during search; the search endpoint
+          returns the top ranked matches, no pagination needed. */}
+      {!isSearchActive && totalPages > 1 && (
+        <DataPagination
+          page={page}
+          totalPages={totalPages}
+          totalElements={totalElements}
+          pageSize={PERSONS_PAGE_SIZE}
+          onPageChange={setPage}
+          className="mt-4"
+        />
+      )}
+
+      <TypedConfirmDialog
         open={Boolean(deleteTarget)}
-        title="Delete person record"
+        title="Send person to trash"
         description={
           deleteTarget
-            ? `This will permanently remove "${deleteTarget.fullName}" (${deleteTarget.personCode}). This action cannot be undone.`
+            ? `"${deleteTarget.fullName}" will be moved to trash. CASCADE: every project linked to this person will also be sent to trash, along with each project's audio, video, image and text records. Categories and other people are not affected. An admin can restore from the Trash page.`
             : ''
         }
-        confirmLabel="Delete Person"
-        cancelLabel="Keep Record"
+        codeToConfirm={deleteTarget?.personCode}
+        promptLabel="To confirm, type the person code"
+        confirmLabel="Send to Trash"
+        cancelLabel="Cancel"
         confirmVariant="destructive"
         isProcessing={isDeleting}
         onConfirm={handleDeleteConfirm}
         onOpenChange={(nextOpen) => {
-          if (!nextOpen) {
-            setDeleteTarget(null)
-          }
+          if (!nextOpen) setDeleteTarget(null)
         }}
       />
 

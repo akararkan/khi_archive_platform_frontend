@@ -12,15 +12,23 @@ import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 import { RegisterPage } from '@/pages/RegisterPage'
+import { AdminAnalyticsPage } from '@/pages/admin/AdminAnalyticsPage'
+import { AdminCategoryPage } from '@/pages/admin/AdminCategoryPage'
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
+import { AdminPersonPage } from '@/pages/admin/AdminPersonPage'
+import { AdminProfilePage } from '@/pages/admin/AdminProfilePage'
+import { AdminProjectDetailPage } from '@/pages/admin/AdminProjectDetailPage'
+import { AdminProjectPage } from '@/pages/admin/AdminProjectPage'
 import { AdminRolesPage } from '@/pages/admin/AdminRolesPage'
 import { AdminSettingsPage } from '@/pages/admin/AdminSettingsPage'
+import { AdminTrashPage } from '@/pages/admin/AdminTrashPage'
+import { AdminUserActivityPage } from '@/pages/admin/AdminUserActivityPage'
 import { AdminUsersPage } from '@/pages/admin/AdminUsersPage'
 import { EmployeeProfilePage } from '@/pages/employee/EmployeeProfilePage'
-import { EmployeeAudioPage } from '@/pages/employee/EmployeeAudioPage'
 import { EmployeeCategoryPage } from '@/pages/employee/EmployeeCategoryPage'
-import { EmployeeObjectPage } from '@/pages/employee/EmployeeObjectPage'
 import { EmployeePersonPage } from '@/pages/employee/EmployeePersonPage'
+import { EmployeeProjectPage } from '@/pages/employee/EmployeeProjectPage'
+import { EmployeeProjectDetailPage } from '@/pages/employee/EmployeeProjectDetailPage'
 
 const router = createBrowserRouter([
   {
@@ -75,20 +83,20 @@ const router = createBrowserRouter([
                     element: <EmployeeProfilePage />,
                   },
                   {
-                    path: 'audio',
-                    element: <EmployeeAudioPage />,
-                  },
-                  {
                     path: 'category',
                     element: <EmployeeCategoryPage />,
                   },
                   {
-                    path: 'object',
-                    element: <EmployeeObjectPage />,
-                  },
-                  {
                     path: 'person',
                     element: <EmployeePersonPage />,
+                  },
+                  {
+                    path: 'project',
+                    element: <EmployeeProjectPage />,
+                  },
+                  {
+                    path: 'project/:code',
+                    element: <EmployeeProjectDetailPage />,
                   },
                 ],
               },
@@ -108,6 +116,38 @@ const router = createBrowserRouter([
                   {
                     path: 'dashboard',
                     element: <AdminDashboardPage />,
+                  },
+                  {
+                    path: 'profile',
+                    element: <AdminProfilePage />,
+                  },
+                  {
+                    path: 'category',
+                    element: <AdminCategoryPage />,
+                  },
+                  {
+                    path: 'person',
+                    element: <AdminPersonPage />,
+                  },
+                  {
+                    path: 'project',
+                    element: <AdminProjectPage />,
+                  },
+                  {
+                    path: 'project/:code',
+                    element: <AdminProjectDetailPage />,
+                  },
+                  {
+                    path: 'trash',
+                    element: <AdminTrashPage />,
+                  },
+                  {
+                    path: 'analytics',
+                    element: <AdminAnalyticsPage />,
+                  },
+                  {
+                    path: 'analytics/users/:username',
+                    element: <AdminUserActivityPage />,
                   },
                   {
                     path: 'users',
