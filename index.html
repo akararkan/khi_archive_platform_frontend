@@ -5,6 +5,74 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>khi_archive_platform</title>
+    <script>
+      // Inline appearance boot — must run before the first paint to
+      // avoid the page flashing the default light/neutral theme for
+      // one frame on a user who has saved a different preference.
+      // Mirrors the palette tables in src/lib/appearance.js; if those
+      // change, update here too.
+      (function () {
+        try {
+          var STORAGE_KEY = 'khi:appearance';
+          var DEFAULTS = { mode: 'system', accent: 'default', font: 'geist', radius: 'normal' };
+          var ACCENTS = {
+            'default': { light: { primary: 'oklch(0.22 0 0)',     pf: 'oklch(0.985 0 0)', ring: 'oklch(0.7 0 0)' },
+                         dark:  { primary: 'oklch(0.95 0 0)',     pf: 'oklch(0.18 0 0)',  ring: 'oklch(0.82 0 0)' } },
+            'blue':    { light: { primary: 'oklch(0.55 0.18 250)', pf: 'oklch(0.99 0 0)',  ring: 'oklch(0.65 0.16 250)' },
+                         dark:  { primary: 'oklch(0.70 0.17 250)', pf: 'oklch(0.18 0 0)',  ring: 'oklch(0.78 0.13 250)' } },
+            'indigo':  { light: { primary: 'oklch(0.50 0.22 275)', pf: 'oklch(0.99 0 0)',  ring: 'oklch(0.62 0.20 275)' },
+                         dark:  { primary: 'oklch(0.68 0.20 275)', pf: 'oklch(0.16 0 0)',  ring: 'oklch(0.76 0.16 275)' } },
+            'violet':  { light: { primary: 'oklch(0.55 0.22 300)', pf: 'oklch(0.99 0 0)',  ring: 'oklch(0.66 0.20 300)' },
+                         dark:  { primary: 'oklch(0.72 0.18 300)', pf: 'oklch(0.16 0 0)',  ring: 'oklch(0.78 0.14 300)' } },
+            'rose':    { light: { primary: 'oklch(0.60 0.22 15)',  pf: 'oklch(0.99 0 0)',  ring: 'oklch(0.72 0.18 15)' },
+                         dark:  { primary: 'oklch(0.72 0.20 15)',  pf: 'oklch(0.16 0 0)',  ring: 'oklch(0.80 0.16 15)' } },
+            'amber':   { light: { primary: 'oklch(0.72 0.18 75)',  pf: 'oklch(0.16 0 0)',  ring: 'oklch(0.78 0.16 75)' },
+                         dark:  { primary: 'oklch(0.80 0.16 75)',  pf: 'oklch(0.16 0 0)',  ring: 'oklch(0.86 0.13 75)' } },
+            'emerald': { light: { primary: 'oklch(0.55 0.16 155)', pf: 'oklch(0.99 0 0)',  ring: 'oklch(0.66 0.14 155)' },
+                         dark:  { primary: 'oklch(0.72 0.14 155)', pf: 'oklch(0.16 0 0)',  ring: 'oklch(0.80 0.11 155)' } },
+            'teal':    { light: { primary: 'oklch(0.55 0.13 195)', pf: 'oklch(0.99 0 0)',  ring: 'oklch(0.66 0.11 195)' },
+                         dark:  { primary: 'oklch(0.72 0.12 195)', pf: 'oklch(0.16 0 0)',  ring: 'oklch(0.80 0.09 195)' } }
+          };
+          var FONTS = {
+            'geist':   '"Geist Variable", ui-sans-serif, system-ui, sans-serif',
+            'system':  'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            'rounded': '"SF Pro Rounded", "Hiragino Maru Gothic ProN", "Quicksand", "Comfortaa", "Manjari", ui-rounded, system-ui, sans-serif',
+            'serif':   '"Iowan Old Style", "Apple Garamond", Georgia, "Times New Roman", ui-serif, serif',
+            'mono':    'ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace'
+          };
+          var RADII = { 'sharp': '0.25rem', 'subtle': '0.5rem', 'normal': '0.625rem', 'round': '1rem' };
+
+          var saved = {};
+          try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch (e) {}
+          var s = Object.assign({}, DEFAULTS, saved);
+
+          var isDark = s.mode === 'dark' || (s.mode === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var accent = ACCENTS[s.accent] || ACCENTS['default'];
+          var tones = isDark ? accent.dark : accent.light;
+          var fontStack = FONTS[s.font] || FONTS['geist'];
+          var radius = RADII[s.radius] || RADII['normal'];
+
+          var html = document.documentElement;
+          html.classList.toggle('dark', isDark);
+          html.style.colorScheme = isDark ? 'dark' : 'light';
+          html.dataset.accent = s.accent;
+          html.dataset.font = s.font;
+          html.dataset.radius = s.radius;
+          html.style.setProperty('--primary', tones.primary);
+          html.style.setProperty('--primary-foreground', tones.pf);
+          html.style.setProperty('--ring', tones.ring);
+          html.style.setProperty('--sidebar-primary', tones.primary);
+          html.style.setProperty('--sidebar-primary-foreground', tones.pf);
+          html.style.setProperty('--sidebar-ring', tones.ring);
+          html.style.setProperty('--font-sans', fontStack);
+          html.style.setProperty('--font-heading', fontStack);
+          html.style.setProperty('--radius', radius);
+        } catch (e) {
+          // Boot script must never block render. Worst case: the page
+          // paints with the default theme and React fixes it on mount.
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

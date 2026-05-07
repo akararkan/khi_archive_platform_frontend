@@ -7,8 +7,88 @@ export async function getPersons() {
 }
 
 // Paginated fetch — returns the full Spring Page<DTO> shape.
-export async function getPersonsPage({ page = 0, size = 100, signal } = {}) {
-  const { data } = await apiClient.get('/person', { params: { page, size }, signal })
+//
+// Sort + filter (all optional, applied in-memory by the backend
+// against its Redis-cached active set, so adding params is cheap).
+//
+// Sort:
+//   - sortBy           'fullName' (synonyms: 'name', 'alpha')
+//                      'createdAt' (synonyms: 'added', 'dateAdded')
+//                      'updatedAt' (synonyms: 'modified', 'dateModified')
+//                      'dateOfBirth' (synonyms: 'dob', 'birth')
+//                      'dateOfDeath' (synonyms: 'dod', 'death')
+//   - sortDirection    'asc' | 'desc'
+//
+// Filters (all optional):
+//   - gender               'MALE' | 'FEMALE'
+//   - region               case-insensitive contains
+//   - placeOfBirth         case-insensitive contains
+//   - placeOfDeath         case-insensitive contains
+//   - dobFrom / dobTo      ISO-8601 date range over dateOfBirth
+//   - dodFrom / dodTo      ISO-8601 date range over dateOfDeath
+//   - createdFrom / To     ISO-8601 instant range over createdAt
+//   - updatedFrom / To     ISO-8601 instant range over updatedAt
+//   - tags                 string[]; pair with tagMatch
+//   - tagMatch             'any' (default) | 'all'
+//   - keywords             string[]; pair with keywordMatch
+//   - keywordMatch         'any' (default) | 'all'
+//   - personType           string[] (e.g. 'poet','writer'); pair
+//                          with personTypeMatch
+//   - personTypeMatch      'any' (default) | 'all'
+//
+// With no filter/sort params the call is a pure cache pass-through —
+// no DB round-trip, so adding the toolbar UI doesn't add load.
+export async function getPersonsPage({
+  page = 0,
+  size = 100,
+  sortBy,
+  sortDirection,
+  gender,
+  region,
+  placeOfBirth,
+  placeOfDeath,
+  dobFrom,
+  dobTo,
+  dodFrom,
+  dodTo,
+  createdFrom,
+  createdTo,
+  updatedFrom,
+  updatedTo,
+  tags,
+  tagMatch,
+  keywords,
+  keywordMatch,
+  personType,
+  personTypeMatch,
+  signal,
+} = {}) {
+  const params = { page, size }
+  if (sortBy) params.sortBy = sortBy
+  if (sortDirection) params.sortDirection = sortDirection
+  if (gender) params.gender = gender
+  if (region) params.region = region
+  if (placeOfBirth) params.placeOfBirth = placeOfBirth
+  if (placeOfDeath) params.placeOfDeath = placeOfDeath
+  if (dobFrom) params.dobFrom = dobFrom
+  if (dobTo) params.dobTo = dobTo
+  if (dodFrom) params.dodFrom = dodFrom
+  if (dodTo) params.dodTo = dodTo
+  if (createdFrom) params.createdFrom = createdFrom
+  if (createdTo) params.createdTo = createdTo
+  if (updatedFrom) params.updatedFrom = updatedFrom
+  if (updatedTo) params.updatedTo = updatedTo
+  // Backend accepts both repeated `?tags=a&tags=b` and a single
+  // comma-joined string for the array filters. Axios serialises
+  // arrays as repeated by default, which matches the controller's
+  // @RequestParam List<String> signature.
+  if (Array.isArray(tags) && tags.length > 0) params.tags = tags
+  if (tagMatch) params.tagMatch = tagMatch
+  if (Array.isArray(keywords) && keywords.length > 0) params.keywords = keywords
+  if (keywordMatch) params.keywordMatch = keywordMatch
+  if (Array.isArray(personType) && personType.length > 0) params.personType = personType
+  if (personTypeMatch) params.personTypeMatch = personTypeMatch
+  const { data } = await apiClient.get('/person', { params, signal })
   return data
 }
 

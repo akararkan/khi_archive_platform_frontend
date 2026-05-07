@@ -7,8 +7,47 @@ export async function getCategories() {
 }
 
 // Paginated fetch — returns the full Spring Page<DTO> shape.
-export async function getCategoriesPage({ page = 0, size = 100, signal } = {}) {
-  const { data } = await apiClient.get('/category', { params: { page, size }, signal })
+//
+// Sort + filter (all optional, applied in-memory by the backend
+// against its Redis-cached active set, so adding params is cheap):
+//   - sortBy           'name' | 'createdAt' | 'updatedAt'
+//                      (synonyms: 'added'/'dateAdded' = createdAt;
+//                       'modified'/'dateModified' = updatedAt)
+//   - sortDirection    'asc' | 'desc'
+//   - createdFrom/To   inclusive ISO-8601 range over createdAt
+//   - updatedFrom/To   inclusive ISO-8601 range over updatedAt
+//   - tags             string[] of tag/keyword values
+//   - tagMatch         'any' (default) | 'all'
+//
+// With no filter/sort params the call is a pure cache pass-through —
+// no DB round-trip, so adding the toolbar UI doesn't add load.
+export async function getCategoriesPage({
+  page = 0,
+  size = 100,
+  sortBy,
+  sortDirection,
+  createdFrom,
+  createdTo,
+  updatedFrom,
+  updatedTo,
+  tags,
+  tagMatch,
+  signal,
+} = {}) {
+  const params = { page, size }
+  if (sortBy) params.sortBy = sortBy
+  if (sortDirection) params.sortDirection = sortDirection
+  if (createdFrom) params.createdFrom = createdFrom
+  if (createdTo) params.createdTo = createdTo
+  if (updatedFrom) params.updatedFrom = updatedFrom
+  if (updatedTo) params.updatedTo = updatedTo
+  // Backend accepts both repeated `?tags=a&tags=b` and a single
+  // comma-joined string. Axios serialises arrays as repeated by
+  // default, which matches the controller's @RequestParam List<String>
+  // signature.
+  if (Array.isArray(tags) && tags.length > 0) params.tags = tags
+  if (tagMatch) params.tagMatch = tagMatch
+  const { data } = await apiClient.get('/category', { params, signal })
   return data
 }
 

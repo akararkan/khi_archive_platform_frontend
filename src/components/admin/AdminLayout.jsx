@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { GuestActivationBanner } from '@/components/ui/guest-activation-banner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { clearCurrentProfile, setCurrentProfile } from '@/lib/current-profile'
 import { cn } from '@/lib/utils'
@@ -239,6 +240,7 @@ function AdminLayout() {
       </aside>
 
       <main className="min-w-0 rounded-3xl border border-border bg-card p-4 shadow-sm shadow-black/5 sm:p-6 xl:p-8">
+        <GuestActivationBanner role={profileRole} />
         <Outlet />
       </main>
     </section>

@@ -69,10 +69,19 @@ function normalizeUserProfile(profile) {
     return profile
   }
 
-  return {
+  // Sibling DTOs disagree on the id field name: UserAdminDTO returns
+  // both `id` and `userId`, but `/user/me` (UserResponseDTO) returns
+  // only `userId`. Callers expect `profile.id` to work everywhere
+  // (`useIsSelf`, audit-log row keys, etc.), so we backfill it here so
+  // the rest of the FE doesn't have to know the difference.
+  const normalized = {
     ...profile,
     profileImageSource: resolveProfileImageSource(profile),
   }
+  if (normalized.id == null && normalized.userId != null) {
+    normalized.id = normalized.userId
+  }
+  return normalized
 }
 
 export { normalizeUserProfile, resolveProfileImageSource }

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
+  ArrowDownAZ,
   ArrowLeft,
+  ArrowUpAZ,
   AudioLines,
   CheckCircle2,
   Eye,
@@ -19,12 +21,16 @@ import {
 } from 'lucide-react'
 
 import { AudioDetailsModal } from '@/components/audio/AudioDetailsModal'
+import { AudioFilterPanel } from '@/components/audio/AudioFilterPanel'
 import { EmployeeEntityPage } from '@/components/employee/EmployeeEntityPage'
 import { ImageDetailsModal } from '@/components/image/ImageDetailsModal'
+import { ImageFilterPanel } from '@/components/image/ImageFilterPanel'
 import { ImageFormSections } from '@/components/image/ImageFormSections'
 import { TextDetailsModal } from '@/components/text/TextDetailsModal'
+import { TextFilterPanel } from '@/components/text/TextFilterPanel'
 import { TextFormSections } from '@/components/text/TextFormSections'
 import { VideoDetailsModal } from '@/components/video/VideoDetailsModal'
+import { VideoFilterPanel } from '@/components/video/VideoFilterPanel'
 import { VideoFormSections } from '@/components/video/VideoFormSections'
 import { AudioPlayer } from '@/components/ui/audio-player'
 import { VideoPlayer } from '@/components/ui/video-player'
@@ -42,6 +48,51 @@ import { Highlight } from '@/components/ui/highlight'
 import { TypedConfirmDialog } from '@/components/ui/typed-confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { EntityToolbar } from '@/components/ui/entity-toolbar'
+import {
+  FilterChips,
+  FilterTriggerButton,
+  SortSelect,
+} from '@/components/ui/list-filters'
+import {
+  AUDIO_SORT_OPTIONS,
+  DEFAULT_AUDIO_SORT_KEY,
+  applyAudioFilters,
+  applyAudioSort,
+  buildAudioChips,
+  countAudioFilters,
+  createInitialAudioFilters,
+  isAudioFilterEmpty,
+} from '@/pages/employee/audio-filters'
+import {
+  IMAGE_SORT_OPTIONS,
+  DEFAULT_IMAGE_SORT_KEY,
+  applyImageFilters,
+  applyImageSort,
+  buildImageChips,
+  countImageFilters,
+  createInitialImageFilters,
+  isImageFilterEmpty,
+} from '@/pages/employee/image-filters'
+import {
+  VIDEO_SORT_OPTIONS,
+  DEFAULT_VIDEO_SORT_KEY,
+  applyVideoFilters,
+  applyVideoSort,
+  buildVideoChips,
+  countVideoFilters,
+  createInitialVideoFilters,
+  isVideoFilterEmpty,
+} from '@/pages/employee/video-filters'
+import {
+  TEXT_SORT_OPTIONS,
+  DEFAULT_TEXT_SORT_KEY,
+  applyTextFilters,
+  applyTextSort,
+  buildTextChips,
+  countTextFilters,
+  createInitialTextFilters,
+  isTextFilterEmpty,
+} from '@/pages/employee/text-filters'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -528,6 +579,16 @@ function EmployeeProjectDetailPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Audio sort + filter. Mirrors AudioFilterParams on the backend
+  // exactly, but applied client-side against the project-scoped
+  // audios array (no extra round-trip — the project's audios are
+  // already in memory). Disabled while a fuzzy search is active
+  // because /audio/search has its own ranking and bypasses the
+  // filter model anyway.
+  const [audioSortKey, setAudioSortKey] = useState(DEFAULT_AUDIO_SORT_KEY)
+  const [audioFilters, setAudioFilters] = useState(createInitialAudioFilters)
+  const [isAudioFilterPanelOpen, setIsAudioFilterPanelOpen] = useState(false)
+
   // Video search/details/delete
   const [videoSearchTerm, setVideoSearchTerm] = useState('')
   const [videoSearchResults, setVideoSearchResults] = useState(null)
@@ -536,6 +597,14 @@ function EmployeeProjectDetailPage() {
   const [videoDeleteTarget, setVideoDeleteTarget] = useState(null)
   const [isVideoDeleting, setIsVideoDeleting] = useState(false)
   const [savedVideosThisSession, setSavedVideosThisSession] = useState([])
+
+  // Video sort + filter. Mirrors VideoFilterParams on the backend
+  // exactly. Disabled while a fuzzy search is active because
+  // /video/search has its own ranking and bypasses the filter model
+  // server-side.
+  const [videoSortKey, setVideoSortKey] = useState(DEFAULT_VIDEO_SORT_KEY)
+  const [videoFilters, setVideoFilters] = useState(createInitialVideoFilters)
+  const [isVideoFilterPanelOpen, setIsVideoFilterPanelOpen] = useState(false)
 
   // Image search/details/delete
   const [imageSearchTerm, setImageSearchTerm] = useState('')
@@ -546,6 +615,15 @@ function EmployeeProjectDetailPage() {
   const [isImageDeleting, setIsImageDeleting] = useState(false)
   const [savedImagesThisSession, setSavedImagesThisSession] = useState([])
 
+  // Image sort + filter. Mirrors ImageFilterParams on the backend
+  // exactly, but applied client-side against the project-scoped
+  // images array. Disabled while a fuzzy search is active because
+  // /image/search has its own ranking and bypasses the filter model
+  // server-side.
+  const [imageSortKey, setImageSortKey] = useState(DEFAULT_IMAGE_SORT_KEY)
+  const [imageFilters, setImageFilters] = useState(createInitialImageFilters)
+  const [isImageFilterPanelOpen, setIsImageFilterPanelOpen] = useState(false)
+
   // Text search/details/delete
   const [textSearchTerm, setTextSearchTerm] = useState('')
   const [textSearchResults, setTextSearchResults] = useState(null)
@@ -554,6 +632,13 @@ function EmployeeProjectDetailPage() {
   const [textDeleteTarget, setTextDeleteTarget] = useState(null)
   const [isTextDeleting, setIsTextDeleting] = useState(false)
   const [savedTextsThisSession, setSavedTextsThisSession] = useState([])
+
+  // Text sort + filter. Mirrors TextFilterParams on the backend, plus
+  // text-specific bits (isbn / assignmentNumber / printDate /
+  // pageCount). Disabled while a fuzzy search is active.
+  const [textSortKey, setTextSortKey] = useState(DEFAULT_TEXT_SORT_KEY)
+  const [textFilters, setTextFilters] = useState(createInitialTextFilters)
+  const [isTextFilterPanelOpen, setIsTextFilterPanelOpen] = useState(false)
 
   const loadProject = useCallback(async () => {
     setIsLoading(true)
@@ -632,47 +717,233 @@ function EmployeeProjectDetailPage() {
   // (the server already filters by projectCode).
   const visibleAudios = audios
 
+  const audioFiltersActive = useMemo(
+    () => !isAudioFilterEmpty(audioFilters),
+    [audioFilters],
+  )
+  const audioSortActive = audioSortKey !== DEFAULT_AUDIO_SORT_KEY
+  const audioFilterCount = useMemo(
+    () => countAudioFilters(audioFilters),
+    [audioFilters],
+  )
+  const activeAudioSort = useMemo(
+    () =>
+      AUDIO_SORT_OPTIONS.find((opt) => opt.key === audioSortKey) ?? AUDIO_SORT_OPTIONS[0],
+    [audioSortKey],
+  )
+
   const filteredAudios = useMemo(() => {
     const term = searchTerm.trim()
-    if (!term) return visibleAudios
-    if (audioSearchResults == null) return [] // request in flight or pre-debounce
-    return audioSearchResults.filter(
-      (a) => !a.projectCode || a.projectCode === projectCode,
-    )
-  }, [visibleAudios, searchTerm, audioSearchResults, projectCode])
+    // Search bypasses the filter model entirely — /audio/search has
+    // its own pg_trgm ranking that wouldn't compose with client-side
+    // filters anyway.
+    if (term) {
+      if (audioSearchResults == null) return [] // request in flight or pre-debounce
+      return audioSearchResults.filter(
+        (a) => !a.projectCode || a.projectCode === projectCode,
+      )
+    }
+    const filtered = applyAudioFilters(visibleAudios, audioFilters)
+    return applyAudioSort(filtered, audioSortKey)
+  }, [
+    visibleAudios,
+    searchTerm,
+    audioSearchResults,
+    projectCode,
+    audioFilters,
+    audioSortKey,
+  ])
+
+  const updateAudioFilter = useCallback(
+    (key, value) => setAudioFilters((prev) => ({ ...prev, [key]: value })),
+    [],
+  )
+  const clearAudioFilters = useCallback(
+    () => setAudioFilters(createInitialAudioFilters()),
+    [],
+  )
+  const audioChips = useMemo(
+    () =>
+      buildAudioChips({
+        filters: audioFilters,
+        sortKey: audioSortKey,
+        sortLabel: audioSortActive ? activeAudioSort.label : null,
+        onClearSort: () => setAudioSortKey(DEFAULT_AUDIO_SORT_KEY),
+        updateFilter: updateAudioFilter,
+      }),
+    [audioFilters, audioSortKey, audioSortActive, activeAudioSort, updateAudioFilter],
+  )
 
   const visibleVideos = videos
 
+  const videoFiltersActive = useMemo(
+    () => !isVideoFilterEmpty(videoFilters),
+    [videoFilters],
+  )
+  const videoSortActive = videoSortKey !== DEFAULT_VIDEO_SORT_KEY
+  const videoFilterCount = useMemo(
+    () => countVideoFilters(videoFilters),
+    [videoFilters],
+  )
+  const activeVideoSort = useMemo(
+    () =>
+      VIDEO_SORT_OPTIONS.find((opt) => opt.key === videoSortKey) ?? VIDEO_SORT_OPTIONS[0],
+    [videoSortKey],
+  )
+
   const filteredVideos = useMemo(() => {
     const term = videoSearchTerm.trim()
-    if (!term) return visibleVideos
-    if (videoSearchResults == null) return []
-    return videoSearchResults.filter(
-      (v) => !v.projectCode || v.projectCode === projectCode,
-    )
-  }, [visibleVideos, videoSearchTerm, videoSearchResults, projectCode])
+    if (term) {
+      if (videoSearchResults == null) return []
+      return videoSearchResults.filter(
+        (v) => !v.projectCode || v.projectCode === projectCode,
+      )
+    }
+    const filtered = applyVideoFilters(visibleVideos, videoFilters)
+    return applyVideoSort(filtered, videoSortKey)
+  }, [
+    visibleVideos,
+    videoSearchTerm,
+    videoSearchResults,
+    projectCode,
+    videoFilters,
+    videoSortKey,
+  ])
+
+  const updateVideoFilter = useCallback(
+    (key, value) => setVideoFilters((prev) => ({ ...prev, [key]: value })),
+    [],
+  )
+  const clearVideoFilters = useCallback(
+    () => setVideoFilters(createInitialVideoFilters()),
+    [],
+  )
+  const videoChips = useMemo(
+    () =>
+      buildVideoChips({
+        filters: videoFilters,
+        sortKey: videoSortKey,
+        sortLabel: videoSortActive ? activeVideoSort.label : null,
+        onClearSort: () => setVideoSortKey(DEFAULT_VIDEO_SORT_KEY),
+        updateFilter: updateVideoFilter,
+      }),
+    [videoFilters, videoSortKey, videoSortActive, activeVideoSort, updateVideoFilter],
+  )
 
   const visibleImages = images
 
+  const imageFiltersActive = useMemo(
+    () => !isImageFilterEmpty(imageFilters),
+    [imageFilters],
+  )
+  const imageSortActive = imageSortKey !== DEFAULT_IMAGE_SORT_KEY
+  const imageFilterCount = useMemo(
+    () => countImageFilters(imageFilters),
+    [imageFilters],
+  )
+  const activeImageSort = useMemo(
+    () =>
+      IMAGE_SORT_OPTIONS.find((opt) => opt.key === imageSortKey) ?? IMAGE_SORT_OPTIONS[0],
+    [imageSortKey],
+  )
+
   const filteredImages = useMemo(() => {
     const term = imageSearchTerm.trim()
-    if (!term) return visibleImages
-    if (imageSearchResults == null) return []
-    return imageSearchResults.filter(
-      (i) => !i.projectCode || i.projectCode === projectCode,
-    )
-  }, [visibleImages, imageSearchTerm, imageSearchResults, projectCode])
+    // Search bypasses the filter model entirely — /image/search has
+    // its own pg_trgm ranking that wouldn't compose with client-side
+    // filters anyway.
+    if (term) {
+      if (imageSearchResults == null) return []
+      return imageSearchResults.filter(
+        (i) => !i.projectCode || i.projectCode === projectCode,
+      )
+    }
+    const filtered = applyImageFilters(visibleImages, imageFilters)
+    return applyImageSort(filtered, imageSortKey)
+  }, [
+    visibleImages,
+    imageSearchTerm,
+    imageSearchResults,
+    projectCode,
+    imageFilters,
+    imageSortKey,
+  ])
+
+  const updateImageFilter = useCallback(
+    (key, value) => setImageFilters((prev) => ({ ...prev, [key]: value })),
+    [],
+  )
+  const clearImageFilters = useCallback(
+    () => setImageFilters(createInitialImageFilters()),
+    [],
+  )
+  const imageChips = useMemo(
+    () =>
+      buildImageChips({
+        filters: imageFilters,
+        sortKey: imageSortKey,
+        sortLabel: imageSortActive ? activeImageSort.label : null,
+        onClearSort: () => setImageSortKey(DEFAULT_IMAGE_SORT_KEY),
+        updateFilter: updateImageFilter,
+      }),
+    [imageFilters, imageSortKey, imageSortActive, activeImageSort, updateImageFilter],
+  )
 
   const visibleTexts = texts
 
+  const textFiltersActive = useMemo(
+    () => !isTextFilterEmpty(textFilters),
+    [textFilters],
+  )
+  const textSortActive = textSortKey !== DEFAULT_TEXT_SORT_KEY
+  const textFilterCount = useMemo(
+    () => countTextFilters(textFilters),
+    [textFilters],
+  )
+  const activeTextSort = useMemo(
+    () =>
+      TEXT_SORT_OPTIONS.find((opt) => opt.key === textSortKey) ?? TEXT_SORT_OPTIONS[0],
+    [textSortKey],
+  )
+
   const filteredTexts = useMemo(() => {
     const term = textSearchTerm.trim()
-    if (!term) return visibleTexts
-    if (textSearchResults == null) return []
-    return textSearchResults.filter(
-      (t) => !t.projectCode || t.projectCode === projectCode,
-    )
-  }, [visibleTexts, textSearchTerm, textSearchResults, projectCode])
+    if (term) {
+      if (textSearchResults == null) return []
+      return textSearchResults.filter(
+        (t) => !t.projectCode || t.projectCode === projectCode,
+      )
+    }
+    const filtered = applyTextFilters(visibleTexts, textFilters)
+    return applyTextSort(filtered, textSortKey)
+  }, [
+    visibleTexts,
+    textSearchTerm,
+    textSearchResults,
+    projectCode,
+    textFilters,
+    textSortKey,
+  ])
+
+  const updateTextFilter = useCallback(
+    (key, value) => setTextFilters((prev) => ({ ...prev, [key]: value })),
+    [],
+  )
+  const clearTextFilters = useCallback(
+    () => setTextFilters(createInitialTextFilters()),
+    [],
+  )
+  const textChips = useMemo(
+    () =>
+      buildTextChips({
+        filters: textFilters,
+        sortKey: textSortKey,
+        sortLabel: textSortActive ? activeTextSort.label : null,
+        onClearSort: () => setTextSortKey(DEFAULT_TEXT_SORT_KEY),
+        updateFilter: updateTextFilter,
+      }),
+    [textFilters, textSortKey, textSortActive, activeTextSort, updateTextFilter],
+  )
 
   // ── Debounced backend fuzzy-search effects ──
   // Each section issues a debounced /X/search call scoped by projectCode.
@@ -2953,6 +3224,32 @@ function EmployeeProjectDetailPage() {
           searchPlaceholder="Search audios — code, title, lyrics, genre, contributors, tags…"
           onRefresh={() => loadAudios()}
           isRefreshing={isLoadingAudios || isAudioSearching}
+          trailing={
+            // Sort + filter live in the trailing slot so they sit
+            // alongside the refresh button. Both are disabled while
+            // a fuzzy search is active because /audio/search has its
+            // own ranking and bypasses the filter model server-side.
+            <div className="flex flex-wrap items-center gap-2">
+              <SortSelect
+                value={audioSortKey}
+                onChange={setAudioSortKey}
+                options={AUDIO_SORT_OPTIONS}
+                ascIcon={ArrowUpAZ}
+                descIcon={ArrowDownAZ}
+                disabled={Boolean(searchTerm.trim())}
+                title="Sort audios"
+                width="sm:w-[16rem]"
+              />
+              <FilterTriggerButton
+                active={audioFiltersActive}
+                count={audioFilterCount}
+                open={isAudioFilterPanelOpen}
+                onClick={() => setIsAudioFilterPanelOpen((v) => !v)}
+                disabled={Boolean(searchTerm.trim())}
+                disabledReason="Clear search to use filters"
+              />
+            </div>
+          }
         />
       ) : mediaType === 'video' ? (
         <EntityToolbar
@@ -2963,6 +3260,28 @@ function EmployeeProjectDetailPage() {
           searchPlaceholder="Search videos — code, title, location, subjects, tags…"
           onRefresh={() => loadVideos()}
           isRefreshing={isLoadingVideos || isVideoSearching}
+          trailing={
+            <div className="flex flex-wrap items-center gap-2">
+              <SortSelect
+                value={videoSortKey}
+                onChange={setVideoSortKey}
+                options={VIDEO_SORT_OPTIONS}
+                ascIcon={ArrowUpAZ}
+                descIcon={ArrowDownAZ}
+                disabled={Boolean(videoSearchTerm.trim())}
+                title="Sort videos"
+                width="sm:w-[16rem]"
+              />
+              <FilterTriggerButton
+                active={videoFiltersActive}
+                count={videoFilterCount}
+                open={isVideoFilterPanelOpen}
+                onClick={() => setIsVideoFilterPanelOpen((v) => !v)}
+                disabled={Boolean(videoSearchTerm.trim())}
+                disabledReason="Clear search to use filters"
+              />
+            </div>
+          }
         />
       ) : mediaType === 'image' ? (
         <EntityToolbar
@@ -2973,6 +3292,28 @@ function EmployeeProjectDetailPage() {
           searchPlaceholder="Search images — code, title, creator, location, subjects, tags…"
           onRefresh={() => loadImages()}
           isRefreshing={isLoadingImages || isImageSearching}
+          trailing={
+            <div className="flex flex-wrap items-center gap-2">
+              <SortSelect
+                value={imageSortKey}
+                onChange={setImageSortKey}
+                options={IMAGE_SORT_OPTIONS}
+                ascIcon={ArrowUpAZ}
+                descIcon={ArrowDownAZ}
+                disabled={Boolean(imageSearchTerm.trim())}
+                title="Sort images"
+                width="sm:w-[16rem]"
+              />
+              <FilterTriggerButton
+                active={imageFiltersActive}
+                count={imageFilterCount}
+                open={isImageFilterPanelOpen}
+                onClick={() => setIsImageFilterPanelOpen((v) => !v)}
+                disabled={Boolean(imageSearchTerm.trim())}
+                disabledReason="Clear search to use filters"
+              />
+            </div>
+          }
         />
       ) : (
         <EntityToolbar
@@ -2983,8 +3324,134 @@ function EmployeeProjectDetailPage() {
           searchPlaceholder="Search texts — code, title, author, ISBN, transcription, tags…"
           onRefresh={() => loadTexts()}
           isRefreshing={isLoadingTexts || isTextSearching}
+          trailing={
+            <div className="flex flex-wrap items-center gap-2">
+              <SortSelect
+                value={textSortKey}
+                onChange={setTextSortKey}
+                options={TEXT_SORT_OPTIONS}
+                ascIcon={ArrowUpAZ}
+                descIcon={ArrowDownAZ}
+                disabled={Boolean(textSearchTerm.trim())}
+                title="Sort texts"
+                width="sm:w-[16rem]"
+              />
+              <FilterTriggerButton
+                active={textFiltersActive}
+                count={textFilterCount}
+                open={isTextFilterPanelOpen}
+                onClick={() => setIsTextFilterPanelOpen((v) => !v)}
+                disabled={Boolean(textSearchTerm.trim())}
+                disabledReason="Clear search to use filters"
+              />
+            </div>
+          }
         />
       )}
+
+      {mediaType === 'audio' && !searchTerm.trim() ? (
+        <AudioFilterPanel
+          open={isAudioFilterPanelOpen}
+          filters={audioFilters}
+          onChange={updateAudioFilter}
+          onClear={clearAudioFilters}
+          onClose={() => setIsAudioFilterPanelOpen(false)}
+          isAnyActive={audioFiltersActive}
+          activeCount={audioFilterCount}
+        />
+      ) : null}
+
+      {mediaType === 'audio' && audioChips.length > 0 ? (
+        <FilterChips
+          chips={audioChips}
+          onClearAll={
+            audioFiltersActive || audioSortActive
+              ? () => {
+                  clearAudioFilters()
+                  setAudioSortKey(DEFAULT_AUDIO_SORT_KEY)
+                }
+              : null
+          }
+        />
+      ) : null}
+
+      {mediaType === 'image' && !imageSearchTerm.trim() ? (
+        <ImageFilterPanel
+          open={isImageFilterPanelOpen}
+          filters={imageFilters}
+          onChange={updateImageFilter}
+          onClear={clearImageFilters}
+          onClose={() => setIsImageFilterPanelOpen(false)}
+          isAnyActive={imageFiltersActive}
+          activeCount={imageFilterCount}
+        />
+      ) : null}
+
+      {mediaType === 'image' && imageChips.length > 0 ? (
+        <FilterChips
+          chips={imageChips}
+          onClearAll={
+            imageFiltersActive || imageSortActive
+              ? () => {
+                  clearImageFilters()
+                  setImageSortKey(DEFAULT_IMAGE_SORT_KEY)
+                }
+              : null
+          }
+        />
+      ) : null}
+
+      {mediaType === 'video' && !videoSearchTerm.trim() ? (
+        <VideoFilterPanel
+          open={isVideoFilterPanelOpen}
+          filters={videoFilters}
+          onChange={updateVideoFilter}
+          onClear={clearVideoFilters}
+          onClose={() => setIsVideoFilterPanelOpen(false)}
+          isAnyActive={videoFiltersActive}
+          activeCount={videoFilterCount}
+        />
+      ) : null}
+
+      {mediaType === 'video' && videoChips.length > 0 ? (
+        <FilterChips
+          chips={videoChips}
+          onClearAll={
+            videoFiltersActive || videoSortActive
+              ? () => {
+                  clearVideoFilters()
+                  setVideoSortKey(DEFAULT_VIDEO_SORT_KEY)
+                }
+              : null
+          }
+        />
+      ) : null}
+
+      {mediaType === 'text' && !textSearchTerm.trim() ? (
+        <TextFilterPanel
+          open={isTextFilterPanelOpen}
+          filters={textFilters}
+          onChange={updateTextFilter}
+          onClear={clearTextFilters}
+          onClose={() => setIsTextFilterPanelOpen(false)}
+          isAnyActive={textFiltersActive}
+          activeCount={textFilterCount}
+        />
+      ) : null}
+
+      {mediaType === 'text' && textChips.length > 0 ? (
+        <FilterChips
+          chips={textChips}
+          onClearAll={
+            textFiltersActive || textSortActive
+              ? () => {
+                  clearTextFilters()
+                  setTextSortKey(DEFAULT_TEXT_SORT_KEY)
+                }
+              : null
+          }
+        />
+      ) : null}
 
       {mediaType === 'audio' ? (
       <>{isLoadingAudios ? (
@@ -3030,7 +3497,26 @@ function EmployeeProjectDetailPage() {
               {filteredAudios.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                    No matching audios.
+                    {audioFiltersActive || audioSortActive ? (
+                      <span className="inline-flex items-center gap-2">
+                        No audios match the current filters.
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            clearAudioFilters()
+                            setAudioSortKey(DEFAULT_AUDIO_SORT_KEY)
+                          }}
+                          className="h-7 gap-1 px-2 text-xs"
+                        >
+                          <X className="size-3" />
+                          Clear filters
+                        </Button>
+                      </span>
+                    ) : (
+                      'No matching audios.'
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -3163,6 +3649,11 @@ function EmployeeProjectDetailPage() {
           videos={videos}
           filteredVideos={filteredVideos}
           searchQuery={videoSearchTerm}
+          filtersOrSortActive={videoFiltersActive || videoSortActive}
+          onClearFiltersAndSort={() => {
+            clearVideoFilters()
+            setVideoSortKey(DEFAULT_VIDEO_SORT_KEY)
+          }}
           onAdd={handleOpenCreateVideo}
           onEdit={handleOpenEditVideo}
           onDetails={(v) => setVideoDetailsTarget(v)}
@@ -3174,6 +3665,11 @@ function EmployeeProjectDetailPage() {
           images={images}
           filteredImages={filteredImages}
           searchQuery={imageSearchTerm}
+          filtersOrSortActive={imageFiltersActive || imageSortActive}
+          onClearFiltersAndSort={() => {
+            clearImageFilters()
+            setImageSortKey(DEFAULT_IMAGE_SORT_KEY)
+          }}
           onAdd={handleOpenCreateImage}
           onEdit={handleOpenEditImage}
           onDetails={(i) => setImageDetailsTarget(i)}
@@ -3185,6 +3681,11 @@ function EmployeeProjectDetailPage() {
           texts={texts}
           filteredTexts={filteredTexts}
           searchQuery={textSearchTerm}
+          filtersOrSortActive={textFiltersActive || textSortActive}
+          onClearFiltersAndSort={() => {
+            clearTextFilters()
+            setTextSortKey(DEFAULT_TEXT_SORT_KEY)
+          }}
           onAdd={handleOpenCreateText}
           onEdit={handleOpenEditText}
           onDetails={(t) => setTextDetailsTarget(t)}
@@ -3357,7 +3858,7 @@ function MediaTypeTabs({ mediaType, onChange, audioCount, videoCount, imageCount
   )
 }
 
-function VideoListSection({ isLoading, videos, filteredVideos, searchQuery, onAdd, onEdit, onDetails, onDelete }) {
+function VideoListSection({ isLoading, videos, filteredVideos, searchQuery, filtersOrSortActive, onClearFiltersAndSort, onAdd, onEdit, onDetails, onDelete }) {
   if (isLoading) {
     return (
       <Card className="border-border bg-card shadow-sm shadow-black/5">
@@ -3408,7 +3909,23 @@ function VideoListSection({ isLoading, videos, filteredVideos, searchQuery, onAd
           {filteredVideos.length === 0 ? (
             <TableRow>
               <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                No matching videos.
+                {filtersOrSortActive ? (
+                  <span className="inline-flex items-center gap-2">
+                    No videos match the current filters.
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onClearFiltersAndSort}
+                      className="h-7 gap-1 px-2 text-xs"
+                    >
+                      <X className="size-3" />
+                      Clear filters
+                    </Button>
+                  </span>
+                ) : (
+                  'No matching videos.'
+                )}
               </TableCell>
             </TableRow>
           ) : (
@@ -3532,7 +4049,7 @@ function VideoListSection({ isLoading, videos, filteredVideos, searchQuery, onAd
   )
 }
 
-function ImageListSection({ isLoading, images, filteredImages, searchQuery, onAdd, onEdit, onDetails, onDelete }) {
+function ImageListSection({ isLoading, images, filteredImages, searchQuery, filtersOrSortActive, onClearFiltersAndSort, onAdd, onEdit, onDetails, onDelete }) {
   if (isLoading) {
     return (
       <Card className="border-border bg-card shadow-sm shadow-black/5">
@@ -3584,7 +4101,23 @@ function ImageListSection({ isLoading, images, filteredImages, searchQuery, onAd
           {filteredImages.length === 0 ? (
             <TableRow>
               <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                No matching images.
+                {filtersOrSortActive ? (
+                  <span className="inline-flex items-center gap-2">
+                    No images match the current filters.
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onClearFiltersAndSort}
+                      className="h-7 gap-1 px-2 text-xs"
+                    >
+                      <X className="size-3" />
+                      Clear filters
+                    </Button>
+                  </span>
+                ) : (
+                  'No matching images.'
+                )}
               </TableCell>
             </TableRow>
           ) : (
@@ -3725,7 +4258,7 @@ function ImageListSection({ isLoading, images, filteredImages, searchQuery, onAd
   )
 }
 
-function TextListSection({ isLoading, texts, filteredTexts, searchQuery, onAdd, onEdit, onDetails, onDelete }) {
+function TextListSection({ isLoading, texts, filteredTexts, searchQuery, filtersOrSortActive, onClearFiltersAndSort, onAdd, onEdit, onDetails, onDelete }) {
   if (isLoading) {
     return (
       <Card className="border-border bg-card shadow-sm shadow-black/5">
@@ -3777,7 +4310,23 @@ function TextListSection({ isLoading, texts, filteredTexts, searchQuery, onAdd, 
           {filteredTexts.length === 0 ? (
             <TableRow>
               <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                No matching texts.
+                {filtersOrSortActive ? (
+                  <span className="inline-flex items-center gap-2">
+                    No texts match the current filters.
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onClearFiltersAndSort}
+                      className="h-7 gap-1 px-2 text-xs"
+                    >
+                      <X className="size-3" />
+                      Clear filters
+                    </Button>
+                  </span>
+                ) : (
+                  'No matching texts.'
+                )}
               </TableCell>
             </TableRow>
           ) : (

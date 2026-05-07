@@ -7,6 +7,7 @@ import { RoleRoute } from '@/components/auth/RoleRoute'
 import { EmployeeLayout } from '@/components/employee/EmployeeLayout'
 import { GuestRoute } from '@/components/auth/GuestRoute'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
+import { PublicLayout } from '@/components/public/PublicLayout'
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -29,6 +30,16 @@ import { EmployeeCategoryPage } from '@/pages/employee/EmployeeCategoryPage'
 import { EmployeePersonPage } from '@/pages/employee/EmployeePersonPage'
 import { EmployeeProjectPage } from '@/pages/employee/EmployeeProjectPage'
 import { EmployeeProjectDetailPage } from '@/pages/employee/EmployeeProjectDetailPage'
+import { PublicAudioDetailPage } from '@/pages/public/PublicAudioDetailPage'
+import { PublicBrowsePage } from '@/pages/public/PublicBrowsePage'
+import { PublicCategoryDetailPage } from '@/pages/public/PublicCategoryDetailPage'
+import { PublicHomePage } from '@/pages/public/PublicHomePage'
+import { PublicImageDetailPage } from '@/pages/public/PublicImageDetailPage'
+import { PublicPersonDetailPage } from '@/pages/public/PublicPersonDetailPage'
+import { PublicProjectDetailPage } from '@/pages/public/PublicProjectDetailPage'
+import { PublicSearchRedirect } from '@/pages/public/PublicSearchRedirect'
+import { PublicTextDetailPage } from '@/pages/public/PublicTextDetailPage'
+import { PublicVideoDetailPage } from '@/pages/public/PublicVideoDetailPage'
 
 const router = createBrowserRouter([
   {
@@ -37,7 +48,39 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/login" replace />,
+        element: <Navigate to="/public" replace />,
+      },
+      {
+        path: 'public',
+        element: <PublicLayout />,
+        children: [
+          { index: true, element: <PublicHomePage /> },
+          // Legacy /public/search forwards to the unified browse so old
+          // links keep working — the morph-search sidebar takes over from
+          // there.
+          { path: 'search', element: <PublicSearchRedirect /> },
+          // Single unified browse experience. The sidebar's Type picker
+          // (and `?type=…` in the URL) switches between projects, persons,
+          // categories, audios, videos, texts and images — no tabs.
+          { path: 'browse', element: <PublicBrowsePage /> },
+          // Legacy collection paths redirect into the unified browse so
+          // links saved before this consolidation still work.
+          { path: 'projects', element: <Navigate to="/public/browse?type=project" replace /> },
+          { path: 'categories', element: <Navigate to="/public/browse?type=category" replace /> },
+          { path: 'persons', element: <Navigate to="/public/browse?type=person" replace /> },
+          { path: 'audios', element: <Navigate to="/public/browse?type=audio" replace /> },
+          { path: 'videos', element: <Navigate to="/public/browse?type=video" replace /> },
+          { path: 'texts', element: <Navigate to="/public/browse?type=text" replace /> },
+          { path: 'images', element: <Navigate to="/public/browse?type=image" replace /> },
+          // Detail pages stay individual — every card links to one of these.
+          { path: 'projects/:code', element: <PublicProjectDetailPage /> },
+          { path: 'categories/:code', element: <PublicCategoryDetailPage /> },
+          { path: 'persons/:code', element: <PublicPersonDetailPage /> },
+          { path: 'audios/:code', element: <PublicAudioDetailPage /> },
+          { path: 'videos/:code', element: <PublicVideoDetailPage /> },
+          { path: 'texts/:code', element: <PublicTextDetailPage /> },
+          { path: 'images/:code', element: <PublicImageDetailPage /> },
+        ],
       },
       {
         element: <GuestRoute />,

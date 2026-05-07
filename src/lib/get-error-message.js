@@ -52,6 +52,22 @@ function getStatus(error) {
   return typeof status === 'number' ? status : null
 }
 
+// Keys the backend uses on ACCESS_DENIED 403s to describe *why* the
+// caller failed authorization. These are context, not validation
+// errors — render them through getRequiredAuthority instead so they
+// don't double up with the already-good `message` from the server.
+const ACCESS_DENIED_META_KEYS = new Set([
+  'requiredAuthority',
+  'actor',
+  'actorAuthorities',
+  'requestMethod',
+])
+
+// Keys that are URL pointers (e.g. UNKNOWN_PERMISSION includes a
+// `catalog` field pointing at the permissions catalog endpoint).
+// Useful as a debug breadcrumb but not what we want to show users.
+const URL_HINT_KEYS = new Set(['catalog'])
+
 function getErrorDetails(error) {
   const data = getResponseData(error)
   const details = data && typeof data === 'object' ? data.details : null
@@ -59,12 +75,67 @@ function getErrorDetails(error) {
 
   const out = []
   for (const [field, value] of Object.entries(details)) {
+    if (ACCESS_DENIED_META_KEYS.has(field)) continue
+    if (URL_HINT_KEYS.has(field)) continue
     if (value == null) continue
+    // Arrays show up in details for typed errors that name a list of
+    // offenders (e.g. UNKNOWN_PERMISSION → details.unknown = [...]).
+    // Render them as a comma-joined string so the UI can highlight
+    // the specific bad inputs instead of dropping them silently.
+    if (Array.isArray(value)) {
+      const items = value
+        .filter((v) => v != null)
+        .map((v) => String(v).trim())
+        .filter(Boolean)
+      if (items.length === 0) continue
+      out.push({ field, label: humanizeFieldName(field), message: items.join(', ') })
+      continue
+    }
     const message = String(value).trim()
     if (!message) continue
     out.push({ field, label: humanizeFieldName(field), message })
   }
   return out
+}
+
+// Pull the `requiredAuthority` field out of an ACCESS_DENIED 403 so
+// callers can surface targeted UX (e.g. a "Request access to
+// person:create" affordance). Returns null if the error isn't an
+// access-denied response or the field is absent.
+function getRequiredAuthority(error) {
+  const data = getResponseData(error)
+  const required = data && typeof data === 'object' ? data.details?.requiredAuthority : null
+  return typeof required === 'string' && required.trim() ? required.trim() : null
+}
+
+// Format an ACCESS_DENIED 403 into a user-actionable single line that
+// names the authority they need AND lists what their account already
+// has. Returns null when the error isn't an access-denied response —
+// callers fall back to `formatApiError` / `getErrorMessage` in that
+// case. Useful for toasts where the raw backend message ("Required
+// authority: 'person:create'.") doesn't tell the user *why* they can't
+// retry — knowing what they DO have shifts the resolution from
+// "I'm stuck" to "ask an admin to grant me X".
+function getAccessDeniedMessage(error) {
+  const data = getResponseData(error)
+  if (!data || typeof data !== 'object' || data.error !== 'ACCESS_DENIED') return null
+  const required =
+    typeof data.details?.requiredAuthority === 'string' && data.details.requiredAuthority.trim()
+      ? data.details.requiredAuthority.trim()
+      : null
+  const have = Array.isArray(data.details?.actorAuthorities)
+    ? data.details.actorAuthorities.filter((a) => typeof a === 'string')
+    : []
+  if (required) {
+    const haveSummary = have.length > 0 ? have.join(', ') : 'none'
+    return (
+      `You need permission '${required}' to do this. ` +
+      `Your account has: ${haveSummary}. ` +
+      `Ask an admin to grant it.`
+    )
+  }
+  if (typeof data.message === 'string' && data.message.trim()) return data.message.trim()
+  return "You don't have permission to perform this action."
 }
 
 function getErrorTitle(error, fallback = 'Something went wrong') {
@@ -161,9 +232,11 @@ function isStaleVersionError(error) {
 
 export {
   formatApiError,
+  getAccessDeniedMessage,
   getErrorDetails,
   getErrorMessage,
   getErrorTitle,
+  getRequiredAuthority,
   humanizeErrorCode,
   humanizeFieldName,
   isStaleVersionError,

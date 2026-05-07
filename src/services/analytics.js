@@ -29,20 +29,34 @@ function buildFilterParams(filter = {}) {
   return params
 }
 
-// Caller's own activity picture (UserActivityDTO).
-export async function getMyAnalytics({ recent = 50, signal, ...filter } = {}) {
-  const { data } = await apiClient.get('/analytics/me', {
-    params: { ...buildFilterParams(filter), recent },
-    signal,
-  })
+// Caller's own activity picture (UserActivityDTO). The embedded
+// `recent` field is now a FeedPageDTO — page/size/sort flow into it.
+// `sort` accepts 'asc' | 'desc' (default 'desc') or Spring-style
+// 'occurredAt,asc'. Server caps `size` at 500.
+export async function getMyAnalytics({
+  page = 0,
+  size = 50,
+  sort,
+  signal,
+  ...filter
+} = {}) {
+  const params = { ...buildFilterParams(filter), page, size }
+  if (sort) params.sort = sort
+  const { data } = await apiClient.get('/analytics/me', { params, signal })
   return data
 }
 
 // Another user's activity picture by username (UserActivityDTO).
-export async function getUserAnalytics(username, { recent = 50, signal, ...filter } = {}) {
+// Same pagination + sort semantics as /me.
+export async function getUserAnalytics(
+  username,
+  { page = 0, size = 50, sort, signal, ...filter } = {},
+) {
+  const params = { ...buildFilterParams(filter), page, size }
+  if (sort) params.sort = sort
   const { data } = await apiClient.get(
     `/analytics/users/${encodeURIComponent(username)}`,
-    { params: { ...buildFilterParams(filter), recent }, signal },
+    { params, signal },
   )
   return data
 }
@@ -67,20 +81,21 @@ export async function getAnalyticsOverview({ topUsers = 10, signal, ...filter } 
   return data
 }
 
-// Cross-entity chronological feed. Now paginated server-side — returns
-// a FeedPageDTO ({ items, page, size, totalElements, totalPages, ...}).
-// Server caps `size` at 500. Pass `actor` to scope to one user; omit it
-// for the team-wide feed.
+// Cross-entity chronological feed. Returns a FeedPageDTO ({ items,
+// page, size, totalElements, totalPages, hasNext, hasPrevious }).
+// Server caps `size` at 500. Pass `actor` to scope to one user; omit
+// it for the team-wide feed. `sort` is 'asc' | 'desc' (default 'desc')
+// or Spring-style 'occurredAt,asc'.
 export async function getAnalyticsFeed({
   page = 0,
   size = 100,
+  sort,
   signal,
   ...filter
 } = {}) {
-  const { data } = await apiClient.get('/analytics/feed', {
-    params: { ...buildFilterParams(filter), page, size },
-    signal,
-  })
+  const params = { ...buildFilterParams(filter), page, size }
+  if (sort) params.sort = sort
+  const { data } = await apiClient.get('/analytics/feed', { params, signal })
   return data
 }
 

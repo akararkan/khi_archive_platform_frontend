@@ -6,16 +6,24 @@
 import {
   Activity,
   AudioLines,
+  Check,
   Eye,
   FileText,
   FolderOpen,
   Image as ImageIcon,
+  KeyRound,
+  Lock,
+  LogOut,
   Pencil,
   Plus,
   RotateCcw,
   Search,
+  ShieldCheck,
+  ShieldOff,
   Tags,
   Trash2,
+  Unlock,
+  UserPlus,
   UsersRound,
   Video as VideoIcon,
 } from 'lucide-react'
@@ -72,6 +80,73 @@ export function parseCascadeFromDetails(details) {
   return { source: m[1].toLowerCase(), code: m[2].trim() }
 }
 
+// Range presets the backend has stable behaviour for (`days` is capped
+// at 365 server-side). Used by the shared DateRangeFilter component.
+export const RANGE_PRESETS = [
+  { value: 7, label: '7d' },
+  { value: 30, label: '30d' },
+  { value: 90, label: '90d' },
+  { value: 365, label: '1y' },
+]
+
+// Convert a YYYY-MM-DD value (the format `<input type="date">` emits)
+// into the inclusive UTC instant the backend expects. `from` snaps to
+// 00:00:00.000Z, `to` snaps to 23:59:59.999Z so a single-day range
+// covers the entire calendar day.
+export function dateInputToInstant(yyyyMmDd, edge) {
+  if (!yyyyMmDd) return ''
+  return edge === 'end'
+    ? `${yyyyMmDd}T23:59:59.999Z`
+    : `${yyyyMmDd}T00:00:00.000Z`
+}
+
+// Turn the page's date-filter state into the AnalyticsFilter slice the
+// service helpers want. Returns:
+//   - { days } for preset mode
+//   - { from, to } for a valid custom range
+//   - null for an invalid custom range (from > to OR fields empty)
+// Pages call this and skip fetching when it returns null.
+export function resolveDateFilter({ mode, days, from, to }) {
+  if (mode === 'custom') {
+    if (!from || !to) return null
+    const fromIso = dateInputToInstant(from, 'start')
+    const toIso = dateInputToInstant(to, 'end')
+    if (new Date(fromIso) > new Date(toIso)) return null
+    return { from: fromIso, to: toIso }
+  }
+  return { days }
+}
+
+// Normalise a FeedPageDTO (or legacy bare list / Spring Page) into a
+// stable `{ items, meta }` shape for the UI. UserActivityDTO.recent is
+// now a FeedPageDTO too, so this is the single unwrap helper used by
+// every feed-shaped response.
+export function unwrapFeedPage(data) {
+  if (data == null) return { items: [], meta: null }
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      meta: { page: 0, size: data.length, totalElements: data.length, totalPages: 1, hasNext: false },
+    }
+  }
+  const items = Array.isArray(data.items)
+    ? data.items
+    : Array.isArray(data.content)
+    ? data.content
+    : []
+  return {
+    items,
+    meta: {
+      page: data.page ?? 0,
+      size: data.size ?? items.length,
+      totalElements: data.totalElements ?? null,
+      totalPages: data.totalPages ?? null,
+      hasNext: data.hasNext ?? null,
+      hasPrevious: data.hasPrevious ?? null,
+    },
+  }
+}
+
 export function humanize(text) {
   return String(text || '')
     .toLowerCase()
@@ -86,6 +161,61 @@ export function actionMetaFor(action) {
     accent: 'text-muted-foreground',
     label: humanize(action),
   }
+}
+
+// Per-action icon + accent for the *user-management* audit feed
+// (admin acting on user accounts). Backend emits these from
+// AdminUserService: CREATE / UPDATE / DELETE / READ / ROLE_CHANGE /
+// GRANT_/REVOKE_PERMISSIONS / ACTIVATE / DEACTIVATE / LOCK / UNLOCK /
+// FORCE_LOGOUT / RESET_FAILED_ATTEMPTS. Unknown actions fall back to
+// the generic Activity icon and a humanised label.
+export const USER_AUDIT_ACTION_META = {
+  CREATE:                { icon: UserPlus,    accent: 'text-emerald-600 dark:text-emerald-400', label: 'Created' },
+  UPDATE:                { icon: Pencil,      accent: 'text-amber-600 dark:text-amber-400',     label: 'Updated' },
+  DELETE:                { icon: Trash2,      accent: 'text-rose-600 dark:text-rose-400',       label: 'Deleted' },
+  READ:                  { icon: Eye,         accent: 'text-muted-foreground',                  label: 'Viewed' },
+  ROLE_CHANGE:           { icon: ShieldCheck, accent: 'text-primary',                           label: 'Role changed' },
+  GRANT_PERMISSIONS:     { icon: KeyRound,    accent: 'text-emerald-600 dark:text-emerald-400', label: 'Permissions granted' },
+  REVOKE_PERMISSIONS:    { icon: KeyRound,    accent: 'text-rose-600 dark:text-rose-400',       label: 'Permissions revoked' },
+  ACTIVATE:              { icon: Check,       accent: 'text-emerald-600 dark:text-emerald-400', label: 'Activated' },
+  DEACTIVATE:            { icon: ShieldOff,   accent: 'text-rose-600 dark:text-rose-400',       label: 'Deactivated' },
+  LOCK:                  { icon: Lock,        accent: 'text-rose-600 dark:text-rose-400',       label: 'Locked' },
+  UNLOCK:                { icon: Unlock,      accent: 'text-emerald-600 dark:text-emerald-400', label: 'Unlocked' },
+  FORCE_LOGOUT:          { icon: LogOut,      accent: 'text-amber-600 dark:text-amber-400',     label: 'Sessions revoked' },
+  RESET_FAILED_ATTEMPTS: { icon: RotateCcw,   accent: 'text-sky-600 dark:text-sky-400',         label: 'Failed-login counter reset' },
+}
+
+export function userAuditActionMetaFor(action) {
+  if (!action) return { icon: Activity, accent: 'text-muted-foreground', label: 'Action' }
+  const key = String(action).toUpperCase()
+  return (
+    USER_AUDIT_ACTION_META[key] ?? {
+      icon: Activity,
+      accent: 'text-muted-foreground',
+      label: humanize(action),
+    }
+  )
+}
+
+// Convert an analytics page's date filter into the from/to pair the
+// user-audit endpoint expects. The audit Specification only
+// understands timestamp bounds, not a `days` shorthand — so a preset
+// like "30d" needs to be projected onto "now − 30d" → "now".
+//
+// Returns `{}` when the filter can't be resolved (callers fold this
+// into their query so the backend's defaults apply).
+export function dateFilterToFromTo(dateFilter) {
+  if (!dateFilter) return {}
+  if (dateFilter.from && dateFilter.to) {
+    return { from: dateFilter.from, to: dateFilter.to }
+  }
+  const days = Number(dateFilter.days)
+  if (Number.isFinite(days) && days > 0) {
+    const now = new Date()
+    const past = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+    return { from: past.toISOString(), to: now.toISOString() }
+  }
+  return {}
 }
 
 export function formatNumber(value) {

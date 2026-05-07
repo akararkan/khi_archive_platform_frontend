@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Loader2, Pencil, Plus, RefreshCw, Tags, Trash2 } from 'lucide-react'
+import {
+  ArrowDownAZ,
+  ArrowUpAZ,
+  CalendarClock,
+  Loader2,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Tag,
+  Tags,
+  Trash2,
+} from 'lucide-react'
 
 import { EmployeeEntityPage } from '@/components/employee/EmployeeEntityPage'
 import { Button } from '@/components/ui/button'
@@ -19,6 +30,15 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { EntityToolbar } from '@/components/ui/entity-toolbar'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  DateRangeField,
+  FilterChips,
+  FilterPanel,
+  FilterSection,
+  FilterTriggerButton,
+  MultiValueFilter,
+  SortSelect,
+} from '@/components/ui/list-filters'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -41,6 +61,118 @@ import {
 } from '@/services/category'
 
 const CATEGORIES_PAGE_SIZE = 100
+
+// Sort options exposed to the user. The labels are user-facing; the
+// `sortBy` / `sortDirection` values match what the backend's
+// CategoryFilterParams expects (it accepts `name`, `createdAt`,
+// `updatedAt` plus a few synonyms). Default is name-asc, which is
+// what the cached list returned before this toolbar existed — so
+// adding the dropdown doesn't change the default ordering.
+const CATEGORY_SORT_OPTIONS = [
+  { key: 'name-asc',        label: 'Name (A → Z)',     sortBy: 'name',      sortDirection: 'asc'  },
+  { key: 'name-desc',       label: 'Name (Z → A)',     sortBy: 'name',      sortDirection: 'desc' },
+  { key: 'createdAt-desc',  label: 'Newest first',          sortBy: 'createdAt', sortDirection: 'desc' },
+  { key: 'createdAt-asc',   label: 'Oldest first',          sortBy: 'createdAt', sortDirection: 'asc'  },
+  { key: 'updatedAt-desc',  label: 'Recently updated',      sortBy: 'updatedAt', sortDirection: 'desc' },
+  { key: 'updatedAt-asc',   label: 'Least recently updated', sortBy: 'updatedAt', sortDirection: 'asc' },
+]
+const DEFAULT_SORT_KEY = 'name-asc'
+
+function createInitialFilters() {
+  return {
+    tags: [],
+    tagMatch: 'any',
+    createdFrom: '',
+    createdTo: '',
+    updatedFrom: '',
+    updatedTo: '',
+  }
+}
+
+// Translate the filter form state into the params the service expects.
+// Empty strings / empty arrays are dropped so the resulting query is a
+// pure cache pass-through when no filter is set.
+function buildFilterParams(filters) {
+  const params = {}
+  if (Array.isArray(filters.tags) && filters.tags.length > 0) {
+    params.tags = filters.tags
+    if (filters.tagMatch === 'all') params.tagMatch = 'all'
+  }
+  // Date inputs emit YYYY-MM-DD. Backend expects ISO-8601, so we snap
+  // `from` to start-of-day and `to` to end-of-day to make the range
+  // inclusive of the selected calendar day.
+  if (filters.createdFrom) params.createdFrom = `${filters.createdFrom}T00:00:00Z`
+  if (filters.createdTo)   params.createdTo   = `${filters.createdTo}T23:59:59.999Z`
+  if (filters.updatedFrom) params.updatedFrom = `${filters.updatedFrom}T00:00:00Z`
+  if (filters.updatedTo)   params.updatedTo   = `${filters.updatedTo}T23:59:59.999Z`
+  return params
+}
+
+function isFilterEmpty(filters) {
+  return (
+    (!filters.tags || filters.tags.length === 0) &&
+    !filters.createdFrom &&
+    !filters.createdTo &&
+    !filters.updatedFrom &&
+    !filters.updatedTo
+  )
+}
+
+// Build the chip array for the FilterChips strip. Each chip is one
+// removable atom (a tag, a date range, the sort, …). Kept out of the
+// render block so the JSX stays scannable.
+//
+// Tone hints (`sort`, `date`, `tag`, `choice`) drive the chip color
+// so users can group active filters at a glance.
+function buildCategoryChips({ sortLabel, onClearSort, filters, updateFilter }) {
+  const chips = []
+  if (sortLabel) {
+    chips.push({ key: 'sort', tone: 'sort', label: 'Sort', value: sortLabel, onRemove: onClearSort })
+  }
+  if (filters.tags.length > 0 && filters.tagMatch === 'all') {
+    chips.push({
+      key: 'tagMatch',
+      tone: 'choice',
+      label: 'Match',
+      value: 'all tags',
+      onRemove: () => updateFilter('tagMatch', 'any'),
+    })
+  }
+  for (const tag of filters.tags) {
+    chips.push({
+      key: `tag-${tag}`,
+      tone: 'tag',
+      label: 'Tag',
+      value: tag,
+      onRemove: () => updateFilter('tags', filters.tags.filter((t) => t !== tag)),
+    })
+  }
+  if (filters.createdFrom || filters.createdTo) {
+    chips.push({
+      key: 'created',
+      tone: 'date',
+      label: 'Created',
+      value: `${filters.createdFrom || '…'} → ${filters.createdTo || '…'}`,
+      onRemove: () => {
+        updateFilter('createdFrom', '')
+        updateFilter('createdTo', '')
+      },
+    })
+  }
+  if (filters.updatedFrom || filters.updatedTo) {
+    chips.push({
+      key: 'updated',
+      tone: 'date',
+      label: 'Updated',
+      value: `${filters.updatedFrom || '…'} → ${filters.updatedTo || '…'}`,
+      onRemove: () => {
+        updateFilter('updatedFrom', '')
+        updateFilter('updatedTo', '')
+      },
+    })
+  }
+  return chips
+}
 
 function toArray(value) {
   if (Array.isArray(value)) return value.filter(Boolean)
@@ -84,8 +216,36 @@ function EmployeeCategoryPage() {
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
 
+  // Sort + filter state. These flow through to GET /api/category as
+  // query params; backend applies them in-memory against its Redis
+  // cache so toggling them is cheap. Search bypasses both — the
+  // /category/search endpoint has its own ranking and no params.
+  const [sortKey, setSortKey] = useState(DEFAULT_SORT_KEY)
+  const [filters, setFilters] = useState(createInitialFilters)
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false)
+  const filtersActive = !isFilterEmpty(filters)
+  const sortActive = sortKey !== DEFAULT_SORT_KEY
+  const activeSort = useMemo(
+    () => CATEGORY_SORT_OPTIONS.find((opt) => opt.key === sortKey) ?? CATEGORY_SORT_OPTIONS[0],
+    [sortKey],
+  )
+
   const trimmedSearch = searchTerm.trim()
   const isSearchActive = trimmedSearch.length > 0
+
+  // Combined highlight query — feeds every <Highlight> in the table.
+  // The component tokenises on whitespace, so concatenating the
+  // search box value with the active tag filters lights up every
+  // matched substring (search hits AND tags) wherever it appears in
+  // a row's name / description / keywords. Filter date ranges aren't
+  // included because they don't correspond to substrings users would
+  // recognise.
+  const highlightQuery = useMemo(() => {
+    const parts = []
+    if (trimmedSearch) parts.push(trimmedSearch)
+    if (filters.tags.length > 0) parts.push(filters.tags.join(' '))
+    return parts.join(' ')
+  }, [trimmedSearch, filters.tags])
 
   // V3 trash model: backend's GET /category returns active records only;
   // trashed records live at /category/trash and are managed from the
@@ -105,7 +265,13 @@ function EmployeeCategoryPage() {
       setIsLoading(true)
       setError('')
       try {
-        const pageData = await getCategoriesPage({ page, size: CATEGORIES_PAGE_SIZE })
+        const pageData = await getCategoriesPage({
+          page,
+          size: CATEGORIES_PAGE_SIZE,
+          sortBy: activeSort.sortBy,
+          sortDirection: activeSort.sortDirection,
+          ...buildFilterParams(filters),
+        })
         setCategories(pageData?.content || [])
         setTotalPages(pageData?.totalPages || 0)
         setTotalElements(pageData?.totalElements || 0)
@@ -116,13 +282,25 @@ function EmployeeCategoryPage() {
         setIsLoading(false)
       }
     },
-    [page, toast],
+    [page, toast, activeSort, filters],
   )
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadCategories()
   }, [loadCategories])
+
+  // When sort or filter changes, jump back to page 0 — otherwise the
+  // user could be stranded on page 5 of a window that no longer has
+  // 5 pages after applying a tag filter.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(0)
+  }, [sortKey, filters])
+
+  const clearFilters = () => setFilters(createInitialFilters())
+  const updateFilter = (key, value) =>
+    setFilters((prev) => ({ ...prev, [key]: value }))
 
   // Debounced backend search across name, description, code, and keywords.
   // Cancels in-flight requests when the user keeps typing or clears the box.
@@ -378,6 +556,70 @@ function EmployeeCategoryPage() {
         searchPlaceholder="Search across name, description, code, or keywords…"
         onRefresh={() => loadCategories({ notifyError: true })}
         isRefreshing={isLoading || isSearching}
+        trailing={
+          // Sort + filter live in the trailing slot so they sit
+          // alongside the refresh button. Both are disabled while a
+          // text search is active because /category/search bypasses
+          // them server-side anyway — letting the user toggle them
+          // would set state that doesn't apply until they clear the
+          // search box.
+          <div className="flex flex-wrap items-center gap-2">
+            <SortSelect
+              value={sortKey}
+              onChange={setSortKey}
+              options={CATEGORY_SORT_OPTIONS}
+              ascIcon={ArrowUpAZ}
+              descIcon={ArrowDownAZ}
+              disabled={isSearchActive}
+              title="Sort categories"
+            />
+            <FilterTriggerButton
+              active={filtersActive}
+              count={[
+                filters.tags.length > 0 ? 1 : 0,
+                filters.createdFrom || filters.createdTo ? 1 : 0,
+                filters.updatedFrom || filters.updatedTo ? 1 : 0,
+              ].reduce((a, b) => a + b, 0)}
+              open={isFilterPanelOpen}
+              onClick={() => setIsFilterPanelOpen((v) => !v)}
+              disabled={isSearchActive}
+              disabledReason="Clear search to use filters"
+            />
+          </div>
+        }
+      />
+
+      {!isSearchActive ? (
+        <CategoryFilterPanel
+          open={isFilterPanelOpen}
+          filters={filters}
+          onChange={updateFilter}
+          onClear={clearFilters}
+          onClose={() => setIsFilterPanelOpen(false)}
+          isAnyActive={filtersActive}
+          activeCount={[
+            filters.tags.length > 0 ? 1 : 0,
+            filters.createdFrom || filters.createdTo ? 1 : 0,
+            filters.updatedFrom || filters.updatedTo ? 1 : 0,
+          ].reduce((a, b) => a + b, 0)}
+        />
+      ) : null}
+
+      <FilterChips
+        chips={buildCategoryChips({
+          sortLabel: sortActive ? activeSort.label : null,
+          onClearSort: () => setSortKey(DEFAULT_SORT_KEY),
+          filters,
+          updateFilter,
+        })}
+        onClearAll={
+          filtersActive || sortActive
+            ? () => {
+                clearFilters()
+                setSortKey(DEFAULT_SORT_KEY)
+              }
+            : null
+        }
       />
 
       {isLoading ? (
@@ -467,11 +709,11 @@ function EmployeeCategoryPage() {
                         {(isSearchActive ? 0 : page * CATEGORIES_PAGE_SIZE) + index + 1}
                       </TableCell>
                       <TableCell>
-                        <CodeBadge code={cat.categoryCode} variant="subtle" highlightQuery={searchTerm} />
+                        <CodeBadge code={cat.categoryCode} variant="subtle" highlightQuery={highlightQuery} />
                       </TableCell>
                       <TableCell>
                         <div className="font-semibold leading-tight text-foreground">
-                          <Highlight text={cat.name || ''} query={searchTerm} />
+                          <Highlight text={cat.name || ''} query={highlightQuery} />
                         </div>
                         {cat.removedAt && (
                           <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
@@ -482,7 +724,7 @@ function EmployeeCategoryPage() {
                       <TableCell className="max-w-[440px]">
                         <p className="truncate text-sm text-muted-foreground" title={cat.description || '—'}>
                           {cat.description ? (
-                            <Highlight text={cat.description} query={searchTerm} />
+                            <Highlight text={cat.description} query={highlightQuery} />
                           ) : (
                             '—'
                           )}
@@ -498,7 +740,7 @@ function EmployeeCategoryPage() {
                                 key={kw}
                                 className="inline-flex items-center rounded-full border bg-background px-2 py-0.5 text-[11px] text-foreground/80"
                               >
-                                <Highlight text={String(kw)} query={searchTerm} />
+                                <Highlight text={String(kw)} query={highlightQuery} />
                               </span>
                             ))}
                             {extraKws > 0 ? (
@@ -575,6 +817,65 @@ function EmployeeCategoryPage() {
         }}
       />
     </EmployeeEntityPage>
+  )
+}
+
+// Inline expandable panel: tag filter + match toggle + two date
+// ranges. Composed from the shared FilterPanel scaffolding so it
+// matches every other list page's filter layout (sectioned, grouped,
+// uniform label style).
+function CategoryFilterPanel({
+  open,
+  filters,
+  onChange,
+  onClear,
+  onClose,
+  isAnyActive,
+  activeCount,
+}) {
+  return (
+    <FilterPanel
+      open={open}
+      title="Filter categories"
+      description="Refine the list by tags or by when the record was added or last updated."
+      count={activeCount}
+      onClear={isAnyActive ? onClear : null}
+      onClose={onClose}
+    >
+      <FilterSection icon={Tag} label="Discovery" columns={1}>
+        <MultiValueFilter
+          label="Tags / keywords"
+          placeholder="Type a tag or keyword and press Enter…"
+          values={filters.tags}
+          matchMode={filters.tagMatch}
+          onValuesChange={(next) => onChange('tags', next)}
+          onMatchChange={(value) => onChange('tagMatch', value)}
+          helpText={
+            <>
+              <span className="font-mono">any</span> matches categories with at least one of the tags;{' '}
+              <span className="font-mono">all</span> requires every tag.
+            </>
+          }
+        />
+      </FilterSection>
+
+      <FilterSection icon={CalendarClock} label="Activity" columns={2}>
+        <DateRangeField
+          label="Created"
+          from={filters.createdFrom}
+          to={filters.createdTo}
+          onFromChange={(value) => onChange('createdFrom', value)}
+          onToChange={(value) => onChange('createdTo', value)}
+        />
+        <DateRangeField
+          label="Last updated"
+          from={filters.updatedFrom}
+          to={filters.updatedTo}
+          onFromChange={(value) => onChange('updatedFrom', value)}
+          onToChange={(value) => onChange('updatedTo', value)}
+        />
+      </FilterSection>
+    </FilterPanel>
   )
 }
 

@@ -124,7 +124,32 @@
   body {
     @apply bg-background text-foreground antialiased;
     }
+  /* Apply the live font stack to <html> (and inherit through every
+     descendant) via the css variable directly — *not* through the
+     `font-sans` utility. The utility is generated from `@theme inline`
+     above, which bakes the literal "Geist Variable, sans-serif"
+     string in at build time, so changes to --font-sans at runtime
+     would never propagate. Reading the variable here keeps every
+     inheriting element (tables, dialogs, sliders, popovers, etc.)
+     in sync with the appearance tweaker. */
   html {
-    @apply font-sans;
+    font-family: var(--font-sans);
     }
+  body {
+    font-family: var(--font-sans);
+    }
+}
+
+/* Runtime-aware font utilities — defined OUTSIDE @layer so they sit
+   in the unlayered cascade and beat Tailwind's @layer utilities at
+   the same specificity. The utility classes Tailwind generates from
+   `@theme inline` resolve to literal font stacks; these versions go
+   through the live css variable instead so the appearance tweaker
+   can swap fonts everywhere. Form controls (button/input/textarea/
+   select) inherit via Tailwind preflight, so they update too. */
+.font-sans {
+  font-family: var(--font-sans);
+}
+.font-heading {
+  font-family: var(--font-heading);
 }

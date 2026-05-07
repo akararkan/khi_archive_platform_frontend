@@ -142,7 +142,7 @@ function AdminDashboardPage() {
             </p>
             <p className="text-lg font-semibold leading-tight text-foreground">
               {isLoading ? (
-                <Skeleton className="inline-block h-5 w-24 align-middle" />
+                <Skeleton as="span" className="inline-block h-5 w-24 align-middle" />
               ) : removedTotal == null ? (
                 '—'
               ) : removedTotal === 0 ? (
@@ -206,7 +206,7 @@ function AdminDashboardPage() {
                   </p>
                   <p className="font-heading text-2xl font-semibold tabular-nums leading-tight text-foreground">
                     {isLoading ? (
-                      <Skeleton className="inline-block h-7 w-16 align-middle" />
+                      <Skeleton as="span" className="inline-block h-7 w-16 align-middle" />
                     ) : value == null ? (
                       '—'
                     ) : (
