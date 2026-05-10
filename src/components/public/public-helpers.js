@@ -111,18 +111,54 @@ function totalFacetCount(facets, key) {
   return total > 0 ? total : null
 }
 
-// Resolve a person row to a usable profile-image URL. Persons can come
-// from many sources here (the /guest/persons row, the embedded `person` on
-// an audio/video DTO, the `profileImageSource` already-resolved field on
-// the local user profile, etc.) and each source uses a slightly different
-// field name. We delegate to the same resolver the admin/employee shells
-// use so behaviour is consistent across the app.
+// Resolve a person row to a usable profile-image URL. The Person entity
+// stores its public S3 portrait in `mediaPortrait` (not in any of the
+// `profileImage*` fields that `/user/me` uses), so we check that first
+// and fall back to the shared resolver for other shapes.
 function personImageSrc(person) {
   if (!person) return ''
+  if (typeof person.mediaPortrait === 'string' && person.mediaPortrait) {
+    return person.mediaPortrait
+  }
   if (typeof person.profileImageSource === 'string' && person.profileImageSource) {
     return person.profileImageSource
   }
   return resolveProfileImageSource(person) || ''
+}
+
+// Build a uniform person object out of any DTO shape the public APIs
+// might return. Some endpoints embed the linked person as a nested
+// `person` object; others flatten its name + portrait into the parent
+// (e.g. `personCode`, `personName`, `personMediaPortrait` …). We try
+// every reasonable name so a single call to `personImageSrc(...)`
+// finds the photo URL whatever the backend chose to call the field.
+function extractPersonFromItem(item) {
+  if (!item) return null
+  if (item.person && typeof item.person === 'object') {
+    return item.person
+  }
+  if (!item.personCode && !item.personName) return null
+  return {
+    personCode: item.personCode,
+    fullName: item.personFullName || item.personName,
+    name: item.personName,
+    // Person entity's public portrait field — what the backend actually
+    // returns on /api/person and what the admin/employee UIs already
+    // read.
+    mediaPortrait:
+      item.personMediaPortrait ||
+      item.mediaPortrait ||
+      item.personPortrait ||
+      item.personPortraitUrl ||
+      null,
+    profileImage: item.personImage,
+    profileImageUrl:
+      item.personImageUrl || item.personProfileImageUrl || item.personPictureUrl,
+    profileImageSource: item.personImageSource,
+    imageUrl: item.personPictureUrl,
+    avatarUrl: item.personAvatarUrl,
+    image: item.personImage,
+  }
 }
 
 function personInitials(text) {
@@ -162,4 +198,5 @@ export {
   decodeSelectedFacets,
   personImageSrc,
   personInitials,
+  extractPersonFromItem,
 }

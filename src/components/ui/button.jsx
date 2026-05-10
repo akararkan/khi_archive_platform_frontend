@@ -54,4 +54,11 @@ function Button({
   );
 }
 
-export { Button }
+// `buttonVariants` is co-exported so a Link/anchor can be styled exactly
+// like a Button without using `asChild` (which the base-ui Button doesn't
+// implement and which leaks the prop to the DOM). React-refresh prefers
+// component-only exports, but the constant export here is used widely
+// enough across pages that splitting it into its own file would just
+// add noise — the disable is local and intentional.
+// eslint-disable-next-line react-refresh/only-export-components
+export { Button, buttonVariants }

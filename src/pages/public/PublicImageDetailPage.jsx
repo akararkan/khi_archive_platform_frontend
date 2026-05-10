@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Download, ExternalLink } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 import {
   ErrorState,
   PageContainer,
@@ -47,9 +48,9 @@ function PublicImageDetailPage() {
     () => [
       { to: '/public', label: 'Home' },
       { to: '/public/images', label: 'Images' },
-      { label: image?.titleEnglish || image?.titleOriginal || code },
+      { label: image?.titleEnglish || image?.titleOriginal || 'Untitled image' },
     ],
-    [image, code],
+    [image],
   )
 
   if (loading) {
@@ -70,7 +71,7 @@ function PublicImageDetailPage() {
     )
   }
 
-  const title = image.titleEnglish || image.titleOriginal || image.imageCode
+  const title = image.titleEnglish || image.titleOriginal || 'Untitled image'
   const original = image.titleOriginal && image.titleOriginal !== title ? image.titleOriginal : null
   const fileUrl = image.imageFileUrl
 
@@ -80,24 +81,28 @@ function PublicImageDetailPage() {
         kind="Image"
         title={title}
         originalTitle={original}
-        code={image.imageCode}
         description={image.description}
         breadcrumbs={breadcrumbs}
         action={
           fileUrl ? (
             <div className="flex flex-wrap gap-2">
-              <Button asChild className="gap-1.5">
-                <a href={fileUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink className="size-4" />
-                  Open original
-                </a>
-              </Button>
-              <Button asChild variant="outline" className="gap-1.5">
-                <a href={fileUrl} download>
-                  <Download className="size-4" />
-                  Download
-                </a>
-              </Button>
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(buttonVariants(), 'gap-1.5')}
+              >
+                <ExternalLink className="size-4" />
+                Open original
+              </a>
+              <a
+                href={fileUrl}
+                download
+                className={cn(buttonVariants({ variant: 'outline' }), 'gap-1.5')}
+              >
+                <Download className="size-4" />
+                Download
+              </a>
             </div>
           ) : null
         }
@@ -127,7 +132,10 @@ function PublicImageDetailPage() {
             {image.description ? (
               <section className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm shadow-black/5">
                 <h2 className="font-heading text-base font-semibold text-foreground">Description</h2>
-                <p className="mt-3 whitespace-pre-line text-sm leading-7 text-foreground/90">
+                <p
+                  className="mt-3 whitespace-pre-line break-words text-sm leading-7 text-foreground/90"
+                  style={{ overflowWrap: 'anywhere' }}
+                >
                   {image.description}
                 </p>
               </section>

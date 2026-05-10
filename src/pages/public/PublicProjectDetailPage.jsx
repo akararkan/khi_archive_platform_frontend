@@ -12,7 +12,6 @@ import {
   Video as VideoIcon,
 } from 'lucide-react'
 
-import { CodeBadge } from '@/components/ui/code-badge'
 import {
   ErrorState,
   PageContainer,
@@ -74,9 +73,9 @@ function PublicProjectDetailPage() {
     () => [
       { to: '/public', label: 'Home' },
       { to: '/public/projects', label: 'Projects' },
-      { label: project?.projectName || code },
+      { label: project?.projectName || 'Untitled project' },
     ],
-    [project, code],
+    [project],
   )
 
   if (loading) {
@@ -103,12 +102,9 @@ function PublicProjectDetailPage() {
         <PageContainer className="py-10 sm:py-14">
           <PageHeader
             eyebrow="Project"
-            title={project.projectName || project.projectCode}
+            title={project.projectName || 'Untitled project'}
             description={project.description}
             breadcrumbs={breadcrumbs}
-            action={
-              <CodeBadge code={project.projectCode} size="lg" />
-            }
           />
 
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -168,12 +164,12 @@ function PublicProjectDetailPage() {
                     to={`/public/persons/${project.personCode}`}
                     className="font-medium text-foreground hover:text-primary"
                   >
-                    {project.personName || project.personCode}
+                    {project.personName || 'Untitled person'}
                   </Link>
                 </Row>
               ) : (
                 <Row icon={UserIcon} label="Person">
-                  <span className="text-muted-foreground italic">Untitled (no person)</span>
+                  <span className="text-muted-foreground italic">No person linked</span>
                 </Row>
               )}
 
@@ -288,7 +284,7 @@ function MediaGrid({ media, tab }) {
 
 function MediaResultCard({ kind, item }) {
   const code = mediaCode(item)
-  const title = item.titleEnglish || item.titleOriginal || code
+  const title = item.titleEnglish || item.titleOriginal || `Untitled ${kind}`
   const description = item.description
   const thumb = item.imageFileUrl || null
   const meta = []
@@ -304,7 +300,6 @@ function MediaResultCard({ kind, item }) {
       kind={kind}
       to={`/public/${kind}s/${code}`}
       title={title}
-      subtitle={code}
       description={description}
       meta={meta}
       image={kind === 'image' ? thumb : null}

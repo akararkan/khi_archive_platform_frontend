@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Tags } from 'lucide-react'
 
-import { CodeBadge } from '@/components/ui/code-badge'
 import {
   CardGridSkeleton,
   ErrorState,
@@ -67,9 +66,9 @@ function PublicCategoryDetailPage() {
     () => [
       { to: '/public', label: 'Home' },
       { to: '/public/categories', label: 'Categories' },
-      { label: category?.name || code },
+      { label: category?.name || 'Untitled category' },
     ],
-    [category, code],
+    [category],
   )
 
   if (loading) {
@@ -97,10 +96,9 @@ function PublicCategoryDetailPage() {
         <PageContainer className="py-10 sm:py-14">
           <PageHeader
             eyebrow="Category"
-            title={category.name || category.categoryCode}
+            title={category.name || 'Untitled category'}
             description={category.description}
             breadcrumbs={breadcrumbs}
-            action={<CodeBadge code={category.categoryCode} size="lg" />}
           />
           {Array.isArray(category.keywords) && category.keywords.length > 0 ? (
             <div className="mt-5 flex flex-wrap gap-1.5">
@@ -135,8 +133,7 @@ function PublicCategoryDetailPage() {
                   key={p.projectCode}
                   kind="project"
                   to={`/public/projects/${p.projectCode}`}
-                  title={p.projectName}
-                  subtitle={p.projectCode}
+                  title={p.projectName || 'Untitled project'}
                   description={p.description}
                   meta={projectMeta(p)}
                 />

@@ -159,6 +159,16 @@ import {
   deriveTextAutoFieldsFromFile,
   populateTextFormFromText,
 } from '@/lib/text-form'
+import {
+  audioMetadataToForm,
+  extractAudioMetadata,
+  extractImageMetadata,
+  extractTextMetadata,
+  extractVideoMetadata,
+  imageMetadataToForm,
+  textMetadataToForm,
+  videoMetadataToForm,
+} from '@/lib/media-metadata'
 
 const AUDIO_VERSIONS = ['RAW', 'MASTER']
 
@@ -205,6 +215,32 @@ function formatFileSize(bytes) {
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`
   if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(2)} MB`
   return `${(bytes / 1024 ** 3).toFixed(2)} GB`
+}
+
+// Merge auto-extracted fields into the form. A field gets overwritten
+// only when (a) the user hasn't typed anything there yet, or (b) the
+// existing value still matches what the previous auto pass wrote (so
+// we're updating one auto-filled value with another, not stomping on
+// the user's edits). Used both by the sync derive…() helpers and by
+// the async media-metadata extractors.
+function mergeAutoFilled(prev, newAuto, previousAuto) {
+  const next = { ...prev }
+  for (const [key, newValue] of Object.entries(newAuto)) {
+    const isArr = Array.isArray(newValue)
+    const prevValue = prev[key]
+    const wasEmpty = isArr
+      ? !Array.isArray(prevValue) || prevValue.length === 0
+      : !prevValue
+    const previousAutoValue = previousAuto?.[key]
+    const matchesPreviousAuto =
+      previousAutoValue !== undefined &&
+      previousAutoValue !== '' &&
+      JSON.stringify(prevValue) === JSON.stringify(previousAutoValue)
+    if (wasEmpty || matchesPreviousAuto) {
+      next[key] = isArr ? newValue : (newValue || '')
+    }
+  }
+  return next
 }
 
 function deriveAutoFieldsFromFile(file) {
@@ -564,6 +600,11 @@ function EmployeeProjectDetailPage() {
   // form, so we can replace them when the user picks a different file *without*
   // clobbering values they manually edited in between.
   const lastAutoFilledRef = useRef({})
+  // Bumped on every file pick (any kind). Async media-metadata extractors
+  // check this against the value they were started with — if a newer
+  // file has been picked while we were probing, the stale result is
+  // discarded so it can't overwrite the new file's auto-filled values.
+  const metaSessionRef = useRef(0)
 
   // Audio search/details/remove/delete
   const [searchTerm, setSearchTerm] = useState('')
@@ -1127,6 +1168,9 @@ function EmployeeProjectDetailPage() {
   }
 
   const handleAudioFilePicked = (file) => {
+    // Bump the session id immediately — any in-flight async extraction
+    // from a previous file must now ignore its own resolution.
+    const sessionId = ++metaSessionRef.current
     if (!file) {
       // Clearing the file: also clear any technical fields that still match what
       // we auto-filled, so the user isn't left with stale extension/size/path
@@ -1135,7 +1179,9 @@ function EmployeeProjectDetailPage() {
       setForm((prev) => {
         const next = { ...prev }
         for (const [key, value] of Object.entries(previousAuto)) {
-          if (value && prev[key] === value) next[key] = ''
+          if (value && JSON.stringify(prev[key]) === JSON.stringify(value)) {
+            next[key] = Array.isArray(value) ? [] : ''
+          }
         }
         return next
       })
@@ -1146,21 +1192,20 @@ function EmployeeProjectDetailPage() {
 
     const auto = deriveAutoFieldsFromFile(file)
     setAudioFile(file)
-    setForm((prev) => {
-      const next = { ...prev }
-      const previousAuto = lastAutoFilledRef.current
-      for (const [key, newValue] of Object.entries(auto)) {
-        const previousAutoValue = previousAuto[key]
-        const wasEmpty = !prev[key]
-        const matchesPreviousAuto =
-          previousAutoValue && prev[key] === previousAutoValue
-        if (wasEmpty || matchesPreviousAuto) {
-          next[key] = newValue || ''
-        }
-      }
-      return next
-    })
+    setForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
     lastAutoFilledRef.current = auto
+
+    // Async: read embedded ID3 metadata + playback duration. Maps to
+    // originTitle / composer / description / dateCreated / tags / etc.
+    extractAudioMetadata(file)
+      .then((meta) => {
+        if (sessionId !== metaSessionRef.current) return
+        const extra = audioMetadataToForm(meta)
+        if (Object.keys(extra).length === 0) return
+        setForm((prev) => mergeAutoFilled(prev, extra, lastAutoFilledRef.current))
+        lastAutoFilledRef.current = { ...lastAutoFilledRef.current, ...extra }
+      })
+      .catch(() => {})
   }
 
   const handleAudioSubmit = async (event) => {
@@ -1333,12 +1378,15 @@ function EmployeeProjectDetailPage() {
   }
 
   const handleVideoFilePicked = (file) => {
+    const sessionId = ++metaSessionRef.current
     if (!file) {
       const previousAuto = lastAutoFilledRef.current
       setVideoForm((prev) => {
         const next = { ...prev }
         for (const [key, value] of Object.entries(previousAuto)) {
-          if (value && prev[key] === value) next[key] = ''
+          if (value && JSON.stringify(prev[key]) === JSON.stringify(value)) {
+            next[key] = Array.isArray(value) ? [] : ''
+          }
         }
         return next
       })
@@ -1349,21 +1397,19 @@ function EmployeeProjectDetailPage() {
 
     const auto = deriveVideoAutoFieldsFromFile(file)
     setVideoFile(file)
-    setVideoForm((prev) => {
-      const next = { ...prev }
-      const previousAuto = lastAutoFilledRef.current
-      for (const [key, newValue] of Object.entries(auto)) {
-        const previousAutoValue = previousAuto[key]
-        const wasEmpty = !prev[key]
-        const matchesPreviousAuto =
-          previousAutoValue && prev[key] === previousAutoValue
-        if (wasEmpty || matchesPreviousAuto) {
-          next[key] = newValue || ''
-        }
-      }
-      return next
-    })
+    setVideoForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
     lastAutoFilledRef.current = auto
+
+    // Async: read duration + dimensions via a hidden <video> element.
+    extractVideoMetadata(file)
+      .then((meta) => {
+        if (sessionId !== metaSessionRef.current) return
+        const extra = videoMetadataToForm(meta)
+        if (Object.keys(extra).length === 0) return
+        setVideoForm((prev) => mergeAutoFilled(prev, extra, lastAutoFilledRef.current))
+        lastAutoFilledRef.current = { ...lastAutoFilledRef.current, ...extra }
+      })
+      .catch(() => {})
   }
 
   const handleVideoSubmit = async (event) => {
@@ -1517,12 +1563,15 @@ function EmployeeProjectDetailPage() {
   }
 
   const handleImageFilePicked = (file) => {
+    const sessionId = ++metaSessionRef.current
     if (!file) {
       const previousAuto = lastAutoFilledRef.current
       setImageForm((prev) => {
         const next = { ...prev }
         for (const [key, value] of Object.entries(previousAuto)) {
-          if (value && prev[key] === value) next[key] = ''
+          if (value && JSON.stringify(prev[key]) === JSON.stringify(value)) {
+            next[key] = Array.isArray(value) ? [] : ''
+          }
         }
         return next
       })
@@ -1533,21 +1582,20 @@ function EmployeeProjectDetailPage() {
 
     const auto = deriveImageAutoFieldsFromFile(file)
     setImageFile(file)
-    setImageForm((prev) => {
-      const next = { ...prev }
-      const previousAuto = lastAutoFilledRef.current
-      for (const [key, newValue] of Object.entries(auto)) {
-        const previousAutoValue = previousAuto[key]
-        const wasEmpty = !prev[key]
-        const matchesPreviousAuto =
-          previousAutoValue && prev[key] === previousAutoValue
-        if (wasEmpty || matchesPreviousAuto) {
-          next[key] = newValue || ''
-        }
-      }
-      return next
-    })
+    setImageForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
     lastAutoFilledRef.current = auto
+
+    // Async: read natural dimensions via Image() — fills dimension /
+    // resolution / orientation.
+    extractImageMetadata(file)
+      .then((meta) => {
+        if (sessionId !== metaSessionRef.current) return
+        const extra = imageMetadataToForm(meta)
+        if (Object.keys(extra).length === 0) return
+        setImageForm((prev) => mergeAutoFilled(prev, extra, lastAutoFilledRef.current))
+        lastAutoFilledRef.current = { ...lastAutoFilledRef.current, ...extra }
+      })
+      .catch(() => {})
   }
 
   const handleImageSubmit = async (event) => {
@@ -1700,12 +1748,15 @@ function EmployeeProjectDetailPage() {
   }
 
   const handleTextFilePicked = (file) => {
+    const sessionId = ++metaSessionRef.current
     if (!file) {
       const previousAuto = lastAutoFilledRef.current
       setTextForm((prev) => {
         const next = { ...prev }
         for (const [key, value] of Object.entries(previousAuto)) {
-          if (value && prev[key] === value) next[key] = ''
+          if (value && JSON.stringify(prev[key]) === JSON.stringify(value)) {
+            next[key] = Array.isArray(value) ? [] : ''
+          }
         }
         return next
       })
@@ -1716,21 +1767,22 @@ function EmployeeProjectDetailPage() {
 
     const auto = deriveTextAutoFieldsFromFile(file)
     setTextFile(file)
-    setTextForm((prev) => {
-      const next = { ...prev }
-      const previousAuto = lastAutoFilledRef.current
-      for (const [key, newValue] of Object.entries(auto)) {
-        const previousAutoValue = previousAuto[key]
-        const wasEmpty = !prev[key]
-        const matchesPreviousAuto =
-          previousAutoValue && prev[key] === previousAutoValue
-        if (wasEmpty || matchesPreviousAuto) {
-          next[key] = newValue || ''
-        }
-      }
-      return next
-    })
+    setTextForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
     lastAutoFilledRef.current = auto
+
+    // Async: text/PDF metadata extractor is currently a stub (PDF
+    // metadata would need pdf.js, ~700KB). Keep the call so the
+    // pattern is uniform across kinds and so backend-side metadata
+    // can populate this hook later.
+    extractTextMetadata(file)
+      .then((meta) => {
+        if (sessionId !== metaSessionRef.current) return
+        const extra = textMetadataToForm(meta)
+        if (Object.keys(extra).length === 0) return
+        setTextForm((prev) => mergeAutoFilled(prev, extra, lastAutoFilledRef.current))
+        lastAutoFilledRef.current = { ...lastAutoFilledRef.current, ...extra }
+      })
+      .catch(() => {})
   }
 
   const handleTextSubmit = async (event) => {

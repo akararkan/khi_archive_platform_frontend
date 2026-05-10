@@ -46,9 +46,9 @@ function PublicVideoDetailPage() {
     () => [
       { to: '/public', label: 'Home' },
       { to: '/public/videos', label: 'Videos' },
-      { label: video?.titleEnglish || video?.titleOriginal || code },
+      { label: video?.titleEnglish || video?.titleOriginal || 'Untitled video' },
     ],
-    [video, code],
+    [video],
   )
 
   if (loading) {
@@ -69,7 +69,7 @@ function PublicVideoDetailPage() {
     )
   }
 
-  const title = video.titleEnglish || video.titleOriginal || video.videoCode
+  const title = video.titleEnglish || video.titleOriginal || 'Untitled video'
   const original = video.titleOriginal && video.titleOriginal !== title ? video.titleOriginal : null
 
   return (
@@ -78,7 +78,6 @@ function PublicVideoDetailPage() {
         kind="Video"
         title={title}
         originalTitle={original}
-        code={video.videoCode}
         description={video.description}
         breadcrumbs={breadcrumbs}
       />
@@ -89,7 +88,7 @@ function PublicVideoDetailPage() {
               <VideoPlayer
                 src={video.videoFileUrl}
                 title={title}
-                subtitle={video.videoCode}
+                subtitle={video.event || video.location || video.language || ''}
                 downloadHref={video.videoFileUrl}
               />
             ) : (
@@ -100,7 +99,7 @@ function PublicVideoDetailPage() {
 
             {video.description ? (
               <Section title="Description">
-                <p className="whitespace-pre-line text-sm leading-7 text-foreground/90">
+                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
                   {video.description}
                 </p>
               </Section>
@@ -108,7 +107,7 @@ function PublicVideoDetailPage() {
 
             {video.transcription ? (
               <Section title="Transcription">
-                <p className="whitespace-pre-line text-sm leading-7 text-foreground/90">
+                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
                   {video.transcription}
                 </p>
               </Section>

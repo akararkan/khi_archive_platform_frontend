@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Download, ExternalLink } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   ErrorState,
@@ -47,9 +48,9 @@ function PublicTextDetailPage() {
     () => [
       { to: '/public', label: 'Home' },
       { to: '/public/texts', label: 'Texts' },
-      { label: text?.titleEnglish || text?.titleOriginal || code },
+      { label: text?.titleEnglish || text?.titleOriginal || 'Untitled text' },
     ],
-    [text, code],
+    [text],
   )
 
   if (loading) {
@@ -70,7 +71,7 @@ function PublicTextDetailPage() {
     )
   }
 
-  const title = text.titleEnglish || text.titleOriginal || text.textCode
+  const title = text.titleEnglish || text.titleOriginal || 'Untitled text'
   const original = text.titleOriginal && text.titleOriginal !== title ? text.titleOriginal : null
   const fileUrl = text.textFileUrl
   const isPdf = fileUrl && /\.pdf($|\?)/i.test(fileUrl)
@@ -81,24 +82,28 @@ function PublicTextDetailPage() {
         kind="Text"
         title={title}
         originalTitle={original}
-        code={text.textCode}
         description={text.description || text.summary}
         breadcrumbs={breadcrumbs}
         action={
           fileUrl ? (
             <div className="flex flex-wrap gap-2">
-              <Button asChild className="gap-1.5">
-                <a href={fileUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink className="size-4" />
-                  Open document
-                </a>
-              </Button>
-              <Button asChild variant="outline" className="gap-1.5">
-                <a href={fileUrl} download>
-                  <Download className="size-4" />
-                  Download
-                </a>
-              </Button>
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(buttonVariants(), 'gap-1.5')}
+              >
+                <ExternalLink className="size-4" />
+                Open document
+              </a>
+              <a
+                href={fileUrl}
+                download
+                className={cn(buttonVariants({ variant: 'outline' }), 'gap-1.5')}
+              >
+                <Download className="size-4" />
+                Download
+              </a>
             </div>
           ) : null
         }
@@ -119,7 +124,7 @@ function PublicTextDetailPage() {
 
             {text.summary ? (
               <Section title="Summary">
-                <p className="whitespace-pre-line text-sm leading-7 text-foreground/90">
+                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
                   {text.summary}
                 </p>
               </Section>
@@ -127,7 +132,7 @@ function PublicTextDetailPage() {
 
             {text.bodyText ? (
               <Section title="Text">
-                <p className="whitespace-pre-line text-sm leading-7 text-foreground/90">
+                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
                   {text.bodyText}
                 </p>
               </Section>

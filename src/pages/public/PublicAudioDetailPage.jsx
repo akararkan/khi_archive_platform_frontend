@@ -46,9 +46,9 @@ function PublicAudioDetailPage() {
     () => [
       { to: '/public', label: 'Home' },
       { to: '/public/audios', label: 'Audios' },
-      { label: audio?.titleEnglish || audio?.titleOriginal || code },
+      { label: audio?.titleEnglish || audio?.titleOriginal || 'Untitled audio' },
     ],
-    [audio, code],
+    [audio],
   )
 
   if (loading) {
@@ -69,7 +69,7 @@ function PublicAudioDetailPage() {
     )
   }
 
-  const title = audio.titleEnglish || audio.titleOriginal || audio.audioCode
+  const title = audio.titleEnglish || audio.titleOriginal || 'Untitled audio'
   const original = audio.titleOriginal && audio.titleOriginal !== title ? audio.titleOriginal : null
 
   return (
@@ -78,7 +78,6 @@ function PublicAudioDetailPage() {
         kind="Audio"
         title={title}
         originalTitle={original}
-        code={audio.audioCode}
         description={audio.description}
         breadcrumbs={breadcrumbs}
       />
@@ -89,7 +88,7 @@ function PublicAudioDetailPage() {
               <AudioPlayer
                 src={audio.audioFileUrl}
                 title={title}
-                subtitle={audio.audioCode}
+                subtitle={audio.form || audio.language || ''}
                 downloadHref={audio.audioFileUrl}
               />
             ) : (
@@ -100,7 +99,7 @@ function PublicAudioDetailPage() {
 
             {audio.description ? (
               <Section title="Description">
-                <p className="whitespace-pre-line text-sm leading-7 text-foreground/90">
+                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
                   {audio.description}
                 </p>
               </Section>
@@ -108,7 +107,7 @@ function PublicAudioDetailPage() {
 
             {audio.transcription ? (
               <Section title="Transcription">
-                <p className="whitespace-pre-line text-sm leading-7 text-foreground/90">
+                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
                   {audio.transcription}
                 </p>
               </Section>
@@ -116,7 +115,7 @@ function PublicAudioDetailPage() {
 
             {audio.lyrics ? (
               <Section title="Lyrics">
-                <p className="whitespace-pre-line text-sm leading-7 text-foreground/90">
+                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
                   {audio.lyrics}
                 </p>
               </Section>

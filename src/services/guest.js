@@ -16,6 +16,23 @@ export async function guestGlobalSearch({ q, perSection, signal } = {}) {
   return data
 }
 
+// Unified ranked search across audio/video/text/image. One paginated feed
+// where each row carries `kind`, `score`, `matchedOn[]` and the inline
+// payload for that kind, so the frontend can render a card without a
+// second fetch. Repeatable params (types/tag/keyword) MUST be serialized
+// as `?types=audio&types=video` — Spring's @RequestParam List binder
+// expects the repeated form, NOT axios's default `types[]=...` brackets,
+// so we override the serializer for this call.
+export async function guestResults(params = {}) {
+  const { signal, ...rest } = params
+  const { data } = await apiClient.get('/guest/results', {
+    params: rest,
+    paramsSerializer: { indexes: null },
+    signal,
+  })
+  return data
+}
+
 // Autocomplete suggestions across every entity. Keep `limit` small (~10) for
 // header search dropdowns.
 export async function guestSuggest({ q, limit, signal } = {}) {

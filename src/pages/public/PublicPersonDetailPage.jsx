@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 
-import { CodeBadge } from '@/components/ui/code-badge'
 import {
   CardGridSkeleton,
   ErrorState,
@@ -77,9 +76,9 @@ function PublicPersonDetailPage() {
     () => [
       { to: '/public', label: 'Home' },
       { to: '/public/persons', label: 'Persons' },
-      { label: person?.fullName || person?.name || code },
+      { label: person?.fullName || person?.name || 'Untitled person' },
     ],
-    [person, code],
+    [person],
   )
 
   if (loading) {
@@ -100,15 +99,24 @@ function PublicPersonDetailPage() {
   }
 
   const items = projects?.content || []
-  const display = person.fullName || person.name || person.personCode
+  const display = person.fullName || person.name || 'Untitled person'
+  const portrait =
+    person.mediaPortrait ||
+    person.profileImage ||
+    person.profileImageUrl ||
+    null
 
   return (
     <>
       <section className="border-b border-border/60 bg-gradient-to-b from-primary/5 via-background to-background">
         <PageContainer className="py-10 sm:py-14">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-            <div className="flex size-24 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 font-heading text-3xl font-semibold text-primary ring-1 ring-primary/20 shadow-md shadow-primary/10">
-              {getInitials(display)}
+            <div className="grid size-24 shrink-0 place-items-center overflow-hidden rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 font-heading text-3xl font-semibold text-primary ring-1 ring-primary/20 shadow-md shadow-primary/10">
+              {portrait ? (
+                <img src={portrait} alt={display} className="size-full object-cover" />
+              ) : (
+                getInitials(display)
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <PageHeader
@@ -116,7 +124,6 @@ function PublicPersonDetailPage() {
                 title={display}
                 description={person.bio || person.description}
                 breadcrumbs={breadcrumbs}
-                action={<CodeBadge code={person.personCode} size="lg" />}
               />
               <div className="mt-1 flex flex-wrap gap-1.5">
                 {person.personType ? <TagPill tone="primary">{person.personType}</TagPill> : null}
@@ -186,8 +193,7 @@ function PublicPersonDetailPage() {
                   key={p.projectCode}
                   kind="project"
                   to={`/public/projects/${p.projectCode}`}
-                  title={p.projectName}
-                  subtitle={p.projectCode}
+                  title={p.projectName || 'Untitled project'}
                   description={p.description}
                   meta={projectMeta(p)}
                 />

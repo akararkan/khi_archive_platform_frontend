@@ -3,14 +3,12 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import {
   Archive,
   AudioLines,
-  BookOpen,
   FileText,
   FolderOpen,
   Image as ImageIcon,
   LogIn,
   LogOut,
   Menu,
-  Search,
   Tags,
   User as UserIcon,
   Users,
@@ -18,7 +16,8 @@ import {
   X,
 } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
+import { SearchCommand } from '@/components/public/SearchCommand'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { getStoredToken, logout } from '@/services/auth'
 
@@ -54,8 +53,11 @@ function isNavItemActive(item, location) {
   return true
 }
 
+// Header nav points at the unified browse page with `?type=` deep-links.
+// Each entry lands on the same surface — the browse page's left rail
+// switches between datasets without reloading. There's no Home item; the
+// brand mark on the left of the header is the home link.
 const NAV_ITEMS = [
-  { label: 'Home', to: '/public', icon: BookOpen, end: true },
   { label: 'Audios', to: '/public/browse?type=audio', icon: AudioLines },
   { label: 'Videos', to: '/public/browse?type=video', icon: VideoIcon },
   { label: 'Texts', to: '/public/browse?type=text', icon: FileText },
@@ -64,30 +66,6 @@ const NAV_ITEMS = [
   { label: 'Persons', to: '/public/browse?type=person', icon: Users },
   { label: 'Categories', to: '/public/browse?type=category', icon: Tags },
 ]
-
-// The page-level search experience lives inside the BrowseSidebar (the
-// `MorphSearch` component). The header just exposes a small affordance
-// that takes the user to /public/browse, where the sidebar's morph
-// search has full focus.
-function HeaderSearchTrigger() {
-  return (
-    <Link
-      to="/public/browse"
-      className={cn(
-        'group flex h-10 w-full max-w-md items-center gap-2 rounded-full border border-border bg-background/70 px-3 shadow-sm transition-all',
-        'hover:border-primary/40 hover:bg-background hover:shadow-md',
-      )}
-    >
-      <Search className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
-      <span className="flex-1 text-sm text-muted-foreground/80">
-        Search the archive…
-      </span>
-      <kbd className="hidden rounded-md border border-border bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium tracking-wider text-muted-foreground sm:inline">
-        Open
-      </kbd>
-    </Link>
-  )
-}
 
 function PublicLayout() {
   const navigate = useNavigate()
@@ -107,10 +85,15 @@ function PublicLayout() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-gradient-to-b from-background via-background to-muted/30">
-      {/* ── Top bar (sticky) ─────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl">
+      {/* ── Top bar (sticky) ──────────────────────────────────────────
+          Header now hosts the global SearchCommand — there is no
+          per-page search hero any more, and no compact "open search"
+          trigger. The bar's autocomplete dropdown floats below it and
+          spans the same width, so the search is always one keystroke
+          away from anywhere on the public surface. */}
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-3 px-4 sm:gap-5 sm:px-6 lg:px-8">
-          <Link to="/public" className="flex items-center gap-2.5">
+          <Link to="/public" className="flex shrink-0 items-center gap-2.5">
             <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-md shadow-primary/20 ring-1 ring-primary/30">
               <Archive className="size-4.5" />
             </span>
@@ -124,19 +107,20 @@ function PublicLayout() {
             </span>
           </Link>
 
-          <div className="ml-auto flex flex-1 justify-end sm:flex-initial sm:ml-0 lg:ml-6 lg:max-w-md lg:flex-1">
-            <HeaderSearchTrigger />
+          <div className="min-w-0 flex-1 sm:ml-2 lg:mx-4 lg:max-w-2xl">
+            <SearchCommand />
           </div>
 
           <div className="hidden items-center gap-1 lg:flex">
             {isAuthed ? (
               <>
-                <Button asChild variant="ghost" size="sm" className="gap-1.5">
-                  <Link to="/dashboard">
-                    <UserIcon className="size-4" />
-                    Workspace
-                  </Link>
-                </Button>
+                <Link
+                  to="/dashboard"
+                  className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'gap-1.5')}
+                >
+                  <UserIcon className="size-4" />
+                  Workspace
+                </Link>
                 <Button variant="outline" size="sm" className="gap-1.5" onClick={handleLogout}>
                   <LogOut className="size-4" />
                   Sign out
@@ -144,15 +128,19 @@ function PublicLayout() {
               </>
             ) : (
               <>
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/register">Register</Link>
-                </Button>
-                <Button asChild size="sm" className="gap-1.5 shadow-sm">
-                  <Link to="/login">
-                    <LogIn className="size-4" />
-                    Sign in
-                  </Link>
-                </Button>
+                <Link
+                  to="/register"
+                  className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
+                >
+                  Register
+                </Link>
+                <Link
+                  to="/login"
+                  className={cn(buttonVariants({ size: 'sm' }), 'gap-1.5 shadow-sm')}
+                >
+                  <LogIn className="size-4" />
+                  Sign in
+                </Link>
               </>
             )}
           </div>
@@ -162,44 +150,15 @@ function PublicLayout() {
             onClick={() => setOpen((v) => !v)}
             aria-label="Toggle navigation"
             aria-expanded={open}
-            className="flex size-9 items-center justify-center rounded-xl border border-border bg-background text-foreground transition hover:bg-muted lg:hidden"
+            className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-background text-foreground transition hover:bg-muted lg:hidden"
           >
             {open ? <X className="size-4" /> : <Menu className="size-4" />}
           </button>
         </div>
 
-        {/* ── Section nav (desktop) ─────────────────────────────── */}
-        <nav className="hidden border-t border-border/60 bg-background/60 lg:block">
-          <ul className="mx-auto flex w-full max-w-7xl items-center gap-1 overflow-x-auto px-4 sm:px-6 lg:px-8">
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon
-              const active = isNavItemActive(item, location)
-              return (
-                <li key={item.to}>
-                  <NavLink
-                    to={item.to}
-                    end={item.end}
-                    className={cn(
-                      'relative flex items-center gap-1.5 px-3 py-3 text-[13px] font-medium transition-colors',
-                      active
-                        ? 'text-foreground'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    <Icon className="size-3.5" />
-                    {item.label}
-                    {active ? (
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary"
-                      />
-                    ) : null}
-                  </NavLink>
-                </li>
-              )
-            })}
-          </ul>
-        </nav>
+        {/* The desktop nav strip is gone — the browse page's left rail
+            handles entity navigation. The header stays a single-row 64px
+            bar so the sidebar can sit flush below it (top: 4rem). */}
 
         {/* ── Mobile drawer ─────────────────────────────────────── */}
         {open ? (
@@ -230,12 +189,16 @@ function PublicLayout() {
             <div className="flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3">
               {isAuthed ? (
                 <>
-                  <Button asChild variant="outline" size="sm" className="flex-1 gap-1.5">
-                    <Link to="/dashboard">
-                      <UserIcon className="size-4" />
-                      Workspace
-                    </Link>
-                  </Button>
+                  <Link
+                    to="/dashboard"
+                    className={cn(
+                      buttonVariants({ variant: 'outline', size: 'sm' }),
+                      'flex-1 gap-1.5',
+                    )}
+                  >
+                    <UserIcon className="size-4" />
+                    Workspace
+                  </Link>
                   <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={handleLogout}>
                     <LogOut className="size-4" />
                     Sign out
@@ -243,15 +206,19 @@ function PublicLayout() {
                 </>
               ) : (
                 <>
-                  <Button asChild variant="ghost" size="sm" className="flex-1">
-                    <Link to="/register">Register</Link>
-                  </Button>
-                  <Button asChild size="sm" className="flex-1 gap-1.5">
-                    <Link to="/login">
-                      <LogIn className="size-4" />
-                      Sign in
-                    </Link>
-                  </Button>
+                  <Link
+                    to="/register"
+                    className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'flex-1')}
+                  >
+                    Register
+                  </Link>
+                  <Link
+                    to="/login"
+                    className={cn(buttonVariants({ size: 'sm' }), 'flex-1 gap-1.5')}
+                  >
+                    <LogIn className="size-4" />
+                    Sign in
+                  </Link>
                 </>
               )}
             </div>
@@ -262,93 +229,6 @@ function PublicLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
-
-      {/* ── Footer ──────────────────────────────────────────────── */}
-      <footer className="mt-16 border-t border-border/70 bg-card/40">
-        <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[2fr_1fr_1fr_1fr] lg:px-8">
-          <div className="max-w-sm">
-            <Link to="/public" className="flex items-center gap-2.5">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-md shadow-primary/20 ring-1 ring-primary/30">
-                <Archive className="size-4.5" />
-              </span>
-              <span className="font-heading text-base font-semibold tracking-tight text-foreground">
-                KHI Archive
-              </span>
-            </Link>
-            <p className="mt-4 text-sm leading-6 text-muted-foreground">
-              An open digital archive of audio, video, image, and textual heritage. Browse the
-              collection — full-text search, person and category indexes, and rich descriptive
-              metadata are available to everyone.
-            </p>
-          </div>
-          <FooterColumn
-            title="Browse"
-            links={[
-              { to: '/public/projects', label: 'Projects' },
-              { to: '/public/categories', label: 'Categories' },
-              { to: '/public/persons', label: 'Persons' },
-            ]}
-          />
-          <FooterColumn
-            title="Media"
-            links={[
-              { to: '/public/audios', label: 'Audios' },
-              { to: '/public/videos', label: 'Videos' },
-              { to: '/public/texts', label: 'Texts' },
-              { to: '/public/images', label: 'Images' },
-            ]}
-          />
-          <FooterColumn
-            title="Account"
-            links={
-              isAuthed
-                ? [
-                    { to: '/dashboard', label: 'My workspace' },
-                  ]
-                : [
-                    { to: '/login', label: 'Sign in' },
-                    { to: '/register', label: 'Create an account' },
-                    { to: '/forgot-password', label: 'Forgot password' },
-                  ]
-            }
-          />
-        </div>
-        <div className="border-t border-border/60">
-          <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-2 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:px-6 lg:px-8">
-            <p>© {new Date().getFullYear()} KHI Archive. All rights reserved.</p>
-            <p>
-              Public read-only catalogue · Internal cataloguing requires an
-              {' '}
-              <Link to="/login" className="font-medium text-foreground underline-offset-2 hover:underline">
-                authorised account
-              </Link>
-              .
-            </p>
-          </div>
-        </div>
-      </footer>
-    </div>
-  )
-}
-
-function FooterColumn({ title, links }) {
-  return (
-    <div>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        {title}
-      </p>
-      <ul className="mt-3 space-y-2">
-        {links.map((link) => (
-          <li key={link.to}>
-            <Link
-              to={link.to}
-              className="text-sm text-foreground/80 transition-colors hover:text-primary"
-            >
-              {link.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
     </div>
   )
 }

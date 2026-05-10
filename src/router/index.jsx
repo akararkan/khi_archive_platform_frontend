@@ -33,7 +33,6 @@ import { EmployeeProjectDetailPage } from '@/pages/employee/EmployeeProjectDetai
 import { PublicAudioDetailPage } from '@/pages/public/PublicAudioDetailPage'
 import { PublicBrowsePage } from '@/pages/public/PublicBrowsePage'
 import { PublicCategoryDetailPage } from '@/pages/public/PublicCategoryDetailPage'
-import { PublicHomePage } from '@/pages/public/PublicHomePage'
 import { PublicImageDetailPage } from '@/pages/public/PublicImageDetailPage'
 import { PublicPersonDetailPage } from '@/pages/public/PublicPersonDetailPage'
 import { PublicProjectDetailPage } from '@/pages/public/PublicProjectDetailPage'
@@ -54,15 +53,17 @@ const router = createBrowserRouter([
         path: 'public',
         element: <PublicLayout />,
         children: [
-          { index: true, element: <PublicHomePage /> },
-          // Legacy /public/search forwards to the unified browse so old
-          // links keep working — the morph-search sidebar takes over from
-          // there.
-          { path: 'search', element: <PublicSearchRedirect /> },
-          // Single unified browse experience. The sidebar's Type picker
-          // (and `?type=…` in the URL) switches between projects, persons,
-          // categories, audios, videos, texts and images — no tabs.
+          // The single unified browse experience IS the public landing.
+          // The sidebar's type rail (and the `?type=` URL param) switches
+          // between projects, persons, categories, audios, videos, texts
+          // and images — there's no separate "home" or top tabs.
+          // `/public` and `/public/browse` both render the same component
+          // so existing deep-links with query strings keep working
+          // without a redirect (which would drop the search params).
+          { index: true, element: <PublicBrowsePage /> },
           { path: 'browse', element: <PublicBrowsePage /> },
+          // Legacy /public/search keeps old links alive.
+          { path: 'search', element: <PublicSearchRedirect /> },
           // Legacy collection paths redirect into the unified browse so
           // links saved before this consolidation still work.
           { path: 'projects', element: <Navigate to="/public/browse?type=project" replace /> },

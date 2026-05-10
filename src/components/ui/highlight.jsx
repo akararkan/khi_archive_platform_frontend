@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo } from 'react'
+import { createContext, Fragment, useContext, useMemo } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -137,14 +137,17 @@ function Highlight({ text, query, className }) {
             <mark
               key={idx}
               className={cn(
-                'rounded-sm bg-yellow-200/70 px-0.5 text-foreground dark:bg-yellow-500/30',
+                'rounded-[3px] bg-yellow-200/80 px-0.5 font-semibold text-foreground shadow-[inset_0_-1px_0_var(--color-yellow-400)] dark:bg-yellow-500/35 dark:shadow-[inset_0_-1px_0_var(--color-yellow-300)]',
                 className,
               )}
             >
               {part}
             </mark>
           ) : (
-            part
+            // Wrap plain segments in a keyed fragment so React doesn't
+            // complain about missing keys on string children of a list —
+            // some renderers (React 19+) tighten this.
+            <Fragment key={idx}>{part}</Fragment>
           ),
         )}
       </>
@@ -161,14 +164,14 @@ function Highlight({ text, query, className }) {
           <mark
             key={idx}
             className={cn(
-              'rounded-sm bg-amber-200/50 px-0.5 text-foreground underline decoration-dotted decoration-amber-700/60 underline-offset-2 dark:bg-amber-500/20 dark:decoration-amber-300/60',
+              'rounded-[3px] bg-amber-200/60 px-0.5 font-medium text-foreground underline decoration-dotted decoration-amber-700/70 underline-offset-2 dark:bg-amber-500/25 dark:decoration-amber-300/70',
               className,
             )}
           >
             {segment.text}
           </mark>
         ) : (
-          segment.text
+          <Fragment key={idx}>{segment.text}</Fragment>
         ),
       )}
     </>
