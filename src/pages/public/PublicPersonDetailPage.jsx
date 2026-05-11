@@ -16,6 +16,19 @@ import { guestPerson, guestPersonProjects } from '@/services/guest'
 
 const PAGE_SIZE = 24
 
+// Normalise a "list-ish" backend value into a clean array of strings.
+// Tolerates: real arrays, comma/semicolon/Arabic-comma-separated
+// strings, and nullish values. Used so a multi-role person ("Singer",
+// "Maqam Bezh", "Sozhairan") never renders concatenated.
+function splitToList(value) {
+  if (value == null) return []
+  if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean)
+  return String(value)
+    .split(/[,،;]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
 function getInitials(text) {
   if (!text) return '·'
   const parts = String(text).trim().split(/\s+/).filter(Boolean)
@@ -126,7 +139,16 @@ function PublicPersonDetailPage() {
                 breadcrumbs={breadcrumbs}
               />
               <div className="mt-1 flex flex-wrap gap-1.5">
-                {person.personType ? <TagPill tone="primary">{person.personType}</TagPill> : null}
+                {/* personType can come back as a string array
+                    (["Singer","Maqam Bezh","Sozhairan"]) OR as a single
+                    comma/semicolon-separated string. Split either shape
+                    into one pill per role so React doesn't render the
+                    array concatenated like "SingerMaqam BezhSozhairan". */}
+                {splitToList(person.personType).map((role) => (
+                  <TagPill key={role} tone="primary">
+                    {role}
+                  </TagPill>
+                ))}
                 {person.gender ? <TagPill tone="muted">{person.gender}</TagPill> : null}
                 {person.region ? <TagPill>{person.region}</TagPill> : null}
                 {person.nickname ? <TagPill>aka {person.nickname}</TagPill> : null}
@@ -134,8 +156,8 @@ function PublicPersonDetailPage() {
             </div>
           </div>
 
-          {(person.places?.length || person.tags?.length || person.keywords?.length) ? (
-            <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          {(person.places?.length || person.tags?.length) ? (
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
               {person.places?.length ? (
                 <Panel title="Places">
                   <div className="flex flex-wrap gap-1.5">
@@ -152,15 +174,6 @@ function PublicPersonDetailPage() {
                       <TagPill key={t} tone="primary">
                         {t}
                       </TagPill>
-                    ))}
-                  </div>
-                </Panel>
-              ) : null}
-              {person.keywords?.length ? (
-                <Panel title="Keywords">
-                  <div className="flex flex-wrap gap-1.5">
-                    {person.keywords.map((k) => (
-                      <TagPill key={k}>{k}</TagPill>
                     ))}
                   </div>
                 </Panel>

@@ -56,9 +56,29 @@ function MetaPanel({ title, children }) {
   )
 }
 
-function MetaRow({ label, children }) {
-  if (children == null || children === '' || (Array.isArray(children) && children.length === 0))
+// `value` is an optional escape hatch for the emptiness check: when the
+// child is a React element (PersonLink, CategoryLinks, PillRow, …)
+// that decides to render `null` itself, React still hands MetaRow a
+// truthy element, so the label renders next to a blank gap. Passing
+// `value` lets the caller pre-tell MetaRow "the underlying data is
+// empty, drop the whole row." Without `value`, the existing
+// children-based check is used (works for direct string children).
+function MetaRow({ label, value, children }) {
+  const isExplicitlyEmpty =
+    value !== undefined &&
+    (value == null ||
+      value === '' ||
+      value === false ||
+      (Array.isArray(value) && value.length === 0))
+  if (isExplicitlyEmpty) return null
+  if (
+    value === undefined &&
+    (children == null ||
+      children === '' ||
+      (Array.isArray(children) && children.length === 0))
+  ) {
     return null
+  }
   return (
     <div className="grid grid-cols-[110px_minmax(0,1fr)] items-start gap-3">
       <dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">

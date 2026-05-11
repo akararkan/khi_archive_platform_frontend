@@ -5,9 +5,12 @@ import { cn } from '@/lib/utils'
 
 /**
  * Chip-style tag input.
- * - Type and press Enter (or , ; ، Tab) to commit a tag
+ * - Type and use a separator (`,` `;` `،`) or Tab to commit a chip.
+ *   Enter is intentionally NOT a commit key so it can't accidentally
+ *   submit the surrounding form when a user is mid-typing a tag.
  * - Backspace on empty input removes the last chip
  * - Pasting "a, b, c" splits into multiple chips
+ * - Blurring the field also commits whatever's in the draft
  * - Duplicates are ignored (case-insensitive)
  *
  * Value is an array of strings; onChange receives the new array.
@@ -15,7 +18,7 @@ import { cn } from '@/lib/utils'
 function TagsInput({
   value = [],
   onChange,
-  placeholder = 'Type and press Enter…',
+  placeholder = 'Type and separate with comma…',
   id,
   maxTags,
   disabled = false,
@@ -53,7 +56,15 @@ function TagsInput({
   }
 
   const handleKeyDown = (event) => {
-    if (event.key === 'Enter' || event.key === ',' || event.key === ';' || event.key === 'Tab') {
+    // Enter is intercepted but doesn't commit — we just stop the
+    // surrounding form from submitting. Users were accidentally
+    // adding the chip they hadn't finished typing yet, then losing
+    // their work. Commit happens on a separator, on Tab, or on blur.
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      return
+    }
+    if (event.key === ',' || event.key === ';' || event.key === 'Tab') {
       if (!draft.trim()) return
       if (event.key === 'Tab' && event.shiftKey) return
       event.preventDefault()

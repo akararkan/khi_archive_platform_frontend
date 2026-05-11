@@ -16,7 +16,7 @@ import {
   PillRow,
   ProjectLink,
 } from '@/components/public/PublicMediaDetailShared'
-import { formatPublicDate } from '@/components/public/public-helpers'
+import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
 import { guestAudios } from '@/services/guest'
 
 function PublicAudioDetailPage() {
@@ -46,7 +46,7 @@ function PublicAudioDetailPage() {
     () => [
       { to: '/public', label: 'Home' },
       { to: '/public/audios', label: 'Audios' },
-      { label: audio?.titleEnglish || audio?.titleOriginal || 'Untitled audio' },
+      { label: pickMediaTitle(audio) || 'Untitled audio' },
     ],
     [audio],
   )
@@ -69,8 +69,16 @@ function PublicAudioDetailPage() {
     )
   }
 
-  const title = audio.titleEnglish || audio.titleOriginal || 'Untitled audio'
-  const original = audio.titleOriginal && audio.titleOriginal !== title ? audio.titleOriginal : null
+  const title = pickMediaTitle(audio) || 'Untitled audio'
+  // Prefer the original-script title for the "originalTitle" hero
+  // line — show it only when it actually differs from the resolved
+  // primary title (so we don't print the same string twice).
+  const originalCandidate =
+    audio.originTitle ||
+    audio.titleOriginal ||
+    audio.centralKurdishTitle ||
+    audio.titleInCentralKurdish
+  const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
 
   return (
     <>
@@ -129,35 +137,43 @@ function PublicAudioDetailPage() {
               <MetaRow label="Dialect">{audio.dialect}</MetaRow>
               <MetaRow label="Type of basta">{audio.typeOfBasta}</MetaRow>
               <MetaRow label="Type of maqam">{audio.typeOfMaqam}</MetaRow>
-              <MetaRow label="Genre">{audio.genre}</MetaRow>
+              <MetaRow label="Genre" value={audio.genre}>
+                <PillRow values={audio.genre} />
+              </MetaRow>
               <MetaRow label="Recorded">{formatPublicDate(audio.recordedAt || audio.recordingDate)}</MetaRow>
-              <MetaRow label="Duration">
+              <MetaRow label="Duration" value={audio.duration || audio.durationFormatted}>
                 {audio.duration ? `${audio.duration}s` : audio.durationFormatted}
               </MetaRow>
-              <MetaRow label="Project">
+              <MetaRow
+                label="Project"
+                value={audio.project?.projectCode || audio.projectCode}
+              >
                 <ProjectLink project={audio.project || { projectCode: audio.projectCode, projectName: audio.projectName }} />
               </MetaRow>
-              <MetaRow label="Person">
+              <MetaRow
+                label="Person"
+                value={audio.person?.personCode || audio.personCode}
+              >
                 <PersonLink person={audio.person} fallbackCode={audio.personCode} fallbackName={audio.personName} />
               </MetaRow>
-              <MetaRow label="Categories">
+              <MetaRow label="Categories" value={audio.categories}>
                 <CategoryLinks categories={audio.categories} />
               </MetaRow>
-              <MetaRow label="Subjects">
-                <PillRow values={audio.subjects} />
+              <MetaRow label="Subjects" value={audio.subjects || audio.subject}>
+                <PillRow values={audio.subjects || audio.subject} />
               </MetaRow>
-              <MetaRow label="Contributors">
-                <PillRow values={audio.contributors} />
+              <MetaRow
+                label="Contributors"
+                value={audio.contributors || audio.contributor}
+              >
+                <PillRow values={audio.contributors || audio.contributor} />
               </MetaRow>
             </MetaPanel>
 
-            {(audio.tags?.length || audio.keywords?.length) ? (
-              <MetaPanel title="Tags & keywords">
-                <MetaRow label="Tags">
+            {audio.tags?.length ? (
+              <MetaPanel title="Tags">
+                <MetaRow label="Tags" value={audio.tags}>
                   <PillRow values={audio.tags} tone="primary" />
-                </MetaRow>
-                <MetaRow label="Keywords">
-                  <PillRow values={audio.keywords} />
                 </MetaRow>
               </MetaPanel>
             ) : null}

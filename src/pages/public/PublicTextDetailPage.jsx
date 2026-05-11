@@ -18,7 +18,7 @@ import {
   PillRow,
   ProjectLink,
 } from '@/components/public/PublicMediaDetailShared'
-import { formatPublicDate } from '@/components/public/public-helpers'
+import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
 import { guestTexts } from '@/services/guest'
 
 function PublicTextDetailPage() {
@@ -48,7 +48,7 @@ function PublicTextDetailPage() {
     () => [
       { to: '/public', label: 'Home' },
       { to: '/public/texts', label: 'Texts' },
-      { label: text?.titleEnglish || text?.titleOriginal || 'Untitled text' },
+      { label: pickMediaTitle(text) || 'Untitled text' },
     ],
     [text],
   )
@@ -71,8 +71,13 @@ function PublicTextDetailPage() {
     )
   }
 
-  const title = text.titleEnglish || text.titleOriginal || 'Untitled text'
-  const original = text.titleOriginal && text.titleOriginal !== title ? text.titleOriginal : null
+  const title = pickMediaTitle(text) || 'Untitled text'
+  const originalCandidate =
+    text.originalTitle ||
+    text.titleOriginal ||
+    text.titleInCentralKurdish ||
+    text.centralKurdishTitle
+  const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
   const fileUrl = text.textFileUrl
   const isPdf = fileUrl && /\.pdf($|\?)/i.test(fileUrl)
 
@@ -143,33 +148,40 @@ function PublicTextDetailPage() {
             <MetaPanel title="Details">
               <MetaRow label="Document type">{text.documentType}</MetaRow>
               <MetaRow label="Author">{text.author}</MetaRow>
-              <MetaRow label="Subject">{text.subject}</MetaRow>
-              <MetaRow label="Genre">{text.genre}</MetaRow>
+              <MetaRow label="Subject" value={text.subject}>
+                <PillRow values={text.subject} />
+              </MetaRow>
+              <MetaRow label="Genre" value={text.genre}>
+                <PillRow values={text.genre} />
+              </MetaRow>
               <MetaRow label="Language">{text.language}</MetaRow>
               <MetaRow label="Dialect">{text.dialect}</MetaRow>
               <MetaRow label="Pages">{text.pageCount}</MetaRow>
               <MetaRow label="Date">{formatPublicDate(text.documentDate || text.recordedAt)}</MetaRow>
-              <MetaRow label="Project">
+              <MetaRow
+                label="Project"
+                value={text.project?.projectCode || text.projectCode}
+              >
                 <ProjectLink project={text.project || { projectCode: text.projectCode, projectName: text.projectName }} />
               </MetaRow>
-              <MetaRow label="Person">
+              <MetaRow
+                label="Person"
+                value={text.person?.personCode || text.personCode}
+              >
                 <PersonLink person={text.person} fallbackCode={text.personCode} fallbackName={text.personName} />
               </MetaRow>
-              <MetaRow label="Categories">
+              <MetaRow label="Categories" value={text.categories}>
                 <CategoryLinks categories={text.categories} />
               </MetaRow>
-              <MetaRow label="Subjects">
+              <MetaRow label="Subjects" value={text.subjects}>
                 <PillRow values={text.subjects} />
               </MetaRow>
             </MetaPanel>
 
-            {(text.tags?.length || text.keywords?.length) ? (
-              <MetaPanel title="Tags & keywords">
-                <MetaRow label="Tags">
+            {text.tags?.length ? (
+              <MetaPanel title="Tags">
+                <MetaRow label="Tags" value={text.tags}>
                   <PillRow values={text.tags} tone="primary" />
-                </MetaRow>
-                <MetaRow label="Keywords">
-                  <PillRow values={text.keywords} />
                 </MetaRow>
               </MetaPanel>
             ) : null}

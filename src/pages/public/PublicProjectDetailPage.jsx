@@ -20,7 +20,7 @@ import {
   SectionTitle,
   TagPill,
 } from '@/components/public/PublicShared'
-import { formatPublicDate } from '@/components/public/public-helpers'
+import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { guestProject, guestProjectMedia } from '@/services/guest'
@@ -158,33 +158,54 @@ function PublicProjectDetailPage() {
           {/* ── Sidebar: meta ─────────────────────────────────── */}
           <aside className="space-y-5 lg:sticky lg:top-32 lg:self-start">
             <Panel title="At a glance">
-              {project.personCode ? (
-                <Row icon={UserIcon} label="Person">
-                  <Link
-                    to={`/public/persons/${project.personCode}`}
-                    className="font-medium text-foreground hover:text-primary"
-                  >
-                    {project.personName || 'Untitled person'}
-                  </Link>
-                </Row>
-              ) : (
-                <Row icon={UserIcon} label="Person">
-                  <span className="text-muted-foreground italic">No person linked</span>
-                </Row>
-              )}
+              {(() => {
+                // Tolerate any of the common shapes the backend might
+                // expose: nested `person` object, flat `personCode` /
+                // `personName`, or none at all (in which case we hide
+                // the row entirely instead of saying "No person linked"
+                // — that copy belonged to an empty-state design we
+                // don't use any more).
+                const personCode = project.person?.personCode || project.personCode
+                const personName =
+                  project.person?.fullName ||
+                  project.person?.name ||
+                  project.personName ||
+                  'Untitled person'
+                if (!personCode) return null
+                return (
+                  <Row icon={UserIcon} label="Person">
+                    <Link
+                      to={`/public/persons/${personCode}`}
+                      className="font-medium text-foreground hover:text-primary"
+                    >
+                      {personName}
+                    </Link>
+                  </Row>
+                )
+              })()}
 
               {Array.isArray(project.categories) && project.categories.length > 0 ? (
                 <Row icon={Tags} label="Categories">
                   <div className="flex flex-wrap gap-1.5">
-                    {project.categories.map((c) => (
-                      <Link
-                        key={c.categoryCode}
-                        to={`/public/categories/${c.categoryCode}`}
-                        className="inline-flex items-center rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-foreground/80 hover:border-primary/30 hover:text-primary"
-                      >
-                        {c.categoryName || c.name || c.categoryCode}
-                      </Link>
-                    ))}
+                    {project.categories.map((c) => {
+                      // Backend might serve categories as objects
+                      // ({categoryCode,name}) or as plain code strings.
+                      const code = typeof c === 'string' ? c : (c?.categoryCode || c?.code)
+                      const label =
+                        typeof c === 'string'
+                          ? c
+                          : (c?.categoryName || c?.name || c?.categoryCode || c?.code)
+                      if (!code) return null
+                      return (
+                        <Link
+                          key={code}
+                          to={`/public/categories/${code}`}
+                          className="inline-flex items-center rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-foreground/80 hover:border-primary/30 hover:text-primary"
+                        >
+                          {label}
+                        </Link>
+                      )
+                    })}
                   </div>
                 </Row>
               ) : null}
@@ -196,32 +217,13 @@ function PublicProjectDetailPage() {
               ) : null}
             </Panel>
 
-            {(project.tags?.length || project.keywords?.length) ? (
-              <Panel title="Tags & keywords">
-                {project.tags?.length ? (
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      Tags
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {project.tags.map((t) => (
-                        <TagPill key={t} tone="primary">{t}</TagPill>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-                {project.keywords?.length ? (
-                  <div className="mt-3 space-y-1">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      Keywords
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {project.keywords.map((k) => (
-                        <TagPill key={k}>{k}</TagPill>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+            {project.tags?.length ? (
+              <Panel title="Tags">
+                <div className="flex flex-wrap gap-1.5">
+                  {project.tags.map((t) => (
+                    <TagPill key={t} tone="primary">{t}</TagPill>
+                  ))}
+                </div>
               </Panel>
             ) : null}
           </aside>
@@ -284,7 +286,7 @@ function MediaGrid({ media, tab }) {
 
 function MediaResultCard({ kind, item }) {
   const code = mediaCode(item)
-  const title = item.titleEnglish || item.titleOriginal || `Untitled ${kind}`
+  const title = pickMediaTitle(item) || `Untitled ${kind}`
   const description = item.description
   const thumb = item.imageFileUrl || null
   const meta = []

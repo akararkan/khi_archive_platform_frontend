@@ -5,7 +5,6 @@ import {
   CornerDownLeft,
   FileText,
   FolderOpen,
-  Hash,
   Image as ImageIcon,
   Loader2,
   Search,
@@ -50,7 +49,10 @@ const SUGGEST_LIMIT = 8
 
 // Per-kind icon + label + how to act on a click (navigate vs. submit).
 // `entity` kinds resolve to a public detail route via the suggestion's
-// `code`; `query` kinds (tag/keyword) just become the search term.
+// `code`; `tag` (the only `query` kind) just becomes the search term.
+// Keyword suggestions are intentionally not exposed on the public
+// surface — they're a backend cataloguing concept, not something
+// readers should see or browse by.
 const SUGGEST_KINDS = {
   project: { icon: FolderOpen, label: 'Project', mode: 'entity', path: 'projects' },
   category: { icon: Tags, label: 'Category', mode: 'entity', path: 'categories' },
@@ -60,14 +62,13 @@ const SUGGEST_KINDS = {
   text: { icon: FileText, label: 'Text', mode: 'entity', path: 'texts' },
   image: { icon: ImageIcon, label: 'Image', mode: 'entity', path: 'images' },
   tag: { icon: Tag, label: 'Tag', mode: 'query' },
-  keyword: { icon: Hash, label: 'Keyword', mode: 'query' },
 }
 
 // Display order for grouped suggestion buckets. Entity kinds come first
-// because they jump straight to a record; tag/keyword trail because they
-// just narrow the next search.
+// because they jump straight to a record; tags trail because they just
+// narrow the next search.
 const SUGGEST_ORDER = [
-  'person', 'project', 'audio', 'video', 'text', 'image', 'category', 'tag', 'keyword',
+  'person', 'project', 'audio', 'video', 'text', 'image', 'category', 'tag',
 ]
 
 // One-tap starter chips shown in the dropdown when the input is focused
@@ -87,6 +88,9 @@ function groupSuggestions(list) {
   const buckets = new Map()
   for (const s of list || []) {
     const kind = s?.kind || 'tag'
+    // Keywords are not surfaced on the public catalogue. Strip them
+    // before they ever reach the suggestion dropdown.
+    if (kind === 'keyword') continue
     const arr = buckets.get(kind) || []
     arr.push(s)
     buckets.set(kind, arr)
@@ -522,11 +526,6 @@ function SuggestionRow({ id, suggestion, active, onMouseEnter, onMouseDown, onCl
         <span className="min-w-0 flex-1 truncate">
           <Highlight text={suggestion.value || ''} />
         </span>
-        {suggestion.code && suggestion.code !== suggestion.value ? (
-          <span className="hidden shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground sm:inline">
-            {suggestion.code}
-          </span>
-        ) : null}
         <span
           className={cn(
             'shrink-0 rounded-full border px-1.5 py-px text-[10px] font-medium uppercase tracking-[0.08em]',

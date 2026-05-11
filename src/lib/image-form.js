@@ -279,17 +279,21 @@ export function deriveImageAutoFieldsFromFile(file) {
   const name = file.name || ''
   const dot = name.lastIndexOf('.')
   const ext = dot > -1 ? name.slice(dot + 1).toLowerCase() : ''
+  // See video-form for the full reasoning: source-path fields can only
+  // be auto-filled when the user picks a folder. Single-file pickers
+  // leave them blank by design — better than misleading defaults.
   const relativePath = file.webkitRelativePath || ''
-  const path = relativePath || name
 
   let volumeName = ''
   let directory = ''
+  let path = ''
   if (relativePath) {
     const parts = relativePath.split('/').filter(Boolean)
     if (parts.length >= 2) {
       volumeName = parts[0]
       directory = parts[parts.length - 2]
     }
+    path = relativePath
   }
 
   return {

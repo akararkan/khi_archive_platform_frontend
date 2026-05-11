@@ -248,23 +248,32 @@ function deriveAutoFieldsFromFile(file) {
   const name = file.name || ''
   const dot = name.lastIndexOf('.')
   const ext = dot > -1 ? name.slice(dot + 1).toLowerCase() : ''
-  // Browsers only expose the filename for single-file pickers (real OS path is
-  // hidden for security). webkitRelativePath is set when the user picks a folder
-  // via <input webkitdirectory>, in which case it contains the path relative to
-  // the picked root, e.g. "HesenZirek/RAW/song1.mp3".
+  // Volume / Directory / External Path / Auto Path describe the SOURCE
+  // location on disk where this file came from — they're meant to mirror
+  // the folder the archive team uploaded it from. Browsers only expose
+  // that path for security when the user picks a folder via
+  // <input webkitdirectory>; webkitRelativePath then carries the path
+  // relative to the picked root (e.g. "HesenZirek/RAW/song1.mp3"). For
+  // single-file pickers the browser hides the absolute path completely,
+  // so we leave these fields blank rather than fill them with anything
+  // misleading — the user should either use the folder picker (the
+  // "Pick from folder" affordance next to the file picker) or type the
+  // path in manually.
   const relativePath = file.webkitRelativePath || ''
-  const path = relativePath || name
 
   let volumeName = ''
   let directoryName = ''
+  let path = ''
   if (relativePath) {
     const parts = relativePath.split('/').filter(Boolean)
     if (parts.length >= 2) {
-      // First segment = the folder the user picked (treated as the "volume").
+      // First segment = the folder the user picked (the "volume").
+      // Last segment is the filename; second-to-last is the immediate
+      // parent (the "directory").
       volumeName = parts[0]
-      // Last segment is the filename, second-to-last is the immediate parent.
       directoryName = parts[parts.length - 2]
     }
+    path = relativePath
   }
 
   return {

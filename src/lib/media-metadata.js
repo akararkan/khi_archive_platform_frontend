@@ -187,6 +187,109 @@ async function readId3Tags(file) {
   }
 }
 
+// ── MP3 frame header → bitrate / sample rate / channels ──────────────
+//
+// MP3 stores its technical metadata in every frame's 4-byte header,
+// not in the ID3 tag. We don't need to decode the audio (that would
+// take seconds and ~100s of MB of RAM for a long file); we just need
+// to find the very first frame and read four bytes.
+//
+// Frame header layout (32 bits, big-endian):
+//
+//   FFF V V L L C - bitrate(4) sample(2) pad(1) priv(1) chan(2) ...
+//
+// We grok V (MPEG version: 11=MPEG-1, 10=MPEG-2, 00=MPEG-2.5),
+// the bitrate index (mapped to a kbps table per version+layer), the
+// sample-rate index (mapped to a Hz table per version), and the
+// channel mode (00=Stereo, 01=Joint stereo, 10=Dual, 11=Mono).
+
+const MP3_BITRATES = {
+  // [version][layer] → bitrate table indexed by the 4-bit bitrate field
+  3: {
+    // MPEG-1
+    1: [null, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, null], // L1
+    2: [null, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, null],     // L2
+    3: [null, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, null],     // L3
+  },
+  2: {
+    // MPEG-2 & 2.5
+    1: [null, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256, null],     // L1
+    2: [null, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, null],          // L2
+    3: [null, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, null],          // L3
+  },
+}
+
+const MP3_SAMPLE_RATES = {
+  3: [44100, 48000, 32000, null], // MPEG-1
+  2: [22050, 24000, 16000, null], // MPEG-2
+  0: [11025, 12000, 8000, null],  // MPEG-2.5
+}
+
+const MP3_CHANNEL_MODE_NAMES = ['Stereo', 'Joint stereo', 'Dual channel', 'Mono']
+
+function parseMp3FrameHeader(bytes, offset) {
+  if (offset + 4 > bytes.length) return null
+  const b0 = bytes[offset]
+  const b1 = bytes[offset + 1]
+  const b2 = bytes[offset + 2]
+  const b3 = bytes[offset + 3]
+  // Sync word — 11 high bits all 1.
+  if (b0 !== 0xff || (b1 & 0xe0) !== 0xe0) return null
+  const versionBits = (b1 >> 3) & 0x03
+  if (versionBits === 1) return null // reserved version
+  const layerBits = (b1 >> 1) & 0x03
+  if (layerBits === 0) return null // reserved layer
+  // Layer encoding: 11=Layer I, 10=Layer II, 01=Layer III. We map to
+  // 1/2/3 for the table lookup.
+  const layer = 4 - layerBits
+  const bitrateIdx = (b2 >> 4) & 0x0f
+  const sampleIdx = (b2 >> 2) & 0x03
+  const channelMode = (b3 >> 6) & 0x03
+  // Pick the bitrate table by version family — MPEG-1 (3) has its own,
+  // MPEG-2 (2) and MPEG-2.5 (0) share one.
+  const bitrateFamily = versionBits === 3 ? 3 : 2
+  const bitrate = MP3_BITRATES[bitrateFamily]?.[layer]?.[bitrateIdx] || null
+  const sampleTable = MP3_SAMPLE_RATES[versionBits]
+  const sampleRate = sampleTable ? sampleTable[sampleIdx] : null
+  if (!bitrate || !sampleRate) return null
+  return {
+    bitrate, // kbps
+    sampleRate, // Hz
+    channels: channelMode === 3 ? 1 : 2,
+    channelMode: MP3_CHANNEL_MODE_NAMES[channelMode],
+  }
+}
+
+async function readMp3FrameInfo(file) {
+  try {
+    // Skip past any ID3v2 tag so we land on actual frame data.
+    const headBuf = await readSlice(file, 0, 10)
+    const head = new Uint8Array(headBuf)
+    let frameStart = 0
+    if (head[0] === 0x49 && head[1] === 0x44 && head[2] === 0x33) {
+      const synchsafe = (b3, b2, b1, b0) =>
+        ((b3 & 0x7f) << 21) |
+        ((b2 & 0x7f) << 14) |
+        ((b1 & 0x7f) << 7) |
+        (b0 & 0x7f)
+      frameStart = 10 + synchsafe(head[6], head[7], head[8], head[9])
+    }
+    // Probe a small window after the tag — sync word is usually within
+    // a few bytes, but allow some slack for padding.
+    const probeBuf = await readSlice(file, frameStart, frameStart + 8192)
+    const probe = new Uint8Array(probeBuf)
+    for (let i = 0; i < probe.length - 4; i += 1) {
+      if (probe[i] === 0xff && (probe[i + 1] & 0xe0) === 0xe0) {
+        const frame = parseMp3FrameHeader(probe, i)
+        if (frame) return frame
+      }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 async function readAudioPlayback(file) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file)
@@ -210,9 +313,14 @@ async function readAudioPlayback(file) {
 
 export async function extractAudioMetadata(file) {
   if (!file) return null
-  const [tags, playback] = await Promise.all([
+  // All three probes run in parallel — none of them block each other,
+  // so picking a file shows everything as soon as the slowest finishes
+  // (still typically < 200ms even for huge MP3s, since none of the
+  // probes read more than ~16KB of file data).
+  const [tags, playback, frame] = await Promise.all([
     withTimeout(readId3Tags(file), TIMEOUT_MS).catch(() => null),
     withTimeout(readAudioPlayback(file), TIMEOUT_MS).catch(() => null),
+    withTimeout(readMp3FrameInfo(file), TIMEOUT_MS).catch(() => null),
   ])
   return {
     title: tags?.title || '',
@@ -222,6 +330,10 @@ export async function extractAudioMetadata(file) {
     comment: tags?.comment || '',
     genre: tags?.genre || '',
     duration: playback?.duration ?? null,
+    bitrate: frame?.bitrate ?? null, // kbps
+    sampleRate: frame?.sampleRate ?? null, // Hz
+    channels: frame?.channels ?? null,
+    channelMode: frame?.channelMode || '',
   }
 }
 
@@ -345,7 +457,23 @@ export function audioMetadataToForm(meta) {
   if (meta.album) out.tags = [meta.album]
   if (meta.duration) out.audioFileNote = `Duration ${formatDurationSeconds(meta.duration)}`
   if (meta.genre) out.genre = [meta.genre]
+  // Technical fields, all parsed from the MP3 frame header.
+  if (meta.sampleRate) out.sampleRate = formatSampleRate(meta.sampleRate)
+  if (meta.bitrate) out.bitRate = `${meta.bitrate} kbps`
+  if (meta.channelMode) out.audioChannel = meta.channelMode
+  else if (meta.channels === 1) out.audioChannel = 'Mono'
+  else if (meta.channels === 2) out.audioChannel = 'Stereo'
   return out
+}
+
+// 44100 → "44.1 kHz", 48000 → "48 kHz". Drops the trailing ".0" when
+// the kHz value is a whole number so the display reads naturally.
+function formatSampleRate(hz) {
+  if (!Number.isFinite(hz) || hz <= 0) return ''
+  const khz = hz / 1000
+  const rounded = Math.round(khz * 10) / 10
+  const str = rounded % 1 === 0 ? String(Math.round(rounded)) : String(rounded)
+  return `${str} kHz`
 }
 
 export function videoMetadataToForm(meta) {

@@ -204,17 +204,21 @@ const MATCH_LABELS = {
   person: 'person',
   project: 'project',
   tag: 'tag',
-  keyword: 'keyword',
 }
 
 function MatchedOnPills({ values, className }) {
-  if (!Array.isArray(values) || values.length === 0) return null
+  if (!Array.isArray(values)) return null
+  // Keywords are never surfaced on the public catalogue, so strip them
+  // out here too — otherwise a backend `matchedOn: ["keyword"]` would
+  // leak the term back into the UI.
+  const visible = values.filter((v) => v !== 'keyword')
+  if (visible.length === 0) return null
   return (
     <div className={cn('flex flex-wrap items-center gap-1', className)}>
       <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         Matched
       </span>
-      {values.map((v) => (
+      {visible.map((v) => (
         <span
           key={v}
           className="inline-flex items-center rounded-sm border border-primary/25 bg-primary/8 px-1 py-px font-mono text-[10px] uppercase tracking-[0.06em] text-primary"

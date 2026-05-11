@@ -16,7 +16,7 @@ import {
   PillRow,
   ProjectLink,
 } from '@/components/public/PublicMediaDetailShared'
-import { formatPublicDate } from '@/components/public/public-helpers'
+import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
 import { guestVideos } from '@/services/guest'
 
 function PublicVideoDetailPage() {
@@ -46,7 +46,7 @@ function PublicVideoDetailPage() {
     () => [
       { to: '/public', label: 'Home' },
       { to: '/public/videos', label: 'Videos' },
-      { label: video?.titleEnglish || video?.titleOriginal || 'Untitled video' },
+      { label: pickMediaTitle(video) || 'Untitled video' },
     ],
     [video],
   )
@@ -69,8 +69,13 @@ function PublicVideoDetailPage() {
     )
   }
 
-  const title = video.titleEnglish || video.titleOriginal || 'Untitled video'
-  const original = video.titleOriginal && video.titleOriginal !== title ? video.titleOriginal : null
+  const title = pickMediaTitle(video) || 'Untitled video'
+  const originalCandidate =
+    video.originalTitle ||
+    video.titleOriginal ||
+    video.titleInCentralKurdish ||
+    video.centralKurdishTitle
+  const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
 
   return (
     <>
@@ -118,35 +123,45 @@ function PublicVideoDetailPage() {
             <MetaPanel title="Details">
               <MetaRow label="Event">{video.event}</MetaRow>
               <MetaRow label="Location">{video.location}</MetaRow>
-              <MetaRow label="Subject">{video.subject}</MetaRow>
-              <MetaRow label="Genre">{video.genre}</MetaRow>
+              <MetaRow label="Subject" value={video.subject}>
+                <PillRow values={video.subject} />
+              </MetaRow>
+              <MetaRow label="Genre" value={video.genre}>
+                <PillRow values={video.genre} />
+              </MetaRow>
               <MetaRow label="Language">{video.language}</MetaRow>
               <MetaRow label="Dialect">{video.dialect}</MetaRow>
               <MetaRow label="Recorded">{formatPublicDate(video.recordedAt || video.recordingDate)}</MetaRow>
-              <MetaRow label="Duration">
+              <MetaRow label="Duration" value={video.duration || video.durationFormatted}>
                 {video.duration ? `${video.duration}s` : video.durationFormatted}
               </MetaRow>
-              <MetaRow label="Project">
+              <MetaRow
+                label="Project"
+                value={video.project?.projectCode || video.projectCode}
+              >
                 <ProjectLink project={video.project || { projectCode: video.projectCode, projectName: video.projectName }} />
               </MetaRow>
-              <MetaRow label="Person">
+              <MetaRow
+                label="Person"
+                value={video.person?.personCode || video.personCode}
+              >
                 <PersonLink person={video.person} fallbackCode={video.personCode} fallbackName={video.personName} />
               </MetaRow>
-              <MetaRow label="Categories">
+              <MetaRow label="Categories" value={video.categories}>
                 <CategoryLinks categories={video.categories} />
               </MetaRow>
-              <MetaRow label="Contributors">
-                <PillRow values={video.contributors} />
+              <MetaRow
+                label="Contributors"
+                value={video.contributors || video.contributor}
+              >
+                <PillRow values={video.contributors || video.contributor} />
               </MetaRow>
             </MetaPanel>
 
-            {(video.tags?.length || video.keywords?.length) ? (
-              <MetaPanel title="Tags & keywords">
-                <MetaRow label="Tags">
+            {video.tags?.length ? (
+              <MetaPanel title="Tags">
+                <MetaRow label="Tags" value={video.tags}>
                   <PillRow values={video.tags} tone="primary" />
-                </MetaRow>
-                <MetaRow label="Keywords">
-                  <PillRow values={video.keywords} />
                 </MetaRow>
               </MetaPanel>
             ) : null}

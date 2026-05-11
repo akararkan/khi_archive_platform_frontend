@@ -11,6 +11,39 @@ function pickFirst(...values) {
   return null
 }
 
+// Returns the most-readable title for any media DTO regardless of which
+// of the backend's title field names it actually carries. The backend
+// uses different names per kind (audio uses originTitle / alterTitle /
+// fullName, video uses originalTitle / alternativeTitle, text/image
+// follow video, and the unified results endpoint exposes a normalised
+// `title`). Reading them all here means every detail page, card, and
+// breadcrumb gets a consistent best-available title and never falls
+// through to the technical code on a record that has titles set under
+// a name we forgot to check.
+function pickMediaTitle(item) {
+  if (!item) return null
+  return (
+    pickFirst(
+      // Already-resolved title (from /results endpoint).
+      item.title,
+      // Per-kind primary "main" titles.
+      item.titleEnglish,
+      item.fullName,
+      // Romanized — same script everyone can read.
+      item.romanizedTitle,
+      // Original-script titles, in priority order.
+      item.originalTitle,
+      item.originTitle,
+      item.titleOriginal,
+      item.centralKurdishTitle,
+      item.titleInCentralKurdish,
+      // Alternative titles as a final fallback.
+      item.alternativeTitle,
+      item.alterTitle,
+    ) || null
+  )
+}
+
 // Build a compact metadata strip for project cards: media-type counts,
 // the first category, and the linked person.
 function projectMeta(p) {
@@ -69,6 +102,8 @@ function formatPublicDate(value) {
 // Entries are tolerated in a couple of shapes so a small backend rename
 // later doesn't break the UI. We always normalise to `{ value, code, count }`.
 
+// Note: 'keywords' is intentionally absent — keywords are an internal
+// cataloguing concept and aren't exposed on the public surface.
 const FACET_KEYS = [
   'mediaTypes',
   'categories',
@@ -78,7 +113,6 @@ const FACET_KEYS = [
   'regions',
   'genres',
   'tags',
-  'keywords',
 ]
 
 function readFacetEntry(entry) {
@@ -187,6 +221,7 @@ function decodeSelectedFacets(searchParams, facetMap) {
 
 export {
   pickFirst,
+  pickMediaTitle,
   projectMeta,
   mediaThumbHref,
   formatPublicDate,

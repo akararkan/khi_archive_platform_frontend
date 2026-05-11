@@ -37,6 +37,7 @@ import {
   decodeSelectedFacets,
   extractPersonFromItem,
   personImageSrc,
+  pickMediaTitle,
   readMediaTypeCount,
   totalFacetCount,
 } from '@/components/public/public-helpers'
@@ -140,7 +141,6 @@ const TYPES = {
       const kind = r.kind
       const inner = (kind && r[kind]) || {}
       const resource = KIND_TO_RESOURCE[kind] || 'audios'
-      const titleFallback = inner.titleEnglish || inner.titleOriginal
       const untitled =
         kind === 'audio' ? 'Untitled audio'
         : kind === 'video' ? 'Untitled video'
@@ -151,7 +151,7 @@ const TYPES = {
         kind,
         code: r.code,
         to: `/public/${resource}/${r.code}`,
-        title: r.title || titleFallback || untitled,
+        title: r.title || pickMediaTitle(inner) || untitled,
         description: inner.description || inner.summary,
         meta: unifiedMeta(kind, inner),
         // `dateCreated` and `createdAt` are technical timestamps —
@@ -214,7 +214,7 @@ const TYPES = {
     facetMap: SHARED_MEDIA_FACETS,
     card: (a) => ({
       code: a.audioCode,
-      title: a.titleEnglish || a.titleOriginal || 'Untitled audio',
+      title: pickMediaTitle(a) || 'Untitled audio',
       description: a.description,
       meta: [a.region, a.language, a.dialect, a.form].filter(Boolean),
       year: pickYear(a.recordedAt || a.recordingDate),
@@ -252,7 +252,7 @@ const TYPES = {
     facetMap: SHARED_MEDIA_FACETS,
     card: (v) => ({
       code: v.videoCode,
-      title: v.titleEnglish || v.titleOriginal || 'Untitled video',
+      title: pickMediaTitle(v) || 'Untitled video',
       description: v.description,
       meta: [v.region, v.event, v.location].filter(Boolean),
       year: pickYear(v.recordedAt || v.recordingDate),
@@ -290,7 +290,7 @@ const TYPES = {
     facetMap: SHARED_MEDIA_FACETS,
     card: (t) => ({
       code: t.textCode,
-      title: t.titleEnglish || t.titleOriginal || 'Untitled text',
+      title: pickMediaTitle(t) || 'Untitled text',
       description: t.description || t.summary,
       meta: [t.documentType, t.language, t.author].filter(Boolean),
       year: pickYear(t.documentDate || t.recordedAt),
@@ -328,7 +328,7 @@ const TYPES = {
     ),
     card: (i) => ({
       code: i.imageCode,
-      title: i.titleEnglish || i.titleOriginal || 'Untitled image',
+      title: pickMediaTitle(i) || 'Untitled image',
       description: i.description,
       meta: [i.form, i.event, i.location].filter(Boolean),
       year: pickYear(i.imageDate || i.recordedAt),
@@ -388,13 +388,24 @@ const TYPES = {
     facetMap: [
       { paramKey: 'region', facetKey: 'regions', title: 'Region', defaultOpen: true },
     ],
-    card: (p) => ({
-      code: p.personCode,
-      title: p.fullName || p.name || 'Untitled person',
-      description: p.bio || p.description,
-      meta: [p.personType, p.region, p.gender].filter(Boolean),
-      parent: { person: p },
-    }),
+    card: (p) => {
+      // personType may be an array (["Singer","Maqam Bezh", …]) or a
+      // delimiter-joined string. Spread it into the meta list so each
+      // role lands in its own dot-separated chunk instead of rendering
+      // as a concatenated wall of text.
+      const roles = Array.isArray(p.personType)
+        ? p.personType
+        : (typeof p.personType === 'string'
+            ? p.personType.split(/[,،;]/).map((s) => s.trim()).filter(Boolean)
+            : [])
+      return {
+        code: p.personCode,
+        title: p.fullName || p.name || 'Untitled person',
+        description: p.bio || p.description,
+        meta: [...roles, p.region, p.gender].filter(Boolean),
+        parent: { person: p },
+      }
+    },
   },
   category: {
     key: 'category',

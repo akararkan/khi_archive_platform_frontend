@@ -18,7 +18,7 @@ import {
   PillRow,
   ProjectLink,
 } from '@/components/public/PublicMediaDetailShared'
-import { formatPublicDate } from '@/components/public/public-helpers'
+import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
 import { guestImages } from '@/services/guest'
 
 function PublicImageDetailPage() {
@@ -48,7 +48,7 @@ function PublicImageDetailPage() {
     () => [
       { to: '/public', label: 'Home' },
       { to: '/public/images', label: 'Images' },
-      { label: image?.titleEnglish || image?.titleOriginal || 'Untitled image' },
+      { label: pickMediaTitle(image) || 'Untitled image' },
     ],
     [image],
   )
@@ -71,8 +71,13 @@ function PublicImageDetailPage() {
     )
   }
 
-  const title = image.titleEnglish || image.titleOriginal || 'Untitled image'
-  const original = image.titleOriginal && image.titleOriginal !== title ? image.titleOriginal : null
+  const title = pickMediaTitle(image) || 'Untitled image'
+  const originalCandidate =
+    image.originalTitle ||
+    image.titleOriginal ||
+    image.titleInCentralKurdish ||
+    image.centralKurdishTitle
+  const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
   const fileUrl = image.imageFileUrl
 
   return (
@@ -147,30 +152,37 @@ function PublicImageDetailPage() {
               <MetaRow label="Form">{image.form}</MetaRow>
               <MetaRow label="Event">{image.event}</MetaRow>
               <MetaRow label="Location">{image.location}</MetaRow>
-              <MetaRow label="Subject">{image.subject}</MetaRow>
-              <MetaRow label="Genre">{image.genre}</MetaRow>
+              <MetaRow label="Subject" value={image.subject}>
+                <PillRow values={image.subject} />
+              </MetaRow>
+              <MetaRow label="Genre" value={image.genre}>
+                <PillRow values={image.genre} />
+              </MetaRow>
               <MetaRow label="Date">{formatPublicDate(image.imageDate || image.recordedAt)}</MetaRow>
-              <MetaRow label="Project">
+              <MetaRow
+                label="Project"
+                value={image.project?.projectCode || image.projectCode}
+              >
                 <ProjectLink project={image.project || { projectCode: image.projectCode, projectName: image.projectName }} />
               </MetaRow>
-              <MetaRow label="Person">
+              <MetaRow
+                label="Person"
+                value={image.person?.personCode || image.personCode}
+              >
                 <PersonLink person={image.person} fallbackCode={image.personCode} fallbackName={image.personName} />
               </MetaRow>
-              <MetaRow label="Categories">
+              <MetaRow label="Categories" value={image.categories}>
                 <CategoryLinks categories={image.categories} />
               </MetaRow>
-              <MetaRow label="Subjects">
+              <MetaRow label="Subjects" value={image.subjects}>
                 <PillRow values={image.subjects} />
               </MetaRow>
             </MetaPanel>
 
-            {(image.tags?.length || image.keywords?.length) ? (
-              <MetaPanel title="Tags & keywords">
-                <MetaRow label="Tags">
+            {image.tags?.length ? (
+              <MetaPanel title="Tags">
+                <MetaRow label="Tags" value={image.tags}>
                   <PillRow values={image.tags} tone="primary" />
-                </MetaRow>
-                <MetaRow label="Keywords">
-                  <PillRow values={image.keywords} />
                 </MetaRow>
               </MetaPanel>
             ) : null}

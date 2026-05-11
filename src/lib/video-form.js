@@ -296,17 +296,23 @@ export function deriveVideoAutoFieldsFromFile(file) {
   const name = file.name || ''
   const dot = name.lastIndexOf('.')
   const ext = dot > -1 ? name.slice(dot + 1).toLowerCase() : ''
+  // See comment in EmployeeProjectDetailPage's deriveAutoFieldsFromFile:
+  // these path/volume/directory fields describe the SOURCE folder the
+  // file came from. The browser only exposes that when the user picks a
+  // folder via <input webkitdirectory>; for single-file pickers the
+  // absolute path is hidden, so we leave these blank rather than guess.
   const relativePath = file.webkitRelativePath || ''
-  const path = relativePath || name
 
   let volumeName = ''
   let directory = ''
+  let path = ''
   if (relativePath) {
     const parts = relativePath.split('/').filter(Boolean)
     if (parts.length >= 2) {
       volumeName = parts[0]
       directory = parts[parts.length - 2]
     }
+    path = relativePath
   }
 
   return {

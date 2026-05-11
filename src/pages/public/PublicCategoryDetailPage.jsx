@@ -8,7 +8,6 @@ import {
   PageContainer,
   PageHeader,
   ResultCard,
-  TagPill,
 } from '@/components/public/PublicShared'
 import { projectMeta } from '@/components/public/public-helpers'
 import { DataPagination } from '@/components/ui/pagination'
@@ -100,13 +99,6 @@ function PublicCategoryDetailPage() {
             description={category.description}
             breadcrumbs={breadcrumbs}
           />
-          {Array.isArray(category.keywords) && category.keywords.length > 0 ? (
-            <div className="mt-5 flex flex-wrap gap-1.5">
-              {category.keywords.map((k) => (
-                <TagPill key={k}>{k}</TagPill>
-              ))}
-            </div>
-          ) : null}
         </PageContainer>
       </section>
 
