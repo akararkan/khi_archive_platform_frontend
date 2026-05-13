@@ -84,6 +84,29 @@ function formatPublicDate(value) {
   }
 }
 
+// hasAny: returns true if `obj` has at least one non-empty value across
+// the given keys. Public detail pages use it to skip whole sidebar
+// panels (with their heading) when none of the rows inside would render.
+function hasAny(obj, keys) {
+  if (!obj) return false
+  for (const k of keys) {
+    const v = obj[k]
+    if (v === null || v === undefined || v === '') continue
+    if (Array.isArray(v) && v.length === 0) continue
+    return true
+  }
+  return false
+}
+
+// "Yes" / "No" / null helper for boolean-typed DTO fields like
+// physicalAvailability. Returning null lets MetaRow drop the row when
+// the field wasn't set at all rather than rendering an empty string.
+function formatBool(value) {
+  if (value === true) return 'Yes'
+  if (value === false) return 'No'
+  return null
+}
+
 // ── Facet helpers ────────────────────────────────────────────────────────
 //
 // /api/guest/facets returns:
@@ -225,6 +248,8 @@ export {
   projectMeta,
   mediaThumbHref,
   formatPublicDate,
+  hasAny,
+  formatBool,
   FACET_KEYS,
   readFacet,
   readFacetEntry,

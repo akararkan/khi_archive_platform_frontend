@@ -95,6 +95,11 @@ import {
 } from '@/pages/employee/text-filters'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { FieldHelpButton } from '@/components/ui/field-help'
+import { getAudioFieldMetadata } from '@/lib/audio-fields-metadata'
+import { getVideoFieldMetadata } from '@/lib/video-fields-metadata'
+import { getImageFieldMetadata } from '@/lib/image-fields-metadata'
+import { getTextFieldMetadata } from '@/lib/text-fields-metadata'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -1967,9 +1972,12 @@ function EmployeeProjectDetailPage() {
               <CardContent className="space-y-5 pt-5">
                 <div className="grid gap-5 sm:grid-cols-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="imageVersion">
-                      Version <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="imageVersion">
+                        Version <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getImageFieldMetadata('imageVersion')} />
+                    </div>
                     <select
                       id="imageVersion"
                       value={imageForm.imageVersion}
@@ -1985,15 +1993,21 @@ function EmployeeProjectDetailPage() {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="imageVersionNumber">
-                      Version # <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="imageVersionNumber">
+                        Version # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getImageFieldMetadata('versionNumber')} />
+                    </div>
                     <Input id="imageVersionNumber" type="number" min="1" step="1" value={imageForm.versionNumber} onChange={(e) => setImageForm({ ...imageForm, versionNumber: e.target.value })} required />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="imageCopyNumber">
-                      Copy # <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="imageCopyNumber">
+                        Copy # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getImageFieldMetadata('copyNumber')} />
+                    </div>
                     <Input id="imageCopyNumber" type="number" min="1" step="1" value={imageForm.copyNumber} onChange={(e) => setImageForm({ ...imageForm, copyNumber: e.target.value })} required />
                   </div>
                 </div>
@@ -2256,9 +2270,12 @@ function EmployeeProjectDetailPage() {
               <CardContent className="space-y-5 pt-5">
                 <div className="grid gap-5 sm:grid-cols-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="textVersion">
-                      Version <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="textVersion">
+                        Version <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getTextFieldMetadata('textVersion')} />
+                    </div>
                     <select
                       id="textVersion"
                       value={textForm.textVersion}
@@ -2274,15 +2291,21 @@ function EmployeeProjectDetailPage() {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="textVersionNumber">
-                      Version # <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="textVersionNumber">
+                        Version # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getTextFieldMetadata('versionNumber')} />
+                    </div>
                     <Input id="textVersionNumber" type="number" min="1" step="1" value={textForm.versionNumber} onChange={(e) => setTextForm({ ...textForm, versionNumber: e.target.value })} required />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="textCopyNumber">
-                      Copy # <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="textCopyNumber">
+                        Copy # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getTextFieldMetadata('copyNumber')} />
+                    </div>
                     <Input id="textCopyNumber" type="number" min="1" step="1" value={textForm.copyNumber} onChange={(e) => setTextForm({ ...textForm, copyNumber: e.target.value })} required />
                   </div>
                 </div>
@@ -2551,9 +2574,12 @@ function EmployeeProjectDetailPage() {
               <CardContent className="space-y-5 pt-5">
                 <div className="grid gap-5 sm:grid-cols-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="videoVersion">
-                      Version <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="videoVersion">
+                        Version <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getVideoFieldMetadata('videoVersion')} />
+                    </div>
                     <select
                       id="videoVersion"
                       value={videoForm.videoVersion}
@@ -2569,15 +2595,21 @@ function EmployeeProjectDetailPage() {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="videoVersionNumber">
-                      Version # <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="videoVersionNumber">
+                        Version # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getVideoFieldMetadata('versionNumber')} />
+                    </div>
                     <Input id="videoVersionNumber" type="number" min="1" step="1" value={videoForm.versionNumber} onChange={(e) => setVideoForm({ ...videoForm, versionNumber: e.target.value })} required />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="videoCopyNumber">
-                      Copy # <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="videoCopyNumber">
+                        Copy # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getVideoFieldMetadata('copyNumber')} />
+                    </div>
                     <Input id="videoCopyNumber" type="number" min="1" step="1" value={videoForm.copyNumber} onChange={(e) => setVideoForm({ ...videoForm, copyNumber: e.target.value })} required />
                   </div>
                 </div>
@@ -2849,9 +2881,12 @@ function EmployeeProjectDetailPage() {
               <CardContent className="space-y-5 pt-5">
                 <div className="grid gap-5 sm:grid-cols-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="audioVersion">
-                      Version <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="audioVersion">
+                        Version <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getAudioFieldMetadata('audioVersion')} />
+                    </div>
                     <select
                       id="audioVersion"
                       value={form.audioVersion}
@@ -2867,9 +2902,12 @@ function EmployeeProjectDetailPage() {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="versionNumber">
-                      Version # <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="versionNumber">
+                        Version # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getAudioFieldMetadata('versionNumber')} />
+                    </div>
                     <Input
                       id="versionNumber"
                       type="number"
@@ -2881,9 +2919,12 @@ function EmployeeProjectDetailPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="copyNumber">
-                      Copy # <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="copyNumber">
+                        Copy # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getAudioFieldMetadata('copyNumber')} />
+                    </div>
                     <Input
                       id="copyNumber"
                       type="number"
@@ -4561,6 +4602,21 @@ function GenreChips({ categories, value, onChange }) {
   )
 }
 
+// Wraps a Label + help button row, looking up the description from the
+// audio metadata. `fieldKey` defaults to `htmlFor` since most audio
+// labels share the same name; pass an explicit fieldKey for the
+// handful that differ (audioTags → tags, audioKeywords → keywords).
+function AudioFieldLabel({ htmlFor, fieldKey, className, children }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <Label htmlFor={htmlFor} className={className}>
+        {children}
+      </Label>
+      <FieldHelpButton metadata={getAudioFieldMetadata(fieldKey || htmlFor)} />
+    </div>
+  )
+}
+
 function AudioFormSections({ form, setForm, projectCategories = [] }) {
   return (
     <>
@@ -4570,23 +4626,23 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="fullName">Full Name</Label>
+            <AudioFieldLabel htmlFor="fullName">Full Name</AudioFieldLabel>
             <Input id="fullName" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="originTitle">Origin Title</Label>
+            <AudioFieldLabel htmlFor="originTitle">Origin Title</AudioFieldLabel>
             <Input id="originTitle" value={form.originTitle} onChange={(e) => setForm({ ...form, originTitle: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="alterTitle">Alternate Title</Label>
+            <AudioFieldLabel htmlFor="alterTitle">Alternate Title</AudioFieldLabel>
             <Input id="alterTitle" value={form.alterTitle} onChange={(e) => setForm({ ...form, alterTitle: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="centralKurdishTitle">Central Kurdish Title</Label>
+            <AudioFieldLabel htmlFor="centralKurdishTitle">Central Kurdish Title</AudioFieldLabel>
             <Input id="centralKurdishTitle" value={form.centralKurdishTitle} onChange={(e) => setForm({ ...form, centralKurdishTitle: e.target.value })} dir="rtl" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="romanizedTitle">Romanized Title</Label>
+            <AudioFieldLabel htmlFor="romanizedTitle">Romanized Title</AudioFieldLabel>
             <Input id="romanizedTitle" value={form.romanizedTitle} onChange={(e) => setForm({ ...form, romanizedTitle: e.target.value })} />
           </div>
         </CardContent>
@@ -4599,11 +4655,11 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="abstractText">Abstract</Label>
+            <AudioFieldLabel htmlFor="abstractText">Abstract</AudioFieldLabel>
             <textarea id="abstractText" className={TEXTAREA_CLASS} value={form.abstractText} onChange={(e) => setForm({ ...form, abstractText: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="description">Description</Label>
+            <AudioFieldLabel htmlFor="description">Description</AudioFieldLabel>
             <textarea id="description" className={TEXTAREA_CLASS} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
         </CardContent>
@@ -4615,16 +4671,19 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="form">Form</Label>
+            <AudioFieldLabel htmlFor="form">Form</AudioFieldLabel>
             <Input id="form" value={form.form} onChange={(e) => setForm({ ...form, form: e.target.value })} />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label>
-              Genres{' '}
-              <span className="font-normal text-muted-foreground">
-                (pick from this project's categories)
-              </span>
-            </Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label>
+                Genres{' '}
+                <span className="font-normal text-muted-foreground">
+                  (pick from this project's categories)
+                </span>
+              </Label>
+              <FieldHelpButton metadata={getAudioFieldMetadata('genre')} />
+            </div>
             <GenreChips
               categories={projectCategories}
               value={form.genre}
@@ -4632,27 +4691,27 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="typeOfBasta">Type of Basta</Label>
+            <AudioFieldLabel htmlFor="typeOfBasta">Type of Basta</AudioFieldLabel>
             <Input id="typeOfBasta" value={form.typeOfBasta} onChange={(e) => setForm({ ...form, typeOfBasta: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="typeOfMaqam">Type of Maqam</Label>
+            <AudioFieldLabel htmlFor="typeOfMaqam">Type of Maqam</AudioFieldLabel>
             <Input id="typeOfMaqam" value={form.typeOfMaqam} onChange={(e) => setForm({ ...form, typeOfMaqam: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="typeOfComposition">Type of Composition</Label>
+            <AudioFieldLabel htmlFor="typeOfComposition">Type of Composition</AudioFieldLabel>
             <Input id="typeOfComposition" value={form.typeOfComposition} onChange={(e) => setForm({ ...form, typeOfComposition: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="typeOfPerformance">Type of Performance</Label>
+            <AudioFieldLabel htmlFor="typeOfPerformance">Type of Performance</AudioFieldLabel>
             <Input id="typeOfPerformance" value={form.typeOfPerformance} onChange={(e) => setForm({ ...form, typeOfPerformance: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="poet">Poet</Label>
+            <AudioFieldLabel htmlFor="poet">Poet</AudioFieldLabel>
             <Input id="poet" value={form.poet} onChange={(e) => setForm({ ...form, poet: e.target.value })} />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="lyrics">Lyrics</Label>
+            <AudioFieldLabel htmlFor="lyrics">Lyrics</AudioFieldLabel>
             <textarea id="lyrics" className={TEXTAREA_CLASS} value={form.lyrics} onChange={(e) => setForm({ ...form, lyrics: e.target.value })} />
           </div>
         </CardContent>
@@ -4664,19 +4723,19 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="speaker">Speaker</Label>
+            <AudioFieldLabel htmlFor="speaker">Speaker</AudioFieldLabel>
             <Input id="speaker" value={form.speaker} onChange={(e) => setForm({ ...form, speaker: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="producer">Producer</Label>
+            <AudioFieldLabel htmlFor="producer">Producer</AudioFieldLabel>
             <Input id="producer" value={form.producer} onChange={(e) => setForm({ ...form, producer: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="composer">Composer</Label>
+            <AudioFieldLabel htmlFor="composer">Composer</AudioFieldLabel>
             <Input id="composer" value={form.composer} onChange={(e) => setForm({ ...form, composer: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="contributors">Contributors</Label>
+            <AudioFieldLabel htmlFor="contributors">Contributors</AudioFieldLabel>
             <TagsInput id="contributors" value={form.contributors} onChange={(next) => setForm({ ...form, contributors: next })} placeholder="Name, role…" />
           </div>
         </CardContent>
@@ -4689,39 +4748,39 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
           <div className="space-y-1.5">
-            <Label htmlFor="language">Language</Label>
+            <AudioFieldLabel htmlFor="language">Language</AudioFieldLabel>
             <Input id="language" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="dialect">Dialect</Label>
+            <AudioFieldLabel htmlFor="dialect">Dialect</AudioFieldLabel>
             <Input id="dialect" value={form.dialect} onChange={(e) => setForm({ ...form, dialect: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="audience">Audience</Label>
+            <AudioFieldLabel htmlFor="audience">Audience</AudioFieldLabel>
             <Input id="audience" value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="recordingVenue">Recording Venue</Label>
+            <AudioFieldLabel htmlFor="recordingVenue">Recording Venue</AudioFieldLabel>
             <Input id="recordingVenue" value={form.recordingVenue} onChange={(e) => setForm({ ...form, recordingVenue: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="city">City</Label>
+            <AudioFieldLabel htmlFor="city">City</AudioFieldLabel>
             <Input id="city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="region">Region</Label>
+            <AudioFieldLabel htmlFor="region">Region</AudioFieldLabel>
             <Input id="region" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="dateCreated">Date Created</Label>
+            <AudioFieldLabel htmlFor="dateCreated">Date Created</AudioFieldLabel>
             <Input id="dateCreated" type="date" value={form.dateCreated} onChange={(e) => setForm({ ...form, dateCreated: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="datePublished">Date Published</Label>
+            <AudioFieldLabel htmlFor="datePublished">Date Published</AudioFieldLabel>
             <Input id="datePublished" type="date" value={form.datePublished} onChange={(e) => setForm({ ...form, datePublished: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="dateModified">Date Modified</Label>
+            <AudioFieldLabel htmlFor="dateModified">Date Modified</AudioFieldLabel>
             <Input id="dateModified" type="date" value={form.dateModified} onChange={(e) => setForm({ ...form, dateModified: e.target.value })} />
           </div>
         </CardContent>
@@ -4734,11 +4793,11 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="audioTags">Tags</Label>
+            <AudioFieldLabel htmlFor="audioTags" fieldKey="tags">Tags</AudioFieldLabel>
             <TagsInput id="audioTags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} placeholder="folk, 1962…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="audioKeywords">Keywords</Label>
+            <AudioFieldLabel htmlFor="audioKeywords" fieldKey="keywords">Keywords</AudioFieldLabel>
             <TagsInput id="audioKeywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} placeholder="maqam, lament…" />
           </div>
         </CardContent>
@@ -4761,21 +4820,22 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
             <Label htmlFor="physicalAvailability" className="cursor-pointer">
               A physical copy is available
             </Label>
+            <FieldHelpButton metadata={getAudioFieldMetadata('physicalAvailability')} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="physicalLabel">Physical Label</Label>
+            <AudioFieldLabel htmlFor="physicalLabel">Physical Label</AudioFieldLabel>
             <Input id="physicalLabel" value={form.physicalLabel} onChange={(e) => setForm({ ...form, physicalLabel: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="locationArchive">Archive Location</Label>
+            <AudioFieldLabel htmlFor="locationArchive">Archive Location</AudioFieldLabel>
             <Input id="locationArchive" value={form.locationArchive} onChange={(e) => setForm({ ...form, locationArchive: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="degitizedBy">Digitized By</Label>
+            <AudioFieldLabel htmlFor="degitizedBy">Digitized By</AudioFieldLabel>
             <Input id="degitizedBy" value={form.degitizedBy} onChange={(e) => setForm({ ...form, degitizedBy: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="degitizationEquipment">Digitization Equipment</Label>
+            <AudioFieldLabel htmlFor="degitizationEquipment">Digitization Equipment</AudioFieldLabel>
             <Input id="degitizationEquipment" value={form.degitizationEquipment} onChange={(e) => setForm({ ...form, degitizationEquipment: e.target.value })} />
           </div>
         </CardContent>
@@ -4788,31 +4848,31 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
           <div className="space-y-1.5">
-            <Label htmlFor="audioChannel">Channel</Label>
+            <AudioFieldLabel htmlFor="audioChannel">Channel</AudioFieldLabel>
             <Input id="audioChannel" value={form.audioChannel} onChange={(e) => setForm({ ...form, audioChannel: e.target.value })} placeholder="Mono, Stereo…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="fileExtension">File Extension</Label>
+            <AudioFieldLabel htmlFor="fileExtension">File Extension</AudioFieldLabel>
             <Input id="fileExtension" value={form.fileExtension} onChange={(e) => setForm({ ...form, fileExtension: e.target.value })} placeholder="auto-filled from file (wav, mp3…)" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="fileSize">File Size</Label>
+            <AudioFieldLabel htmlFor="fileSize">File Size</AudioFieldLabel>
             <Input id="fileSize" value={form.fileSize} onChange={(e) => setForm({ ...form, fileSize: e.target.value })} placeholder="auto-filled from file (e.g. 45.2 MB)" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="bitRate">Bit Rate</Label>
+            <AudioFieldLabel htmlFor="bitRate">Bit Rate</AudioFieldLabel>
             <Input id="bitRate" value={form.bitRate} onChange={(e) => setForm({ ...form, bitRate: e.target.value })} placeholder="e.g. 320 kbps" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="bitDepth">Bit Depth</Label>
+            <AudioFieldLabel htmlFor="bitDepth">Bit Depth</AudioFieldLabel>
             <Input id="bitDepth" value={form.bitDepth} onChange={(e) => setForm({ ...form, bitDepth: e.target.value })} placeholder="e.g. 24-bit" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="sampleRate">Sample Rate</Label>
+            <AudioFieldLabel htmlFor="sampleRate">Sample Rate</AudioFieldLabel>
             <Input id="sampleRate" value={form.sampleRate} onChange={(e) => setForm({ ...form, sampleRate: e.target.value })} placeholder="e.g. 48 kHz" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="audioQualityOutOf10">Quality (0–10)</Label>
+            <AudioFieldLabel htmlFor="audioQualityOutOf10">Quality (0–10)</AudioFieldLabel>
             <Input id="audioQualityOutOf10" type="number" min="0" max="10" step="1" value={form.audioQualityOutOf10} onChange={(e) => setForm({ ...form, audioQualityOutOf10: e.target.value })} />
           </div>
         </CardContent>
@@ -4825,23 +4885,23 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="volumeName">Volume</Label>
+            <AudioFieldLabel htmlFor="volumeName">Volume</AudioFieldLabel>
             <Input id="volumeName" value={form.volumeName} onChange={(e) => setForm({ ...form, volumeName: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="directoryName">Directory</Label>
+            <AudioFieldLabel htmlFor="directoryName">Directory</AudioFieldLabel>
             <Input id="directoryName" value={form.directoryName} onChange={(e) => setForm({ ...form, directoryName: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="pathInExternal">External Path</Label>
+            <AudioFieldLabel htmlFor="pathInExternal">External Path</AudioFieldLabel>
             <Input id="pathInExternal" value={form.pathInExternal} onChange={(e) => setForm({ ...form, pathInExternal: e.target.value })} placeholder="auto-filled from file" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="autoPath">Auto Path</Label>
+            <AudioFieldLabel htmlFor="autoPath">Auto Path</AudioFieldLabel>
             <Input id="autoPath" value={form.autoPath} onChange={(e) => setForm({ ...form, autoPath: e.target.value })} placeholder="auto-filled from file" />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="audioFileNote">File Note</Label>
+            <AudioFieldLabel htmlFor="audioFileNote">File Note</AudioFieldLabel>
             <textarea id="audioFileNote" className={TEXTAREA_CLASS} value={form.audioFileNote} onChange={(e) => setForm({ ...form, audioFileNote: e.target.value })} />
           </div>
         </CardContent>
@@ -4853,51 +4913,51 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="copyright">Copyright</Label>
+            <AudioFieldLabel htmlFor="copyright">Copyright</AudioFieldLabel>
             <Input id="copyright" value={form.copyright} onChange={(e) => setForm({ ...form, copyright: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="rightOwner">Right Owner</Label>
+            <AudioFieldLabel htmlFor="rightOwner">Right Owner</AudioFieldLabel>
             <Input id="rightOwner" value={form.rightOwner} onChange={(e) => setForm({ ...form, rightOwner: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="dateCopyrighted">Date Copyrighted</Label>
+            <AudioFieldLabel htmlFor="dateCopyrighted">Date Copyrighted</AudioFieldLabel>
             <Input id="dateCopyrighted" type="date" value={form.dateCopyrighted} onChange={(e) => setForm({ ...form, dateCopyrighted: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="availability">Availability</Label>
+            <AudioFieldLabel htmlFor="availability">Availability</AudioFieldLabel>
             <Input id="availability" value={form.availability} onChange={(e) => setForm({ ...form, availability: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="licenseType">License Type</Label>
+            <AudioFieldLabel htmlFor="licenseType">License Type</AudioFieldLabel>
             <Input id="licenseType" value={form.licenseType} onChange={(e) => setForm({ ...form, licenseType: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="usageRights">Usage Rights</Label>
+            <AudioFieldLabel htmlFor="usageRights">Usage Rights</AudioFieldLabel>
             <Input id="usageRights" value={form.usageRights} onChange={(e) => setForm({ ...form, usageRights: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="owner">Owner</Label>
+            <AudioFieldLabel htmlFor="owner">Owner</AudioFieldLabel>
             <Input id="owner" value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="publisher">Publisher</Label>
+            <AudioFieldLabel htmlFor="publisher">Publisher</AudioFieldLabel>
             <Input id="publisher" value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="provenance">Provenance</Label>
+            <AudioFieldLabel htmlFor="provenance">Provenance</AudioFieldLabel>
             <Input id="provenance" value={form.provenance} onChange={(e) => setForm({ ...form, provenance: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="accrualMethod">Accrual Method</Label>
+            <AudioFieldLabel htmlFor="accrualMethod">Accrual Method</AudioFieldLabel>
             <Input id="accrualMethod" value={form.accrualMethod} onChange={(e) => setForm({ ...form, accrualMethod: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="lccClassification">LCC Classification</Label>
+            <AudioFieldLabel htmlFor="lccClassification">LCC Classification</AudioFieldLabel>
             <Input id="lccClassification" value={form.lccClassification} onChange={(e) => setForm({ ...form, lccClassification: e.target.value })} />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="archiveLocalNote">Archive Local Note</Label>
+            <AudioFieldLabel htmlFor="archiveLocalNote">Archive Local Note</AudioFieldLabel>
             <textarea id="archiveLocalNote" className={TEXTAREA_CLASS} value={form.archiveLocalNote} onChange={(e) => setForm({ ...form, archiveLocalNote: e.target.value })} />
           </div>
         </CardContent>

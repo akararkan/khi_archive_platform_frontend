@@ -11,6 +11,7 @@ import {
   CategoryLinks,
   MediaHero,
   MetaPanel,
+  MetaPanelIf,
   MetaRow,
   PersonLink,
   PillRow,
@@ -121,20 +122,6 @@ function PublicVideoDetailPage() {
 
           <aside className="space-y-5 lg:sticky lg:top-32 lg:self-start">
             <MetaPanel title="Details">
-              <MetaRow label="Event">{video.event}</MetaRow>
-              <MetaRow label="Location">{video.location}</MetaRow>
-              <MetaRow label="Subject" value={video.subject}>
-                <PillRow values={video.subject} />
-              </MetaRow>
-              <MetaRow label="Genre" value={video.genre}>
-                <PillRow values={video.genre} />
-              </MetaRow>
-              <MetaRow label="Language">{video.language}</MetaRow>
-              <MetaRow label="Dialect">{video.dialect}</MetaRow>
-              <MetaRow label="Recorded">{formatPublicDate(video.recordedAt || video.recordingDate)}</MetaRow>
-              <MetaRow label="Duration" value={video.duration || video.durationFormatted}>
-                {video.duration ? `${video.duration}s` : video.durationFormatted}
-              </MetaRow>
               <MetaRow
                 label="Project"
                 value={video.project?.projectCode || video.projectCode}
@@ -150,21 +137,131 @@ function PublicVideoDetailPage() {
               <MetaRow label="Categories" value={video.categories}>
                 <CategoryLinks categories={video.categories} />
               </MetaRow>
-              <MetaRow
-                label="Contributors"
-                value={video.contributors || video.contributor}
-              >
-                <PillRow values={video.contributors || video.contributor} />
+              <MetaRow label="Recorded">{formatPublicDate(video.recordedAt || video.recordingDate)}</MetaRow>
+              <MetaRow label="Duration" value={video.duration || video.durationFormatted}>
+                {video.duration || video.durationFormatted}
               </MetaRow>
             </MetaPanel>
 
-            {video.tags?.length ? (
-              <MetaPanel title="Tags">
-                <MetaRow label="Tags" value={video.tags}>
-                  <PillRow values={video.tags} tone="primary" />
-                </MetaRow>
-              </MetaPanel>
-            ) : null}
+            <MetaPanelIf
+              obj={video}
+              title="Subject & form"
+              keys={['event', 'location', 'subject', 'genre', 'personShownInVideo', 'colorOfVideo', 'whereThisVideoUsed']}
+            >
+              <MetaRow label="Event">{video.event}</MetaRow>
+              <MetaRow label="Location">{video.location}</MetaRow>
+              <MetaRow label="Subject" value={video.subject}>
+                <PillRow values={video.subject} />
+              </MetaRow>
+              <MetaRow label="Genre" value={video.genre}>
+                <PillRow values={video.genre} />
+              </MetaRow>
+              <MetaRow label="People shown">{video.personShownInVideo}</MetaRow>
+              <MetaRow label="Color">{video.colorOfVideo}</MetaRow>
+              <MetaRow label="Used in">{video.whereThisVideoUsed}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={video}
+              title="Credits"
+              keys={['creatorArtistDirector', 'producer', 'contributor', 'contributors', 'audience']}
+            >
+              <MetaRow label="Creator / Director">{video.creatorArtistDirector}</MetaRow>
+              <MetaRow label="Producer">{video.producer}</MetaRow>
+              <MetaRow label="Contributors" value={video.contributors || video.contributor}>
+                <PillRow values={video.contributors || video.contributor} />
+              </MetaRow>
+              <MetaRow label="Audience">{video.audience}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={video}
+              title="Language"
+              keys={['language', 'dialect', 'subtitle']}
+            >
+              <MetaRow label="Language">{video.language}</MetaRow>
+              <MetaRow label="Dialect">{video.dialect}</MetaRow>
+              <MetaRow label="Subtitle">{video.subtitle}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={video}
+              title="Dates"
+              keys={['dateCreated', 'datePublished', 'dateModified']}
+            >
+              <MetaRow label="Created">{formatPublicDate(video.dateCreated)}</MetaRow>
+              <MetaRow label="Published">{formatPublicDate(video.datePublished)}</MetaRow>
+              <MetaRow label="Modified">{formatPublicDate(video.dateModified)}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={video}
+              title="Technical"
+              keys={['orientation', 'dimension', 'resolution', 'frameRate', 'bitDepth', 'overallBitRate', 'videoCodec', 'audioCodec', 'audioChannels', 'extension', 'fileSize', 'videoVersion']}
+            >
+              <MetaRow label="Orientation">{video.orientation}</MetaRow>
+              <MetaRow label="Dimension">{video.dimension}</MetaRow>
+              <MetaRow label="Resolution">{video.resolution}</MetaRow>
+              <MetaRow label="Frame rate">{video.frameRate}</MetaRow>
+              <MetaRow label="Bit depth">{video.bitDepth}</MetaRow>
+              <MetaRow label="Bit rate">{video.overallBitRate}</MetaRow>
+              <MetaRow label="Video codec">{video.videoCodec}</MetaRow>
+              <MetaRow label="Audio codec">{video.audioCodec}</MetaRow>
+              <MetaRow label="Audio channels">{video.audioChannels}</MetaRow>
+              <MetaRow label="Extension">{video.extension}</MetaRow>
+              <MetaRow label="File size">{video.fileSize}</MetaRow>
+              <MetaRow label="Version">{video.videoVersion}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={video}
+              title="Archive & provenance"
+              keys={['videoStatus', 'archiveCataloging', 'provenance', 'accrualMethod', 'physicalLabel', 'locationInArchiveRoom', 'lccClassification']}
+            >
+              <MetaRow label="Status">{video.videoStatus}</MetaRow>
+              <MetaRow label="Cataloging">{video.archiveCataloging}</MetaRow>
+              <MetaRow label="Provenance">{video.provenance}</MetaRow>
+              <MetaRow label="Accrual method">{video.accrualMethod}</MetaRow>
+              <MetaRow label="Physical label">{video.physicalLabel}</MetaRow>
+              <MetaRow label="Archive room">{video.locationInArchiveRoom}</MetaRow>
+              <MetaRow label="LCC">{video.lccClassification}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={video}
+              title="Rights"
+              keys={['copyright', 'rightOwner', 'dateCopyrighted', 'availability', 'licenseType', 'usageRights', 'owner', 'publisher']}
+            >
+              <MetaRow label="Copyright">{video.copyright}</MetaRow>
+              <MetaRow label="Right owner">{video.rightOwner}</MetaRow>
+              <MetaRow label="Date copyrighted">{formatPublicDate(video.dateCopyrighted)}</MetaRow>
+              <MetaRow label="Availability">{video.availability}</MetaRow>
+              <MetaRow label="License">{video.licenseType}</MetaRow>
+              <MetaRow label="Usage">{video.usageRights}</MetaRow>
+              <MetaRow label="Owner">{video.owner}</MetaRow>
+              <MetaRow label="Publisher">{video.publisher}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={video}
+              title="Notes"
+              keys={['note']}
+            >
+              <MetaRow label="Note">{video.note}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={video}
+              title="Tags & keywords"
+              keys={['tags', 'keywords']}
+            >
+              <MetaRow label="Tags" value={video.tags}>
+                <PillRow values={video.tags} tone="primary" />
+              </MetaRow>
+              <MetaRow label="Keywords" value={video.keywords}>
+                <PillRow values={video.keywords} />
+              </MetaRow>
+            </MetaPanelIf>
           </aside>
         </div>
       </PageContainer>

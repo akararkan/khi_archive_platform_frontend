@@ -1,10 +1,27 @@
 import { Plus } from 'lucide-react'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { FieldHelpButton } from '@/components/ui/field-help'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TagsInput } from '@/components/ui/tags-input'
 import { cn } from '@/lib/utils'
+import { getTextFieldMetadata } from '@/lib/text-fields-metadata'
+
+// Label + help-button row. htmlFor here is prefixed (txt-x); `fieldKey`
+// defaults to stripping the prefix so metadata lookups use the clean
+// field name.
+function TextFieldLabel({ htmlFor, fieldKey, className, children }) {
+  const key = fieldKey || (htmlFor ? htmlFor.replace(/^txt-/, '') : null)
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <Label htmlFor={htmlFor} className={className}>
+        {children}
+      </Label>
+      <FieldHelpButton metadata={getTextFieldMetadata(key)} />
+    </div>
+  )
+}
 
 const TEXTAREA_CLASS =
   'min-h-[96px] w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
@@ -70,23 +87,23 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="txt-fileName">File Name</Label>
+            <TextFieldLabel htmlFor="txt-fileName">File Name</TextFieldLabel>
             <Input id="txt-fileName" value={form.fileName} onChange={(e) => setForm({ ...form, fileName: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-originalTitle">Original Title</Label>
+            <TextFieldLabel htmlFor="txt-originalTitle">Original Title</TextFieldLabel>
             <Input id="txt-originalTitle" value={form.originalTitle} onChange={(e) => setForm({ ...form, originalTitle: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-alternativeTitle">Alternative Title</Label>
+            <TextFieldLabel htmlFor="txt-alternativeTitle">Alternative Title</TextFieldLabel>
             <Input id="txt-alternativeTitle" value={form.alternativeTitle} onChange={(e) => setForm({ ...form, alternativeTitle: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-titleInCentralKurdish">Central Kurdish Title</Label>
+            <TextFieldLabel htmlFor="txt-titleInCentralKurdish">Central Kurdish Title</TextFieldLabel>
             <Input id="txt-titleInCentralKurdish" value={form.titleInCentralKurdish} onChange={(e) => setForm({ ...form, titleInCentralKurdish: e.target.value })} dir="rtl" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-romanizedTitle">Romanized Title</Label>
+            <TextFieldLabel htmlFor="txt-romanizedTitle">Romanized Title</TextFieldLabel>
             <Input id="txt-romanizedTitle" value={form.romanizedTitle} onChange={(e) => setForm({ ...form, romanizedTitle: e.target.value })} />
           </div>
         </CardContent>
@@ -99,25 +116,28 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="space-y-5 pt-5">
           <div className="space-y-1.5">
-            <Label htmlFor="txt-description">Description</Label>
+            <TextFieldLabel htmlFor="txt-description">Description</TextFieldLabel>
             <textarea id="txt-description" className={TEXTAREA_CLASS} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="txt-documentType">Document Type</Label>
+              <TextFieldLabel htmlFor="txt-documentType">Document Type</TextFieldLabel>
               <Input id="txt-documentType" value={form.documentType} onChange={(e) => setForm({ ...form, documentType: e.target.value })} placeholder="book, manuscript, letter…" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="txt-subject">Subject</Label>
+              <TextFieldLabel htmlFor="txt-subject">Subject</TextFieldLabel>
               <TagsInput id="txt-subject" value={form.subject} onChange={(next) => setForm({ ...form, subject: next })} placeholder="History, poetry, religion…" />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label>
-                Genres{' '}
-                <span className="font-normal text-muted-foreground">
-                  (pick from this project's categories)
-                </span>
-              </Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label>
+                  Genres{' '}
+                  <span className="font-normal text-muted-foreground">
+                    (pick from this project's categories)
+                  </span>
+                </Label>
+                <FieldHelpButton metadata={getTextFieldMetadata('genre')} />
+              </div>
               <GenreChips
                 categories={projectCategories}
                 value={form.genre}
@@ -137,32 +157,32 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="space-y-5 pt-5">
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="txt-script">Script</Label>
+              <TextFieldLabel htmlFor="txt-script">Script</TextFieldLabel>
               <Input id="txt-script" value={form.script} onChange={(e) => setForm({ ...form, script: e.target.value })} placeholder="Arabic, Latin, Cyrillic…" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="txt-isbn">ISBN</Label>
+              <TextFieldLabel htmlFor="txt-isbn">ISBN</TextFieldLabel>
               <Input id="txt-isbn" value={form.isbn} onChange={(e) => setForm({ ...form, isbn: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="txt-assignmentNumber">Assignment Number</Label>
+              <TextFieldLabel htmlFor="txt-assignmentNumber">Assignment Number</TextFieldLabel>
               <Input id="txt-assignmentNumber" value={form.assignmentNumber} onChange={(e) => setForm({ ...form, assignmentNumber: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="txt-edition">Edition</Label>
+              <TextFieldLabel htmlFor="txt-edition">Edition</TextFieldLabel>
               <Input id="txt-edition" value={form.edition} onChange={(e) => setForm({ ...form, edition: e.target.value })} placeholder="1st, 2nd, revised…" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="txt-volume">Volume</Label>
+              <TextFieldLabel htmlFor="txt-volume">Volume</TextFieldLabel>
               <Input id="txt-volume" value={form.volume} onChange={(e) => setForm({ ...form, volume: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="txt-series">Series</Label>
+              <TextFieldLabel htmlFor="txt-series">Series</TextFieldLabel>
               <Input id="txt-series" value={form.series} onChange={(e) => setForm({ ...form, series: e.target.value })} />
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-transcription">Transcription</Label>
+            <TextFieldLabel htmlFor="txt-transcription">Transcription</TextFieldLabel>
             <textarea id="txt-transcription" className={cn(TEXTAREA_CLASS, 'min-h-[120px]')} value={form.transcription} onChange={(e) => setForm({ ...form, transcription: e.target.value })} />
           </div>
         </CardContent>
@@ -175,11 +195,11 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="txt-language">Language</Label>
+            <TextFieldLabel htmlFor="txt-language">Language</TextFieldLabel>
             <Input id="txt-language" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-dialect">Dialect</Label>
+            <TextFieldLabel htmlFor="txt-dialect">Dialect</TextFieldLabel>
             <Input id="txt-dialect" value={form.dialect} onChange={(e) => setForm({ ...form, dialect: e.target.value })} />
           </div>
         </CardContent>
@@ -192,19 +212,19 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="txt-author">Author</Label>
+            <TextFieldLabel htmlFor="txt-author">Author</TextFieldLabel>
             <Input id="txt-author" value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-contributors">Contributors</Label>
+            <TextFieldLabel htmlFor="txt-contributors">Contributors</TextFieldLabel>
             <Input id="txt-contributors" value={form.contributors} onChange={(e) => setForm({ ...form, contributors: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-printingHouse">Printing House</Label>
+            <TextFieldLabel htmlFor="txt-printingHouse">Printing House</TextFieldLabel>
             <Input id="txt-printingHouse" value={form.printingHouse} onChange={(e) => setForm({ ...form, printingHouse: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-audience">Audience</Label>
+            <TextFieldLabel htmlFor="txt-audience">Audience</TextFieldLabel>
             <Input id="txt-audience" value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} />
           </div>
         </CardContent>
@@ -218,27 +238,27 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
           <div className="space-y-1.5">
-            <Label htmlFor="txt-pageCount">Page Count</Label>
+            <TextFieldLabel htmlFor="txt-pageCount">Page Count</TextFieldLabel>
             <Input id="txt-pageCount" type="number" min="0" step="1" value={form.pageCount} onChange={(e) => setForm({ ...form, pageCount: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-orientation">Orientation</Label>
+            <TextFieldLabel htmlFor="txt-orientation">Orientation</TextFieldLabel>
             <Input id="txt-orientation" value={form.orientation} onChange={(e) => setForm({ ...form, orientation: e.target.value })} placeholder="portrait, landscape…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-size">Size</Label>
+            <TextFieldLabel htmlFor="txt-size">Size</TextFieldLabel>
             <Input id="txt-size" value={form.size} onChange={(e) => setForm({ ...form, size: e.target.value })} placeholder="A4, Letter, B5…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-physicalDimensions">Physical Dimensions</Label>
+            <TextFieldLabel htmlFor="txt-physicalDimensions">Physical Dimensions</TextFieldLabel>
             <Input id="txt-physicalDimensions" value={form.physicalDimensions} onChange={(e) => setForm({ ...form, physicalDimensions: e.target.value })} placeholder="21×29.7 cm" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-extension">Extension</Label>
+            <TextFieldLabel htmlFor="txt-extension">Extension</TextFieldLabel>
             <Input id="txt-extension" value={form.extension} onChange={(e) => setForm({ ...form, extension: e.target.value })} placeholder="auto-filled (pdf, docx, txt…)" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-fileSize">File Size</Label>
+            <TextFieldLabel htmlFor="txt-fileSize">File Size</TextFieldLabel>
             <Input id="txt-fileSize" value={form.fileSize} onChange={(e) => setForm({ ...form, fileSize: e.target.value })} placeholder="auto-filled" />
           </div>
         </CardContent>
@@ -251,11 +271,11 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="txt-tags">Tags</Label>
+            <TextFieldLabel htmlFor="txt-tags">Tags</TextFieldLabel>
             <TagsInput id="txt-tags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} placeholder="archival, manuscript…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-keywords">Keywords</Label>
+            <TextFieldLabel htmlFor="txt-keywords">Keywords</TextFieldLabel>
             <TagsInput id="txt-keywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} placeholder="kurdistan, 1962…" />
           </div>
         </CardContent>
@@ -268,19 +288,19 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-4">
           <div className="space-y-1.5">
-            <Label htmlFor="txt-dateCreated">Created</Label>
+            <TextFieldLabel htmlFor="txt-dateCreated">Created</TextFieldLabel>
             <Input id="txt-dateCreated" type="date" value={form.dateCreated} onChange={(e) => setForm({ ...form, dateCreated: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-printDate">Print Date</Label>
+            <TextFieldLabel htmlFor="txt-printDate">Print Date</TextFieldLabel>
             <Input id="txt-printDate" type="date" value={form.printDate} onChange={(e) => setForm({ ...form, printDate: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-datePublished">Published</Label>
+            <TextFieldLabel htmlFor="txt-datePublished">Published</TextFieldLabel>
             <Input id="txt-datePublished" type="date" value={form.datePublished} onChange={(e) => setForm({ ...form, datePublished: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-dateModified">Modified</Label>
+            <TextFieldLabel htmlFor="txt-dateModified">Modified</TextFieldLabel>
             <Input id="txt-dateModified" type="date" value={form.dateModified} onChange={(e) => setForm({ ...form, dateModified: e.target.value })} />
           </div>
         </CardContent>
@@ -293,19 +313,19 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="txt-volumeName">Volume</Label>
+            <TextFieldLabel htmlFor="txt-volumeName">Volume</TextFieldLabel>
             <Input id="txt-volumeName" value={form.volumeName} onChange={(e) => setForm({ ...form, volumeName: e.target.value })} placeholder="auto-filled from folder" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-directory">Directory</Label>
+            <TextFieldLabel htmlFor="txt-directory">Directory</TextFieldLabel>
             <Input id="txt-directory" value={form.directory} onChange={(e) => setForm({ ...form, directory: e.target.value })} placeholder="auto-filled from folder" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-pathInExternalVolume">Path in External Volume</Label>
+            <TextFieldLabel htmlFor="txt-pathInExternalVolume">Path in External Volume</TextFieldLabel>
             <Input id="txt-pathInExternalVolume" value={form.pathInExternalVolume} onChange={(e) => setForm({ ...form, pathInExternalVolume: e.target.value })} placeholder="auto-filled from file" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-autoPath">Auto Path</Label>
+            <TextFieldLabel htmlFor="txt-autoPath">Auto Path</TextFieldLabel>
             <Input id="txt-autoPath" value={form.autoPath} onChange={(e) => setForm({ ...form, autoPath: e.target.value })} placeholder="auto-filled from file" />
           </div>
         </CardContent>
@@ -319,19 +339,19 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="space-y-5 pt-5">
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="txt-textStatus">Text Status</Label>
+              <TextFieldLabel htmlFor="txt-textStatus">Text Status</TextFieldLabel>
               <Input id="txt-textStatus" value={form.textStatus} onChange={(e) => setForm({ ...form, textStatus: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="txt-archiveCataloging">Archive Cataloging</Label>
+              <TextFieldLabel htmlFor="txt-archiveCataloging">Archive Cataloging</TextFieldLabel>
               <Input id="txt-archiveCataloging" value={form.archiveCataloging} onChange={(e) => setForm({ ...form, archiveCataloging: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="txt-provenance">Provenance</Label>
+              <TextFieldLabel htmlFor="txt-provenance">Provenance</TextFieldLabel>
               <Input id="txt-provenance" value={form.provenance} onChange={(e) => setForm({ ...form, provenance: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="txt-accrualMethod">Accrual Method</Label>
+              <TextFieldLabel htmlFor="txt-accrualMethod">Accrual Method</TextFieldLabel>
               <Input id="txt-accrualMethod" value={form.accrualMethod} onChange={(e) => setForm({ ...form, accrualMethod: e.target.value })} />
             </div>
           </div>
@@ -344,23 +364,24 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
               className="size-4 rounded border-input"
             />
             <Label htmlFor="txt-physicalAvailability" className="cursor-pointer">A physical copy is available</Label>
+            <FieldHelpButton metadata={getTextFieldMetadata('physicalAvailability')} />
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="txt-physicalLabel">Physical Label</Label>
+              <TextFieldLabel htmlFor="txt-physicalLabel">Physical Label</TextFieldLabel>
               <Input id="txt-physicalLabel" value={form.physicalLabel} onChange={(e) => setForm({ ...form, physicalLabel: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="txt-locationInArchiveRoom">Location in Archive Room</Label>
+              <TextFieldLabel htmlFor="txt-locationInArchiveRoom">Location in Archive Room</TextFieldLabel>
               <Input id="txt-locationInArchiveRoom" value={form.locationInArchiveRoom} onChange={(e) => setForm({ ...form, locationInArchiveRoom: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="txt-lccClassification">LCC Classification</Label>
+              <TextFieldLabel htmlFor="txt-lccClassification">LCC Classification</TextFieldLabel>
               <Input id="txt-lccClassification" value={form.lccClassification} onChange={(e) => setForm({ ...form, lccClassification: e.target.value })} />
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-note">Note</Label>
+            <TextFieldLabel htmlFor="txt-note">Note</TextFieldLabel>
             <textarea id="txt-note" className={cn(TEXTAREA_CLASS, 'min-h-[72px]')} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
           </div>
         </CardContent>
@@ -373,35 +394,35 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="txt-copyright">Copyright</Label>
+            <TextFieldLabel htmlFor="txt-copyright">Copyright</TextFieldLabel>
             <Input id="txt-copyright" value={form.copyright} onChange={(e) => setForm({ ...form, copyright: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-rightOwner">Right Owner</Label>
+            <TextFieldLabel htmlFor="txt-rightOwner">Right Owner</TextFieldLabel>
             <Input id="txt-rightOwner" value={form.rightOwner} onChange={(e) => setForm({ ...form, rightOwner: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-dateCopyrighted">Date Copyrighted</Label>
+            <TextFieldLabel htmlFor="txt-dateCopyrighted">Date Copyrighted</TextFieldLabel>
             <Input id="txt-dateCopyrighted" type="date" value={form.dateCopyrighted} onChange={(e) => setForm({ ...form, dateCopyrighted: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-availability">Availability</Label>
+            <TextFieldLabel htmlFor="txt-availability">Availability</TextFieldLabel>
             <Input id="txt-availability" value={form.availability} onChange={(e) => setForm({ ...form, availability: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-licenseType">License Type</Label>
+            <TextFieldLabel htmlFor="txt-licenseType">License Type</TextFieldLabel>
             <Input id="txt-licenseType" value={form.licenseType} onChange={(e) => setForm({ ...form, licenseType: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-usageRights">Usage Rights</Label>
+            <TextFieldLabel htmlFor="txt-usageRights">Usage Rights</TextFieldLabel>
             <Input id="txt-usageRights" value={form.usageRights} onChange={(e) => setForm({ ...form, usageRights: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-owner">Owner</Label>
+            <TextFieldLabel htmlFor="txt-owner">Owner</TextFieldLabel>
             <Input id="txt-owner" value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txt-publisher">Publisher</Label>
+            <TextFieldLabel htmlFor="txt-publisher">Publisher</TextFieldLabel>
             <Input id="txt-publisher" value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} />
           </div>
         </CardContent>

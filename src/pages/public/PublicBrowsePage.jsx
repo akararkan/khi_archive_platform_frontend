@@ -845,6 +845,46 @@ function PublicBrowsePage() {
               }}
             />
           ) : null}
+          <ActiveFiltersStrip
+            q={q}
+            onClearSearch={() => update({ q: null, page: 0 })}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onClearDate={() =>
+              update({ dateFrom: null, dateTo: null, page: 0 })
+            }
+            publishedFrom={publishedFrom}
+            publishedTo={publishedTo}
+            onClearPublished={() =>
+              update({ publishedFrom: null, publishedTo: null, page: 0 })
+            }
+            printDateFrom={printDateFrom}
+            printDateTo={printDateTo}
+            onClearPrintDate={() =>
+              update({ printDateFrom: null, printDateTo: null, page: 0 })
+            }
+            mediaKinds={MEDIA_KINDS}
+            selectedMediaTypes={selectedMediaTypes}
+            showMediaTypes={Boolean(type.showMediaTypes)}
+            onClearMediaType={(kind) => {
+              const next = selectedMediaTypes.filter((k) => k !== kind)
+              update({ types: next.length === 0 ? null : next.join(','), page: 0 })
+            }}
+            facetMap={type.facetMap}
+            selected={selected}
+            onRemoveFacet={(paramKey, value) => {
+              const list = (selected[paramKey] || []).filter((v) => v !== value)
+              update({
+                [paramKey]: list.length === 0 ? null : list.join(','),
+                page: 0,
+              })
+            }}
+            textFilters={textFilters}
+            textFilterValues={textFilterValues}
+            onClearTextFilter={(paramKey) => update({ [paramKey]: null, page: 0 })}
+            totalActive={activeFilterCount}
+            onClearAll={clearAllFilters}
+          />
           <ResultsHead
             count={totalElements}
             label={type.short}
@@ -980,6 +1020,169 @@ function PillButton({ active, Icon, label, count, onClick }) {
       ) : null}
     </button>
   )
+}
+
+// ── ActiveFiltersStrip ─────────────────────────────────────────────────
+//
+// Horizontal chip strip rendered above the results, mirroring (and
+// enhancing) the sidebar's "Active filters" stones. The point is
+// progressive narrowing — the user always sees exactly which filters
+// are active, can remove any single chip without leaving the results
+// context, and can reset the whole stack with one tap. On mobile the
+// strip scrolls horizontally so it never wraps and pushes the results
+// down the page.
+function ActiveFiltersStrip({
+  q,
+  onClearSearch,
+  dateFrom,
+  dateTo,
+  onClearDate,
+  publishedFrom,
+  publishedTo,
+  onClearPublished,
+  printDateFrom,
+  printDateTo,
+  onClearPrintDate,
+  mediaKinds,
+  selectedMediaTypes,
+  showMediaTypes,
+  onClearMediaType,
+  facetMap,
+  selected,
+  onRemoveFacet,
+  textFilters,
+  textFilterValues,
+  onClearTextFilter,
+  totalActive,
+  onClearAll,
+}) {
+  if (!totalActive) return null
+  const mediaKindsActive =
+    showMediaTypes &&
+    selectedMediaTypes.length > 0 &&
+    selectedMediaTypes.length < (mediaKinds?.length || 4)
+  return (
+    <div className="mb-5 flex items-center gap-2 rounded-xl border border-border bg-card/60 px-3 py-2 shadow-sm shadow-black/[0.02]">
+      <span className="hidden shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:inline">
+        Filters
+      </span>
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-0.5">
+        {q ? (
+          <FilterChip
+            label="Search"
+            value={`“${q}”`}
+            onClear={onClearSearch}
+            tone="primary"
+          />
+        ) : null}
+        {dateFrom || dateTo ? (
+          <FilterChip
+            label="Created"
+            value={`${shortYear(dateFrom) || '…'} → ${shortYear(dateTo) || '…'}`}
+            onClear={onClearDate}
+          />
+        ) : null}
+        {publishedFrom || publishedTo ? (
+          <FilterChip
+            label="Published"
+            value={`${shortYear(publishedFrom) || '…'} → ${shortYear(publishedTo) || '…'}`}
+            onClear={onClearPublished}
+          />
+        ) : null}
+        {printDateFrom || printDateTo ? (
+          <FilterChip
+            label="Printed"
+            value={`${shortYear(printDateFrom) || '…'} → ${shortYear(printDateTo) || '…'}`}
+            onClear={onClearPrintDate}
+          />
+        ) : null}
+        {mediaKindsActive
+          ? selectedMediaTypes.map((kind) => (
+              <FilterChip
+                key={`type-${kind}`}
+                label="Type"
+                value={KIND_SECTION_LABELS[kind] || kind}
+                onClear={() => onClearMediaType(kind)}
+              />
+            ))
+          : null}
+        {(facetMap || []).flatMap((g) =>
+          (selected?.[g.paramKey] || []).map((v) => (
+            <FilterChip
+              key={`${g.paramKey}-${v}`}
+              label={g.title}
+              value={v}
+              onClear={() => onRemoveFacet(g.paramKey, v)}
+            />
+          )),
+        )}
+        {(textFilters || []).map((f) => {
+          const v = (textFilterValues?.[f.paramKey] || '').trim()
+          if (!v) return null
+          return (
+            <FilterChip
+              key={`tf-${f.paramKey}`}
+              label={f.label}
+              value={v}
+              onClear={() => onClearTextFilter(f.paramKey)}
+            />
+          )
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={onClearAll}
+        className="ml-auto inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-[11.5px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      >
+        Clear all
+      </button>
+    </div>
+  )
+}
+
+function FilterChip({ label, value, onClear, tone }) {
+  const isPrimary = tone === 'primary'
+  return (
+    <button
+      type="button"
+      onClick={onClear}
+      className={cn(
+        'group/chip inline-flex h-7 max-w-full shrink-0 items-center gap-1.5 rounded-full border py-px pl-2 pr-1 text-[11.5px] font-medium transition-colors',
+        isPrimary
+          ? 'border-primary/30 bg-primary/8 text-primary hover:border-primary/50'
+          : 'border-border bg-background text-foreground hover:border-foreground/30 hover:bg-accent',
+      )}
+      title={`${label}: ${value} — click to remove`}
+    >
+      <span
+        className={cn(
+          'shrink-0 text-[9px] font-semibold uppercase tracking-[0.14em]',
+          isPrimary ? 'text-primary/80' : 'text-muted-foreground',
+        )}
+      >
+        {label}
+      </span>
+      <span className="max-w-[20ch] truncate font-medium">{value}</span>
+      <span
+        className={cn(
+          'grid size-4 place-items-center rounded-full transition-colors',
+          isPrimary
+            ? 'text-primary/70 group-hover/chip:bg-primary/15 group-hover/chip:text-primary'
+            : 'text-muted-foreground group-hover/chip:bg-foreground/10 group-hover/chip:text-foreground',
+        )}
+      >
+        <X className="size-2.5" strokeWidth={3} />
+      </span>
+    </button>
+  )
+}
+
+// Year extractor for the active-filter date chips (yyyy-mm-dd → "yyyy"
+// so the chip stays compact in a horizontal scroller).
+function shortYear(iso) {
+  if (!iso) return ''
+  const m = String(iso).match(/^(\d{4})/)
+  return m ? m[1] : iso
 }
 
 // ── ResultsBody ────────────────────────────────────────────────────────
@@ -1171,17 +1374,22 @@ function ResultsHead({
   const active = sorts.find((s) => `${s.key}:${s.dir}` === sortValue) || sorts[0]
 
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-      <div className="flex items-baseline gap-2">
-        <span className="font-heading text-lg font-semibold tabular-nums tracking-tight text-foreground">
-          {Number.isFinite(count) ? count.toLocaleString() : '—'}
-        </span>
-        <span className="text-[13px] text-muted-foreground">{label}</span>
-        {Number.isFinite(ms) ? (
-          <span className="ml-1 rounded-full bg-muted px-2 py-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">
-            {ms}ms
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3 border-b border-border pb-4">
+      <div className="flex flex-col gap-1">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          Showing
+        </p>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="font-heading text-2xl font-semibold tabular-nums leading-none tracking-tight text-foreground">
+            {Number.isFinite(count) ? count.toLocaleString() : '—'}
           </span>
-        ) : null}
+          <span className="text-[13.5px] text-muted-foreground">{label}</span>
+          {Number.isFinite(ms) ? (
+            <span className="ml-1 rounded-full bg-muted px-2 py-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">
+              {ms}ms
+            </span>
+          ) : null}
+        </div>
       </div>
       <div className="flex items-center gap-2">
         {/* Layout toggle */}

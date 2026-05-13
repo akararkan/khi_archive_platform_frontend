@@ -23,6 +23,7 @@ import { AdminProjectPage } from '@/pages/admin/AdminProjectPage'
 import { AdminRolesPage } from '@/pages/admin/AdminRolesPage'
 import { AdminSettingsPage } from '@/pages/admin/AdminSettingsPage'
 import { AdminTrashPage } from '@/pages/admin/AdminTrashPage'
+import { AdminWarningsPage } from '@/pages/admin/AdminWarningsPage'
 import { AdminUserActivityPage } from '@/pages/admin/AdminUserActivityPage'
 import { AdminUsersPage } from '@/pages/admin/AdminUsersPage'
 import { EmployeeProfilePage } from '@/pages/employee/EmployeeProfilePage'
@@ -196,6 +197,10 @@ const router = createBrowserRouter([
                   {
                     path: 'users',
                     element: <AdminUsersPage />,
+                  },
+                  {
+                    path: 'warnings',
+                    element: <AdminWarningsPage />,
                   },
                   {
                     path: 'roles',

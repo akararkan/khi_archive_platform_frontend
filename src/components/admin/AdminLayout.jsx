@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   Activity,
+  AlertTriangle,
   ChevronRight,
   FolderOpen,
   LayoutDashboard,
   LogOut,
-  Settings2,
   ShieldCheck,
   Tags,
   Trash2,
@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { GuestActivationBanner } from '@/components/ui/guest-activation-banner'
 import { Skeleton } from '@/components/ui/skeleton'
+import { WarningBell } from '@/components/warning/WarningBell'
 import { clearCurrentProfile, setCurrentProfile } from '@/lib/current-profile'
 import { cn } from '@/lib/utils'
 import { logout } from '@/services/auth'
@@ -49,8 +50,7 @@ const navigationGroups = [
     items: [
       { label: 'Analytics', to: '/admin/analytics', icon: Activity },
       { label: 'Users', to: '/admin/users', icon: Users },
-      { label: 'Roles', to: '/admin/roles', icon: ShieldCheck },
-      { label: 'Settings', to: '/admin/settings', icon: Settings2 },
+      { label: 'Warnings', to: '/admin/warnings', icon: AlertTriangle },
     ],
   },
 ]
@@ -175,6 +175,14 @@ function AdminLayout() {
             </div>
           )}
         </NavLink>
+
+        {/* warning bell — lives between the profile card and the nav so
+            it stays visible regardless of which page the admin is on.
+            Badge color/animation pulls attention when something needs
+            acknowledgement without being intrusive when empty. */}
+        <div className="mt-3">
+          <WarningBell />
+        </div>
 
         {/* nav — grouped sections; each item gets the same active-bar +
             icon-pill treatment as the Employee sidebar so the two share

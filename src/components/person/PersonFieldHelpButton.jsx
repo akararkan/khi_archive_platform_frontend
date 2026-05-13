@@ -1,29 +1,12 @@
-import { CircleHelp } from 'lucide-react'
-
-import { Button } from '@/components/ui/button'
-import { useToast } from '@/hooks/use-toast'
+import { FieldHelpButton } from '@/components/ui/field-help'
 import { getPersonFieldMetadata } from '@/lib/person-fields-metadata'
 
+// Thin wrapper around the generic FieldHelpButton so the existing
+// EmployeePersonPage call sites (`<PersonFieldHelpButton fieldKey="…" />`)
+// keep working unchanged. New entities should use the generic
+// `<FieldHelpButton metadata={...} />` directly.
 function PersonFieldHelpButton({ fieldKey }) {
-  const toast = useToast()
-  const metadata = getPersonFieldMetadata(fieldKey)
-
-  if (!metadata) {
-    return null
-  }
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-xs"
-      className="size-6 rounded-full text-muted-foreground hover:text-foreground"
-      onClick={() => toast.toast(metadata.title, metadata.description)}
-    >
-      <CircleHelp className="size-3.5" />
-      <span className="sr-only">Show field help</span>
-    </Button>
-  )
+  return <FieldHelpButton metadata={getPersonFieldMetadata(fieldKey)} />
 }
 
 export { PersonFieldHelpButton }

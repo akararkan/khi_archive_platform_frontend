@@ -11,12 +11,13 @@ import {
   CategoryLinks,
   MediaHero,
   MetaPanel,
+  MetaPanelIf,
   MetaRow,
   PersonLink,
   PillRow,
   ProjectLink,
 } from '@/components/public/PublicMediaDetailShared'
-import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
+import { formatBool, formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
 import { guestAudios } from '@/services/guest'
 
 function PublicAudioDetailPage() {
@@ -132,18 +133,6 @@ function PublicAudioDetailPage() {
 
           <aside className="space-y-5 lg:sticky lg:top-32 lg:self-start">
             <MetaPanel title="Details">
-              <MetaRow label="Form">{audio.form}</MetaRow>
-              <MetaRow label="Language">{audio.language}</MetaRow>
-              <MetaRow label="Dialect">{audio.dialect}</MetaRow>
-              <MetaRow label="Type of basta">{audio.typeOfBasta}</MetaRow>
-              <MetaRow label="Type of maqam">{audio.typeOfMaqam}</MetaRow>
-              <MetaRow label="Genre" value={audio.genre}>
-                <PillRow values={audio.genre} />
-              </MetaRow>
-              <MetaRow label="Recorded">{formatPublicDate(audio.recordedAt || audio.recordingDate)}</MetaRow>
-              <MetaRow label="Duration" value={audio.duration || audio.durationFormatted}>
-                {audio.duration ? `${audio.duration}s` : audio.durationFormatted}
-              </MetaRow>
               <MetaRow
                 label="Project"
                 value={audio.project?.projectCode || audio.projectCode}
@@ -162,21 +151,145 @@ function PublicAudioDetailPage() {
               <MetaRow label="Subjects" value={audio.subjects || audio.subject}>
                 <PillRow values={audio.subjects || audio.subject} />
               </MetaRow>
-              <MetaRow
-                label="Contributors"
-                value={audio.contributors || audio.contributor}
-              >
-                <PillRow values={audio.contributors || audio.contributor} />
+              <MetaRow label="Audience">{audio.audience}</MetaRow>
+              <MetaRow label="Recorded">{formatPublicDate(audio.recordedAt || audio.recordingDate)}</MetaRow>
+              <MetaRow label="Duration" value={audio.duration || audio.durationFormatted}>
+                {audio.duration ? `${audio.duration}s` : audio.durationFormatted}
               </MetaRow>
             </MetaPanel>
 
-            {audio.tags?.length ? (
-              <MetaPanel title="Tags">
-                <MetaRow label="Tags" value={audio.tags}>
-                  <PillRow values={audio.tags} tone="primary" />
-                </MetaRow>
-              </MetaPanel>
-            ) : null}
+            <MetaPanelIf
+              obj={audio}
+              title="Music & form"
+              keys={['form', 'genre', 'typeOfBasta', 'typeOfMaqam', 'typeOfComposition', 'typeOfPerformance', 'poet']}
+            >
+              <MetaRow label="Form">{audio.form}</MetaRow>
+              <MetaRow label="Type of basta">{audio.typeOfBasta}</MetaRow>
+              <MetaRow label="Type of maqam">{audio.typeOfMaqam}</MetaRow>
+              <MetaRow label="Type of composition">{audio.typeOfComposition}</MetaRow>
+              <MetaRow label="Type of performance">{audio.typeOfPerformance}</MetaRow>
+              <MetaRow label="Poet">{audio.poet}</MetaRow>
+              <MetaRow label="Genre" value={audio.genre}>
+                <PillRow values={audio.genre} />
+              </MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={audio}
+              title="Credits"
+              keys={['composer', 'speaker', 'producer', 'contributors', 'contributor']}
+            >
+              <MetaRow label="Composer">{audio.composer}</MetaRow>
+              <MetaRow label="Speaker">{audio.speaker}</MetaRow>
+              <MetaRow label="Producer">{audio.producer}</MetaRow>
+              <MetaRow label="Contributors" value={audio.contributors || audio.contributor}>
+                <PillRow values={audio.contributors || audio.contributor} />
+              </MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={audio}
+              title="Language"
+              keys={['language', 'dialect']}
+            >
+              <MetaRow label="Language">{audio.language}</MetaRow>
+              <MetaRow label="Dialect">{audio.dialect}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={audio}
+              title="Recording location"
+              keys={['recordingVenue', 'city', 'region']}
+            >
+              <MetaRow label="Venue">{audio.recordingVenue}</MetaRow>
+              <MetaRow label="City">{audio.city}</MetaRow>
+              <MetaRow label="Region">{audio.region}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={audio}
+              title="Dates"
+              keys={['dateCreated', 'datePublished', 'dateModified']}
+            >
+              <MetaRow label="Created">{formatPublicDate(audio.dateCreated)}</MetaRow>
+              <MetaRow label="Published">{formatPublicDate(audio.datePublished)}</MetaRow>
+              <MetaRow label="Modified">{formatPublicDate(audio.dateModified)}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={audio}
+              title="Technical"
+              keys={['audioChannel', 'fileExtension', 'fileSize', 'bitRate', 'bitDepth', 'sampleRate', 'audioQualityOutOf10', 'audioVersion']}
+            >
+              <MetaRow label="Channel">{audio.audioChannel}</MetaRow>
+              <MetaRow label="Bit rate">{audio.bitRate}</MetaRow>
+              <MetaRow label="Sample rate">{audio.sampleRate}</MetaRow>
+              <MetaRow label="Bit depth">{audio.bitDepth}</MetaRow>
+              <MetaRow
+                label="Quality"
+                value={audio.audioQualityOutOf10}
+              >
+                {audio.audioQualityOutOf10 != null ? `${audio.audioQualityOutOf10} / 10` : null}
+              </MetaRow>
+              <MetaRow label="Extension">{audio.fileExtension}</MetaRow>
+              <MetaRow label="File size">{audio.fileSize}</MetaRow>
+              <MetaRow label="Version">{audio.audioVersion}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={audio}
+              title="Archive & provenance"
+              keys={['locationArchive', 'degitizedBy', 'degitizationEquipment', 'physicalLabel', 'physicalAvailability', 'provenance', 'accrualMethod']}
+            >
+              <MetaRow label="Archive location">{audio.locationArchive}</MetaRow>
+              <MetaRow label="Digitized by">{audio.degitizedBy}</MetaRow>
+              <MetaRow label="Digitization equipment">{audio.degitizationEquipment}</MetaRow>
+              <MetaRow label="Physical label">{audio.physicalLabel}</MetaRow>
+              <MetaRow
+                label="Physical copy"
+                value={formatBool(audio.physicalAvailability)}
+              >
+                {formatBool(audio.physicalAvailability)}
+              </MetaRow>
+              <MetaRow label="Provenance">{audio.provenance}</MetaRow>
+              <MetaRow label="Accrual method">{audio.accrualMethod}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={audio}
+              title="Rights"
+              keys={['copyright', 'rightOwner', 'dateCopyrighted', 'availability', 'licenseType', 'usageRights', 'owner', 'publisher']}
+            >
+              <MetaRow label="Copyright">{audio.copyright}</MetaRow>
+              <MetaRow label="Right owner">{audio.rightOwner}</MetaRow>
+              <MetaRow label="Date copyrighted">{formatPublicDate(audio.dateCopyrighted)}</MetaRow>
+              <MetaRow label="Availability">{audio.availability}</MetaRow>
+              <MetaRow label="License">{audio.licenseType}</MetaRow>
+              <MetaRow label="Usage">{audio.usageRights}</MetaRow>
+              <MetaRow label="Owner">{audio.owner}</MetaRow>
+              <MetaRow label="Publisher">{audio.publisher}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={audio}
+              title="Notes"
+              keys={['audioFileNote']}
+            >
+              <MetaRow label="File note">{audio.audioFileNote}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={audio}
+              title="Tags & keywords"
+              keys={['tags', 'keywords']}
+            >
+              <MetaRow label="Tags" value={audio.tags}>
+                <PillRow values={audio.tags} tone="primary" />
+              </MetaRow>
+              <MetaRow label="Keywords" value={audio.keywords}>
+                <PillRow values={audio.keywords} />
+              </MetaRow>
+            </MetaPanelIf>
           </aside>
         </div>
       </PageContainer>

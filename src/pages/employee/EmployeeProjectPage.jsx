@@ -31,6 +31,8 @@ import { Highlight } from '@/components/ui/highlight'
 import { Input } from '@/components/ui/input'
 import { DataPagination } from '@/components/ui/pagination'
 import { Label } from '@/components/ui/label'
+import { FieldHelpButton } from '@/components/ui/field-help'
+import { getProjectFieldMetadata } from '@/lib/project-fields-metadata'
 import { SearchSelect } from '@/components/ui/search-select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -367,9 +369,12 @@ function EmployeeProjectPage() {
               </CardHeader>
               <CardContent className="space-y-5 pt-5">
                 <div className="space-y-1.5">
-                  <Label htmlFor="projectName">
-                    Project name <span className="text-destructive">*</span>
-                  </Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="projectName">
+                      Project name <span className="text-destructive">*</span>
+                    </Label>
+                    <FieldHelpButton metadata={getProjectFieldMetadata('projectName')} />
+                  </div>
                   <Input
                     id="projectName"
                     value={form.projectName}
@@ -381,7 +386,10 @@ function EmployeeProjectPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>Person link {isEdit ? <span className="font-normal text-muted-foreground">(locked after creation)</span> : null}</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label>Person link {isEdit ? <span className="font-normal text-muted-foreground">(locked after creation)</span> : null}</Label>
+                    <FieldHelpButton metadata={getProjectFieldMetadata('person')} />
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -439,10 +447,13 @@ function EmployeeProjectPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>
-                    Categories <span className="text-destructive">*</span>{' '}
-                    <span className="font-normal text-muted-foreground">(at least one)</span>
-                  </Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label>
+                      Categories <span className="text-destructive">*</span>{' '}
+                      <span className="font-normal text-muted-foreground">(at least one)</span>
+                    </Label>
+                    <FieldHelpButton metadata={getProjectFieldMetadata('categories')} />
+                  </div>
                   <CategoryMultiSelect
                     categories={categories}
                     value={form.categoryCodes}
@@ -463,7 +474,10 @@ function EmployeeProjectPage() {
               </CardHeader>
               <CardContent className="space-y-5 pt-5">
                 <div className="space-y-1.5">
-                  <Label htmlFor="description">Description</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="description">Description</Label>
+                    <FieldHelpButton metadata={getProjectFieldMetadata('description')} />
+                  </div>
                   <textarea
                     id="description"
                     value={form.description}
@@ -475,7 +489,10 @@ function EmployeeProjectPage() {
 
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="tags">Tags</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="tags">Tags</Label>
+                      <FieldHelpButton metadata={getProjectFieldMetadata('tags')} />
+                    </div>
                     <TagsInput
                       id="tags"
                       value={form.tags}
@@ -484,7 +501,10 @@ function EmployeeProjectPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="keywords">Keywords</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="keywords">Keywords</Label>
+                      <FieldHelpButton metadata={getProjectFieldMetadata('keywords')} />
+                    </div>
                     <TagsInput
                       id="keywords"
                       value={form.keywords}

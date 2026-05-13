@@ -13,6 +13,7 @@ import {
   CategoryLinks,
   MediaHero,
   MetaPanel,
+  MetaPanelIf,
   MetaRow,
   PersonLink,
   PillRow,
@@ -146,18 +147,6 @@ function PublicTextDetailPage() {
 
           <aside className="space-y-5 lg:sticky lg:top-32 lg:self-start">
             <MetaPanel title="Details">
-              <MetaRow label="Document type">{text.documentType}</MetaRow>
-              <MetaRow label="Author">{text.author}</MetaRow>
-              <MetaRow label="Subject" value={text.subject}>
-                <PillRow values={text.subject} />
-              </MetaRow>
-              <MetaRow label="Genre" value={text.genre}>
-                <PillRow values={text.genre} />
-              </MetaRow>
-              <MetaRow label="Language">{text.language}</MetaRow>
-              <MetaRow label="Dialect">{text.dialect}</MetaRow>
-              <MetaRow label="Pages">{text.pageCount}</MetaRow>
-              <MetaRow label="Date">{formatPublicDate(text.documentDate || text.recordedAt)}</MetaRow>
               <MetaRow
                 label="Project"
                 value={text.project?.projectCode || text.projectCode}
@@ -173,18 +162,125 @@ function PublicTextDetailPage() {
               <MetaRow label="Categories" value={text.categories}>
                 <CategoryLinks categories={text.categories} />
               </MetaRow>
-              <MetaRow label="Subjects" value={text.subjects}>
-                <PillRow values={text.subjects} />
-              </MetaRow>
+              <MetaRow label="Date">{formatPublicDate(text.documentDate || text.recordedAt)}</MetaRow>
             </MetaPanel>
 
-            {text.tags?.length ? (
-              <MetaPanel title="Tags">
-                <MetaRow label="Tags" value={text.tags}>
-                  <PillRow values={text.tags} tone="primary" />
-                </MetaRow>
-              </MetaPanel>
-            ) : null}
+            <MetaPanelIf
+              obj={text}
+              title="Document"
+              keys={['documentType', 'subject', 'subjects', 'genre', 'script', 'isbn', 'edition', 'volume', 'series', 'assignmentNumber']}
+            >
+              <MetaRow label="Document type">{text.documentType}</MetaRow>
+              <MetaRow label="Subject" value={text.subject || text.subjects}>
+                <PillRow values={text.subject || text.subjects} />
+              </MetaRow>
+              <MetaRow label="Genre" value={text.genre}>
+                <PillRow values={text.genre} />
+              </MetaRow>
+              <MetaRow label="Script">{text.script}</MetaRow>
+              <MetaRow label="ISBN">{text.isbn}</MetaRow>
+              <MetaRow label="Edition">{text.edition}</MetaRow>
+              <MetaRow label="Volume">{text.volume}</MetaRow>
+              <MetaRow label="Series">{text.series}</MetaRow>
+              <MetaRow label="Assignment #">{text.assignmentNumber}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={text}
+              title="Credits"
+              keys={['author', 'contributors', 'contributor', 'printingHouse', 'audience']}
+            >
+              <MetaRow label="Author">{text.author}</MetaRow>
+              <MetaRow label="Contributors" value={text.contributors || text.contributor}>
+                <PillRow values={text.contributors || text.contributor} />
+              </MetaRow>
+              <MetaRow label="Printing house">{text.printingHouse}</MetaRow>
+              <MetaRow label="Audience">{text.audience}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={text}
+              title="Language"
+              keys={['language', 'dialect']}
+            >
+              <MetaRow label="Language">{text.language}</MetaRow>
+              <MetaRow label="Dialect">{text.dialect}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={text}
+              title="Dates"
+              keys={['dateCreated', 'printDate', 'datePublished', 'dateModified']}
+            >
+              <MetaRow label="Created">{formatPublicDate(text.dateCreated)}</MetaRow>
+              <MetaRow label="Print date">{formatPublicDate(text.printDate)}</MetaRow>
+              <MetaRow label="Published">{formatPublicDate(text.datePublished)}</MetaRow>
+              <MetaRow label="Modified">{formatPublicDate(text.dateModified)}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={text}
+              title="Physical & technical"
+              keys={['pageCount', 'orientation', 'size', 'physicalDimensions', 'extension', 'fileSize', 'textVersion']}
+            >
+              <MetaRow label="Pages">{text.pageCount}</MetaRow>
+              <MetaRow label="Orientation">{text.orientation}</MetaRow>
+              <MetaRow label="Size">{text.size}</MetaRow>
+              <MetaRow label="Dimensions">{text.physicalDimensions}</MetaRow>
+              <MetaRow label="Extension">{text.extension}</MetaRow>
+              <MetaRow label="File size">{text.fileSize}</MetaRow>
+              <MetaRow label="Version">{text.textVersion}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={text}
+              title="Archive & provenance"
+              keys={['textStatus', 'archiveCataloging', 'provenance', 'accrualMethod', 'physicalLabel', 'locationInArchiveRoom', 'lccClassification']}
+            >
+              <MetaRow label="Status">{text.textStatus}</MetaRow>
+              <MetaRow label="Cataloging">{text.archiveCataloging}</MetaRow>
+              <MetaRow label="Provenance">{text.provenance}</MetaRow>
+              <MetaRow label="Accrual method">{text.accrualMethod}</MetaRow>
+              <MetaRow label="Physical label">{text.physicalLabel}</MetaRow>
+              <MetaRow label="Archive room">{text.locationInArchiveRoom}</MetaRow>
+              <MetaRow label="LCC">{text.lccClassification}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={text}
+              title="Rights"
+              keys={['copyright', 'rightOwner', 'dateCopyrighted', 'availability', 'licenseType', 'usageRights', 'owner', 'publisher']}
+            >
+              <MetaRow label="Copyright">{text.copyright}</MetaRow>
+              <MetaRow label="Right owner">{text.rightOwner}</MetaRow>
+              <MetaRow label="Date copyrighted">{formatPublicDate(text.dateCopyrighted)}</MetaRow>
+              <MetaRow label="Availability">{text.availability}</MetaRow>
+              <MetaRow label="License">{text.licenseType}</MetaRow>
+              <MetaRow label="Usage">{text.usageRights}</MetaRow>
+              <MetaRow label="Owner">{text.owner}</MetaRow>
+              <MetaRow label="Publisher">{text.publisher}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={text}
+              title="Notes"
+              keys={['note']}
+            >
+              <MetaRow label="Note">{text.note}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={text}
+              title="Tags & keywords"
+              keys={['tags', 'keywords']}
+            >
+              <MetaRow label="Tags" value={text.tags}>
+                <PillRow values={text.tags} tone="primary" />
+              </MetaRow>
+              <MetaRow label="Keywords" value={text.keywords}>
+                <PillRow values={text.keywords} />
+              </MetaRow>
+            </MetaPanelIf>
           </aside>
         </div>
       </PageContainer>

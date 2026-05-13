@@ -130,3 +130,26 @@ export async function getAnalyticsEntities({ signal, ...filter } = {}) {
   })
   return data
 }
+
+// Monthly buckets — same filter shape as the rest, but the response is
+// MonthlyBucketDTO[] (one row per calendar month within the window).
+// Each bucket carries total / created / updated / deleted / restored /
+// purged / viewed / searched / activeUsers and a "YYYY-MM" label.
+// Defaults to a 365d window server-side so ~12 buckets render out of
+// the box.
+export async function getAnalyticsMonthly({ signal, ...filter } = {}) {
+  const { data } = await apiClient.get('/analytics/monthly', {
+    params: buildFilterParams(filter),
+    signal,
+  })
+  return data
+}
+
+// Catalog of action codes the admin can choose from on the action
+// filter (e.g. ["CREATE","READ","UPDATE","DELETE","SEARCH"]). LIST was
+// dropped backend-side so it doesn't appear here. The filter UI POSTs
+// the chosen subset back via `?actions=CREATE,READ`.
+export async function getAnalyticsActionCatalog({ signal } = {}) {
+  const { data } = await apiClient.get('/analytics/actions/catalog', { signal })
+  return data
+}

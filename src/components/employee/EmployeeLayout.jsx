@@ -5,6 +5,7 @@ import { Archive, ChevronRight, FolderOpen, LogOut, Tags, Users } from 'lucide-r
 import { Button } from '@/components/ui/button'
 import { GuestActivationBanner } from '@/components/ui/guest-activation-banner'
 import { Skeleton } from '@/components/ui/skeleton'
+import { WarningBell } from '@/components/warning/WarningBell'
 import { clearCurrentProfile, setCurrentProfile } from '@/lib/current-profile'
 import { cn } from '@/lib/utils'
 import { logout } from '@/services/auth'
@@ -133,6 +134,12 @@ function EmployeeLayout() {
             </div>
           )}
         </NavLink>
+
+        {/* warning bell — sits between the profile card and the nav so
+            it stays visible regardless of which page the employee is on. */}
+        <div className="mt-3">
+          <WarningBell />
+        </div>
 
         {/* nav */}
         <div className="mt-5 space-y-1.5 lg:flex-1 lg:overflow-y-auto lg:pr-1">

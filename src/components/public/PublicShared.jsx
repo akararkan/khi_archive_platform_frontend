@@ -214,14 +214,19 @@ function MatchedOnPills({ values, className }) {
   const visible = values.filter((v) => v !== 'keyword')
   if (visible.length === 0) return null
   return (
-    <div className={cn('flex flex-wrap items-center gap-1', className)}>
-      <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        Matched
+    <div
+      className={cn(
+        'flex flex-wrap items-center gap-1 border-t border-border/60 pt-1.5',
+        className,
+      )}
+    >
+      <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        Matched on
       </span>
       {visible.map((v) => (
         <span
           key={v}
-          className="inline-flex items-center rounded-sm border border-primary/25 bg-primary/8 px-1 py-px font-mono text-[10px] uppercase tracking-[0.06em] text-primary"
+          className="inline-flex items-center rounded-full border border-primary/25 bg-primary/8 px-1.5 py-px text-[10px] font-medium uppercase tracking-[0.06em] text-primary"
         >
           {MATCH_LABELS[v] || v}
         </span>
@@ -268,8 +273,8 @@ function ResultCard({
       to={to}
       data-kind={kind}
       className={cn(
-        'group/card relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm shadow-black/[0.03] transition-all duration-200',
-        'hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-lg hover:shadow-black/[0.07]',
+        'group/card relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm shadow-black/[0.03] transition-all duration-200',
+        'hover:-translate-y-1 hover:border-primary/30 hover:shadow-xl hover:shadow-black/[0.08]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
       )}
     >
@@ -303,9 +308,9 @@ function ResultCard({
       </div>
 
       {/* ── Body ─────────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col gap-1.5 p-3.5">
+      <div className="flex flex-1 flex-col gap-2 p-4">
         <h3
-          className="line-clamp-2 text-[14px] font-semibold leading-snug tracking-tight text-foreground"
+          className="line-clamp-2 text-[14.5px] font-semibold leading-[1.35] tracking-tight text-foreground transition-colors group-hover/card:text-primary"
           title={title}
         >
           <Highlight text={title || ''} query={query} />

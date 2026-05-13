@@ -6,6 +6,7 @@ import {
   PageHeader,
   TagPill,
 } from '@/components/public/PublicShared'
+import { hasAny } from '@/components/public/public-helpers'
 import { cn } from '@/lib/utils'
 
 // ── MediaHero ──────────────────────────────────────────────────────────
@@ -54,6 +55,14 @@ function MetaPanel({ title, children }) {
       <dl className="mt-3 space-y-3 text-sm">{children}</dl>
     </div>
   )
+}
+
+// MetaPanel that doesn't render at all if every field in `keys` is
+// empty. Saves callers from wrapping each panel in an inline `hasAny`
+// check while still letting MetaRow do its own per-row hiding.
+function MetaPanelIf({ obj, keys, title, children }) {
+  if (!hasAny(obj, keys)) return null
+  return <MetaPanel title={title}>{children}</MetaPanel>
 }
 
 // `value` is an optional escape hatch for the emptiness check: when the
@@ -196,6 +205,7 @@ function CategoryLinks({ categories }) {
 export {
   MediaHero,
   MetaPanel,
+  MetaPanelIf,
   MetaRow,
   PillRow,
   ProjectLink,

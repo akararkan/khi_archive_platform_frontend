@@ -1,10 +1,26 @@
 import { Plus } from 'lucide-react'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { FieldHelpButton } from '@/components/ui/field-help'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TagsInput } from '@/components/ui/tags-input'
 import { cn } from '@/lib/utils'
+import { getVideoFieldMetadata } from '@/lib/video-fields-metadata'
+
+// Label + help-button row, looking up the description from the video
+// metadata. `fieldKey` defaults to `htmlFor` since most names match;
+// pass an explicit one for cases like videoTags → tags.
+function VideoFieldLabel({ htmlFor, fieldKey, className, children }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <Label htmlFor={htmlFor} className={className}>
+        {children}
+      </Label>
+      <FieldHelpButton metadata={getVideoFieldMetadata(fieldKey || htmlFor)} />
+    </div>
+  )
+}
 
 const TEXTAREA_CLASS =
   'min-h-[96px] w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
@@ -70,23 +86,23 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="fileName">File Name</Label>
+            <VideoFieldLabel htmlFor="fileName">File Name</VideoFieldLabel>
             <Input id="fileName" value={form.fileName} onChange={(e) => setForm({ ...form, fileName: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="originalTitle">Original Title</Label>
+            <VideoFieldLabel htmlFor="originalTitle">Original Title</VideoFieldLabel>
             <Input id="originalTitle" value={form.originalTitle} onChange={(e) => setForm({ ...form, originalTitle: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="alternativeTitle">Alternative Title</Label>
+            <VideoFieldLabel htmlFor="alternativeTitle">Alternative Title</VideoFieldLabel>
             <Input id="alternativeTitle" value={form.alternativeTitle} onChange={(e) => setForm({ ...form, alternativeTitle: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="titleInCentralKurdish">Central Kurdish Title</Label>
+            <VideoFieldLabel htmlFor="titleInCentralKurdish">Central Kurdish Title</VideoFieldLabel>
             <Input id="titleInCentralKurdish" value={form.titleInCentralKurdish} onChange={(e) => setForm({ ...form, titleInCentralKurdish: e.target.value })} dir="rtl" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="romanizedTitle">Romanized Title</Label>
+            <VideoFieldLabel htmlFor="romanizedTitle">Romanized Title</VideoFieldLabel>
             <Input id="romanizedTitle" value={form.romanizedTitle} onChange={(e) => setForm({ ...form, romanizedTitle: e.target.value })} />
           </div>
         </CardContent>
@@ -99,31 +115,34 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="space-y-5 pt-5">
           <div className="space-y-1.5">
-            <Label htmlFor="description">Description</Label>
+            <VideoFieldLabel htmlFor="description">Description</VideoFieldLabel>
             <textarea id="description" className={TEXTAREA_CLASS} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="event">Event</Label>
+              <VideoFieldLabel htmlFor="event">Event</VideoFieldLabel>
               <Input id="event" value={form.event} onChange={(e) => setForm({ ...form, event: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="location">Location</Label>
+              <VideoFieldLabel htmlFor="location">Location</VideoFieldLabel>
               <Input id="location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
             </div>
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="subject">Subject</Label>
+              <VideoFieldLabel htmlFor="subject">Subject</VideoFieldLabel>
               <TagsInput id="subject" value={form.subject} onChange={(next) => setForm({ ...form, subject: next })} placeholder="History, music, oral memory…" />
             </div>
             <div className="space-y-1.5">
-              <Label>
-                Genres{' '}
-                <span className="font-normal text-muted-foreground">
-                  (pick from this project's categories)
-                </span>
-              </Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label>
+                  Genres{' '}
+                  <span className="font-normal text-muted-foreground">
+                    (pick from this project's categories)
+                  </span>
+                </Label>
+                <FieldHelpButton metadata={getVideoFieldMetadata('genre')} />
+              </div>
               <GenreChips
                 categories={projectCategories}
                 value={form.genre}
@@ -142,16 +161,16 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="space-y-5 pt-5">
           <div className="space-y-1.5">
-            <Label htmlFor="personShownInVideo">People shown in the video</Label>
+            <VideoFieldLabel htmlFor="personShownInVideo">People shown in the video</VideoFieldLabel>
             <Input id="personShownInVideo" value={form.personShownInVideo} onChange={(e) => setForm({ ...form, personShownInVideo: e.target.value })} />
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="colorOfVideo">Color of video</Label>
+              <VideoFieldLabel htmlFor="colorOfVideo">Color of video</VideoFieldLabel>
               <TagsInput id="colorOfVideo" value={form.colorOfVideo} onChange={(next) => setForm({ ...form, colorOfVideo: next })} placeholder="black & white, color, sepia…" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="whereThisVideoUsed">Where this video was used</Label>
+              <VideoFieldLabel htmlFor="whereThisVideoUsed">Where this video was used</VideoFieldLabel>
               <TagsInput id="whereThisVideoUsed" value={form.whereThisVideoUsed} onChange={(next) => setForm({ ...form, whereThisVideoUsed: next })} placeholder="documentary, news, broadcast…" />
             </div>
           </div>
@@ -165,19 +184,19 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="creatorArtistDirector">Creator / Artist / Director</Label>
+            <VideoFieldLabel htmlFor="creatorArtistDirector">Creator / Artist / Director</VideoFieldLabel>
             <Input id="creatorArtistDirector" value={form.creatorArtistDirector} onChange={(e) => setForm({ ...form, creatorArtistDirector: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="producer">Producer</Label>
+            <VideoFieldLabel htmlFor="producer">Producer</VideoFieldLabel>
             <Input id="producer" value={form.producer} onChange={(e) => setForm({ ...form, producer: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="contributor">Contributor</Label>
+            <VideoFieldLabel htmlFor="contributor">Contributor</VideoFieldLabel>
             <Input id="contributor" value={form.contributor} onChange={(e) => setForm({ ...form, contributor: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="audience">Audience</Label>
+            <VideoFieldLabel htmlFor="audience">Audience</VideoFieldLabel>
             <Input id="audience" value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} />
           </div>
         </CardContent>
@@ -190,15 +209,15 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
           <div className="space-y-1.5">
-            <Label htmlFor="language">Language</Label>
+            <VideoFieldLabel htmlFor="language">Language</VideoFieldLabel>
             <Input id="language" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="dialect">Dialect</Label>
+            <VideoFieldLabel htmlFor="dialect">Dialect</VideoFieldLabel>
             <Input id="dialect" value={form.dialect} onChange={(e) => setForm({ ...form, dialect: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="subtitle">Subtitle</Label>
+            <VideoFieldLabel htmlFor="subtitle">Subtitle</VideoFieldLabel>
             <Input id="subtitle" value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} />
           </div>
         </CardContent>
@@ -212,51 +231,51 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
           <div className="space-y-1.5">
-            <Label htmlFor="orientation">Orientation</Label>
+            <VideoFieldLabel htmlFor="orientation">Orientation</VideoFieldLabel>
             <Input id="orientation" value={form.orientation} onChange={(e) => setForm({ ...form, orientation: e.target.value })} placeholder="landscape, portrait…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="dimension">Dimension</Label>
+            <VideoFieldLabel htmlFor="dimension">Dimension</VideoFieldLabel>
             <Input id="dimension" value={form.dimension} onChange={(e) => setForm({ ...form, dimension: e.target.value })} placeholder="1920×1080" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="resolution">Resolution</Label>
+            <VideoFieldLabel htmlFor="resolution">Resolution</VideoFieldLabel>
             <Input id="resolution" value={form.resolution} onChange={(e) => setForm({ ...form, resolution: e.target.value })} placeholder="HD, 4K…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="duration">Duration</Label>
+            <VideoFieldLabel htmlFor="duration">Duration</VideoFieldLabel>
             <Input id="duration" value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} placeholder="01:23:45" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="frameRate">Frame Rate</Label>
+            <VideoFieldLabel htmlFor="frameRate">Frame Rate</VideoFieldLabel>
             <Input id="frameRate" value={form.frameRate} onChange={(e) => setForm({ ...form, frameRate: e.target.value })} placeholder="24 fps, 60 fps…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="bitDepth">Bit Depth</Label>
+            <VideoFieldLabel htmlFor="bitDepth">Bit Depth</VideoFieldLabel>
             <Input id="bitDepth" value={form.bitDepth} onChange={(e) => setForm({ ...form, bitDepth: e.target.value })} placeholder="8-bit, 10-bit…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="overallBitRate">Overall Bit Rate</Label>
+            <VideoFieldLabel htmlFor="overallBitRate">Overall Bit Rate</VideoFieldLabel>
             <Input id="overallBitRate" value={form.overallBitRate} onChange={(e) => setForm({ ...form, overallBitRate: e.target.value })} placeholder="20 Mb/s" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="videoCodec">Video Codec</Label>
+            <VideoFieldLabel htmlFor="videoCodec">Video Codec</VideoFieldLabel>
             <Input id="videoCodec" value={form.videoCodec} onChange={(e) => setForm({ ...form, videoCodec: e.target.value })} placeholder="H.264, ProRes…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="audioCodec">Audio Codec</Label>
+            <VideoFieldLabel htmlFor="audioCodec">Audio Codec</VideoFieldLabel>
             <Input id="audioCodec" value={form.audioCodec} onChange={(e) => setForm({ ...form, audioCodec: e.target.value })} placeholder="AAC, PCM…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="audioChannels">Audio Channels</Label>
+            <VideoFieldLabel htmlFor="audioChannels">Audio Channels</VideoFieldLabel>
             <Input id="audioChannels" value={form.audioChannels} onChange={(e) => setForm({ ...form, audioChannels: e.target.value })} placeholder="Stereo, 5.1…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="extension">Extension</Label>
+            <VideoFieldLabel htmlFor="extension">Extension</VideoFieldLabel>
             <Input id="extension" value={form.extension} onChange={(e) => setForm({ ...form, extension: e.target.value })} placeholder="auto-filled from file (mp4, mov…)" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="fileSize">File Size</Label>
+            <VideoFieldLabel htmlFor="fileSize">File Size</VideoFieldLabel>
             <Input id="fileSize" value={form.fileSize} onChange={(e) => setForm({ ...form, fileSize: e.target.value })} placeholder="auto-filled from file (e.g. 1.2 GB)" />
           </div>
         </CardContent>
@@ -269,11 +288,11 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="videoTags">Tags</Label>
+            <VideoFieldLabel htmlFor="videoTags" fieldKey="videoTags">Tags</VideoFieldLabel>
             <TagsInput id="videoTags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} placeholder="archival, broadcast…" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="videoKeywords">Keywords</Label>
+            <VideoFieldLabel htmlFor="videoKeywords" fieldKey="videoKeywords">Keywords</VideoFieldLabel>
             <TagsInput id="videoKeywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} placeholder="kurdistan, 1962…" />
           </div>
         </CardContent>
@@ -286,15 +305,15 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
           <div className="space-y-1.5">
-            <Label htmlFor="dateCreated">Created</Label>
+            <VideoFieldLabel htmlFor="dateCreated">Created</VideoFieldLabel>
             <Input id="dateCreated" type="date" value={form.dateCreated} onChange={(e) => setForm({ ...form, dateCreated: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="datePublished">Published</Label>
+            <VideoFieldLabel htmlFor="datePublished">Published</VideoFieldLabel>
             <Input id="datePublished" type="date" value={form.datePublished} onChange={(e) => setForm({ ...form, datePublished: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="dateModified">Modified</Label>
+            <VideoFieldLabel htmlFor="dateModified">Modified</VideoFieldLabel>
             <Input id="dateModified" type="date" value={form.dateModified} onChange={(e) => setForm({ ...form, dateModified: e.target.value })} />
           </div>
         </CardContent>
@@ -307,19 +326,19 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="volumeName">Volume</Label>
+            <VideoFieldLabel htmlFor="volumeName">Volume</VideoFieldLabel>
             <Input id="volumeName" value={form.volumeName} onChange={(e) => setForm({ ...form, volumeName: e.target.value })} placeholder="auto-filled from folder" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="directory">Directory</Label>
+            <VideoFieldLabel htmlFor="directory">Directory</VideoFieldLabel>
             <Input id="directory" value={form.directory} onChange={(e) => setForm({ ...form, directory: e.target.value })} placeholder="auto-filled from folder" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="pathInExternalVolume">Path in External Volume</Label>
+            <VideoFieldLabel htmlFor="pathInExternalVolume">Path in External Volume</VideoFieldLabel>
             <Input id="pathInExternalVolume" value={form.pathInExternalVolume} onChange={(e) => setForm({ ...form, pathInExternalVolume: e.target.value })} placeholder="auto-filled from file" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="autoPath">Auto Path</Label>
+            <VideoFieldLabel htmlFor="autoPath">Auto Path</VideoFieldLabel>
             <Input id="autoPath" value={form.autoPath} onChange={(e) => setForm({ ...form, autoPath: e.target.value })} placeholder="auto-filled from file" />
           </div>
         </CardContent>
@@ -333,19 +352,19 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="space-y-5 pt-5">
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="videoStatus">Video Status</Label>
+              <VideoFieldLabel htmlFor="videoStatus">Video Status</VideoFieldLabel>
               <Input id="videoStatus" value={form.videoStatus} onChange={(e) => setForm({ ...form, videoStatus: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="archiveCataloging">Archive Cataloging</Label>
+              <VideoFieldLabel htmlFor="archiveCataloging">Archive Cataloging</VideoFieldLabel>
               <Input id="archiveCataloging" value={form.archiveCataloging} onChange={(e) => setForm({ ...form, archiveCataloging: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="provenance">Provenance</Label>
+              <VideoFieldLabel htmlFor="provenance">Provenance</VideoFieldLabel>
               <Input id="provenance" value={form.provenance} onChange={(e) => setForm({ ...form, provenance: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="accrualMethod">Accrual Method</Label>
+              <VideoFieldLabel htmlFor="accrualMethod">Accrual Method</VideoFieldLabel>
               <Input id="accrualMethod" value={form.accrualMethod} onChange={(e) => setForm({ ...form, accrualMethod: e.target.value })} />
             </div>
           </div>
@@ -358,23 +377,24 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
               className="size-4 rounded border-input"
             />
             <Label htmlFor="physicalAvailability" className="cursor-pointer">A physical copy is available</Label>
+            <FieldHelpButton metadata={getVideoFieldMetadata('physicalAvailability')} />
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="physicalLabel">Physical Label</Label>
+              <VideoFieldLabel htmlFor="physicalLabel">Physical Label</VideoFieldLabel>
               <Input id="physicalLabel" value={form.physicalLabel} onChange={(e) => setForm({ ...form, physicalLabel: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="locationInArchiveRoom">Location in Archive Room</Label>
+              <VideoFieldLabel htmlFor="locationInArchiveRoom">Location in Archive Room</VideoFieldLabel>
               <Input id="locationInArchiveRoom" value={form.locationInArchiveRoom} onChange={(e) => setForm({ ...form, locationInArchiveRoom: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="lccClassification">LCC Classification</Label>
+              <VideoFieldLabel htmlFor="lccClassification">LCC Classification</VideoFieldLabel>
               <Input id="lccClassification" value={form.lccClassification} onChange={(e) => setForm({ ...form, lccClassification: e.target.value })} />
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="note">Note</Label>
+            <VideoFieldLabel htmlFor="note">Note</VideoFieldLabel>
             <textarea id="note" className={cn(TEXTAREA_CLASS, 'min-h-[72px]')} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
           </div>
         </CardContent>
@@ -387,35 +407,35 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="copyright">Copyright</Label>
+            <VideoFieldLabel htmlFor="copyright">Copyright</VideoFieldLabel>
             <Input id="copyright" value={form.copyright} onChange={(e) => setForm({ ...form, copyright: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="rightOwner">Right Owner</Label>
+            <VideoFieldLabel htmlFor="rightOwner">Right Owner</VideoFieldLabel>
             <Input id="rightOwner" value={form.rightOwner} onChange={(e) => setForm({ ...form, rightOwner: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="dateCopyrighted">Date Copyrighted</Label>
+            <VideoFieldLabel htmlFor="dateCopyrighted">Date Copyrighted</VideoFieldLabel>
             <Input id="dateCopyrighted" type="date" value={form.dateCopyrighted} onChange={(e) => setForm({ ...form, dateCopyrighted: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="availability">Availability</Label>
+            <VideoFieldLabel htmlFor="availability">Availability</VideoFieldLabel>
             <Input id="availability" value={form.availability} onChange={(e) => setForm({ ...form, availability: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="licenseType">License Type</Label>
+            <VideoFieldLabel htmlFor="licenseType">License Type</VideoFieldLabel>
             <Input id="licenseType" value={form.licenseType} onChange={(e) => setForm({ ...form, licenseType: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="usageRights">Usage Rights</Label>
+            <VideoFieldLabel htmlFor="usageRights">Usage Rights</VideoFieldLabel>
             <Input id="usageRights" value={form.usageRights} onChange={(e) => setForm({ ...form, usageRights: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="owner">Owner</Label>
+            <VideoFieldLabel htmlFor="owner">Owner</VideoFieldLabel>
             <Input id="owner" value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="publisher">Publisher</Label>
+            <VideoFieldLabel htmlFor="publisher">Publisher</VideoFieldLabel>
             <Input id="publisher" value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} />
           </div>
         </CardContent>

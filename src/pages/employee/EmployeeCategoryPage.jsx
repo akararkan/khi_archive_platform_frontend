@@ -30,6 +30,8 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { EntityToolbar } from '@/components/ui/entity-toolbar'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { FieldHelpButton } from '@/components/ui/field-help'
+import { getCategoryFieldMetadata } from '@/lib/category-fields-metadata'
 import {
   DateRangeField,
   FilterChips,
@@ -449,9 +451,12 @@ function EmployeeCategoryPage() {
             <form id="category-form" onSubmit={handleSubmit} className="space-y-5">
               {view === 'create' ? (
                 <div className="space-y-1.5">
-                  <Label htmlFor="categoryCode">
-                    Category code <span className="text-destructive">*</span>
-                  </Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="categoryCode">
+                      Category code <span className="text-destructive">*</span>
+                    </Label>
+                    <FieldHelpButton metadata={getCategoryFieldMetadata('categoryCode')} />
+                  </div>
                   <Input
                     id="categoryCode"
                     value={form.categoryCode}
@@ -466,7 +471,10 @@ function EmployeeCategoryPage() {
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  <Label htmlFor="categoryCodeReadonly">Category code</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="categoryCodeReadonly">Category code</Label>
+                    <FieldHelpButton metadata={getCategoryFieldMetadata('categoryCode')} />
+                  </div>
                   <Input
                     id="categoryCodeReadonly"
                     value={form.categoryCode}
@@ -477,9 +485,12 @@ function EmployeeCategoryPage() {
               )}
 
               <div className="space-y-1.5">
-                <Label htmlFor="name">
-                  Name <span className="text-destructive">*</span>
-                </Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="name">
+                    Name <span className="text-destructive">*</span>
+                  </Label>
+                  <FieldHelpButton metadata={getCategoryFieldMetadata('name')} />
+                </div>
                 <Input
                   id="name"
                   value={form.name}
@@ -490,7 +501,10 @@ function EmployeeCategoryPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="description">Description</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="description">Description</Label>
+                  <FieldHelpButton metadata={getCategoryFieldMetadata('description')} />
+                </div>
                 <textarea
                   id="description"
                   value={form.description}
@@ -501,10 +515,13 @@ function EmployeeCategoryPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="keywords">
-                  Keywords / alternative names{' '}
-                  <span className="font-normal text-muted-foreground">(press Enter to add)</span>
-                </Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="keywords">
+                    Keywords / alternative names{' '}
+                    <span className="font-normal text-muted-foreground">(press Enter to add)</span>
+                  </Label>
+                  <FieldHelpButton metadata={getCategoryFieldMetadata('keywords')} />
+                </div>
                 <TagsInput
                   id="keywords"
                   value={form.keywords}

@@ -13,6 +13,7 @@ import {
   CategoryLinks,
   MediaHero,
   MetaPanel,
+  MetaPanelIf,
   MetaRow,
   PersonLink,
   PillRow,
@@ -149,16 +150,6 @@ function PublicImageDetailPage() {
 
           <aside className="space-y-5 lg:sticky lg:top-32 lg:self-start">
             <MetaPanel title="Details">
-              <MetaRow label="Form">{image.form}</MetaRow>
-              <MetaRow label="Event">{image.event}</MetaRow>
-              <MetaRow label="Location">{image.location}</MetaRow>
-              <MetaRow label="Subject" value={image.subject}>
-                <PillRow values={image.subject} />
-              </MetaRow>
-              <MetaRow label="Genre" value={image.genre}>
-                <PillRow values={image.genre} />
-              </MetaRow>
-              <MetaRow label="Date">{formatPublicDate(image.imageDate || image.recordedAt)}</MetaRow>
               <MetaRow
                 label="Project"
                 value={image.project?.projectCode || image.projectCode}
@@ -174,18 +165,122 @@ function PublicImageDetailPage() {
               <MetaRow label="Categories" value={image.categories}>
                 <CategoryLinks categories={image.categories} />
               </MetaRow>
-              <MetaRow label="Subjects" value={image.subjects}>
-                <PillRow values={image.subjects} />
-              </MetaRow>
+              <MetaRow label="Date">{formatPublicDate(image.imageDate || image.recordedAt)}</MetaRow>
             </MetaPanel>
 
-            {image.tags?.length ? (
-              <MetaPanel title="Tags">
-                <MetaRow label="Tags" value={image.tags}>
-                  <PillRow values={image.tags} tone="primary" />
-                </MetaRow>
-              </MetaPanel>
-            ) : null}
+            <MetaPanelIf
+              obj={image}
+              title="Subject & form"
+              keys={['form', 'event', 'location', 'subject', 'subjects', 'genre', 'personShownInImage']}
+            >
+              <MetaRow label="Form">{image.form}</MetaRow>
+              <MetaRow label="Event">{image.event}</MetaRow>
+              <MetaRow label="Location">{image.location}</MetaRow>
+              <MetaRow label="Subject" value={image.subject || image.subjects}>
+                <PillRow values={image.subject || image.subjects} />
+              </MetaRow>
+              <MetaRow label="Genre" value={image.genre}>
+                <PillRow values={image.genre} />
+              </MetaRow>
+              <MetaRow label="People shown">{image.personShownInImage}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={image}
+              title="Credits"
+              keys={['creatorArtistPhotographer', 'contributor', 'contributors', 'audience']}
+            >
+              <MetaRow label="Creator / Photographer">{image.creatorArtistPhotographer}</MetaRow>
+              <MetaRow label="Contributors" value={image.contributors || image.contributor}>
+                <PillRow values={image.contributors || image.contributor} />
+              </MetaRow>
+              <MetaRow label="Audience">{image.audience}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={image}
+              title="Camera"
+              keys={['manufacturer', 'model', 'lens']}
+            >
+              <MetaRow label="Manufacturer">{image.manufacturer}</MetaRow>
+              <MetaRow label="Model">{image.model}</MetaRow>
+              <MetaRow label="Lens">{image.lens}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={image}
+              title="Dates"
+              keys={['dateCreated', 'datePublished', 'dateModified']}
+            >
+              <MetaRow label="Created">{formatPublicDate(image.dateCreated)}</MetaRow>
+              <MetaRow label="Published">{formatPublicDate(image.datePublished)}</MetaRow>
+              <MetaRow label="Modified">{formatPublicDate(image.dateModified)}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={image}
+              title="Technical"
+              keys={['orientation', 'dimension', 'dpi', 'bitDepth', 'extension', 'fileSize', 'imageVersion']}
+            >
+              <MetaRow label="Orientation">{image.orientation}</MetaRow>
+              <MetaRow label="Dimension">{image.dimension}</MetaRow>
+              <MetaRow label="DPI">{image.dpi}</MetaRow>
+              <MetaRow label="Bit depth">{image.bitDepth}</MetaRow>
+              <MetaRow label="Extension">{image.extension}</MetaRow>
+              <MetaRow label="File size">{image.fileSize}</MetaRow>
+              <MetaRow label="Version">{image.imageVersion}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={image}
+              title="Archive & provenance"
+              keys={['imageStatus', 'archiveCataloging', 'provenance', 'accrualMethod', 'physicalLabel', 'locationInArchiveRoom', 'lccClassification']}
+            >
+              <MetaRow label="Status">{image.imageStatus}</MetaRow>
+              <MetaRow label="Cataloging">{image.archiveCataloging}</MetaRow>
+              <MetaRow label="Provenance">{image.provenance}</MetaRow>
+              <MetaRow label="Accrual method">{image.accrualMethod}</MetaRow>
+              <MetaRow label="Physical label">{image.physicalLabel}</MetaRow>
+              <MetaRow label="Archive room">{image.locationInArchiveRoom}</MetaRow>
+              <MetaRow label="LCC">{image.lccClassification}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={image}
+              title="Rights"
+              keys={['copyright', 'rightOwner', 'dateCopyrighted', 'availability', 'licenseType', 'usageRights', 'owner', 'publisher']}
+            >
+              <MetaRow label="Copyright">{image.copyright}</MetaRow>
+              <MetaRow label="Right owner">{image.rightOwner}</MetaRow>
+              <MetaRow label="Date copyrighted">{formatPublicDate(image.dateCopyrighted)}</MetaRow>
+              <MetaRow label="Availability">{image.availability}</MetaRow>
+              <MetaRow label="License">{image.licenseType}</MetaRow>
+              <MetaRow label="Usage">{image.usageRights}</MetaRow>
+              <MetaRow label="Owner">{image.owner}</MetaRow>
+              <MetaRow label="Publisher">{image.publisher}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={image}
+              title="Notes"
+              keys={['photostory', 'note']}
+            >
+              <MetaRow label="Photostory">{image.photostory}</MetaRow>
+              <MetaRow label="Note">{image.note}</MetaRow>
+            </MetaPanelIf>
+
+            <MetaPanelIf
+              obj={image}
+              title="Tags & keywords"
+              keys={['tags', 'keywords']}
+            >
+              <MetaRow label="Tags" value={image.tags}>
+                <PillRow values={image.tags} tone="primary" />
+              </MetaRow>
+              <MetaRow label="Keywords" value={image.keywords}>
+                <PillRow values={image.keywords} />
+              </MetaRow>
+            </MetaPanelIf>
           </aside>
         </div>
       </PageContainer>

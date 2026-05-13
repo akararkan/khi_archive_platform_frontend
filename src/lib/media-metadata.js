@@ -290,6 +290,94 @@ async function readMp3FrameInfo(file) {
   }
 }
 
+// ── WAV: RIFF/fmt chunk → bitDepth / sampleRate / channels / bitrate ─
+//
+// WAV files start with "RIFF<size>WAVE" then a sequence of chunks.
+// The "fmt " chunk carries everything we care about: PCM format code,
+// channel count, sample rate, average byte rate, and bits-per-sample.
+// We read a small window from the top of the file — every WAV file
+// I've seen has the fmt chunk within the first few hundred bytes, but
+// 4KB gives plenty of headroom for files that put a "JUNK" chunk
+// before fmt.
+async function readWavFmt(file) {
+  try {
+    const buf = await readSlice(file, 0, 4096)
+    const bytes = new Uint8Array(buf)
+    if (bytes.length < 44) return null
+    // "RIFF" ... "WAVE"
+    if (bytes[0] !== 0x52 || bytes[1] !== 0x49 || bytes[2] !== 0x46 || bytes[3] !== 0x46) return null
+    if (bytes[8] !== 0x57 || bytes[9] !== 0x41 || bytes[10] !== 0x56 || bytes[11] !== 0x45) return null
+    const view = new DataView(buf)
+    let pos = 12
+    while (pos + 8 <= bytes.length) {
+      const id = String.fromCharCode(bytes[pos], bytes[pos + 1], bytes[pos + 2], bytes[pos + 3])
+      const size = view.getUint32(pos + 4, true)
+      if (id === 'fmt ' && pos + 8 + 16 <= bytes.length) {
+        const channels = view.getUint16(pos + 8 + 2, true)
+        const sampleRate = view.getUint32(pos + 8 + 4, true)
+        const byteRate = view.getUint32(pos + 8 + 8, true)
+        const bitsPerSample = view.getUint16(pos + 8 + 14, true)
+        return {
+          bitrate: byteRate > 0 ? Math.round((byteRate * 8) / 1000) : null,
+          sampleRate: sampleRate || null,
+          channels: channels || null,
+          channelMode:
+            channels === 1 ? 'Mono' : channels === 2 ? 'Stereo' : channels ? `${channels} channel` : '',
+          bitDepth: bitsPerSample || null,
+        }
+      }
+      // Chunks are word-aligned — odd sizes carry a 1-byte pad.
+      pos += 8 + size + (size % 2)
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+// ── FLAC: STREAMINFO → bitDepth / sampleRate / channels / duration ───
+//
+// FLAC begins with "fLaC" then a STREAMINFO metadata block. The block
+// header is 4 bytes (type + 24-bit length); the body is 34 bytes and
+// packs sample rate (20 bits), channels (3 bits, biased by -1), and
+// bits-per-sample (5 bits, biased by -1) across three bytes.
+async function readFlacStreamInfo(file) {
+  try {
+    const buf = await readSlice(file, 0, 64)
+    const bytes = new Uint8Array(buf)
+    if (bytes.length < 42) return null
+    // "fLaC"
+    if (bytes[0] !== 0x66 || bytes[1] !== 0x4c || bytes[2] !== 0x61 || bytes[3] !== 0x43) return null
+    // First metadata block must be STREAMINFO (block type 0).
+    if ((bytes[4] & 0x7f) !== 0) return null
+    const b = bytes.subarray(8)
+    const sampleRate = (b[10] << 12) | (b[11] << 4) | (b[12] >> 4)
+    const channels = ((b[12] >> 1) & 0x07) + 1
+    const bitsPerSample = (((b[12] & 0x01) << 4) | (b[13] >> 4)) + 1
+    const totalSamplesHigh = b[13] & 0x0f
+    const totalSamplesLow = ((b[14] << 24) | (b[15] << 16) | (b[16] << 8) | b[17]) >>> 0
+    const totalSamples = totalSamplesHigh * 2 ** 32 + totalSamplesLow
+    const duration = sampleRate > 0 && totalSamples > 0 ? totalSamples / sampleRate : null
+    // FLAC is variable bitrate; we approximate the average from file
+    // size and duration so the user still sees a kbps figure.
+    let bitrate = null
+    if (duration && duration > 0 && file.size > 0) {
+      bitrate = Math.round((file.size * 8) / duration / 1000)
+    }
+    return {
+      bitrate,
+      sampleRate: sampleRate || null,
+      channels,
+      channelMode:
+        channels === 1 ? 'Mono' : channels === 2 ? 'Stereo' : channels ? `${channels} channel` : '',
+      bitDepth: bitsPerSample || null,
+      duration,
+    }
+  } catch {
+    return null
+  }
+}
+
 async function readAudioPlayback(file) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file)
@@ -317,11 +405,17 @@ export async function extractAudioMetadata(file) {
   // so picking a file shows everything as soon as the slowest finishes
   // (still typically < 200ms even for huge MP3s, since none of the
   // probes read more than ~16KB of file data).
-  const [tags, playback, frame] = await Promise.all([
+  // MP3 / WAV / FLAC probes all run; whichever matches the file's magic
+  // bytes returns data, the others return null. Cheap to run all three —
+  // each reads at most a few KB.
+  const [tags, playback, mp3, wav, flac] = await Promise.all([
     withTimeout(readId3Tags(file), TIMEOUT_MS).catch(() => null),
     withTimeout(readAudioPlayback(file), TIMEOUT_MS).catch(() => null),
     withTimeout(readMp3FrameInfo(file), TIMEOUT_MS).catch(() => null),
+    withTimeout(readWavFmt(file), TIMEOUT_MS).catch(() => null),
+    withTimeout(readFlacStreamInfo(file), TIMEOUT_MS).catch(() => null),
   ])
+  const frame = mp3 || wav || flac
   return {
     title: tags?.title || '',
     artist: tags?.artist || '',
@@ -329,11 +423,12 @@ export async function extractAudioMetadata(file) {
     year: tags?.year || '',
     comment: tags?.comment || '',
     genre: tags?.genre || '',
-    duration: playback?.duration ?? null,
+    duration: playback?.duration ?? flac?.duration ?? null,
     bitrate: frame?.bitrate ?? null, // kbps
     sampleRate: frame?.sampleRate ?? null, // Hz
     channels: frame?.channels ?? null,
     channelMode: frame?.channelMode || '',
+    bitDepth: frame?.bitDepth ?? null, // bits-per-sample, WAV/FLAC only
   }
 }
 
@@ -457,9 +552,10 @@ export function audioMetadataToForm(meta) {
   if (meta.album) out.tags = [meta.album]
   if (meta.duration) out.audioFileNote = `Duration ${formatDurationSeconds(meta.duration)}`
   if (meta.genre) out.genre = [meta.genre]
-  // Technical fields, all parsed from the MP3 frame header.
+  // Technical fields, parsed from MP3 frame header / WAV fmt / FLAC STREAMINFO.
   if (meta.sampleRate) out.sampleRate = formatSampleRate(meta.sampleRate)
   if (meta.bitrate) out.bitRate = `${meta.bitrate} kbps`
+  if (meta.bitDepth) out.bitDepth = `${meta.bitDepth}-bit`
   if (meta.channelMode) out.audioChannel = meta.channelMode
   else if (meta.channels === 1) out.audioChannel = 'Mono'
   else if (meta.channels === 2) out.audioChannel = 'Stereo'

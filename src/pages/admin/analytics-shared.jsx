@@ -21,6 +21,11 @@ import {
   parseCascadeFromDetails,
 } from '@/pages/admin/analytics-constants'
 
+// Default "always-safe" set the action-catalog falls back to when the
+// backend hasn't replied yet — same set the catalog endpoint returns
+// after dropping LIST: the CRUDs plus VIEW and SEARCH.
+const DEFAULT_ACTION_CATALOG = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'SEARCH']
+
 // Sparkline — pure SVG, no chart lib. Sorted ascending by date so the
 // rightmost bar is most recent (the eye reads left-to-right, oldest →
 // newest). Single SVG scales cleanly to any container width.
@@ -252,6 +257,132 @@ function DateRangeFilter({
   )
 }
 
+// Monthly bar chart — same shape as DailyChart but each bar represents
+// a calendar month and the rightmost is the current month. Sorted
+// ascending so the eye reads left-to-right, oldest → newest. Title on
+// each bar surfaces the label + total on hover.
+function MonthlyChart({ monthly, height = 96 }) {
+  const data = Array.isArray(monthly) && monthly.length > 0
+    ? [...monthly]
+        .map((m) => ({ ...m, total: Number(m.total ?? 0) }))
+        .sort((a, b) => String(a.label).localeCompare(String(b.label)))
+    : []
+
+  if (data.length === 0) {
+    return (
+      <div className="flex h-24 items-center justify-center text-xs text-muted-foreground">
+        No activity in this range.
+      </div>
+    )
+  }
+
+  const max = Math.max(1, ...data.map((m) => m.total))
+  const barWidth = 100 / data.length
+  return (
+    <div className="space-y-1.5">
+      <svg
+        role="img"
+        aria-label="Monthly activity"
+        viewBox={`0 0 100 ${height}`}
+        preserveAspectRatio="none"
+        className="block h-24 w-full"
+      >
+        {data.map((m, idx) => {
+          const h = (m.total / max) * (height - 4)
+          return (
+            <rect
+              key={m.label || idx}
+              x={idx * barWidth + barWidth * 0.15}
+              y={height - h}
+              width={barWidth * 0.7}
+              height={Math.max(0.5, h)}
+              rx={1}
+              className="fill-primary/70 transition-opacity hover:fill-primary"
+            >
+              <title>{`${m.label}: ${formatNumber(m.total)} action${m.total === 1 ? '' : 's'} · ${formatNumber(m.activeUsers || 0)} active user${(m.activeUsers || 0) === 1 ? '' : 's'}`}</title>
+            </rect>
+          )
+        })}
+      </svg>
+      <div className="flex justify-between text-[10px] tabular-nums text-muted-foreground">
+        {data.map((m, idx) => (
+          <span
+            key={m.label || idx}
+            className={cn(
+              'truncate',
+              data.length > 12 && idx % 2 !== 0 && 'opacity-0',
+            )}
+            style={{ width: `${100 / data.length}%`, textAlign: 'center' }}
+          >
+            {String(m.label || '').replace(/^\d{4}-/, '')}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Action filter — checkbox-style chip row. The admin picks any subset
+// of action types and the page passes that subset through every
+// downstream call as `actions=CREATE,READ,…`. An "All" chip clears
+// the selection (server then returns every action; same as no filter).
+function ActionFilter({ catalog, selected, onChange, isLoading }) {
+  const safeCatalog = Array.isArray(catalog) && catalog.length > 0
+    ? catalog
+    : DEFAULT_ACTION_CATALOG
+  const selectedSet = new Set((selected || []).map((s) => String(s).toUpperCase()))
+  const allActive = selectedSet.size === 0
+
+  const toggle = (action) => {
+    const upper = String(action).toUpperCase()
+    const next = new Set(selectedSet)
+    if (next.has(upper)) next.delete(upper)
+    else next.add(upper)
+    onChange(Array.from(next))
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => onChange([])}
+        disabled={isLoading}
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+          allActive
+            ? 'border-primary/40 bg-primary/10 text-primary'
+            : 'border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground',
+        )}
+      >
+        All actions
+      </button>
+      {safeCatalog.map((action) => {
+        const meta = actionMetaFor(action)
+        const Icon = meta.icon
+        const upper = String(action).toUpperCase()
+        const isActive = selectedSet.has(upper)
+        return (
+          <button
+            key={upper}
+            type="button"
+            onClick={() => toggle(action)}
+            disabled={isLoading}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+              isActive
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground',
+            )}
+          >
+            <Icon className={cn('size-3.5', isActive ? 'text-primary' : meta.accent)} />
+            {meta.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function ErrorCard({ message, onRetry }) {
   return (
     <Card className="border-border bg-card shadow-sm shadow-black/5">
@@ -268,4 +399,12 @@ function ErrorCard({ message, onRetry }) {
   )
 }
 
-export { DailyChart, StatCard, FeedRow, ErrorCard, DateRangeFilter }
+export {
+  ActionFilter,
+  DailyChart,
+  DateRangeFilter,
+  ErrorCard,
+  FeedRow,
+  MonthlyChart,
+  StatCard,
+}

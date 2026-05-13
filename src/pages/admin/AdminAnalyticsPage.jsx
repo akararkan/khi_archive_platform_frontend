@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import {
   Activity,
   ArrowRight,
+  CalendarDays,
   Clock,
   Eye,
   Pencil,
@@ -33,7 +34,9 @@ import {
 import { cn } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/get-error-message'
 import {
+  getAnalyticsActionCatalog,
   getAnalyticsFeed,
+  getAnalyticsMonthly,
   getAnalyticsOverview,
   getAnalyticsUsers,
 } from '@/services/analytics'
@@ -49,10 +52,12 @@ import {
 } from '@/pages/admin/analytics-constants'
 import { UserAuditRow } from '@/pages/admin/user-audit-shared'
 import {
+  ActionFilter,
   DailyChart,
   DateRangeFilter,
   ErrorCard,
   FeedRow,
+  MonthlyChart,
   StatCard,
 } from '@/pages/admin/analytics-shared'
 
@@ -79,6 +84,21 @@ function AdminAnalyticsPage() {
     () => resolveDateFilter({ mode: dateMode, days, from: fromDate, to: toDate }),
     [dateMode, days, fromDate, toDate],
   )
+
+  // Action-type filter: empty array means "all actions". When the
+  // admin selects a subset (e.g. only CREATE + DELETE), every loader
+  // adds `actions=…` to its request so the page shows only that slice.
+  // Catalog is fetched on mount; UI falls back to the safe default
+  // (CREATE/READ/UPDATE/DELETE/SEARCH) while it's in flight.
+  const [actionCatalog, setActionCatalog] = useState(null)
+  const [selectedActions, setSelectedActions] = useState([])
+
+  // Chart granularity for the Overview tab. Monthly is the "main goal"
+  // view per the new analytics spec; daily stays available because
+  // short ranges (≤30d) read better as bars-per-day.
+  const [chartView, setChartView] = useState('monthly') // 'monthly' | 'daily'
+  const [monthly, setMonthly] = useState(null)
+  const [isMonthlyLoading, setIsMonthlyLoading] = useState(false)
 
   const [activeTab, setActiveTab] = useState('overview')
 
@@ -114,44 +134,89 @@ function AdminAnalyticsPage() {
 
   const [userFilter, setUserFilter] = useState('') // Users tab: client-side filter
 
+  // Compose date + action filters into one slice spread across every
+  // request. Done in a memo so identity is stable across renders —
+  // important for the useCallback deps below that drive polling.
+  const combinedFilter = useMemo(() => {
+    if (!dateFilter) return null
+    const next = { ...dateFilter }
+    if (selectedActions && selectedActions.length > 0) {
+      next.actions = selectedActions
+    }
+    return next
+  }, [dateFilter, selectedActions])
+
+  // Pull the action catalog once. Backend returns
+  // ["CREATE","READ","UPDATE","DELETE","SEARCH"] — exactly the chips
+  // the user sees on the filter row. LIST was dropped server-side so
+  // it never lands here.
+  useEffect(() => {
+    let cancelled = false
+    getAnalyticsActionCatalog()
+      .then((data) => {
+        if (cancelled) return
+        const list = Array.isArray(data) ? data : []
+        setActionCatalog(list)
+      })
+      .catch(() => {
+        // Defaults inside ActionFilter render the safe set anyway.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const loadOverview = useCallback(async () => {
-    if (!dateFilter) return
+    if (!combinedFilter) return
     setIsLoading((p) => ({ ...p, overview: true }))
     setError((p) => ({ ...p, overview: '' }))
     try {
-      const data = await getAnalyticsOverview({ ...dateFilter, topUsers: 10 })
+      const data = await getAnalyticsOverview({ ...combinedFilter, topUsers: 10 })
       setOverview(data || null)
     } catch (err) {
       setError((p) => ({ ...p, overview: getErrorMessage(err, 'Failed to load overview') }))
     } finally {
       setIsLoading((p) => ({ ...p, overview: false }))
     }
-  }, [dateFilter])
+  }, [combinedFilter])
+
+  const loadMonthly = useCallback(async () => {
+    if (!combinedFilter) return
+    setIsMonthlyLoading(true)
+    try {
+      const data = await getAnalyticsMonthly(combinedFilter)
+      setMonthly(Array.isArray(data) ? data : [])
+    } catch {
+      // swallow — chart falls back to the empty-state message
+    } finally {
+      setIsMonthlyLoading(false)
+    }
+  }, [combinedFilter])
 
   const loadUsers = useCallback(async () => {
-    if (!dateFilter) return
+    if (!combinedFilter) return
     setIsLoading((p) => ({ ...p, users: true }))
     setError((p) => ({ ...p, users: '' }))
     try {
-      const data = await getAnalyticsUsers(dateFilter)
+      const data = await getAnalyticsUsers(combinedFilter)
       setUsers(Array.isArray(data) ? data : [])
     } catch (err) {
       setError((p) => ({ ...p, users: getErrorMessage(err, 'Failed to load users') }))
     } finally {
       setIsLoading((p) => ({ ...p, users: false }))
     }
-  }, [dateFilter])
+  }, [combinedFilter])
 
   // Each fetch REPLACES `feed` with the requested page. New audit
   // events naturally land at page 0; users on a deeper page see the
   // shifted slice on next refresh.
   const loadFeed = useCallback(
     async (page) => {
-      if (!dateFilter) return
+      if (!combinedFilter) return
       setIsLoading((p) => ({ ...p, feed: true }))
       setError((p) => ({ ...p, feed: '' }))
       try {
-        const data = await getAnalyticsFeed({ ...dateFilter, page, size: FEED_PAGE_SIZE })
+        const data = await getAnalyticsFeed({ ...combinedFilter, page, size: FEED_PAGE_SIZE })
         const { items, meta } = unwrapFeedPage(data)
         setFeed(items)
         setFeedMeta(meta)
@@ -161,7 +226,7 @@ function AdminAnalyticsPage() {
         setIsLoading((p) => ({ ...p, feed: false }))
       }
     },
-    [dateFilter],
+    [combinedFilter],
   )
 
   // User-management audit endpoint expects from/to ISO bounds, not
@@ -169,12 +234,12 @@ function AdminAnalyticsPage() {
   // either shape onto a concrete window.
   const loadUserActions = useCallback(
     async (page) => {
-      if (!dateFilter) return
+      if (!combinedFilter) return
       setIsLoading((p) => ({ ...p, userActions: true }))
       setError((p) => ({ ...p, userActions: '' }))
       try {
         const data = await searchAdminUserAuditLogs({
-          ...dateFilterToFromTo(dateFilter),
+          ...dateFilterToFromTo(combinedFilter),
           page,
           size: USER_ACTIONS_PAGE_SIZE,
           sort: 'createdAt,desc',
@@ -191,7 +256,7 @@ function AdminAnalyticsPage() {
         setIsLoading((p) => ({ ...p, userActions: false }))
       }
     },
-    [dateFilter],
+    [combinedFilter],
   )
 
   // Silent background refreshers — no spinner, errors swallowed
@@ -199,20 +264,30 @@ function AdminAnalyticsPage() {
   // page so what's on screen stays in sync without yanking them away
   // from where they're paging.
   const silentReloadOverview = useCallback(async () => {
-    if (!dateFilter) return
+    if (!combinedFilter) return
     try {
-      const data = await getAnalyticsOverview({ ...dateFilter, topUsers: 10 })
+      const data = await getAnalyticsOverview({ ...combinedFilter, topUsers: 10 })
       setOverview(data || null)
     } catch {
       // swallow
     }
-  }, [dateFilter])
+  }, [combinedFilter])
+
+  const silentReloadMonthly = useCallback(async () => {
+    if (!combinedFilter) return
+    try {
+      const data = await getAnalyticsMonthly(combinedFilter)
+      setMonthly(Array.isArray(data) ? data : [])
+    } catch {
+      // swallow
+    }
+  }, [combinedFilter])
 
   const silentReloadFeed = useCallback(async () => {
-    if (!dateFilter) return
+    if (!combinedFilter) return
     try {
       const data = await getAnalyticsFeed({
-        ...dateFilter,
+        ...combinedFilter,
         page: feedPage,
         size: FEED_PAGE_SIZE,
       })
@@ -222,23 +297,23 @@ function AdminAnalyticsPage() {
     } catch {
       // swallow
     }
-  }, [dateFilter, feedPage])
+  }, [combinedFilter, feedPage])
 
   const silentReloadUsers = useCallback(async () => {
-    if (!dateFilter) return
+    if (!combinedFilter) return
     try {
-      const data = await getAnalyticsUsers(dateFilter)
+      const data = await getAnalyticsUsers(combinedFilter)
       setUsers(Array.isArray(data) ? data : [])
     } catch {
       // swallow
     }
-  }, [dateFilter])
+  }, [combinedFilter])
 
   const silentReloadUserActions = useCallback(async () => {
-    if (!dateFilter) return
+    if (!combinedFilter) return
     try {
       const data = await searchAdminUserAuditLogs({
-        ...dateFilterToFromTo(dateFilter),
+        ...dateFilterToFromTo(combinedFilter),
         page: userActionsPage,
         size: USER_ACTIONS_PAGE_SIZE,
         sort: 'createdAt,desc',
@@ -249,13 +324,14 @@ function AdminAnalyticsPage() {
     } catch {
       // swallow
     }
-  }, [dateFilter, userActionsPage])
+  }, [combinedFilter, userActionsPage])
 
   // Filter change invalidates everything and resets feed pagination
   // to page 0 (otherwise the user could be stranded on page 5 of a
   // window that no longer has 5 pages).
   useEffect(() => {
     setOverview(null)
+    setMonthly(null)
     setUsers(null)
     setFeed(null)
     setFeedMeta(null)
@@ -263,18 +339,23 @@ function AdminAnalyticsPage() {
     setUserActions(null)
     setUserActionsMeta(null)
     setUserActionsPage(0)
-    if (!dateFilter) return
-    if (activeTab === 'overview') loadOverview()
-    else if (activeTab === 'users') loadUsers()
+    if (!combinedFilter) return
+    if (activeTab === 'overview') {
+      loadOverview()
+      loadMonthly()
+    } else if (activeTab === 'users') loadUsers()
     else if (activeTab === 'feed') loadFeed(0)
     else if (activeTab === 'userActions') loadUserActions(0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFilter])
+  }, [combinedFilter])
 
   // Lazy-load the tab's data on first switch.
   useEffect(() => {
-    if (!dateFilter) return
-    if (activeTab === 'overview' && overview == null && !isLoading.overview) loadOverview()
+    if (!combinedFilter) return
+    if (activeTab === 'overview') {
+      if (overview == null && !isLoading.overview) loadOverview()
+      if (monthly == null && !isMonthlyLoading) loadMonthly()
+    }
     if (activeTab === 'users' && users == null && !isLoading.users) loadUsers()
     if (activeTab === 'feed' && feed == null && !isLoading.feed) loadFeed(feedPage)
     if (
@@ -290,21 +371,23 @@ function AdminAnalyticsPage() {
   // Re-fetch the feed when the user navigates pages via DataPagination.
   useEffect(() => {
     if (activeTab !== 'feed') return
-    if (!dateFilter) return
+    if (!combinedFilter) return
     loadFeed(feedPage)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedPage])
 
   useEffect(() => {
     if (activeTab !== 'userActions') return
-    if (!dateFilter) return
+    if (!combinedFilter) return
     loadUserActions(userActionsPage)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userActionsPage])
 
   const refreshActive = () => {
-    if (activeTab === 'overview') loadOverview()
-    else if (activeTab === 'users') loadUsers()
+    if (activeTab === 'overview') {
+      loadOverview()
+      loadMonthly()
+    } else if (activeTab === 'users') loadUsers()
     else if (activeTab === 'feed') loadFeed(feedPage)
     else if (activeTab === 'userActions') loadUserActions(userActionsPage)
   }
@@ -314,13 +397,14 @@ function AdminAnalyticsPage() {
   // consistent with the rest of the page. Pauses when the browser
   // tab is hidden so we don't burn API quota on a backgrounded page.
   useEffect(() => {
-    if (!dateFilter) return
+    if (!combinedFilter) return
     let cancelled = false
 
     const tick = () => {
       if (cancelled) return
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
       silentReloadOverview()
+      silentReloadMonthly()
       silentReloadFeed()
       silentReloadUsers()
       silentReloadUserActions()
@@ -332,8 +416,9 @@ function AdminAnalyticsPage() {
       clearInterval(id)
     }
   }, [
-    dateFilter,
+    combinedFilter,
     silentReloadOverview,
+    silentReloadMonthly,
     silentReloadFeed,
     silentReloadUsers,
     silentReloadUserActions,
@@ -353,7 +438,7 @@ function AdminAnalyticsPage() {
   return (
     <AdminEntityPage
       title="Analytics"
-      description="See what every user has been doing across the archive — counts by action and entity, daily trend, and a recent feed."
+      description="Every productive action across the archive — CRUDs, viewings, searches — grouped by user, broken down by month, and filterable by action type."
       action={
         <div className="flex flex-wrap items-center gap-2">
           <span
@@ -389,6 +474,25 @@ function AdminAnalyticsPage() {
         </div>
       }
     >
+      {/* Action-type filter — admin checks/unchecks CRUDs, viewing, or
+          searching to scope every section below. Empty selection means
+          "all actions". Sits above the tab bar so the filter is a
+          page-level concept, not a per-tab one. */}
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardContent className="flex flex-wrap items-center gap-3 px-4 py-3">
+          <div className="flex items-center gap-2 pr-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <Activity className="size-3.5 text-muted-foreground" />
+            Show actions
+          </div>
+          <ActionFilter
+            catalog={actionCatalog}
+            selected={selectedActions}
+            onChange={setSelectedActions}
+            isLoading={isLoading[activeTab]}
+          />
+        </CardContent>
+      </Card>
+
       <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border bg-card/60 p-1 shadow-sm">
         {[
           { key: 'overview',    label: 'Overview',     icon: Activity },
@@ -420,9 +524,16 @@ function AdminAnalyticsPage() {
       {activeTab === 'overview' ? (
         <OverviewTab
           overview={overview}
+          monthly={monthly}
           isLoading={isLoading.overview}
+          isMonthlyLoading={isMonthlyLoading}
+          chartView={chartView}
+          onChartViewChange={setChartView}
           error={error.overview}
-          onRetry={loadOverview}
+          onRetry={() => {
+            loadOverview()
+            loadMonthly()
+          }}
         />
       ) : activeTab === 'users' ? (
         <UsersTab
@@ -461,7 +572,16 @@ function AdminAnalyticsPage() {
   )
 }
 
-function OverviewTab({ overview, isLoading, error, onRetry }) {
+function OverviewTab({
+  overview,
+  monthly,
+  isLoading,
+  isMonthlyLoading,
+  chartView,
+  onChartViewChange,
+  error,
+  onRetry,
+}) {
   if (error) return <ErrorCard message={error} onRetry={onRetry} />
 
   // Defensive picks — TeamOverviewDTO field names aren't fully nailed
@@ -473,6 +593,10 @@ function OverviewTab({ overview, isLoading, error, onRetry }) {
   const byEntity = overview?.byEntity ?? {}
   const daily = overview?.daily ?? []
   const topUsers = overview?.topUsers ?? overview?.users ?? []
+
+  const isMonthly = chartView === 'monthly'
+  const monthlyCount = Array.isArray(monthly) ? monthly.length : 0
+  const dailyCount = Array.isArray(daily) ? daily.length : 0
 
   return (
     <div className="space-y-6">
@@ -487,19 +611,63 @@ function OverviewTab({ overview, isLoading, error, onRetry }) {
                   accent="text-amber-600 dark:text-amber-400" isLoading={isLoading} />
       </div>
 
+      {/* Activity chart — monthly is the primary view (the new
+          "monthly statistic of user work" the admin asked for); daily
+          stays available because short ranges read better as one bar
+          per day. Toggle is inline so it never feels hidden. */}
       <Card className="border-border bg-card shadow-sm shadow-black/5">
         <CardContent className="space-y-3 px-5 py-5">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Daily activity
-            </p>
-            {Array.isArray(daily) && daily.length > 0 ? (
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {daily.length} day{daily.length === 1 ? '' : 's'}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {isMonthly ? 'Monthly activity' : 'Daily activity'}
               </p>
-            ) : null}
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {isMonthly
+                  ? monthlyCount > 0
+                    ? `${monthlyCount} month${monthlyCount === 1 ? '' : 's'}`
+                    : 'No data'
+                  : dailyCount > 0
+                  ? `${dailyCount} day${dailyCount === 1 ? '' : 's'}`
+                  : 'No data'}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-card/60 p-0.5 shadow-sm">
+              <button
+                type="button"
+                onClick={() => onChartViewChange('monthly')}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                  isMonthly
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <CalendarDays className="size-3.5" />
+                Monthly
+              </button>
+              <button
+                type="button"
+                onClick={() => onChartViewChange('daily')}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                  !isMonthly
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Clock className="size-3.5" />
+                Daily
+              </button>
+            </div>
           </div>
-          {isLoading ? (
+          {isMonthly ? (
+            isMonthlyLoading && monthlyCount === 0 ? (
+              <Skeleton className="h-24 w-full rounded-md" />
+            ) : (
+              <MonthlyChart monthly={monthly || []} />
+            )
+          ) : isLoading ? (
             <Skeleton className="h-16 w-full rounded-md" />
           ) : (
             <DailyChart daily={daily} />
