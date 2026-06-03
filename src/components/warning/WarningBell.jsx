@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Bell, Check, CheckCircle2, Loader2 } from 'lucide-react'
+import { ArrowRight, Bell, Check, CheckCircle2, Loader2, MessageSquarePlus } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -12,13 +13,18 @@ import {
   getMyWarnings,
 } from '@/services/warnings'
 
-// How often we silently re-pull the unacknowledged-count badge so it
-// stays in sync without the user refreshing. The dedicated counter
-// endpoint is cheap (one COUNT(*) query) so 30s is comfortable.
 const COUNT_POLL_MS = 30000
-// Recent-warnings list shown inside the popover. Twenty rows fit
-// comfortably with a small scroll and matches the backend's default.
 const INBOX_PAGE_SIZE = 20
+
+function isCorrectionWarning(w) {
+  const text = `${w?.title ?? ''} ${w?.message ?? ''}`.toLowerCase()
+  return (
+    text.includes('correction') ||
+    text.includes('suggested value') ||
+    text.includes('field correction') ||
+    text.includes('correction request')
+  )
+}
 
 // Notification bell — lives in the sidebar. Shows a numeric badge for
 // unacknowledged warnings, opens a popover with a per-warning list and
@@ -144,6 +150,9 @@ function WarningBell() {
 
   const hasUnack = unacknowledged > 0
   const badgeText = unacknowledged > 99 ? '99+' : String(unacknowledged)
+  const correctionCount = Array.isArray(items)
+    ? items.filter((w) => isCorrectionWarning(w) && !w.acknowledged && !w.acknowledgedAt).length
+    : 0
 
   return (
     <>
@@ -227,7 +236,24 @@ function WarningBell() {
                   )}
                 </button>
               </div>
-              <div className="max-h-[60vh] overflow-y-auto">
+              {/* Correction requests banner */}
+              {correctionCount > 0 ? (
+                <div className="flex items-center gap-2 border-b border-border bg-primary/5 px-4 py-2.5">
+                  <MessageSquarePlus className="size-3.5 shrink-0 text-primary" />
+                  <p className="flex-1 text-[11px] font-semibold text-primary">
+                    {correctionCount} correction request{correctionCount !== 1 ? 's' : ''} need your attention
+                  </p>
+                  <Link
+                    to="/employee/corrections"
+                    onClick={() => setOpen(false)}
+                    className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-primary hover:underline"
+                  >
+                    View <ArrowRight className="size-3" />
+                  </Link>
+                </div>
+              ) : null}
+
+              <div className="max-h-[55vh] overflow-y-auto">
                 {isLoading && !items ? (
                   <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center text-xs text-muted-foreground">
                     <Loader2 className="size-4 animate-spin" />
@@ -249,10 +275,24 @@ function WarningBell() {
                         warning={w}
                         onAcknowledge={() => handleAcknowledge(w)}
                         isAcknowledging={acknowledging === w.id}
+                        isCorrection={isCorrectionWarning(w)}
                       />
                     ))}
                   </ul>
                 )}
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-border bg-muted/20 px-4 py-2.5">
+                <Link
+                  to="/employee/corrections"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground transition hover:text-primary"
+                >
+                  <MessageSquarePlus className="size-3.5" />
+                  Open Corrections Inbox
+                  <ArrowRight className="size-3" />
+                </Link>
               </div>
             </div>,
             document.body,
@@ -262,7 +302,7 @@ function WarningBell() {
   )
 }
 
-function WarningRow({ warning, onAcknowledge, isAcknowledging }) {
+function WarningRow({ warning, onAcknowledge, isAcknowledging, isCorrection = false }) {
   const meta = severityMetaFor(warning.severity)
   const Icon = meta.icon
   const ack = Boolean(warning.acknowledged || warning.acknowledgedAt)
@@ -270,7 +310,11 @@ function WarningRow({ warning, onAcknowledge, isAcknowledging }) {
     <li
       className={cn(
         'group flex items-start gap-3 px-4 py-3 transition-colors',
-        ack ? 'opacity-70' : 'hover:bg-muted/30',
+        !ack && isCorrection
+          ? 'bg-primary/5 hover:bg-primary/8'
+          : !ack
+          ? 'hover:bg-muted/30'
+          : 'opacity-70',
       )}
     >
       <span
@@ -283,29 +327,46 @@ function WarningRow({ warning, onAcknowledge, isAcknowledging }) {
         <Icon className="size-3.5" />
       </span>
       <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-sm font-semibold text-foreground">
-            {warning.title || meta.label}
-          </p>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-foreground">
+              {warning.title || meta.label}
+            </p>
+            {isCorrection && !ack ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/12 px-1.5 py-px text-[9px] font-bold uppercase tracking-wider text-primary">
+                <MessageSquarePlus className="size-2.5" /> Correction request
+              </span>
+            ) : null}
+          </div>
           <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
             {formatRelative(warning.createdAt)}
           </span>
         </div>
         {warning.message ? (
-          <p className="whitespace-pre-line break-words text-xs leading-5 text-muted-foreground">
+          <p className="line-clamp-3 whitespace-pre-line break-words text-xs leading-5 text-muted-foreground">
             {warning.message}
           </p>
         ) : null}
         <div className="flex items-center justify-between gap-2 pt-1">
-          <span
-            className={cn(
-              'inline-flex items-center rounded-full border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wider',
-              meta.accent,
-              meta.ring,
-            )}
-          >
-            {meta.label}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wider',
+                meta.accent,
+                meta.ring,
+              )}
+            >
+              {meta.label}
+            </span>
+            {isCorrection ? (
+              <Link
+                to="/employee/corrections"
+                className="text-[10px] font-medium text-primary hover:underline"
+              >
+                View inbox →
+              </Link>
+            ) : null}
+          </div>
           {ack ? (
             <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
               <Check className="size-3" /> Acknowledged

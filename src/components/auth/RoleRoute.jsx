@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 
 import { PageLoader } from '@/components/ui/page-loader'
-import { getAccountArea } from '@/lib/account-role'
+import { getAccountArea, getAccountHomePath } from '@/lib/account-role'
 import { logout } from '@/services/auth'
 import { getMyProfile } from '@/services/user-profile'
 
-function RoleRoute({ allowedRole, fallbackPath }) {
+function RoleRoute({ allowedRole }) {
   const navigate = useNavigate()
   const [isReady, setIsReady] = useState(false)
 
@@ -23,8 +23,12 @@ function RoleRoute({ allowedRole, fallbackPath }) {
 
         const accountArea = getAccountArea(profile?.role)
 
+        // Send a mismatched user to their OWN workspace home rather than a
+        // fixed fallback. This keeps the redirect correct for every role
+        // (admin / employee / teacher / guest) and avoids the admin↔employee
+        // bounce that a fixed cross-fallback would cause for a teacher.
         if (accountArea !== allowedRole) {
-          navigate(fallbackPath, { replace: true })
+          navigate(getAccountHomePath(profile), { replace: true })
           return
         }
 
@@ -42,15 +46,16 @@ function RoleRoute({ allowedRole, fallbackPath }) {
     return () => {
       cancelled = true
     }
-  }, [allowedRole, fallbackPath, navigate])
+  }, [allowedRole, navigate])
 
   if (!isReady) {
-    return (
-      <PageLoader
-        title={allowedRole === 'admin' ? 'Loading admin workspace' : 'Loading employee workspace'}
-        description="Checking access."
-      />
-    )
+    const workspaceTitle =
+      allowedRole === 'admin'
+        ? 'Loading admin workspace'
+        : allowedRole === 'teacher'
+          ? 'Loading teacher workspace'
+          : 'Loading employee workspace'
+    return <PageLoader title={workspaceTitle} description="Checking access." />
   }
 
   return <Outlet />

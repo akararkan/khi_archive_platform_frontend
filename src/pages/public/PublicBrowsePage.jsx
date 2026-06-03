@@ -646,7 +646,7 @@ function PublicBrowsePage() {
     setSearchParams(sp)
   }
 
-  const items = data?.content || []
+  const items = useMemo(() => data?.content || [], [data])
   const totalElements = Number(data?.totalElements ?? items.length)
   const activeTextFilterCount = textFilters.reduce(
     (acc, f) => acc + ((textFilterValues[f.paramKey] || '').trim() ? 1 : 0),
@@ -701,6 +701,22 @@ function PublicBrowsePage() {
     [heroStats],
   )
 
+  // Year-density buckets for the sidebar's date-range histogram —
+  // derived from whatever the page is currently showing so the slider
+  // visually echoes the filtered feed. This is per-page (not whole-
+  // corpus) but accurate enough as a "where does my content live"
+  // hint; a real backend histogram facet would replace it cleanly.
+  const yearBuckets = useMemo(() => {
+    if (!type.showDateRange) return null
+    const out = {}
+    for (const item of items) {
+      const y = Number(type.card(item)?.year)
+      if (!Number.isFinite(y)) continue
+      out[y] = (out[y] || 0) + 1
+    }
+    return out
+  }, [items, type])
+
   // Media-type counts for the "Media types" sidebar group on `all`.
   const mediaTypeCounts = useMemo(
     () => ({
@@ -725,6 +741,7 @@ function PublicBrowsePage() {
     showDateRange: type.showDateRange,
     dateFrom,
     dateTo,
+    yearBuckets,
     onDateChange: (next) => update({ ...next, page: 0 }),
     // ── Date variants the backend now exposes per type ──────────
     showPublishedRange: Boolean(type.showPublishedRange),
@@ -990,7 +1007,6 @@ const MEDIA_PILL_ICONS = {
   text: FileText,
   image: ImageIcon,
 }
-
 function PillButton({ active, Icon, label, count, onClick }) {
   return (
     <button
@@ -1273,7 +1289,7 @@ function ResultsBody({ type, items, layout }) {
                 {bucket.map((item, idx) => renderRow(item, idx))}
               </div>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
                 {bucket.map((item, idx) => renderCard(item, idx))}
               </div>
             )}
@@ -1292,7 +1308,7 @@ function ResultsBody({ type, items, layout }) {
     )
   }
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
       {items.map((item, idx) => renderCard(item, idx))}
     </div>
   )

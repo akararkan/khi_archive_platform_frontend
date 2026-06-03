@@ -27,7 +27,19 @@ function formatTime(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-function AudioPlayer({ src, title, subtitle, downloadHref, className }) {
+function AudioPlayer({
+  src,
+  title,
+  subtitle,
+  downloadHref,
+  className,
+  // Optional listen-tracking hooks. All default to no-ops, so existing
+  // callers are unaffected. The maqam teacher player wires these to report
+  // play/pause transitions and elapsed position to the backend.
+  onPlayingChange,
+  onTimeUpdate,
+  onEnded: onEndedProp,
+}) {
   const containerRef = useRef(null)
   const audioRef = useRef(null)
   const scrubberRef = useRef(null)
@@ -55,6 +67,14 @@ function AudioPlayer({ src, title, subtitle, downloadHref, className }) {
     isSeekingRef.current = isSeeking
   }, [isSeeking])
 
+  // Keep the latest tracking callbacks in refs so the audio-element effect
+  // (which only depends on `src`) can call them without re-binding listeners
+  // or capturing stale closures.
+  const cbRef = useRef({})
+  useEffect(() => {
+    cbRef.current = { onPlayingChange, onTimeUpdate, onEndedProp }
+  }, [onPlayingChange, onTimeUpdate, onEndedProp])
+
   /* ── audio element wiring ─────────────────────────────────── */
   useEffect(() => {
     const el = audioRef.current
@@ -77,6 +97,7 @@ function AudioPlayer({ src, title, subtitle, downloadHref, className }) {
     }
     const onTime = () => {
       if (!isSeekingRef.current) setCurrent(el.currentTime)
+      cbRef.current.onTimeUpdate?.(el.currentTime)
     }
     const onProgress = () => {
       try {
@@ -85,9 +106,19 @@ function AudioPlayer({ src, title, subtitle, downloadHref, className }) {
         // ignore
       }
     }
-    const onEnded = () => setPlaying(false)
-    const onPlay = () => setPlaying(true)
-    const onPause = () => setPlaying(false)
+    const onEnded = () => {
+      setPlaying(false)
+      cbRef.current.onPlayingChange?.(false)
+      cbRef.current.onEndedProp?.()
+    }
+    const onPlay = () => {
+      setPlaying(true)
+      cbRef.current.onPlayingChange?.(true)
+    }
+    const onPause = () => {
+      setPlaying(false)
+      cbRef.current.onPlayingChange?.(false)
+    }
     const onCanPlay = () => setReady(true)
     const onError = () => setReady(false)
 

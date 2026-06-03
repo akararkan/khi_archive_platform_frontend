@@ -10,6 +10,7 @@ import {
   Eye,
   FileText,
   FolderOpen,
+  HardDrive,
   Image as ImageIcon,
   KeyRound,
   Lock,
@@ -23,6 +24,7 @@ import {
   Tags,
   Trash2,
   Unlock,
+  Upload,
   UserPlus,
   UsersRound,
   Video as VideoIcon,
@@ -39,6 +41,7 @@ export const ENTITY_META = {
   project:  { label: 'Projects',    icon: FolderOpen,  accent: 'text-sky-600 dark:text-sky-400' },
   category: { label: 'Categories',  icon: Tags,        accent: 'text-amber-600 dark:text-amber-400' },
   person:   { label: 'Persons',     icon: UsersRound,  accent: 'text-violet-600 dark:text-violet-400' },
+  physical_media: { label: 'Physical media', icon: HardDrive, accent: 'text-cyan-600 dark:text-cyan-400' },
 }
 
 // Per-action icon. Backend audit actions are uppercase strings
@@ -54,6 +57,7 @@ export const ACTION_META = {
   VIEW:     { icon: Eye,         accent: 'text-muted-foreground',                  label: 'Viewed' },
   SEARCH:   { icon: Search,      accent: 'text-muted-foreground',                  label: 'Searched' },
   LIST:     { icon: Activity,    accent: 'text-muted-foreground',                  label: 'Listed' },
+  IMPORT:   { icon: Upload,      accent: 'text-primary',                           label: 'Imported' },
 }
 
 // Actions we don't want surfaced in the activity feed. LIST is a

@@ -104,6 +104,7 @@ export function createInitialImageForm() {
     locationInArchiveRoom: '',
     lccClassification: '',
     note: '',
+    isPublic: true,
 
     tags: [],
     keywords: [],
@@ -177,6 +178,7 @@ export function buildImagePayload(form, projectCode) {
     locationInArchiveRoom: trimOrNull(form.locationInArchiveRoom),
     lccClassification: trimOrNull(form.lccClassification),
     note: trimOrNull(form.note),
+    isPublic: form.isPublic !== false,
 
     tags: toArray(form.tags),
     keywords: toArray(form.keywords),
@@ -250,6 +252,7 @@ export function populateImageFormFromImage(image) {
     locationInArchiveRoom: image.locationInArchiveRoom || '',
     lccClassification: image.lccClassification || '',
     note: image.note || '',
+    isPublic: image.isPublic !== false,
 
     tags: toArray(image.tags),
     keywords: toArray(image.keywords),

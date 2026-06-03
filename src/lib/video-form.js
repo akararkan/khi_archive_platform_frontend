@@ -111,6 +111,7 @@ export function createInitialVideoForm() {
     locationInArchiveRoom: '',
     lccClassification: '',
     note: '',
+    isPublic: true,
 
     tags: [],
     keywords: [],
@@ -189,6 +190,7 @@ export function buildVideoPayload(form, projectCode) {
     locationInArchiveRoom: trimOrNull(form.locationInArchiveRoom),
     lccClassification: trimOrNull(form.lccClassification),
     note: trimOrNull(form.note),
+    isPublic: form.isPublic !== false,
 
     tags: toArray(form.tags),
     keywords: toArray(form.keywords),
@@ -267,6 +269,7 @@ export function populateVideoFormFromVideo(video) {
     locationInArchiveRoom: video.locationInArchiveRoom || '',
     lccClassification: video.lccClassification || '',
     note: video.note || '',
+    isPublic: video.isPublic !== false,
 
     tags: toArray(video.tags),
     keywords: toArray(video.keywords),

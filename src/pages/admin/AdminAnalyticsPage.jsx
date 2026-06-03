@@ -5,15 +5,19 @@ import {
   Activity,
   ArrowRight,
   CalendarDays,
+  CheckCircle2,
   Clock,
   Eye,
+  MessageSquarePlus,
   Pencil,
   Plus,
   RefreshCw,
   Search,
+  Send,
   ShieldCheck,
   UserCircle2,
   Users,
+  XCircle,
 } from 'lucide-react'
 
 import { AdminEntityPage } from '@/components/admin/AdminEntityPage'
@@ -711,6 +715,65 @@ function OverviewTab({
           })}
         </div>
       </div>
+
+      {/* Correction activity */}
+      {(() => {
+        const corr = overview?.corrections
+        if (!corr && !isLoading) return null
+        const corrTotal     = corr?.total     ?? 0
+        const corrPending   = corr?.pending   ?? 0
+        const corrForwarded = corr?.forwarded ?? 0
+        const corrResolved  = corr?.resolved  ?? 0
+        const corrRejected  = corr?.rejected  ?? 0
+        const byMediaType   = corr?.byMediaType ?? {}
+        const MEDIA_COLORS  = { AUDIO: 'text-violet-600', VIDEO: 'text-rose-600', IMAGE: 'text-teal-600', TEXT: 'text-orange-600' }
+        return (
+          <div>
+            <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Guest correction suggestions
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                { label: 'Total corrections', value: corrTotal,     accent: 'text-primary',                                icon: MessageSquarePlus },
+                { label: 'Pending review',     value: corrPending,   accent: 'text-amber-600 dark:text-amber-400',          icon: Clock             },
+                { label: 'Forwarded',          value: corrForwarded, accent: 'text-blue-600 dark:text-blue-400',            icon: Send              },
+                { label: 'Resolved',           value: corrResolved,  accent: 'text-green-600 dark:text-green-400',          icon: CheckCircle2      },
+              ].map(({ label, value, accent, icon: Icon }) => (
+                <Card key={label} className="border-border bg-card shadow-sm shadow-black/5">
+                  <CardContent className="flex items-center gap-4 px-5 py-4">
+                    <div className={cn('flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted/60', accent)}>
+                      <Icon className="size-4" />
+                    </div>
+                    <div>
+                      {isLoading ? <div className="mb-1 h-5 w-8 animate-pulse rounded bg-muted" /> : (
+                        <p className={cn('text-xl font-bold tabular-nums', accent)}>{value}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            {Object.keys(byMediaType).length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {Object.entries(byMediaType).map(([type, count]) => (
+                  <span
+                    key={type}
+                    className={cn('inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold', MEDIA_COLORS[type] ?? 'text-foreground')}
+                  >
+                    {type} — {count}
+                  </span>
+                ))}
+                {corrRejected > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50/50 px-3 py-1 text-xs font-semibold text-rose-600 dark:border-rose-900/30 dark:bg-rose-950/10">
+                    <XCircle className="size-3" /> {corrRejected} rejected
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        )
+      })()}
 
       {Array.isArray(topUsers) && topUsers.length > 0 ? (
         <div>

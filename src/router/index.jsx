@@ -5,6 +5,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout'
 import { RoleLandingRoute } from '@/components/auth/RoleLandingRoute'
 import { RoleRoute } from '@/components/auth/RoleRoute'
 import { EmployeeLayout } from '@/components/employee/EmployeeLayout'
+import { TeacherLayout } from '@/components/teacher/TeacherLayout'
 import { GuestRoute } from '@/components/auth/GuestRoute'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { PublicLayout } from '@/components/public/PublicLayout'
@@ -16,19 +17,25 @@ import { RegisterPage } from '@/pages/RegisterPage'
 import { AdminAnalyticsPage } from '@/pages/admin/AdminAnalyticsPage'
 import { AdminCategoryPage } from '@/pages/admin/AdminCategoryPage'
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
+import { AdminMaqamPage } from '@/pages/admin/AdminMaqamPage'
 import { AdminPersonPage } from '@/pages/admin/AdminPersonPage'
+import { AdminPhysicalMediaPage } from '@/pages/admin/AdminPhysicalMediaPage'
 import { AdminProfilePage } from '@/pages/admin/AdminProfilePage'
 import { AdminProjectDetailPage } from '@/pages/admin/AdminProjectDetailPage'
 import { AdminProjectPage } from '@/pages/admin/AdminProjectPage'
 import { AdminRolesPage } from '@/pages/admin/AdminRolesPage'
 import { AdminSettingsPage } from '@/pages/admin/AdminSettingsPage'
 import { AdminTrashPage } from '@/pages/admin/AdminTrashPage'
+import { AdminCorrectionsPage } from '@/pages/admin/AdminCorrectionsPage'
 import { AdminWarningsPage } from '@/pages/admin/AdminWarningsPage'
 import { AdminUserActivityPage } from '@/pages/admin/AdminUserActivityPage'
 import { AdminUsersPage } from '@/pages/admin/AdminUsersPage'
+import { EmployeeCorrectionsPage } from '@/pages/employee/EmployeeCorrectionsPage'
+import { EmployeeMaqamPage } from '@/pages/employee/EmployeeMaqamPage'
 import { EmployeeProfilePage } from '@/pages/employee/EmployeeProfilePage'
 import { EmployeeCategoryPage } from '@/pages/employee/EmployeeCategoryPage'
 import { EmployeePersonPage } from '@/pages/employee/EmployeePersonPage'
+import { EmployeePhysicalMediaPage } from '@/pages/employee/EmployeePhysicalMediaPage'
 import { EmployeeProjectPage } from '@/pages/employee/EmployeeProjectPage'
 import { EmployeeProjectDetailPage } from '@/pages/employee/EmployeeProjectDetailPage'
 import { PublicAudioDetailPage } from '@/pages/public/PublicAudioDetailPage'
@@ -40,6 +47,8 @@ import { PublicProjectDetailPage } from '@/pages/public/PublicProjectDetailPage'
 import { PublicSearchRedirect } from '@/pages/public/PublicSearchRedirect'
 import { PublicTextDetailPage } from '@/pages/public/PublicTextDetailPage'
 import { PublicVideoDetailPage } from '@/pages/public/PublicVideoDetailPage'
+import { TeacherMaqamDetailPage } from '@/pages/teacher/TeacherMaqamDetailPage'
+import { TeacherMaqamListPage } from '@/pages/teacher/TeacherMaqamListPage'
 
 const router = createBrowserRouter([
   {
@@ -113,7 +122,7 @@ const router = createBrowserRouter([
             element: <RoleLandingRoute />,
           },
           {
-            element: <RoleRoute allowedRole="employee" fallbackPath="/admin/dashboard" />,
+            element: <RoleRoute allowedRole="employee" />,
             children: [
               {
                 path: 'employee',
@@ -143,12 +152,24 @@ const router = createBrowserRouter([
                     path: 'project/:code',
                     element: <EmployeeProjectDetailPage />,
                   },
+                  {
+                    path: 'maqam',
+                    element: <EmployeeMaqamPage />,
+                  },
+                  {
+                    path: 'physical-media',
+                    element: <EmployeePhysicalMediaPage />,
+                  },
+                  {
+                    path: 'corrections',
+                    element: <EmployeeCorrectionsPage />,
+                  },
                 ],
               },
             ],
           },
           {
-            element: <RoleRoute allowedRole="admin" fallbackPath="/employee/profile" />,
+            element: <RoleRoute allowedRole="admin" />,
             children: [
               {
                 path: 'admin',
@@ -183,6 +204,14 @@ const router = createBrowserRouter([
                     element: <AdminProjectDetailPage />,
                   },
                   {
+                    path: 'maqam',
+                    element: <AdminMaqamPage />,
+                  },
+                  {
+                    path: 'physical-media',
+                    element: <AdminPhysicalMediaPage />,
+                  },
+                  {
                     path: 'trash',
                     element: <AdminTrashPage />,
                   },
@@ -203,12 +232,37 @@ const router = createBrowserRouter([
                     element: <AdminWarningsPage />,
                   },
                   {
+                    path: 'corrections',
+                    element: <AdminCorrectionsPage />,
+                  },
+                  {
                     path: 'roles',
                     element: <AdminRolesPage />,
                   },
                   {
                     path: 'settings',
                     element: <AdminSettingsPage />,
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            // Teachers only ever see their assigned maqam records — a single,
+            // right-to-left Kurdish workspace.
+            element: <RoleRoute allowedRole="teacher" />,
+            children: [
+              {
+                path: 'teacher',
+                element: <TeacherLayout />,
+                children: [
+                  {
+                    index: true,
+                    element: <TeacherMaqamListPage />,
+                  },
+                  {
+                    path: 'maqam/:code',
+                    element: <TeacherMaqamDetailPage />,
                   },
                 ],
               },

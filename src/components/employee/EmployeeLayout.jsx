@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Archive, ChevronRight, FolderOpen, LogOut, Tags, Users } from 'lucide-react'
+import { Archive, ChevronRight, FolderOpen, HardDrive, LogOut, MessageSquarePlus, Music4, Tags, Users } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { GuestActivationBanner } from '@/components/ui/guest-activation-banner'
@@ -10,13 +10,28 @@ import { clearCurrentProfile, setCurrentProfile } from '@/lib/current-profile'
 import { cn } from '@/lib/utils'
 import { logout } from '@/services/auth'
 import { getMyProfile } from '@/services/user-profile'
+import { getMyWarnings } from '@/services/warnings'
 
 const PROFILE_UPDATED_EVENT = 'employee-profile-updated'
+// How often to re-check for unread correction warnings for the nav badge.
+const CORR_POLL_MS = 60_000
+
+function isCorrectionWarning(w) {
+  const text = `${w?.title ?? ''} ${w?.message ?? ''}`.toLowerCase()
+  return (
+    text.includes('correction') ||
+    text.includes('suggested value') ||
+    text.includes('field correction') ||
+    text.includes('correction request')
+  )
+}
 
 const navigationItems = [
   { label: 'Category', to: '/employee/category', icon: Tags },
-  { label: 'Person', to: '/employee/person', icon: Users },
-  { label: 'Project', to: '/employee/project', icon: FolderOpen }
+  { label: 'Person',   to: '/employee/person',   icon: Users },
+  { label: 'Project',  to: '/employee/project',  icon: FolderOpen },
+  { label: 'Maqam',    to: '/employee/maqam',    icon: Music4 },
+  { label: 'Physical Media', to: '/employee/physical-media', icon: HardDrive },
 ]
 
 function getInitials(name, username) {
@@ -29,6 +44,7 @@ function EmployeeLayout() {
   const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [isProfileLoading, setIsProfileLoading] = useState(true)
+  const [corrBadge, setCorrBadge] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -61,6 +77,30 @@ function EmployeeLayout() {
       cancelled = true
       window.removeEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdate)
     }
+  }, [])
+
+  // Poll for unread correction warnings to keep the nav badge fresh.
+  useEffect(() => {
+    let cancelled = false
+    const fetchBadge = async () => {
+      try {
+        const data = await getMyWarnings({ page: 0, size: 50 })
+        if (cancelled) return
+        const items = Array.isArray(data?.items) ? data.items
+          : Array.isArray(data?.content) ? data.content
+          : Array.isArray(data) ? data : []
+        const count = items.filter(
+          (w) => isCorrectionWarning(w) && !w.acknowledged && !w.acknowledgedAt
+        ).length
+        setCorrBadge(count)
+      } catch { /* silent */ }
+    }
+    fetchBadge()
+    const id = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      fetchBadge()
+    }, CORR_POLL_MS)
+    return () => { cancelled = true; clearInterval(id) }
   }, [])
 
   const profileImage = profile?.profileImageSource || ''
@@ -142,52 +182,101 @@ function EmployeeLayout() {
         </div>
 
         {/* nav */}
-        <div className="mt-5 space-y-1.5 lg:flex-1 lg:overflow-y-auto lg:pr-1">
-          <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Collections
-          </p>
-          <nav className="space-y-1">
-            {navigationItems.map((item) => {
-              const Icon = item.icon
-
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    cn(
-                      'group relative flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-foreground/80 hover:bg-muted hover:text-foreground',
-                    )
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      {isActive && (
-                        <span
-                          aria-hidden="true"
-                          className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r-full bg-primary"
-                        />
-                      )}
-                      <span
-                        className={cn(
-                          'flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors',
-                          isActive
-                            ? 'bg-primary/15 text-primary'
-                            : 'bg-muted/60 text-muted-foreground group-hover:bg-muted group-hover:text-foreground',
+        <div className="mt-5 space-y-4 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+          {/* Collections */}
+          <div className="space-y-1.5">
+            <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Collections
+            </p>
+            <nav className="space-y-1">
+              {navigationItems.map((item) => {
+                const Icon = item.icon
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      cn(
+                        'group relative flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-sm font-medium transition-colors',
+                        isActive
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-foreground/80 hover:bg-muted hover:text-foreground',
+                      )
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        {isActive && (
+                          <span
+                            aria-hidden="true"
+                            className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r-full bg-primary"
+                          />
                         )}
-                      >
-                        <Icon className="size-4" />
+                        <span
+                          className={cn(
+                            'flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors',
+                            isActive
+                              ? 'bg-primary/15 text-primary'
+                              : 'bg-muted/60 text-muted-foreground group-hover:bg-muted group-hover:text-foreground',
+                          )}
+                        >
+                          <Icon className="size-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">{item.label}</span>
+                      </>
+                    )}
+                  </NavLink>
+                )
+              })}
+            </nav>
+          </div>
+
+          {/* Requests */}
+          <div className="space-y-1.5">
+            <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Requests
+            </p>
+            <nav className="space-y-1">
+              <NavLink
+                to="/employee/corrections"
+                className={({ isActive }) =>
+                  cn(
+                    'group relative flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-foreground/80 hover:bg-muted hover:text-foreground',
+                  )
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r-full bg-primary"
+                      />
+                    )}
+                    <span
+                      className={cn(
+                        'flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors',
+                        isActive
+                          ? 'bg-primary/15 text-primary'
+                          : 'bg-muted/60 text-muted-foreground group-hover:bg-muted group-hover:text-foreground',
+                      )}
+                    >
+                      <MessageSquarePlus className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">Corrections</span>
+                    {corrBadge > 0 && !isActive ? (
+                      <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                        {corrBadge > 99 ? '99+' : corrBadge}
                       </span>
-                      <span className="min-w-0 flex-1">{item.label}</span>
-                    </>
-                  )}
-                </NavLink>
-              )
-            })}
-          </nav>
+                    ) : null}
+                  </>
+                )}
+              </NavLink>
+            </nav>
+          </div>
         </div>
 
         {/* logout */}

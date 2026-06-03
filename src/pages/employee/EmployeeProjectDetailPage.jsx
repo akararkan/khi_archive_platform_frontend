@@ -7,9 +7,11 @@ import {
   AudioLines,
   CheckCircle2,
   Eye,
+  EyeOff,
   FileAudio,
   FileText,
   FolderOpen,
+  Globe,
   Image as ImageIcon,
   Loader2,
   Pencil,
@@ -367,6 +369,7 @@ function createInitialAudioForm() {
     accrualMethod: '',
     lccClassification: '',
     archiveLocalNote: '',
+    isPublic: true,
   }
 }
 
@@ -449,6 +452,7 @@ function buildAudioPayload(form, projectCode) {
     accrualMethod: trimOrNull(form.accrualMethod),
     lccClassification: trimOrNull(form.lccClassification),
     archiveLocalNote: trimOrNull(form.archiveLocalNote),
+    isPublic: form.isPublic !== false,
   }
 }
 
@@ -530,6 +534,7 @@ function populateAudioFormFromAudio(audio) {
     accrualMethod: audio.accrualMethod || '',
     lccClassification: audio.lccClassification || '',
     archiveLocalNote: audio.archiveLocalNote || '',
+    isPublic: audio.isPublic !== false,
   }
 }
 
@@ -4618,8 +4623,53 @@ function AudioFieldLabel({ htmlFor, fieldKey, className, children }) {
 }
 
 function AudioFormSections({ form, setForm, projectCategories = [] }) {
+  const isPublicAudio = form.isPublic !== false
   return (
     <>
+      {/* Visibility */}
+      <div className={cn(
+        'flex items-center justify-between rounded-2xl border px-5 py-4',
+        isPublicAudio
+          ? 'border-green-200 bg-green-50/40 dark:border-green-900/30 dark:bg-green-950/10'
+          : 'border-amber-200 bg-amber-50/40 dark:border-amber-900/30 dark:bg-amber-950/10',
+      )}>
+        <div className="flex items-center gap-3">
+          <span className={cn(
+            'grid size-9 shrink-0 place-items-center rounded-xl',
+            isPublicAudio ? 'bg-green-500/15 text-green-600' : 'bg-amber-500/15 text-amber-600',
+          )}>
+            {isPublicAudio ? <Globe className="size-4.5" /> : <EyeOff className="size-4.5" />}
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {isPublicAudio ? 'Public — visible in the catalogue' : 'Private — hidden from guests'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isPublicAudio
+                ? 'This audio is visible to all public visitors and can be searched.'
+                : 'Only archive staff can access this record. Guests cannot find or view it.'}
+            </p>
+          </div>
+        </div>
+        <label className="relative cursor-pointer select-none">
+          <input
+            type="checkbox"
+            className="sr-only peer"
+            checked={isPublicAudio}
+            onChange={(e) => setForm({ ...form, isPublic: e.target.checked })}
+          />
+          <div className={cn(
+            'flex h-6 w-11 items-center rounded-full px-0.5 transition-colors',
+            isPublicAudio ? 'bg-green-500' : 'bg-input',
+          )}>
+            <div className={cn(
+              'size-5 rounded-full bg-white shadow-sm transition-transform',
+              isPublicAudio ? 'translate-x-5' : 'translate-x-0',
+            )} />
+          </div>
+        </label>
+      </div>
+
       <Card className="border-border bg-card shadow-sm shadow-black/5">
         <CardHeader className="border-b border-border pb-4">
           <CardTitle className="text-base font-semibold">Titles</CardTitle>

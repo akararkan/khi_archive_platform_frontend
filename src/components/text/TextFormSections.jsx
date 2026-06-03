@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { EyeOff, Globe, Plus } from 'lucide-react'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldHelpButton } from '@/components/ui/field-help'
@@ -78,8 +78,53 @@ function GenreChips({ categories, value, onChange }) {
 }
 
 function TextFormSections({ form, setForm, projectCategories = [] }) {
+  const isPublic = form.isPublic !== false
   return (
     <>
+      {/* Visibility */}
+      <div className={cn(
+        'flex items-center justify-between rounded-2xl border px-5 py-4',
+        isPublic
+          ? 'border-green-200 bg-green-50/40 dark:border-green-900/30 dark:bg-green-950/10'
+          : 'border-amber-200 bg-amber-50/40 dark:border-amber-900/30 dark:bg-amber-950/10',
+      )}>
+        <div className="flex items-center gap-3">
+          <span className={cn(
+            'grid size-9 shrink-0 place-items-center rounded-xl',
+            isPublic ? 'bg-green-500/15 text-green-600' : 'bg-amber-500/15 text-amber-600',
+          )}>
+            {isPublic ? <Globe className="size-4.5" /> : <EyeOff className="size-4.5" />}
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {isPublic ? 'Public — visible in the catalogue' : 'Private — hidden from guests'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isPublic
+                ? 'This text is visible to all public visitors and can be searched.'
+                : 'Only archive staff can access this record. Guests cannot find or view it.'}
+            </p>
+          </div>
+        </div>
+        <label className="relative cursor-pointer select-none">
+          <input
+            type="checkbox"
+            className="sr-only peer"
+            checked={isPublic}
+            onChange={(e) => setForm({ ...form, isPublic: e.target.checked })}
+          />
+          <div className={cn(
+            'flex h-6 w-11 items-center rounded-full px-0.5 transition-colors',
+            isPublic ? 'bg-green-500' : 'bg-input',
+          )}>
+            <div className={cn(
+              'size-5 rounded-full bg-white shadow-sm transition-transform',
+              isPublic ? 'translate-x-5' : 'translate-x-0',
+            )} />
+          </div>
+        </label>
+      </div>
+
       {/* Titles */}
       <Card className="border-border bg-card shadow-sm shadow-black/5">
         <CardHeader className="border-b border-border pb-4">

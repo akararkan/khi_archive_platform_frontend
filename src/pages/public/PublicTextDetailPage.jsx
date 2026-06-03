@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Download, ExternalLink } from 'lucide-react'
+import { Download, ExternalLink, MessageSquarePlus } from 'lucide-react'
 
-import { buttonVariants } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -19,6 +19,7 @@ import {
   PillRow,
   ProjectLink,
 } from '@/components/public/PublicMediaDetailShared'
+import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
 import { guestTexts } from '@/services/guest'
 
@@ -27,6 +28,7 @@ function PublicTextDetailPage() {
   const [text, setText] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [helpOpen, setHelpOpen] = useState(false)
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -84,6 +86,14 @@ function PublicTextDetailPage() {
 
   return (
     <>
+      <HelpUsDialog
+        open={helpOpen}
+        onOpenChange={setHelpOpen}
+        mediaType="TEXT"
+        mediaCode={code}
+        mediaTitle={title}
+        mediaData={text}
+      />
       <MediaHero
         kind="Text"
         title={title}
@@ -91,27 +101,39 @@ function PublicTextDetailPage() {
         description={text.description || text.summary}
         breadcrumbs={breadcrumbs}
         action={
-          fileUrl ? (
-            <div className="flex flex-wrap gap-2">
-              <a
-                href={fileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className={cn(buttonVariants(), 'gap-1.5')}
-              >
-                <ExternalLink className="size-4" />
-                Open document
-              </a>
-              <a
-                href={fileUrl}
-                download
-                className={cn(buttonVariants({ variant: 'outline' }), 'gap-1.5')}
-              >
-                <Download className="size-4" />
-                Download
-              </a>
-            </div>
-          ) : null
+          <div className="flex flex-wrap gap-2">
+            {fileUrl ? (
+              <>
+                <a
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={cn(buttonVariants(), 'gap-1.5')}
+                >
+                  <ExternalLink className="size-4" />
+                  Open document
+                </a>
+                <a
+                  href={fileUrl}
+                  download
+                  className={cn(buttonVariants({ variant: 'outline' }), 'gap-1.5')}
+                >
+                  <Download className="size-4" />
+                  Download
+                </a>
+              </>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setHelpOpen(true)}
+            >
+              <MessageSquarePlus className="size-4" />
+              Help Us Improve
+            </Button>
+          </div>
         }
       />
       <PageContainer>

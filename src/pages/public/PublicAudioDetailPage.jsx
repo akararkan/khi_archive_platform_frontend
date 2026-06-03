@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { MessageSquarePlus } from 'lucide-react'
 
 import { AudioPlayer } from '@/components/ui/audio-player'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   ErrorState,
@@ -17,6 +19,7 @@ import {
   PillRow,
   ProjectLink,
 } from '@/components/public/PublicMediaDetailShared'
+import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import { formatBool, formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
 import { guestAudios } from '@/services/guest'
 
@@ -25,6 +28,7 @@ function PublicAudioDetailPage() {
   const [audio, setAudio] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [helpOpen, setHelpOpen] = useState(false)
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -83,12 +87,32 @@ function PublicAudioDetailPage() {
 
   return (
     <>
+      <HelpUsDialog
+        open={helpOpen}
+        onOpenChange={setHelpOpen}
+        mediaType="AUDIO"
+        mediaCode={code}
+        mediaTitle={title}
+        mediaData={audio}
+      />
       <MediaHero
         kind="Audio"
         title={title}
         originalTitle={original}
         description={audio.description}
         breadcrumbs={breadcrumbs}
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setHelpOpen(true)}
+          >
+            <MessageSquarePlus className="size-4" />
+            Help Us Improve
+          </Button>
+        }
       />
       <PageContainer>
         <div className="grid gap-8 lg:grid-cols-[1fr_340px]">

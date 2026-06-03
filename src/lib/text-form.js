@@ -105,6 +105,7 @@ export function createInitialTextForm() {
     locationInArchiveRoom: '',
     lccClassification: '',
     note: '',
+    isPublic: true,
 
     tags: [],
     keywords: [],
@@ -180,6 +181,7 @@ export function buildTextPayload(form, projectCode) {
     locationInArchiveRoom: trimOrNull(form.locationInArchiveRoom),
     lccClassification: trimOrNull(form.lccClassification),
     note: trimOrNull(form.note),
+    isPublic: form.isPublic !== false,
 
     tags: toArray(form.tags),
     keywords: toArray(form.keywords),
@@ -255,6 +257,7 @@ export function populateTextFormFromText(text) {
     locationInArchiveRoom: text.locationInArchiveRoom || '',
     lccClassification: text.lccClassification || '',
     note: text.note || '',
+    isPublic: text.isPublic !== false,
 
     tags: toArray(text.tags),
     keywords: toArray(text.keywords),

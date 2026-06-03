@@ -206,27 +206,42 @@ const MATCH_LABELS = {
   tag: 'tag',
 }
 
-function MatchedOnPills({ values, className }) {
+function MatchedOnPills({ values, className, tone = 'light' }) {
   if (!Array.isArray(values)) return null
   // Keywords are never surfaced on the public catalogue, so strip them
   // out here too — otherwise a backend `matchedOn: ["keyword"]` would
   // leak the term back into the UI.
   const visible = values.filter((v) => v !== 'keyword')
   if (visible.length === 0) return null
+  // `dark` is for the editorial overlay variant where the pills sit on
+  // top of a dark gradient — primary tones don't show up there, so we
+  // swap to a frosted white surface that reads on any cover artwork.
+  const dark = tone === 'dark'
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center gap-1 border-t border-border/60 pt-1.5',
+        'flex flex-wrap items-center gap-1',
+        dark ? '' : 'border-t border-border/60 pt-1.5',
         className,
       )}
     >
-      <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+      <span
+        className={cn(
+          'text-[9px] font-semibold uppercase tracking-[0.16em]',
+          dark ? 'text-white/70' : 'text-muted-foreground',
+        )}
+      >
         Matched on
       </span>
       {visible.map((v) => (
         <span
           key={v}
-          className="inline-flex items-center rounded-full border border-primary/25 bg-primary/8 px-1.5 py-px text-[10px] font-medium uppercase tracking-[0.06em] text-primary"
+          className={cn(
+            'inline-flex items-center rounded-full px-1.5 py-px text-[10px] font-medium uppercase tracking-[0.06em]',
+            dark
+              ? 'bg-white/15 text-white backdrop-blur-[2px]'
+              : 'border border-primary/25 bg-primary/8 text-primary',
+          )}
         >
           {MATCH_LABELS[v] || v}
         </span>
@@ -239,6 +254,14 @@ function MatchedOnPills({ values, className }) {
 // required: <Highlight> falls back to the surrounding <HighlightProvider>
 // query, so the page only has to set it once at the grid root for every
 // title/description/person/project to light up consistently.
+// Editorial overlay card. The whole tile is the cover; the title and
+// metadata sit on top in the lower third, behind a dark gradient that
+// blends into the cover artwork. This trades the readability of the
+// classic "cover + body" stack for a denser, magazine-feel grid where
+// the artwork *is* the entry point. The cover image / artwork still
+// comes from MediaCover, so every kind (audio waveform, manuscript
+// page, photograph, project mosaic, person portrait, category tile)
+// renders into the same envelope.
 function ResultCard({
   to,
   kind,
@@ -259,6 +282,9 @@ function ResultCard({
   imageCount,
   matchedOn,
 }) {
+  // The meta line under the title — "by Person · 1985 · Region …".
+  // We keep the same priority as the classic card so the most important
+  // identifier (the person) always comes first.
   const metaParts = []
   if (parent?.personName) metaParts.push({ kind: 'by', value: parent.personName })
   if (year) metaParts.push({ kind: 'plain', value: year })
@@ -267,26 +293,26 @@ function ResultCard({
       if (m) metaParts.push({ kind: 'plain', value: m })
     }
   }
+  // Persons / categories don't carry a parent person — the cover *is*
+  // the identity, so the top-left badge would be a duplicate.
+  const showPersonBadge =
+    parent?.personName && kind !== 'person' && kind !== 'category'
 
   return (
     <Link
       to={to}
       data-kind={kind}
       className={cn(
-        'group/card relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm shadow-black/[0.03] transition-all duration-200',
-        'hover:-translate-y-1 hover:border-primary/30 hover:shadow-xl hover:shadow-black/[0.08]',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
+        'group/card relative block aspect-[4/5] overflow-hidden rounded-2xl border border-border bg-secondary text-white shadow-sm shadow-black/[0.04] transition-all duration-300',
+        'hover:-translate-y-1 hover:shadow-xl hover:shadow-black/[0.18]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
       )}
     >
-      {/* ── Adaptive cover (16:10) ───────────────────────────────
-          Top of the cover hosts the person identity pill (when the
-          record is owned by a person) — a profile avatar paired with
-          the person's name, sitting on a frosted backdrop so it stays
-          legible over any cover variant. The technical code chip and
-          the redundant kind badge are gone: kind is already conveyed
-          by the cover artwork (waveform, page, photo, …) and by the
-          per-kind section header on the unified results page. */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden border-b border-border bg-secondary">
+      {/* ── Cover (fills the card) ─────────────────────────────
+          The cover scales up on hover for a subtle parallax echo. We
+          render it inside an absolutely-positioned wrapper so the
+          scale doesn't push the gradient or text out of frame. */}
+      <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover/card:scale-[1.04]">
         <MediaCover
           kind={kind}
           title={title}
@@ -299,70 +325,100 @@ function ResultCard({
           textCount={textCount}
           imageCount={imageCount}
         />
-        {parent?.personName && kind !== 'person' ? (
-          <PersonAvatarBadge
-            name={parent.personName}
-            image={parent.personImage || personImageSrc(parent.person) || null}
-          />
-        ) : null}
       </div>
 
-      {/* ── Body ─────────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col gap-2 p-4">
+      {/* ── Gradient veil ───────────────────────────────────────
+          A two-stop gradient: invisible across the top half of the
+          card so the artwork stays the hero, then ramping to ~95%
+          opaque black at the foot to carry the body text. The veil
+          deepens on hover to lift the title further. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/95 via-black/55 via-45% to-transparent transition-opacity duration-300 group-hover/card:from-black"
+      />
+
+      {/* ── Top-left: person identity pill (frosted) ────────── */}
+      {showPersonBadge ? (
+        <PersonAvatarBadge
+          name={parent.personName}
+          image={parent.personImage || personImageSrc(parent.person) || null}
+        />
+      ) : null}
+
+      {/* ── Top-right: kind chip ───────────────────────────────
+          A small frosted chip that names the kind. Useful in the
+          unified `all` feed where one grid mixes audios, videos,
+          texts and images; in per-kind browses it's redundant but
+          unobtrusive at this size. */}
+      {kind ? (
+        <span
+          className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white backdrop-blur-md"
+          title={kind}
+        >
+          <KindIcon kind={kind} className="size-3" />
+          {kind}
+        </span>
+      ) : null}
+
+      {/* ── Body (sits on the gradient, anchored bottom) ────── */}
+      <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4">
+        <MatchedOnPills values={matchedOn} tone="dark" className="mb-0.5" />
+
+        {parent?.project ? (
+          <p
+            className="inline-flex max-w-full items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.1em] text-white/70"
+            title={parent.project}
+          >
+            <Folder className="size-2.5" strokeWidth={2.5} />
+            <span className="min-w-0 truncate">
+              <Highlight text={parent.project} query={query} />
+            </span>
+          </p>
+        ) : null}
+
         <h3
-          className="line-clamp-2 text-[14.5px] font-semibold leading-[1.35] tracking-tight text-foreground transition-colors group-hover/card:text-primary"
+          className="line-clamp-2 text-[15px] font-semibold leading-[1.25] tracking-tight text-white drop-shadow-sm"
           title={title}
         >
           <Highlight text={title || ''} query={query} />
         </h3>
+
         {metaParts.length > 0 ? (
-          <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[12px] text-muted-foreground">
+          <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[11.5px] leading-snug text-white/85">
             {metaParts.map((p, i) => (
               <span key={i} className="inline-flex items-center gap-1.5">
-                {i > 0 ? <span className="text-muted-foreground/50">·</span> : null}
-                <span className={p.kind === 'by' ? 'font-medium text-foreground' : ''}>
+                {i > 0 ? <span className="text-white/40">·</span> : null}
+                <span className={p.kind === 'by' ? 'font-semibold text-white' : ''}>
                   <Highlight text={String(p.value)} query={query} />
                 </span>
               </span>
             ))}
           </p>
         ) : description ? (
-          <p className="line-clamp-1 text-[12px] text-muted-foreground">
+          <p className="line-clamp-1 text-[11.5px] text-white/80">
             <Highlight text={description} query={query} />
           </p>
         ) : null}
-        {parent?.project ? (
-          <p
-            className="mt-0.5 inline-flex max-w-full items-center gap-1.5 text-[11px] text-muted-foreground"
-            title={parent.project}
-          >
-            <span className="grid size-4 shrink-0 place-items-center rounded-[5px] bg-primary/10 text-primary ring-1 ring-primary/15">
-              <Folder className="size-2.5" strokeWidth={2.25} />
-            </span>
-            <span className="min-w-0 truncate font-medium text-foreground/85">
-              <Highlight text={parent.project} query={query} />
-            </span>
-          </p>
-        ) : null}
+
         {Array.isArray(tags) && tags.length > 0 ? (
-          <div className="mt-1.5 flex flex-wrap gap-1">
+          <div className="mt-0.5 flex flex-wrap gap-1">
             {tags.slice(0, 3).map((t) => (
               <span
                 key={t}
-                className="inline-flex items-center rounded border border-border bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                className="inline-flex items-center rounded bg-white/15 px-1.5 py-0.5 text-[10px] text-white/90 backdrop-blur-[2px]"
               >
                 {t}
               </span>
             ))}
           </div>
         ) : null}
+
         {Number.isFinite(count) && !tags?.length ? (
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-white/75">
             <span className="font-mono tabular-nums">{count.toLocaleString()}</span>{' '}
             {kind === 'text' ? 'pages' : kind === 'project' ? 'records' : ''}
           </p>
         ) : null}
-        <MatchedOnPills values={matchedOn} className="mt-1.5" />
       </div>
     </Link>
   )
@@ -501,18 +557,12 @@ function PersonAvatarBadge({ name, image }) {
 
 function CardGridSkeleton({ count = 8 }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
       {Array.from({ length: count }).map((_, i) => (
-        <div
+        <Skeleton
           key={i}
-          className="overflow-hidden rounded-xl border border-border bg-card shadow-sm shadow-black/[0.03]"
-        >
-          <Skeleton className="aspect-[16/10] rounded-none" />
-          <div className="space-y-2 p-3.5">
-            <Skeleton className="h-3.5 w-3/4" />
-            <Skeleton className="h-3 w-1/2" />
-          </div>
-        </div>
+          className="aspect-[4/5] rounded-2xl border border-border"
+        />
       ))}
     </div>
   )

@@ -3,11 +3,19 @@ function normalizeRole(role) {
 }
 
 function getAccountArea(role) {
-  return normalizeRole(role).includes('admin') ? 'admin' : 'employee'
+  const r = normalizeRole(role)
+  if (r.includes('admin'))    return 'admin'
+  if (r.includes('employee')) return 'employee'
+  if (r.includes('teacher'))  return 'teacher'
+  return 'guest'
 }
 
 function getAccountHomePath(profile) {
-  return getAccountArea(profile?.role) === 'admin' ? '/admin/dashboard' : '/employee/profile'
+  const area = getAccountArea(profile?.role)
+  if (area === 'admin')    return '/admin/dashboard'
+  if (area === 'employee') return '/employee/profile'
+  if (area === 'teacher')  return '/teacher'
+  return '/public'
 }
 
 export { getAccountArea, getAccountHomePath, normalizeRole }
