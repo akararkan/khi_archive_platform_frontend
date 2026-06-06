@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { AtSign, CheckCircle2, Loader2, Lock, Mail, User, UserPlus } from 'lucide-react'
 
 import { AuthShell } from '@/components/auth/AuthShell'
+import { IconField, PasswordField, PasswordStrength } from '@/components/auth/auth-fields'
 import { Button } from '@/components/ui/button'
 import { FormErrorBox } from '@/components/ui/form-error'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { formatApiError } from '@/lib/get-error-message'
 import { register } from '@/services/auth'
 
@@ -57,110 +57,119 @@ function RegisterPage() {
     }
   }
 
+  const confirmTouched = formData.confirmPassword.length > 0
+  const passwordsMatch = confirmTouched && formData.password === formData.confirmPassword
+
   return (
     <AuthShell
-      title="Create account"
-      description="Create your account with username, email, and password."
+      title="Create your account"
+      description="Join the archive with your name, username, email, and a password."
       footer={
         <p>
           Already have an account?{' '}
-          <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/login">
-            Login
+          <Link className="font-semibold text-primary underline-offset-4 hover:underline" to="/login">
+            Sign in
           </Link>
         </p>
       }
     >
       <form className="space-y-4" onSubmit={handleSubmit}>
-        <div className="space-y-1.5">
-          <Label htmlFor="name">Full name</Label>
-          <Input
-            id="name"
-            name="name"
-            type="text"
-            autoComplete="name"
-            placeholder="John Doe"
-            maxLength={120}
-            className="h-10"
-            value={formData.name}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
+        <IconField
+          id="name"
+          name="name"
+          label="Full name"
+          icon={User}
+          type="text"
+          autoComplete="name"
+          placeholder="John Doe"
+          maxLength={120}
+          value={formData.name}
+          onChange={handleInputChange}
+          required
+        />
+
+        <IconField
+          id="username"
+          name="username"
+          label="Username"
+          icon={AtSign}
+          type="text"
+          autoComplete="username"
+          placeholder="john_doe"
+          minLength={3}
+          maxLength={80}
+          pattern="[A-Za-z0-9_]+"
+          title="Use only letters, numbers, and underscores"
+          hint="Letters, numbers, and underscores only."
+          value={formData.username}
+          onChange={handleInputChange}
+          required
+        />
+
+        <IconField
+          id="email"
+          name="email"
+          label="Email"
+          icon={Mail}
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          maxLength={160}
+          value={formData.email}
+          onChange={handleInputChange}
+          required
+        />
 
         <div className="space-y-1.5">
-          <Label htmlFor="username">Username</Label>
-          <Input
-            id="username"
-            name="username"
-            type="text"
-            autoComplete="username"
-            placeholder="john_doe"
-            minLength={3}
-            maxLength={80}
-            pattern="[A-Za-z0-9_]+"
-            title="Use only letters, numbers, and underscores"
-            className="h-10"
-            value={formData.username}
-            onChange={handleInputChange}
-            required
-          />
-          <p className="text-xs text-muted-foreground">Letters, numbers, and underscores only.</p>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            maxLength={160}
-            className="h-10"
-            value={formData.email}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
-          <Input
+          <PasswordField
             id="password"
             name="password"
-            type="password"
+            label="Password"
+            icon={Lock}
             autoComplete="new-password"
             placeholder="Create a password"
             minLength={6}
             maxLength={128}
-            className="h-10"
             value={formData.password}
             onChange={handleInputChange}
             required
           />
+          <PasswordStrength value={formData.password} />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="confirmPassword">Confirm password</Label>
-          <Input
+          <PasswordField
             id="confirmPassword"
             name="confirmPassword"
-            type="password"
+            label="Confirm password"
+            icon={Lock}
             autoComplete="new-password"
             placeholder="Repeat your password"
             minLength={6}
             maxLength={128}
-            className="h-10"
             value={formData.confirmPassword}
             onChange={handleInputChange}
             required
           />
+          {confirmTouched ? (
+            <p
+              className={
+                passwordsMatch
+                  ? 'flex items-center gap-1.5 text-xs font-medium text-green-600 dark:text-green-500'
+                  : 'text-xs text-muted-foreground'
+              }
+            >
+              {passwordsMatch ? <CheckCircle2 className="size-3.5" /> : null}
+              {passwordsMatch ? 'Passwords match' : "Passwords don't match yet"}
+            </p>
+          ) : null}
         </div>
 
         <FormErrorBox error={errorMessage} />
 
-        <Button type="submit" className="h-10 w-full" disabled={isSubmitting}>
-          {isSubmitting ? 'Creating account...' : 'Register'}
+        <Button type="submit" className="h-11 w-full gap-2 text-[0.95rem]" disabled={isSubmitting}>
+          {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
+          {isSubmitting ? 'Creating account…' : 'Create account'}
         </Button>
       </form>
     </AuthShell>

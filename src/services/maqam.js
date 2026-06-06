@@ -36,6 +36,16 @@ export async function getMaqam(code, { signal } = {}) {
   return data
 }
 
+// Teacher "where was I?" feed (maqam:vote / TEACHER only). Returns a
+// Page<MaqamTeacherRecentDTO> sorted by most-recent activity. Optional `q`
+// substring-matches song name / producer / code server-side.
+export async function getMyRecentMaqam({ q, page = 0, size = 50, signal } = {}) {
+  const params = { page, size }
+  if (q && q.trim()) params.q = q.trim()
+  const { data } = await apiClient.get('/maqam/teacher/my-recent', { params, signal })
+  return data
+}
+
 // ── Write (maqam:create / maqam:update / maqam:delete) ──────────────────────────
 
 // `payload` is a MaqamCreateRequest (songName, producer, archiveNote?,

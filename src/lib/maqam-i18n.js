@@ -12,6 +12,20 @@ export const ku = {
   signOut: 'چوونەدەرەوە',
   myProfile: 'پرۆفایلی من',
   navMaqam: 'مقامەکان',
+  navRecent: 'دوایین چالاکیم',
+
+  // Recent-activity (My recent) page
+  recentTitle: 'دوایین چالاکیم',
+  recentSubtitle: 'ئەو تۆمارانەی دواتر کارت لەسەر کردووە — لە نوێترینەوە. لەوێوە بەردەوام بە کە لێی وەستابوویت.',
+  recentSearch: 'گەڕان بەناوی گۆرانی یان گۆرانیبێژ…',
+  recentEmptyTitle: 'هێشتا هیچ کارێکت نییە',
+  recentEmptyDescription: 'کاتێک بەڕێوەبەرێک لە تۆمارێکت زیاد بکات بۆ دەنگدان، لێرە دەردەکەوێت.',
+  lastWorked: 'دوایین کار:',
+  never: 'هێشتا نا',
+  votePending: 'چاوەڕێی دەنگدان',
+  resumeAt: 'بەردەوامبوون لە',
+  openRecord: 'کردنەوەی تۆمار',
+  recentLatest: 'دوایین کارت — لێرەوە بەردەوام بە',
 
   // List page
   listTitle: 'مقامەکانی تۆ',

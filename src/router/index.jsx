@@ -8,7 +8,7 @@ import { EmployeeLayout } from '@/components/employee/EmployeeLayout'
 import { TeacherLayout } from '@/components/teacher/TeacherLayout'
 import { GuestRoute } from '@/components/auth/GuestRoute'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
-import { PublicLayout } from '@/components/public/PublicLayout'
+import { KhiPublicLayout } from '@/components/public/KhiPublicLayout'
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -17,6 +17,7 @@ import { RegisterPage } from '@/pages/RegisterPage'
 import { AdminAnalyticsPage } from '@/pages/admin/AdminAnalyticsPage'
 import { AdminCategoryPage } from '@/pages/admin/AdminCategoryPage'
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
+import { AdminItemsPage } from '@/pages/admin/AdminItemsPage'
 import { AdminMaqamPage } from '@/pages/admin/AdminMaqamPage'
 import { AdminPersonPage } from '@/pages/admin/AdminPersonPage'
 import { AdminPhysicalMediaPage } from '@/pages/admin/AdminPhysicalMediaPage'
@@ -31,6 +32,7 @@ import { AdminWarningsPage } from '@/pages/admin/AdminWarningsPage'
 import { AdminUserActivityPage } from '@/pages/admin/AdminUserActivityPage'
 import { AdminUsersPage } from '@/pages/admin/AdminUsersPage'
 import { EmployeeCorrectionsPage } from '@/pages/employee/EmployeeCorrectionsPage'
+import { EmployeeItemsPage } from '@/pages/employee/EmployeeItemsPage'
 import { EmployeeMaqamPage } from '@/pages/employee/EmployeeMaqamPage'
 import { EmployeeProfilePage } from '@/pages/employee/EmployeeProfilePage'
 import { EmployeeCategoryPage } from '@/pages/employee/EmployeeCategoryPage'
@@ -39,7 +41,7 @@ import { EmployeePhysicalMediaPage } from '@/pages/employee/EmployeePhysicalMedi
 import { EmployeeProjectPage } from '@/pages/employee/EmployeeProjectPage'
 import { EmployeeProjectDetailPage } from '@/pages/employee/EmployeeProjectDetailPage'
 import { PublicAudioDetailPage } from '@/pages/public/PublicAudioDetailPage'
-import { PublicBrowsePage } from '@/pages/public/PublicBrowsePage'
+import { KhiBrowsePage } from '@/pages/public/KhiBrowsePage'
 import { PublicCategoryDetailPage } from '@/pages/public/PublicCategoryDetailPage'
 import { PublicImageDetailPage } from '@/pages/public/PublicImageDetailPage'
 import { PublicPersonDetailPage } from '@/pages/public/PublicPersonDetailPage'
@@ -49,6 +51,7 @@ import { PublicTextDetailPage } from '@/pages/public/PublicTextDetailPage'
 import { PublicVideoDetailPage } from '@/pages/public/PublicVideoDetailPage'
 import { TeacherMaqamDetailPage } from '@/pages/teacher/TeacherMaqamDetailPage'
 import { TeacherMaqamListPage } from '@/pages/teacher/TeacherMaqamListPage'
+import { TeacherRecentPage } from '@/pages/teacher/TeacherRecentPage'
 
 const router = createBrowserRouter([
   {
@@ -61,7 +64,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'public',
-        element: <PublicLayout />,
+        element: <KhiPublicLayout />,
         children: [
           // The single unified browse experience IS the public landing.
           // The sidebar's type rail (and the `?type=` URL param) switches
@@ -70,8 +73,8 @@ const router = createBrowserRouter([
           // `/public` and `/public/browse` both render the same component
           // so existing deep-links with query strings keep working
           // without a redirect (which would drop the search params).
-          { index: true, element: <PublicBrowsePage /> },
-          { path: 'browse', element: <PublicBrowsePage /> },
+          { index: true, element: <KhiBrowsePage /> },
+          { path: 'browse', element: <KhiBrowsePage /> },
           // Legacy /public/search keeps old links alive.
           { path: 'search', element: <PublicSearchRedirect /> },
           // Legacy collection paths redirect into the unified browse so
@@ -153,6 +156,10 @@ const router = createBrowserRouter([
                     element: <EmployeeProjectDetailPage />,
                   },
                   {
+                    path: 'items',
+                    element: <EmployeeItemsPage />,
+                  },
+                  {
                     path: 'maqam',
                     element: <EmployeeMaqamPage />,
                   },
@@ -202,6 +209,10 @@ const router = createBrowserRouter([
                   {
                     path: 'project/:code',
                     element: <AdminProjectDetailPage />,
+                  },
+                  {
+                    path: 'items',
+                    element: <AdminItemsPage />,
                   },
                   {
                     path: 'maqam',
@@ -259,6 +270,10 @@ const router = createBrowserRouter([
                   {
                     index: true,
                     element: <TeacherMaqamListPage />,
+                  },
+                  {
+                    path: 'recent',
+                    element: <TeacherRecentPage />,
                   },
                   {
                     path: 'maqam/:code',

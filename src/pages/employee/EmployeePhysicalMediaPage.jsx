@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertTriangle,
+  Eye,
   HardDrive,
   Loader2,
   Pencil,
@@ -27,6 +28,7 @@ import { useIsAdmin } from '@/hooks/use-current-profile'
 import { cn } from '@/lib/utils'
 import { isStaleVersionError } from '@/lib/get-error-message'
 import { formatDateTime } from '@/components/maqam/maqam-helpers'
+import { PhysicalMediaDetailView } from '@/components/physical-media/PhysicalMediaDetailView'
 import { PhysicalMediaFormSections } from '@/components/physical-media/PhysicalMediaFormSections'
 import { PhysicalMediaImportDialog } from '@/components/physical-media/PhysicalMediaImportDialog'
 import { PhysicalMediaTypeDialog } from '@/components/physical-media/PhysicalMediaTypeDialog'
@@ -36,12 +38,12 @@ import {
   buildPhysicalMediaPayload,
   createInitialPhysicalMediaForm,
   populateFormFromPhysicalMedia,
-  validatePhysicalMediaForm,
 } from '@/lib/physical-media-form'
 import {
   createPhysicalMedia,
   deletePhysicalMedia,
   getPhysicalMedia,
+  getPhysicalMediaNextNumber,
   getPhysicalMediaPage,
   getPhysicalMediaTrashPage,
   getPhysicalMediaTypes,
@@ -81,7 +83,8 @@ function ClearBadge({ value }) {
   )
 }
 
-function TabButton({ active, onClick, icon: Icon, children }) {
+function TabButton({ active, onClick, icon, children }) {
+  const Icon = icon
   return (
     <button
       type="button"
@@ -135,9 +138,11 @@ function EmployeePhysicalMediaPage() {
   const [types, setTypes] = useState([])
   const [addTypeOpen, setAddTypeOpen] = useState(false)
   const lastTypeRef = useRef(null) // the type row whose 9 defaults were last applied
+  const lastAutoNumberRef = useRef('') // the last auto-suggested Number we prefilled
 
   // Misc UI
   const [importOpen, setImportOpen] = useState(false)
+  const [viewCode, setViewCode] = useState(null)
   const [confirm, setConfirm] = useState(null) // { title, description, confirmLabel, variant, onConfirm }
   const [busyCode, setBusyCode] = useState(null)
 
@@ -164,6 +169,29 @@ function EmployeePhysicalMediaPage() {
       return next
     })
     lastTypeRef.current = typeRow
+  }
+
+  // Preview the server-assigned per-type Number and prefill it — but only if the
+  // user hasn't already typed a Number, and only when creating.
+  const fetchNextNumber = async (typeName) => {
+    if (!typeName) return
+    try {
+      const res = await getPhysicalMediaNextNumber(typeName)
+      const n = res?.nextInventoryNumber
+      if (n == null) return
+      setForm((f) => {
+        const cur = String(f.inventoryNumber ?? '').trim()
+        // Prefill only if blank or still showing a previous auto-suggestion (so we
+        // refresh on type switch but never clobber a number the user typed).
+        if (cur === '' || cur === lastAutoNumberRef.current) {
+          lastAutoNumberRef.current = String(n)
+          return { ...f, inventoryNumber: String(n) }
+        }
+        return f
+      })
+    } catch {
+      // best-effort preview — server still auto-assigns on submit
+    }
   }
 
   // Picking a type autofills the technical fields. If the user already typed
@@ -193,12 +221,16 @@ function EmployeePhysicalMediaPage() {
     } else {
       applyTypeDefaults(row)
     }
+    if (view === 'create') fetchNextNumber(row.name)
   }
 
   const handleTypeCreated = (created) => {
     setAddTypeOpen(false)
     loadTypes()
-    if (created) applyTypeDefaults(created)
+    if (created) {
+      applyTypeDefaults(created)
+      if (view === 'create') fetchNextNumber(created.name)
+    }
   }
 
   const loadActive = useCallback(async (nextPage = 0) => {
@@ -294,6 +326,7 @@ function EmployeePhysicalMediaPage() {
     setCurrentCode(null)
     setFormError('')
     lastTypeRef.current = null
+    lastAutoNumberRef.current = ''
     setView('create')
   }
 
@@ -323,11 +356,8 @@ function EmployeePhysicalMediaPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const invalid = validatePhysicalMediaForm(form)
-    if (invalid) {
-      setFormError(invalid)
-      return
-    }
+    // No client-side gate — empty / partial records are accepted; the server is
+    // the only authority and its message (if any) is surfaced inline.
     setFormError('')
     setIsSaving(true)
     const payload = buildPhysicalMediaPayload(form)
@@ -348,7 +378,14 @@ function EmployeePhysicalMediaPage() {
         closeForm()
         return
       }
-      setFormError(err?.response?.data?.message || err?.message || 'Failed to save the record.')
+      const data = err?.response?.data
+      const details =
+        data?.details && typeof data.details === 'object'
+          ? Object.entries(data.details)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join(' · ')
+          : ''
+      setFormError(details || data?.message || err?.message || 'Failed to save the record.')
       toast.apiError(err, 'Unable to save the record.')
     } finally {
       setIsSaving(false)
@@ -413,6 +450,17 @@ function EmployeePhysicalMediaPage() {
 
   const totalActive = meta?.totalElements
   const totalTrash = trashMeta?.totalElements
+
+  // ── Full-page detail view ────────────────────────────────────────────────────
+  if (view === 'detail') {
+    return (
+      <PhysicalMediaDetailView
+        code={viewCode}
+        onBack={() => { setView('list'); setViewCode(null) }}
+        onEdit={(row) => openEdit(row)}
+      />
+    )
+  }
 
   // ── Create / edit form view ─────────────────────────────────────────────────
   if (view === 'create' || view === 'edit') {
@@ -601,6 +649,16 @@ function EmployeePhysicalMediaPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => { setViewCode(r.pmCode); setView('detail') }}
+                            >
+                              <Eye className="size-3.5" />
+                              View
+                            </Button>
                             <Button
                               type="button"
                               variant="outline"

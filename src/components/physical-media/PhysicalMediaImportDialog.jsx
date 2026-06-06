@@ -11,6 +11,9 @@ const XLSX_ACCEPT = '.xlsx,application/vnd.openxmlformats-officedocument.spreads
 const SELECT_CLASS =
   'flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
 
+// Sentinel for "import every sheet in the workbook in one action".
+const ALL_SHEETS = '__all_sheets__'
+
 function Stat({ label, value, accent }) {
   return (
     <div className="rounded-xl border border-border bg-background px-3 py-2.5 text-center">
@@ -54,6 +57,7 @@ export function PhysicalMediaImportDialog({ open, onOpenChange, onImported }) {
   const [sheets, setSheets] = useState([])
   const [sheetsLoading, setSheetsLoading] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [progress, setProgress] = useState('')
   const [report, setReport] = useState(null)
   const [error, setError] = useState('')
 
@@ -65,6 +69,7 @@ export function PhysicalMediaImportDialog({ open, onOpenChange, onImported }) {
     setSheets([])
     setSheetsLoading(false)
     setImporting(false)
+    setProgress('')
     setReport(null)
     setError('')
   }, [open])
@@ -100,7 +105,8 @@ export function PhysicalMediaImportDialog({ open, onOpenChange, onImported }) {
     try {
       const names = await getPhysicalMediaImportSheets(f)
       setSheets(names)
-      if (names.length) setSheet(names[0])
+      // Default to importing the WHOLE workbook (every sheet) in one action.
+      if (names.length) setSheet(ALL_SHEETS)
     } catch {
       // ignore — free-text sheet input stays available
     } finally {
@@ -108,16 +114,56 @@ export function PhysicalMediaImportDialog({ open, onOpenChange, onImported }) {
     }
   }
 
+  // Import every sheet in the workbook in one action, aggregating the reports.
+  // Each sheet is its own server-side transaction; one failing sheet is recorded
+  // as an error and the rest still land.
+  const importEverySheet = async () => {
+    const matched = new Set()
+    const unknown = new Set()
+    const errors = []
+    let totalDataRows = 0
+    let inserted = 0
+    let skipped = 0
+    for (let i = 0; i < sheets.length; i += 1) {
+      const s = sheets[i]
+      setProgress(`Importing “${s}” (${i + 1}/${sheets.length})…`)
+      try {
+        const rep = await importPhysicalMedia(file, { sheet: s })
+        totalDataRows += rep?.totalDataRows ?? 0
+        inserted += rep?.inserted ?? 0
+        skipped += rep?.skipped ?? 0
+        ;(rep?.matchedHeaders || []).forEach((h) => matched.add(h))
+        ;(rep?.unknownHeaders || []).forEach((h) => unknown.add(h))
+        ;(rep?.errors || []).forEach((e) => errors.push({ ...e, message: `[${s}] ${e.message}` }))
+      } catch (err) {
+        errors.push({ rowNumber: 0, message: `[${s}] ${err?.response?.data?.message || err?.message || 'sheet failed'}` })
+      }
+    }
+    return {
+      sheetName: `All sheets (${sheets.length})`,
+      matchedHeaders: [...matched],
+      unknownHeaders: [...unknown],
+      totalDataRows,
+      inserted,
+      skipped,
+      errors,
+    }
+  }
+
   const handleImport = async () => {
     if (!file || importing) return
     setImporting(true)
+    setProgress('')
     setError('')
     try {
-      const result = await importPhysicalMedia(file, { sheet: sheet.trim() || undefined })
+      const result =
+        sheet === ALL_SHEETS && sheets.length
+          ? await importEverySheet()
+          : await importPhysicalMedia(file, { sheet: sheet && sheet !== ALL_SHEETS ? sheet.trim() : undefined })
       setReport(result)
       toast.success(
         'Import finished',
-        `Inserted ${result?.inserted ?? 0} · updated ${result?.updated ?? 0} · skipped ${result?.skipped ?? 0}.`,
+        `Inserted ${result?.inserted ?? 0} · skipped ${result?.skipped ?? 0}.`,
       )
       onImported?.()
     } catch (err) {
@@ -125,6 +171,7 @@ export function PhysicalMediaImportDialog({ open, onOpenChange, onImported }) {
       toast.apiError(err, 'Could not import the workbook.')
     } finally {
       setImporting(false)
+      setProgress('')
     }
   }
 
@@ -198,18 +245,26 @@ export function PhysicalMediaImportDialog({ open, onOpenChange, onImported }) {
           <div className="space-y-1.5">
             <Label htmlFor="pm-import-sheet">Sheet {sheets.length ? '' : '(optional)'}</Label>
             {sheets.length > 0 ? (
-              <select
-                id="pm-import-sheet"
-                value={sheet}
-                onChange={(e) => setSheet(e.target.value)}
-                className={SELECT_CLASS}
-              >
-                {sheets.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+              <>
+                <select
+                  id="pm-import-sheet"
+                  value={sheet}
+                  onChange={(e) => setSheet(e.target.value)}
+                  className={SELECT_CLASS}
+                >
+                  <option value={ALL_SHEETS}>All sheets (entire workbook)</option>
+                  {sheets.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-muted-foreground">
+                  {sheet === ALL_SHEETS
+                    ? `Imports every row from all ${sheets.length} sheet${sheets.length === 1 ? '' : 's'} in one go.`
+                    : 'Imports every row from the selected sheet.'}
+                </p>
+              </>
             ) : (
               <Input
                 id="pm-import-sheet"
@@ -237,11 +292,14 @@ export function PhysicalMediaImportDialog({ open, onOpenChange, onImported }) {
                   <span className="font-normal text-muted-foreground">· {report.sheetName}</span>
                 ) : null}
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid grid-cols-3 gap-2">
                 <Stat label="Rows" value={report.totalDataRows ?? 0} />
                 <Stat label="Inserted" value={report.inserted ?? 0} accent="text-green-600 dark:text-green-400" />
-                <Stat label="Updated" value={report.updated ?? 0} accent="text-amber-600 dark:text-amber-400" />
-                <Stat label="Skipped" value={report.skipped ?? 0} accent={errors.length ? 'text-rose-600 dark:text-rose-400' : undefined} />
+                <Stat
+                  label="Skipped"
+                  value={report.skipped ?? 0}
+                  accent={(report.skipped ?? 0) > 0 ? 'text-rose-600 dark:text-rose-400' : undefined}
+                />
               </div>
 
               {matched.length ? (
@@ -263,7 +321,10 @@ export function PhysicalMediaImportDialog({ open, onOpenChange, onImported }) {
               {errors.length ? (
                 <div className="space-y-1.5">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Skipped rows ({errors.length})
+                    Row notes ({errors.length})
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Rows saved with some fields dropped (still inserted), plus any that couldn’t be saved at all.
                   </p>
                   <div className="max-h-40 overflow-y-auto rounded-xl border border-border">
                     <table className="w-full text-xs">
@@ -289,7 +350,7 @@ export function PhysicalMediaImportDialog({ open, onOpenChange, onImported }) {
           </Button>
           <Button type="button" className="gap-2" onClick={handleImport} disabled={!file || importing}>
             {importing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-            {importing ? 'Importing…' : 'Import'}
+            {importing ? progress || 'Importing…' : sheet === ALL_SHEETS && sheets.length ? 'Import all sheets' : 'Import'}
           </Button>
         </div>
       </div>

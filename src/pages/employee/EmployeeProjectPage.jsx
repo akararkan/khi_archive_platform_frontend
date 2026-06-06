@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Eye,
+  EyeOff,
   FolderOpen,
+  Globe,
   Loader2,
   Pencil,
   Plus,
@@ -46,6 +48,7 @@ import {
 import { TagsInput } from '@/components/ui/tags-input'
 import { useToast } from '@/hooks/use-toast'
 import { FormErrorBox } from '@/components/ui/form-error'
+import { cn } from '@/lib/utils'
 import { formatApiError, getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
 import { getCategories, searchCategories } from '@/services/category'
 import { getPersons, searchPersons } from '@/services/person'
@@ -80,6 +83,8 @@ function createInitialForm() {
     description: '',
     tags: [],
     keywords: [],
+    isVisibleToPublic: true,
+    visibilityCascade: 'NONE', // CASCADE | NONE — only sent on update when the flag changes
   }
 }
 
@@ -94,6 +99,8 @@ function populateFormFromProject(project) {
     description: project.description || '',
     tags: toArray(project.tags),
     keywords: toArray(project.keywords),
+    isVisibleToPublic: project.isVisibleToPublic !== false,
+    visibilityCascade: 'NONE',
   }
 }
 
@@ -270,15 +277,28 @@ function EmployeeProjectPage() {
     description: form.description.trim() || null,
     tags: toArray(form.tags),
     keywords: toArray(form.keywords),
+    isVisibleToPublic: form.isVisibleToPublic !== false,
   })
 
-  const buildUpdatePayload = () => ({
-    projectName: form.projectName.trim(),
-    categoryCodes: form.categoryCodes,
-    description: form.description.trim() || null,
-    tags: toArray(form.tags),
-    keywords: toArray(form.keywords),
-  })
+  const buildUpdatePayload = () => {
+    const payload = {
+      projectName: form.projectName.trim(),
+      categoryCodes: form.categoryCodes,
+      description: form.description.trim() || null,
+      tags: toArray(form.tags),
+      keywords: toArray(form.keywords),
+    }
+    // Only send the visibility flag when it actually changed; pair it with the
+    // cascade choice so the backend either flips all media (CASCADE) or leaves
+    // each media's own isPublic untouched (NONE).
+    const orig = currentProject?.isVisibleToPublic !== false
+    const next = form.isVisibleToPublic !== false
+    if (next !== orig) {
+      payload.isVisibleToPublic = next
+      payload.visibilityCascade = form.visibilityCascade === 'CASCADE' ? 'CASCADE' : 'NONE'
+    }
+    return payload
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -352,6 +372,9 @@ function EmployeeProjectPage() {
   /* ── form view ──────────────────────────────────────────────── */
   if (view === 'create' || view === 'edit') {
     const isEdit = view === 'edit'
+    const isPublicVisible = form.isVisibleToPublic !== false
+    // The cascade choice only matters when editing AND the flag actually changed.
+    const visibilityDirty = isEdit && isPublicVisible !== (currentProject?.isVisibleToPublic !== false)
     return (
       <EmployeeEntityPage
         eyebrow={isEdit ? 'Editing' : 'New record'}
@@ -462,6 +485,107 @@ function EmployeeProjectPage() {
                     categoryByCode={categoryByCode}
                   />
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-base font-semibold">Visibility</CardTitle>
+                <CardDescription className="text-xs">
+                  Control whether this collection is visible to public / guest visitors.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-5">
+                <div
+                  className={cn(
+                    'flex items-center justify-between gap-4 rounded-2xl border px-5 py-4',
+                    isPublicVisible
+                      ? 'border-green-200 bg-green-50/40 dark:border-green-900/30 dark:bg-green-950/10'
+                      : 'border-amber-200 bg-amber-50/40 dark:border-amber-900/30 dark:bg-amber-950/10',
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={cn(
+                        'grid size-9 shrink-0 place-items-center rounded-xl',
+                        isPublicVisible ? 'bg-green-500/15 text-green-600' : 'bg-amber-500/15 text-amber-600',
+                      )}
+                    >
+                      {isPublicVisible ? <Globe className="size-4.5" /> : <EyeOff className="size-4.5" />}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {isPublicVisible ? 'Visible to public' : 'Hidden from public'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {isPublicVisible
+                          ? 'Guests can find and view this collection.'
+                          : 'Only archive staff can see it — guests cannot find it.'}
+                      </p>
+                    </div>
+                  </div>
+                  <label className="relative cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="peer sr-only"
+                      checked={isPublicVisible}
+                      onChange={(e) => setForm({ ...form, isVisibleToPublic: e.target.checked })}
+                    />
+                    <div
+                      className={cn(
+                        'flex h-6 w-11 items-center rounded-full px-0.5 transition-colors',
+                        isPublicVisible ? 'bg-green-500' : 'bg-input',
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'size-5 rounded-full bg-white shadow-sm transition-transform',
+                          isPublicVisible ? 'translate-x-5' : 'translate-x-0',
+                        )}
+                      />
+                    </div>
+                  </label>
+                </div>
+
+                {visibilityDirty ? (
+                  <div className="rounded-2xl border border-border bg-muted/20 px-5 py-4">
+                    <p className="mb-3 text-sm font-medium text-foreground">
+                      When you change this, what should happen to the audios / videos / images / texts inside?
+                    </p>
+                    <div className="space-y-2.5">
+                      <label className="flex cursor-pointer items-start gap-3">
+                        <input
+                          type="radio"
+                          name="visibilityCascade"
+                          className="mt-1"
+                          checked={form.visibilityCascade === 'CASCADE'}
+                          onChange={() => setForm({ ...form, visibilityCascade: 'CASCADE' })}
+                        />
+                        <span>
+                          <span className="text-sm font-semibold text-foreground">Cascade</span>
+                          <span className="block text-xs text-muted-foreground">
+                            Apply the same visibility to every media file in this collection.
+                          </span>
+                        </span>
+                      </label>
+                      <label className="flex cursor-pointer items-start gap-3">
+                        <input
+                          type="radio"
+                          name="visibilityCascade"
+                          className="mt-1"
+                          checked={form.visibilityCascade !== 'CASCADE'}
+                          onChange={() => setForm({ ...form, visibilityCascade: 'NONE' })}
+                        />
+                        <span>
+                          <span className="text-sm font-semibold text-foreground">Custom</span>
+                          <span className="block text-xs text-muted-foreground">
+                            Only change the collection flag — keep each media file&apos;s own visibility.
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
 

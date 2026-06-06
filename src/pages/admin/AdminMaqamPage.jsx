@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
+  Eye,
+  LayoutList,
   Music4,
-  Pencil,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -32,6 +33,8 @@ import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { MaqamFormDialog } from '@/components/maqam/MaqamFormDialog'
 import { MaqamManageDialog } from '@/components/maqam/MaqamManageDialog'
+import { MaqamDetailsDialog } from '@/components/maqam/MaqamDetailsDialog'
+import { MaqamFullList } from '@/components/maqam/MaqamFullList'
 import { formatClock, formatDateTime, voteProgress } from '@/components/maqam/maqam-helpers'
 import { listAdminUsers } from '@/services/admin-user'
 import {
@@ -94,6 +97,8 @@ function AdminMaqamPage() {
 
   const [formState, setFormState] = useState({ open: false, mode: 'create', record: null })
   const [manageRecord, setManageRecord] = useState(null)
+  const [detailsCode, setDetailsCode] = useState(null)
+  const [asList, setAsList] = useState(false) // "Show as list" — full votes/notes table
   const [confirm, setConfirm] = useState(null) // { title, description, confirmLabel, onConfirm }
   const [confirmBusy, setConfirmBusy] = useState(false)
 
@@ -305,7 +310,7 @@ function AdminMaqamPage() {
       description="Prepare song recordings, assign 1–3 teachers to classify the maqam type, and review their votes and listening engagement."
       action={headerAction}
     >
-      {/* View tabs */}
+      {/* View tabs + list/table toggle */}
       <div className="flex flex-wrap items-center gap-2">
         <TabButton active={view === 'active'} onClick={() => setView('active')} icon={Music4}>
           Active {totalActive ? `(${totalActive})` : ''}
@@ -313,6 +318,11 @@ function AdminMaqamPage() {
         <TabButton active={view === 'trash'} onClick={() => setView('trash')} icon={Trash2}>
           Trash {totalTrash != null ? `(${totalTrash})` : ''}
         </TabButton>
+        {view === 'active' ? (
+          <TabButton active={asList} onClick={() => setAsList((v) => !v)} icon={LayoutList}>
+            Show as list
+          </TabButton>
+        ) : null}
       </div>
 
       {view === 'active' ? (
@@ -360,6 +370,12 @@ function AdminMaqamPage() {
                     }
                   />
                 </div>
+              ) : asList ? (
+                <MaqamFullList
+                  rows={activeRows}
+                  onDetails={(c) => setDetailsCode(c)}
+                  onTrash={(r) => handleTrash(r)}
+                />
               ) : (
                 <Table>
                   <TableHeader>
@@ -393,25 +409,18 @@ function AdminMaqamPage() {
                           {r.createdBy ? <span className="block text-[11px]">{r.createdBy}</span> : null}
                         </TableCell>
                         <TableCell>
+                          {/* One "Show details" button before Trash. Edit + Manage
+                              teachers live inside the details view. */}
                           <div className="flex items-center justify-end gap-1.5">
                             <Button
                               type="button"
                               variant="outline"
                               size="sm"
-                              className="gap-1"
-                              onClick={() => setManageRecord(r)}
+                              className="gap-1.5"
+                              onClick={() => setDetailsCode(r.maqamCode)}
                             >
-                              <Users className="size-3.5" />
-                              Teachers
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="Edit"
-                              onClick={() => setFormState({ open: true, mode: 'edit', record: r })}
-                            >
-                              <Pencil className="size-3.5" />
+                              <Eye className="size-3.5" />
+                              Show details
                             </Button>
                             <Button
                               type="button"
@@ -553,6 +562,19 @@ function AdminMaqamPage() {
         }}
       />
 
+      <MaqamDetailsDialog
+        code={detailsCode}
+        onClose={() => setDetailsCode(null)}
+        onEdit={(rec) => {
+          setDetailsCode(null)
+          setFormState({ open: true, mode: 'edit', record: rec })
+        }}
+        onManage={(rec) => {
+          setDetailsCode(null)
+          setManageRecord(rec)
+        }}
+      />
+
       <ConfirmDialog
         open={Boolean(confirm)}
         title={confirm?.title}
@@ -569,7 +591,8 @@ function AdminMaqamPage() {
   )
 }
 
-function TabButton({ active, onClick, icon: Icon, children }) {
+function TabButton({ active, onClick, icon, children }) {
+  const Icon = icon
   return (
     <button
       type="button"

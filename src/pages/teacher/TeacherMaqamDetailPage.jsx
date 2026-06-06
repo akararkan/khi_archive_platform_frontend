@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
-  BarChart3,
   CheckCircle2,
   ChevronRight,
-  Clock,
-  Gauge,
   Loader2,
   Music4,
   Send,
@@ -19,10 +16,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import { useCurrentProfile } from '@/hooks/use-current-profile'
 import { MaqamPlayer } from '@/components/maqam/MaqamPlayer'
-import { COMMON_MAQAM_TYPES, formatKuDate, formatKuDuration, ku } from '@/lib/maqam-i18n'
-import { formatCoverage } from '@/components/maqam/maqam-helpers'
+import { COMMON_MAQAM_TYPES, ku } from '@/lib/maqam-i18n'
 import { cn } from '@/lib/utils'
-import { castMaqamVote, getMaqam, getMaqamListenSummary } from '@/services/maqam'
+import { castMaqamVote, getMaqam } from '@/services/maqam'
 
 function TeacherMaqamDetailPage() {
   const { code } = useParams()
@@ -39,8 +35,6 @@ function TeacherMaqamDetailPage() {
   const [teacherNote, setTeacherNote] = useState('')
   const [alreadyVoted, setAlreadyVoted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-
-  const [mySummary, setMySummary] = useState(null)
 
   const myVote = useMemo(() => {
     const votes = Array.isArray(record?.teacherVotes) ? record.teacherVotes : []
@@ -61,16 +55,6 @@ function TeacherMaqamDetailPage() {
     }
   }, [code])
 
-  const loadSummary = useCallback(async () => {
-    try {
-      const rows = await getMaqamListenSummary(code)
-      const mine = Array.isArray(rows) ? rows.find((r) => r.teacherUserId === myId) : null
-      if (mine) setMySummary(mine)
-    } catch {
-      // engagement is best-effort
-    }
-  }, [code, myId])
-
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadRecord()
@@ -85,7 +69,6 @@ function TeacherMaqamDetailPage() {
       setTeacherNote(myVote.teacherNote || '')
       setAlreadyVoted(Boolean((myVote.maqamType ?? '').toString().trim() || myVote.votedAt))
     }
-    loadSummary()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record, myId])
 
@@ -114,15 +97,6 @@ function TeacherMaqamDetailPage() {
     }
   }
 
-  // Prefer the live listen-summary; fall back to the vote row aggregates.
-  const engagement = mySummary || {
-    totalSeconds: myVote?.totalListenSeconds ?? 0,
-    maxPositionSeconds: myVote?.maxPositionSeconds ?? 0,
-    sessionCount: null,
-    coverageRatio: null,
-    lastListenAt: myVote?.lastListenAt ?? null,
-  }
-  const hasEngagement = (engagement.totalSeconds ?? 0) > 0
 
   if (loading && !record) {
     return (
@@ -169,7 +143,6 @@ function TeacherMaqamDetailPage() {
             <span className="text-muted-foreground/70">{ku.byProducer}: </span>
             {record?.producer}
           </p>
-          <p className="mt-1 font-mono text-[11px] text-muted-foreground/70">{record?.maqamCode}</p>
         </div>
         {alreadyVoted ? (
           <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-green-500/15 px-3 py-1 text-xs font-semibold text-green-600 dark:text-green-400">
@@ -191,51 +164,12 @@ function TeacherMaqamDetailPage() {
           title={record?.songName}
           subtitle={record?.producer}
           track
-          onProgress={loadSummary}
           labels={{
             loading: ku.audioLoading,
             error: ku.audioError,
             unavailable: ku.audioUnavailable,
           }}
         />
-      </section>
-
-      {/* Archive note */}
-      {record?.archiveNote ? (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold text-foreground">{ku.archiveNote}</h2>
-          <p
-            className="whitespace-pre-line break-words rounded-2xl border border-border bg-muted/20 px-4 py-3 text-sm leading-7 text-foreground"
-            style={{ overflowWrap: 'anywhere' }}
-          >
-            {record.archiveNote}
-          </p>
-        </section>
-      ) : null}
-
-      {/* Engagement */}
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm shadow-black/5">
-        <div className="mb-4 flex items-center gap-2">
-          <BarChart3 className="size-4 text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">{ku.engagementTitle}</h2>
-        </div>
-        {hasEngagement ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <EngagementStat icon={Clock} label={ku.totalListen} value={formatKuDuration(engagement.totalSeconds)} />
-            <EngagementStat icon={Gauge} label={ku.furthestPoint} value={formatKuDuration(engagement.maxPositionSeconds)} />
-            {engagement.coverageRatio != null ? (
-              <EngagementStat icon={Gauge} label={ku.coverage} value={formatCoverage(engagement.coverageRatio)} />
-            ) : null}
-            {engagement.sessionCount != null ? (
-              <EngagementStat icon={BarChart3} label={ku.sessionCount} value={engagement.sessionCount} />
-            ) : null}
-            {engagement.lastListenAt ? (
-              <EngagementStat icon={Clock} label={ku.lastListen} value={formatKuDate(engagement.lastListenAt)} wide />
-            ) : null}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">{ku.noEngagement}</p>
-        )}
       </section>
 
       {/* Vote form */}
@@ -312,18 +246,6 @@ function BackLink({ onClick }) {
       <ChevronRight className="size-4" />
       {ku.back}
     </button>
-  )
-}
-
-function EngagementStat({ icon: Icon, label, value, wide }) {
-  return (
-    <div className={cn('flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2.5', wide && 'col-span-2')}>
-      <Icon className="size-4 shrink-0 text-muted-foreground" />
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-foreground">{value}</p>
-        <p className="text-[10px] text-muted-foreground">{label}</p>
-      </div>
-    </div>
   )
 }
 

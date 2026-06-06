@@ -1,0 +1,122 @@
+/* ============================================================
+   KHI "Living Archive" theme for app surfaces outside the public
+   catalogue (teacher workspace, the public Help/Contribute modal).
+   Re-skins existing Tailwind components by overriding the semantic
+   design tokens within a scoped subtree — so every card / button /
+   table / badge adopts the pine·gold·paper palette + Amiri headings
+   without rewriting a single component.
+     .khi-teacher  → teacher workspace (gets the paper backdrop too)
+     .khi-surface  → token-only re-skin for modals/overlays
+   Admin / employee surfaces are untouched (they never get these).
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Vazirmatn:wght@300;400;500;600;700;800&display=swap');
+
+.khi-teacher,
+.khi-surface{
+  /* Deeper paper page + brighter near-white cards = clear elevation/contrast.
+     Every warm surface is derived from --khi-tone (0 = full white → 100 = paper)
+     so the tone slider warms the WHOLE workspace, not just the page. */
+  --bg-base:#ece2cc;
+  --card-base:#fdfaf2;
+  --muted-base:#f1e8d4;
+  --secondary-base:#e7dcc4;
+  --background:color-mix(in srgb,#ffffff,var(--bg-base) calc(var(--khi-tone,100) * 1%));
+  --foreground:#211d15;
+  --card:color-mix(in srgb,#ffffff,var(--card-base) calc(var(--khi-tone,100) * 1%));
+  --card-foreground:#211d15;
+  --popover:var(--card);
+  --popover-foreground:#211d15;
+  --primary:#1f3a31;
+  --primary-foreground:#f6eeda;
+  --secondary:color-mix(in srgb,#ffffff,var(--secondary-base) calc(var(--khi-tone,100) * 1%));
+  --secondary-foreground:#1f3a31;
+  --muted:color-mix(in srgb,#ffffff,var(--muted-base) calc(var(--khi-tone,100) * 1%));
+  --muted-foreground:#6b6045;
+  --accent:#e7d3a0;
+  --accent-foreground:#142620;
+  --destructive:#b4512c;
+  --border:#d8c8a6;
+  --input:#cdbd99;
+  --ring:#b08833;
+  --sidebar:var(--card);
+  --sidebar-foreground:#211d15;
+  --sidebar-primary:#1f3a31;
+  --sidebar-primary-foreground:#f6eeda;
+  --sidebar-accent:var(--secondary);
+  --sidebar-accent-foreground:#1f3a31;
+  --sidebar-border:#d8c8a6;
+  --sidebar-ring:#b08833;
+  --font-sans:'Vazirmatn',Tahoma,system-ui,sans-serif;
+  --font-heading:'Vazirmatn',Tahoma,system-ui,sans-serif;
+}
+
+/* Amiri serif is reserved for the big page titles (a single elegant flourish);
+   the dense workspace UI stays in clean Vazirmatn so it reads well. */
+.khi-teacher h1,.khi-surface h1,.khi-surface h2{font-family:'Amiri',serif}
+
+/* Real elevation so cards float on the paper page instead of blending in. */
+.khi-teacher [class*="rounded-3xl"]{box-shadow:0 14px 34px -22px rgba(31,58,49,.5),0 2px 6px -2px rgba(31,58,49,.12)}
+
+/* Warm paper backdrop — teacher workspace only (modals keep their overlay).
+   Responds to the shared --khi-tone slider (0 = whitest → 100 = full paper). */
+.khi-teacher{
+  background-color:var(--background);
+  background-image:
+    radial-gradient(1100px 700px at 18% -8%,color-mix(in srgb,#ffffff,#f8f1df calc(var(--khi-tone,100) * 1%)) 0,transparent 60%),
+    radial-gradient(900px 600px at 105% 30%,color-mix(in srgb,#ffffff,#efe4ca calc(var(--khi-tone,100) * 1%)) 0,transparent 55%);
+  background-attachment:fixed;
+}
+
+/* ── Background-tone slider — shared by public + teacher surfaces ──────────────
+   An INLINE compact control that lives in the top bar (public header / teacher
+   sidebar), not a floating overlay — so it never covers content. Fades the page
+   background from the whitest tone to full paper. */
+.khi-tone{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:999px;border:1px solid #d4c5a4;background:rgba(251,246,234,.55);font-family:'Vazirmatn',Tahoma,sans-serif}
+.khi-tone .ic{display:grid;place-items:center;color:#b08833;width:16px;height:16px}
+.khi-tone input[type=range]{-webkit-appearance:none;appearance:none;width:96px;height:5px;border-radius:999px;background:linear-gradient(90deg,#ffffff,#ece0c9);outline:none;cursor:pointer}
+.khi-tone input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:#d6b25e;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer}
+.khi-tone input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#d6b25e;border:2px solid #fff;cursor:pointer}
+.khi-tone .lbl{font-size:11px;font-weight:600;color:#897c64;white-space:nowrap}
+.dark .khi-tone{background:rgba(231,211,160,.08);border-color:rgba(231,211,160,.2)}
+.dark .khi-tone .lbl{color:#c8d2c4}
+@media(max-width:1040px){.khi-tone .lbl{display:none}}
+
+/* A touch of gold on brand/icon chips so the pine reads as "archive". */
+.khi-teacher .khi-mark,.khi-surface .khi-mark{border:1px solid rgba(214,178,94,.45);box-shadow:0 6px 18px rgba(31,58,49,.22)}
+
+.dark .khi-teacher,
+.dark .khi-surface{
+  --background:#101e17;
+  --foreground:#f3ead4;
+  --card:#142620;
+  --card-foreground:#f3ead4;
+  --popover:#142620;
+  --popover-foreground:#f3ead4;
+  --primary:#d6b25e;
+  --primary-foreground:#142620;
+  --secondary:#1d362c;
+  --secondary-foreground:#f3ead4;
+  --muted:#1b3128;
+  --muted-foreground:#c8d2c4;
+  --accent:#2c5448;
+  --accent-foreground:#f3ead4;
+  --destructive:#e0795a;
+  --border:rgba(231,211,160,.16);
+  --input:rgba(231,211,160,.20);
+  --ring:#d6b25e;
+  --sidebar:#142620;
+  --sidebar-foreground:#f3ead4;
+  --sidebar-primary:#d6b25e;
+  --sidebar-primary-foreground:#142620;
+  --sidebar-accent:#1d362c;
+  --sidebar-accent-foreground:#f3ead4;
+  --sidebar-border:rgba(231,211,160,.16);
+  --sidebar-ring:#d6b25e;
+}
+
+.dark .khi-teacher{
+  background-image:
+    radial-gradient(1100px 700px at 18% -8%,rgba(44,84,72,.30) 0,transparent 60%),
+    radial-gradient(900px 600px at 105% 30%,rgba(20,38,32,.6) 0,transparent 55%);
+}

@@ -58,6 +58,9 @@ export const ACTION_META = {
   SEARCH:   { icon: Search,      accent: 'text-muted-foreground',                  label: 'Searched' },
   LIST:     { icon: Activity,    accent: 'text-muted-foreground',                  label: 'Listed' },
   IMPORT:   { icon: Upload,      accent: 'text-primary',                           label: 'Imported' },
+  TYPE_CREATE: { icon: Plus,    accent: 'text-emerald-600 dark:text-emerald-400', label: 'Type added' },
+  TYPE_UPDATE: { icon: Pencil,  accent: 'text-amber-600 dark:text-amber-400',     label: 'Type edited' },
+  TYPE_DELETE: { icon: Trash2,  accent: 'text-rose-600 dark:text-rose-400',       label: 'Type removed' },
 }
 
 // Actions we don't want surfaced in the activity feed. LIST is a

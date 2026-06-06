@@ -48,7 +48,7 @@ function TextField({ k, label, required, placeholder, mono, value, onText }) {
   )
 }
 
-function NumberField({ k, label, placeholder, value, onText }) {
+function NumberField({ k, label, placeholder, value, onText, hint }) {
   return (
     <FieldRow id={`pm-${k}`} label={label} fieldKey={k}>
       <Input
@@ -59,6 +59,7 @@ function NumberField({ k, label, placeholder, value, onText }) {
         onChange={(e) => onText(k, e.target.value)}
         placeholder={placeholder}
       />
+      {hint ? <p className="text-[11px] text-muted-foreground">{hint}</p> : null}
     </FieldRow>
   )
 }
@@ -83,7 +84,7 @@ function TextAreaField({ k, label, value, onText, placeholder }) {
 function TypeSelectField({ value, types, onSelect, onAddType, canManageTypes }) {
   const known = types.some((t) => t.name === value)
   return (
-    <FieldRow id="pm-physicalMediaType" label="Physical media type" fieldKey="physicalMediaType" required>
+    <FieldRow id="pm-physicalMediaType" label="Physical media type" fieldKey="physicalMediaType">
       <select
         id="pm-physicalMediaType"
         value={value || ''}
@@ -150,7 +151,7 @@ function PhysicalMediaFormSections({
       <Card className="border-border bg-card shadow-sm shadow-black/5">
         <CardHeader className="border-b border-border pb-4">
           <CardTitle className="text-base font-semibold">Identity &amp; classification</CardTitle>
-          <CardDescription>Type is required. Provide a title or a physical label (at least one).</CardDescription>
+          <CardDescription>Fill in whatever you have — blank or partial records are accepted.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 pt-5 sm:grid-cols-2">
           <TypeSelectField
@@ -165,7 +166,14 @@ function PhysicalMediaFormSections({
           <TextField k="physicalLabel" label="Physical label" mono placeholder="Sticker code on the item" value={form.physicalLabel} onText={onText} />
           <TextField k="subType" label="Type / sub-type" placeholder="e.g. Reel-to-reel" value={form.subType} onText={onText} />
           <TextField k="size" label="Size" placeholder="e.g. 7 inch, C60" value={form.size} onText={onText} />
-          <NumberField k="inventoryNumber" label="Inventory number" placeholder="e.g. 124" value={form.inventoryNumber} onText={onText} />
+          <NumberField
+            k="inventoryNumber"
+            label="Inventory number"
+            placeholder="Auto-assigned if blank"
+            value={form.inventoryNumber}
+            onText={onText}
+            hint="Leave blank to auto-assign the next number for this type."
+          />
           <NumberField k="rowNumber" label="Row number (sheet)" placeholder="e.g. 3" value={form.rowNumber} onText={onText} />
         </CardContent>
       </Card>

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { KeyRound, Loader2, Mail } from 'lucide-react'
 
 import { AuthShell } from '@/components/auth/AuthShell'
+import { IconField, SuccessBox } from '@/components/auth/auth-fields'
 import { Button } from '@/components/ui/button'
 import { FormErrorBox } from '@/components/ui/form-error'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { formatApiError } from '@/lib/get-error-message'
 import { requestPasswordResetToken } from '@/services/auth'
 
@@ -58,47 +58,41 @@ function ForgotPasswordPage() {
   return (
     <AuthShell
       title="Forgot password"
-      description="Enter your account email and request a password reset token."
+      description="Enter your account email and we'll prepare a password reset token."
       footer={
         <p>
           Remembered your password?{' '}
-          <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/login">
-            Back to login
+          <Link className="font-semibold text-primary underline-offset-4 hover:underline" to="/login">
+            Back to sign in
           </Link>
         </p>
       }
     >
       <form className="space-y-4" onSubmit={handleSubmit}>
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Account email</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            maxLength={160}
-            className="h-10"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-          />
-        </div>
+        <IconField
+          id="email"
+          name="email"
+          label="Account email"
+          icon={Mail}
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          maxLength={160}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+        />
 
         <FormErrorBox error={errorMessage} />
+        <SuccessBox>{successMessage}</SuccessBox>
 
-        {successMessage ? (
-          <p className="rounded-md border border-chart-2/35 bg-chart-2/12 px-3 py-2 text-sm text-foreground">
-            {successMessage}
-          </p>
-        ) : null}
-
-        <Button type="submit" className="h-10 w-full" disabled={isSubmitting}>
-          {isSubmitting ? 'Requesting token...' : 'Request reset token'}
+        <Button type="submit" className="h-11 w-full gap-2 text-[0.95rem]" disabled={isSubmitting}>
+          {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />}
+          {isSubmitting ? 'Requesting token…' : 'Request reset token'}
         </Button>
       </form>
 
-      <div className="rounded-xl border border-border/70 bg-muted/35 p-3 text-sm text-muted-foreground">
+      <div className="mt-4 rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
         <p>
           After you receive the token, continue to{' '}
           <Link className="font-medium text-primary underline-offset-4 hover:underline" to={resetLink}>

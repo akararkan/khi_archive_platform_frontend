@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   AlertTriangle,
-  BarChart3,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Clock3,
-  Gauge,
   Headphones,
   ListMusic,
   Loader2,
@@ -30,7 +28,7 @@ import { useToast } from '@/hooks/use-toast'
 import { useCurrentProfile } from '@/hooks/use-current-profile'
 import { MaqamPlayer } from '@/components/maqam/MaqamPlayer'
 import { formatClock, teacherLabel, voteProgress } from '@/components/maqam/maqam-helpers'
-import { COMMON_MAQAM_TYPES, formatKuDate, formatKuDuration, ku } from '@/lib/maqam-i18n'
+import { COMMON_MAQAM_TYPES, formatKuDate, ku } from '@/lib/maqam-i18n'
 import { cn } from '@/lib/utils'
 import { castMaqamVote, getMaqam, getMaqamsPage } from '@/services/maqam'
 
@@ -57,6 +55,7 @@ function TeacherMaqamListPage() {
   const profile = useCurrentProfile()
   const myId = profile?.id
   const toast = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   // ── Paginated list state ─────────────────────────────────────────────────
   const [records, setRecords] = useState(null)
@@ -103,9 +102,61 @@ function TeacherMaqamListPage() {
     }
   }, [])
 
+  // Open the console focused on a specific record (used when arriving from the
+  // "My recent" page via `/teacher?code=…`). Walks pages in the same order the
+  // table uses (createdAt,asc) until the record is found, so it lands on the
+  // right page with the row highlighted, the counter/next-prev all correct, and
+  // the vote form + other teachers populated. Falls back to page 0 if not found.
+  const openByCode = useCallback(async (code) => {
+    setLoading(true)
+    setError('')
+    try {
+      let p = 0
+      let totalPages = 1
+      let found = false
+      do {
+        const data = await getMaqamsPage({ page: p, size: PAGE_SIZE, sort: 'createdAt,asc' })
+        const rows = Array.isArray(data?.content) ? data.content : Array.isArray(data) ? data : []
+        totalPages = data?.totalPages ?? (Math.ceil(rows.length / PAGE_SIZE) || 1)
+        if (rows.some((r) => r.maqamCode === code)) {
+          setRecords(rows)
+          setMeta({
+            page: data?.number ?? p,
+            totalPages,
+            totalElements: data?.totalElements ?? rows.length,
+            size: data?.size ?? PAGE_SIZE,
+          })
+          setPage(data?.number ?? p)
+          selectAfterLoad.current = null
+          setActiveCode(code)
+          found = true
+          break
+        }
+        p += 1
+      } while (p < totalPages)
+      if (!found) {
+        selectAfterLoad.current = 'first'
+        await load(0)
+      }
+    } catch (err) {
+      setError(err?.response?.data?.message || ku.errorLoad)
+    } finally {
+      setLoading(false)
+    }
+  }, [load])
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    load(0)
+    const code = searchParams.get('code')
+    if (code) {
+      // Consume the param so a later refresh starts from the default first page.
+      const sp = new URLSearchParams(searchParams)
+      sp.delete('code')
+      setSearchParams(sp, { replace: true })
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      openByCode(code)
+    } else {
+      load(0)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -298,12 +349,6 @@ function TeacherMaqamListPage() {
   // ── Derived display data for the active record ───────────────────────────
   const myActiveVote = findMyVote(record, myId)
   const otherVotes = votesOf(record).filter((v) => v.teacherUserId !== myId)
-  const engagement = {
-    totalSeconds: myActiveVote?.totalListenSeconds ?? 0,
-    maxPositionSeconds: myActiveVote?.maxPositionSeconds ?? 0,
-    lastListenAt: myActiveVote?.lastListenAt ?? null,
-  }
-  const hasEngagement = (engagement.totalSeconds ?? 0) > 0
   const hasFullDetail = Boolean(activeRecord && activeRecord.maqamCode === activeCode)
   const progressPct = counter && counter.total > 0 ? Math.round((counter.pos / counter.total) * 100) : 0
 
@@ -379,9 +424,6 @@ function TeacherMaqamListPage() {
                         {record.producer}
                       </p>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center rounded-md bg-muted/60 px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
-                          {record.maqamCode}
-                        </span>
                         {record.audioDurationSeconds ? (
                           <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-[11px] tabular-nums text-muted-foreground">
                             <Clock3 className="size-3" />
@@ -467,75 +509,6 @@ function TeacherMaqamListPage() {
                   </div>
                 </section>
 
-                {/* Two-column: context (start) + engagement (end) */}
-                <div className="grid gap-5 lg:grid-cols-3">
-                  {/* Context column */}
-                  <div className="space-y-5 lg:col-span-2">
-                    {/* Archive note */}
-                    {record.archiveNote ? (
-                      <section>
-                        <h3 className="mb-2 text-sm font-semibold text-foreground">{ku.archiveNote}</h3>
-                        <p
-                          className="whitespace-pre-line break-words rounded-2xl border border-border bg-muted/20 px-4 py-3 text-sm leading-7 text-foreground"
-                          style={{ overflowWrap: 'anywhere' }}
-                        >
-                          {record.archiveNote}
-                        </p>
-                      </section>
-                    ) : null}
-
-                    {/* Other teachers' votes — read only */}
-                    <section>
-                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                          <Users className="size-4 text-primary" />
-                          {ku.otherTeachersTitle}
-                        </h3>
-                        <span className="inline-flex items-center rounded-full border border-border bg-muted/30 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          {ku.otherTeachersHint}
-                        </span>
-                      </div>
-                      {detailLoading && !hasFullDetail && otherVotes.length === 0 ? (
-                        <div className="grid gap-2.5 sm:grid-cols-2">
-                          <Skeleton className="h-20 w-full rounded-2xl" />
-                          <Skeleton className="h-20 w-full rounded-2xl" />
-                        </div>
-                      ) : otherVotes.length === 0 ? (
-                        <p className="rounded-2xl border border-dashed border-border bg-muted/10 px-4 py-8 text-center text-sm text-muted-foreground">
-                          {ku.noOtherVotes}
-                        </p>
-                      ) : (
-                        <div className="grid gap-2.5 sm:grid-cols-2">
-                          {otherVotes.map((v) => (
-                            <OtherVoteRow key={v.voteId ?? v.teacherUserId} vote={v} />
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                  </div>
-
-                  {/* Engagement column */}
-                  <section className="lg:col-span-1">
-                    <div className="rounded-2xl border border-border bg-muted/10 p-4">
-                      <div className="mb-3 flex items-center gap-2">
-                        <BarChart3 className="size-4 text-primary" />
-                        <h3 className="text-sm font-semibold text-foreground">{ku.engagementTitle}</h3>
-                      </div>
-                      {hasEngagement ? (
-                        <div className="space-y-2.5">
-                          <EngagementStat icon={Clock} label={ku.totalListen} value={formatKuDuration(engagement.totalSeconds)} />
-                          <EngagementStat icon={Gauge} label={ku.furthestPoint} value={formatKuDuration(engagement.maxPositionSeconds)} />
-                          {engagement.lastListenAt ? (
-                            <EngagementStat icon={Clock} label={ku.lastListen} value={formatKuDate(engagement.lastListenAt)} />
-                          ) : null}
-                        </div>
-                      ) : (
-                        <p className="text-sm leading-6 text-muted-foreground">{ku.noEngagement}</p>
-                      )}
-                    </div>
-                  </section>
-                </div>
-
                 {/* My vote — the only editable part */}
                 <section className="rounded-2xl border border-primary/25 bg-primary/[0.03] p-5 shadow-sm shadow-primary/5">
                   <div className="mb-1 flex items-center gap-2">
@@ -602,6 +575,35 @@ function TeacherMaqamListPage() {
                     </div>
                   </form>
                 </section>
+
+                {/* Other teachers' votes & notes — under my vote, read only */}
+                <section className="rounded-2xl border border-border bg-card p-5 shadow-sm shadow-black/5">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <Users className="size-4 text-primary" />
+                      {ku.otherTeachersTitle}
+                    </h3>
+                    <span className="inline-flex items-center rounded-full border border-border bg-muted/30 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      {ku.otherTeachersHint}
+                    </span>
+                  </div>
+                  {detailLoading && !hasFullDetail && otherVotes.length === 0 ? (
+                    <div className="grid gap-2.5 sm:grid-cols-2">
+                      <Skeleton className="h-20 w-full rounded-2xl" />
+                      <Skeleton className="h-20 w-full rounded-2xl" />
+                    </div>
+                  ) : otherVotes.length === 0 ? (
+                    <p className="rounded-2xl border border-dashed border-border bg-muted/10 px-4 py-8 text-center text-sm text-muted-foreground">
+                      {ku.noOtherVotes}
+                    </p>
+                  ) : (
+                    <div className="grid gap-2.5 sm:grid-cols-2">
+                      {otherVotes.map((v) => (
+                        <OtherVoteRow key={v.voteId ?? v.teacherUserId} vote={v} />
+                      ))}
+                    </div>
+                  )}
+                </section>
               </div>
             </div>
           ) : null}
@@ -638,7 +640,6 @@ function TeacherMaqamListPage() {
                         <TableHead className="w-12 text-start text-muted-foreground">{ku.colNo}</TableHead>
                         <TableHead className="text-start text-muted-foreground">{ku.colSong}</TableHead>
                         <TableHead className="hidden text-start text-muted-foreground sm:table-cell">{ku.colProducer}</TableHead>
-                        <TableHead className="hidden text-start text-muted-foreground md:table-cell">{ku.colCode}</TableHead>
                         <TableHead className="hidden text-start text-muted-foreground sm:table-cell">{ku.colDuration}</TableHead>
                         <TableHead className="text-start text-muted-foreground">{ku.colStatus}</TableHead>
                         <TableHead className="hidden text-start text-muted-foreground md:table-cell">{ku.colPanel}</TableHead>
@@ -685,9 +686,6 @@ function TeacherMaqamListPage() {
                             </TableCell>
                             <TableCell className="hidden max-w-[10rem] truncate text-muted-foreground sm:table-cell">
                               {r.producer}
-                            </TableCell>
-                            <TableCell className="hidden font-mono text-[11px] text-muted-foreground/80 md:table-cell">
-                              {r.maqamCode}
                             </TableCell>
                             <TableCell className="hidden tabular-nums text-muted-foreground sm:table-cell">
                               {r.audioDurationSeconds ? formatClock(r.audioDurationSeconds) : '—'}
@@ -756,7 +754,6 @@ function StatusPill({ voted }) {
 
 function OtherVoteRow({ vote }) {
   const voted = hasVoted(vote)
-  const listened = vote.totalListenSeconds ?? 0
   const label = teacherLabel(vote)
   return (
     <div className="rounded-2xl border border-border bg-background px-4 py-3 transition-colors hover:border-primary/30">
@@ -785,31 +782,9 @@ function OtherVoteRow({ vote }) {
           {vote.teacherNote}
         </p>
       ) : null}
-      {listened > 0 || vote.votedAt ? (
-        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground/80">
-          {listened > 0 ? (
-            <span className="inline-flex items-center gap-1">
-              <Clock3 className="size-3" />
-              {formatKuDuration(listened)}
-            </span>
-          ) : null}
-          {vote.votedAt ? <span>{formatKuDate(vote.votedAt)}</span> : null}
-        </p>
+      {vote.votedAt ? (
+        <p className="mt-2 text-[11px] text-muted-foreground/80">{formatKuDate(vote.votedAt)}</p>
       ) : null}
-    </div>
-  )
-}
-
-function EngagementStat({ icon: Icon, label, value }) {
-  return (
-    <div className="flex items-center gap-2.5 rounded-xl bg-background px-3 py-2.5">
-      <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-        <Icon className="size-4" />
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-foreground">{value}</p>
-        <p className="text-[10px] text-muted-foreground">{label}</p>
-      </div>
     </div>
   )
 }

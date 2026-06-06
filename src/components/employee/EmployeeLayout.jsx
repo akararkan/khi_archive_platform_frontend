@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Archive, ChevronRight, FolderOpen, HardDrive, LogOut, MessageSquarePlus, Music4, Tags, Users } from 'lucide-react'
+import { Archive, ChevronRight, FolderOpen, HardDrive, Library, LogOut, MessageSquarePlus, Music4, Tags, Users } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { GuestActivationBanner } from '@/components/ui/guest-activation-banner'
@@ -30,6 +30,7 @@ const navigationItems = [
   { label: 'Category', to: '/employee/category', icon: Tags },
   { label: 'Person',   to: '/employee/person',   icon: Users },
   { label: 'Project',  to: '/employee/project',  icon: FolderOpen },
+  { label: 'List of Items', to: '/employee/items', icon: Library },
   { label: 'Maqam',    to: '/employee/maqam',    icon: Music4 },
   { label: 'Physical Media', to: '/employee/physical-media', icon: HardDrive },
 ]

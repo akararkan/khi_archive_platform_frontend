@@ -1,0 +1,74 @@
+/* ============================================================
+   KHI auth experience — a cinematic "Living Archive" sign-in / sign-up.
+   Pairs with .khi-surface (the pine·gold·paper token re-skin in
+   khi-theme.css) so every Button / Input / Card adopts the heritage
+   palette automatically. This file only adds the bespoke brand-panel
+   scene (mountains · sun · stars), the warm page backdrop and a few
+   entrance flourishes. Scope: .khi-auth
+   The forms themselves stay English + LTR so every role can use them.
+   ============================================================ */
+
+/* Warm paper page backdrop with soft light wells (deep pine in dark). */
+.khi-auth{
+  min-height:100dvh;
+  background-color:var(--background);
+  background-image:
+    radial-gradient(1000px 640px at 10% -8%, color-mix(in srgb,#ffffff,#f6eecf 72%) 0, transparent 60%),
+    radial-gradient(820px 560px at 102% 112%, color-mix(in srgb,#ffffff,#efe3c8 70%) 0, transparent 55%);
+  background-attachment:fixed;
+}
+.dark .khi-auth{
+  background-image:
+    radial-gradient(1000px 640px at 10% -8%, rgba(44,84,72,.30) 0, transparent 60%),
+    radial-gradient(820px 560px at 102% 112%, rgba(20,38,32,.55) 0, transparent 55%);
+}
+
+/* ── Cinematic brand panel (always the dark-pine night scene, like the
+   public hero — independent of light/dark so it stays striking). ── */
+.khi-auth .auth-scene{
+  position:relative;
+  overflow:hidden;
+  color:#f3ead4;
+  background:
+    radial-gradient(130% 95% at 84% -12%, #2f5a4c 0, transparent 52%),
+    linear-gradient(157deg,#20402f 0%,#173026 50%,#0e211a 100%);
+}
+/* faint film grain / vignette so the flat gradient reads richer */
+.khi-auth .auth-scene::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 120% at 50% 30%,transparent 55%,rgba(7,18,14,.55) 100%);
+}
+
+.khi-auth .auth-sun{
+  filter:drop-shadow(0 0 42px rgba(214,178,94,.45));
+  animation:khi-auth-pulse 7s ease-in-out infinite;
+  transform-origin:center;
+}
+@keyframes khi-auth-pulse{0%,100%{opacity:.9}50%{opacity:1}}
+
+.khi-auth .auth-star{
+  position:absolute;width:2px;height:2px;border-radius:50%;
+  background:#f3ead4;opacity:.5;animation:khi-auth-tw 3.6s ease-in-out infinite;
+}
+@keyframes khi-auth-tw{0%,100%{opacity:.16}50%{opacity:.82}}
+
+/* thin gold hairline divider */
+.khi-auth .auth-rule{height:1px;background:linear-gradient(90deg,transparent,rgba(214,178,94,.55),transparent)}
+
+/* gold value chips on the brand panel */
+.khi-auth .auth-chip{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:7px 13px;border-radius:999px;font-size:13px;font-weight:600;
+  color:#f3ead4;background:rgba(243,234,212,.07);
+  border:1px solid rgba(214,178,94,.3);backdrop-filter:blur(3px);
+}
+.khi-auth .auth-chip svg{width:15px;height:15px;color:#e7d3a0}
+
+/* entrance flourish (honors reduced-motion) */
+.khi-auth .rise{opacity:0;transform:translateY(14px);animation:khi-auth-rise .7s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes khi-auth-rise{to{opacity:1;transform:none}}
+
+@media(prefers-reduced-motion:reduce){
+  .khi-auth .rise{animation:none;opacity:1;transform:none}
+  .khi-auth .auth-sun,.khi-auth .auth-star{animation:none}
+}

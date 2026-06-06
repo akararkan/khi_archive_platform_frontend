@@ -29,6 +29,14 @@ export async function getPhysicalMedia(code, { signal } = {}) {
   return data
 }
 
+// Preview the per-type auto-assigned inventory Number for the create form.
+// Best-effort (no lock/audit) — the real create re-mints under a lock.
+// Returns { physicalMediaType, nextInventoryNumber }.
+export async function getPhysicalMediaNextNumber(type, { signal } = {}) {
+  const { data } = await apiClient.get('/physical-media/next-number', { params: { type }, signal })
+  return data
+}
+
 // `payload` matches PhysicalMediaCreateRequestDTO (camelCase field names).
 export async function createPhysicalMedia(payload) {
   const { data } = await apiClient.post('/physical-media', payload)
