@@ -126,21 +126,41 @@ export function KhiBrowsePage() {
   const dateFrom = searchParams.get('dateFrom') || ''
   const dateTo = searchParams.get('dateTo') || ''
 
-  const sortBy = searchParams.get('sortBy') || type.sorts[0].key
-  const sortDir = searchParams.get('sortDirection') || type.sorts[0].dir
-  const sortIndex = Math.max(0, type.sorts.findIndex((s) => s.key === sortBy && s.dir === sortDir))
-
-  const selected = useMemo(() => decodeSelectedFacets(searchParams, type.facetMap), [searchParams, type.facetMap])
   const selectedTags = useMemo(() => readListParam(searchParams, 'tag'), [searchParams])
   const selectedMediaTypes = useMemo(
     () => readListParam(searchParams, 'types').filter((k) => MEDIA_KINDS.includes(k)),
     [searchParams],
   )
+
+  // When the catalogue is narrowed to exactly ONE media type, transparently
+  // "focus" that type: switch to its richer per-type endpoint (the unified
+  // /guest/results feed cannot apply type-specific fields like composer/author)
+  // and surface that type's facets, sorts, and uncommon "search within" fields.
+  // Zero or multiple media types stay on the shared unified feed.
+  const focusedKind = typeKey === 'all' && selectedMediaTypes.length === 1 ? selectedMediaTypes[0] : null
+  const effectiveType = focusedKind ? TYPE_MAP[focusedKind] : type
+
+  // Resolve sort against the EFFECTIVE type so the value sent to the API is
+  // always valid for whichever endpoint is active; if the URL carries a sort
+  // that belongs to the other endpoint's set, fall back to this type's default.
+  const sortIndex = Math.max(
+    0,
+    effectiveType.sorts.findIndex(
+      (s) => s.key === searchParams.get('sortBy') && s.dir === searchParams.get('sortDirection'),
+    ),
+  )
+  const sortBy = effectiveType.sorts[sortIndex].key
+  const sortDir = effectiveType.sorts[sortIndex].dir
+
+  const selected = useMemo(
+    () => decodeSelectedFacets(searchParams, effectiveType.facetMap),
+    [searchParams, effectiveType.facetMap],
+  )
   const textFilterValues = useMemo(() => {
     const out = {}
-    for (const f of type.textFilters || []) out[f.paramKey] = searchParams.get(f.paramKey) || ''
+    for (const f of effectiveType.textFilters || []) out[f.paramKey] = searchParams.get(f.paramKey) || ''
     return out
-  }, [searchParams, type.textFilters])
+  }, [searchParams, effectiveType.textFilters])
 
   const [facets, setFacets] = useState(null)
   const [dateBounds, setDateBounds] = useState({ minYear: null, maxYear: null })
@@ -219,22 +239,24 @@ export function KhiBrowsePage() {
     setError('')
     const params = { page, size: PAGE_SIZE, sortBy, sortDirection: sortDir, signal: ctrl.signal }
     if (q) params.q = q
-    if (type.showDateRange && dateFrom) params.dateFrom = dateFrom
-    if (type.showDateRange && dateTo) params.dateTo = dateTo
-    for (const group of type.facetMap) {
+    if (effectiveType.showDateRange && dateFrom) params.dateFrom = dateFrom
+    if (effectiveType.showDateRange && dateTo) params.dateTo = dateTo
+    for (const group of effectiveType.facetMap) {
       const list = selected[group.paramKey]
       if (Array.isArray(list) && list.length > 0) params[group.paramKey] = list[0]
     }
-    for (const f of type.textFilters || []) {
+    for (const f of effectiveType.textFilters || []) {
       const v = (textFilterValues[f.paramKey] || '').trim()
       if (v) params[f.paramKey] = v
     }
     if (selectedTags.length > 0 && ['all', 'audio', 'video', 'image', 'text', 'project'].includes(typeKey)) {
       params.tag = selectedTags
     }
-    if (type.showMediaTypes && selectedMediaTypes.length > 0) params.types = selectedMediaTypes
+    // Only the unified feed needs the media-type narrowing param; a focused
+    // single-type endpoint already returns just that kind.
+    if (!focusedKind && type.showMediaTypes && selectedMediaTypes.length > 0) params.types = selectedMediaTypes
 
-    type.api(params)
+    effectiveType.api(params)
       .then((res) => { if (!ctrl.signal.aborted) setData(res || null) })
       .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError(UI.loadError) })
       .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
@@ -296,7 +318,7 @@ export function KhiBrowsePage() {
     const id = setTimeout(() => {
       const patch = {}
       let changed = false
-      for (const f of type.textFilters || []) {
+      for (const f of effectiveType.textFilters || []) {
         const draft = (textDrafts[f.paramKey] || '').trim()
         const live = (textFilterValues[f.paramKey] || '').trim()
         if (draft !== live) { patch[f.paramKey] = draft || null; changed = true }
@@ -305,12 +327,12 @@ export function KhiBrowsePage() {
     }, 400)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [textDrafts, type.textFilters])
+  }, [textDrafts, effectiveType.textFilters])
 
   // ── Active-filter chips ──────────────────────────────────────────────────────
   const chips = []
   if (q) chips.push({ key: 'q', label: `«${q}»`, onRemove: () => update({ q: null }) })
-  for (const group of type.facetMap) {
+  for (const group of effectiveType.facetMap) {
     for (const val of selected[group.paramKey] || []) {
       chips.push({ key: `${group.paramKey}:${val}`, label: `${group.title}: ${val}`, onRemove: () => onToggleFacet(group.paramKey, val) })
     }
@@ -333,7 +355,7 @@ export function KhiBrowsePage() {
           onType={(k) => { switchType(k); closeSidebarOnMobile() }}
           onClose={() => setSidebarOpen(false)}
           counts={counts}
-          type={type}
+          type={effectiveType}
           facets={facets}
           selected={selected}
           onToggleFacet={onToggleFacet}
@@ -347,7 +369,7 @@ export function KhiBrowsePage() {
           dateTo={dateTo}
           dateBounds={dateBounds}
           onDateChange={({ dateFrom: f, dateTo: t }) => update({ dateFrom: f || null, dateTo: t || null })}
-          textFilters={type.textFilters || []}
+          textFilters={effectiveType.textFilters || []}
           textFilterValues={textDrafts}
           onTextFilter={onTextFilter}
         />
@@ -359,9 +381,9 @@ export function KhiBrowsePage() {
             view={view}
             onView={(v) => update({ layout: v === 'list' ? 'list' : null }, false)}
             showView={!!q}
-            sorts={type.sorts}
+            sorts={effectiveType.sorts}
             sortIndex={sortIndex}
-            onSortChange={(i) => { const s = type.sorts[i]; update({ sortBy: s.key, sortDirection: s.dir }) }}
+            onSortChange={(i) => { const s = effectiveType.sorts[i]; update({ sortBy: s.key, sortDirection: s.dir }) }}
             sidebarOpen={sidebarOpen}
             onToggleSidebar={() => setSidebarOpen((o) => !o)}
             activeCount={chips.length}

@@ -27,7 +27,7 @@ import { getStoredToken, logout } from '@/services/auth'
 // search box, filter rail and result grid.
 //
 // `isNavItemActive` does the work that NavLink's `isActive` won't: when an
-// entry's `to` carries a query string (e.g. `/public/browse?type=audio`),
+// entry's `to` carries a query string (e.g. `/public/browse?types=audio`),
 // we consider it active only when both the path AND the `type` parameter
 // match the current URL — otherwise switching from Audios to Videos in the
 // sidebar would leave both nav links lit up.
@@ -58,10 +58,10 @@ function isNavItemActive(item, location) {
 // switches between datasets without reloading. There's no Home item; the
 // brand mark on the left of the header is the home link.
 const NAV_ITEMS = [
-  { label: 'Audios', to: '/public/browse?type=audio', icon: AudioLines },
-  { label: 'Videos', to: '/public/browse?type=video', icon: VideoIcon },
-  { label: 'Texts', to: '/public/browse?type=text', icon: FileText },
-  { label: 'Images', to: '/public/browse?type=image', icon: ImageIcon },
+  { label: 'Audios', to: '/public/browse?types=audio', icon: AudioLines },
+  { label: 'Videos', to: '/public/browse?types=video', icon: VideoIcon },
+  { label: 'Texts', to: '/public/browse?types=text', icon: FileText },
+  { label: 'Images', to: '/public/browse?types=image', icon: ImageIcon },
   { label: 'Projects', to: '/public/browse?type=project', icon: FolderOpen },
   { label: 'Persons', to: '/public/browse?type=person', icon: Users },
   { label: 'Categories', to: '/public/browse?type=category', icon: Tags },

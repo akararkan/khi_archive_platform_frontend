@@ -297,7 +297,7 @@ function PublicTextDetailPage() {
               keys={['tags']}
             >
               <MetaRow label="Tags" value={text.tags}>
-                <PillRow values={text.tags} tone="primary" linkPrefix="/public/browse?type=all&tag=" />
+                <PillRow values={text.tags} tone="primary" linkPrefix="/public/browse?tag=" />
               </MetaRow>
             </MetaPanelIf>
           </aside>

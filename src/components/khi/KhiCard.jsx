@@ -84,7 +84,7 @@ export default function KhiCard({ record, index = 0, query = '', view = 'grid', 
                 onClick={(event) => {
                   event.preventDefault()
                   event.stopPropagation()
-                  navigate(`/public/browse?type=all&tag=${encodeURIComponent(tag)}`)
+                  navigate(`/public/browse?tag=${encodeURIComponent(tag)}`)
                 }}
               >
                 {tag}

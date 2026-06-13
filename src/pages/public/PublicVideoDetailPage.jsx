@@ -280,7 +280,7 @@ function PublicVideoDetailPage() {
               keys={['tags']}
             >
               <MetaRow label="Tags" value={video.tags}>
-                <PillRow values={video.tags} tone="primary" linkPrefix="/public/browse?type=all&tag=" />
+                <PillRow values={video.tags} tone="primary" linkPrefix="/public/browse?tag=" />
               </MetaRow>
             </MetaPanelIf>
           </aside>

@@ -224,6 +224,8 @@ export default function KhiSidebar({
 }) {
   const groupedTypes = []
   for (const t of types) {
+    // Media types are checkboxes inside the catalogue, not nav tabs.
+    if (t.navHidden) continue
     const group = t.group || 'discover'
     let bucket = groupedTypes.find((g) => g.key === group)
     if (!bucket) {

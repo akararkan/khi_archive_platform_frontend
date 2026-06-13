@@ -244,7 +244,7 @@ function SearchCommand({ className, autoFocus = false }) {
       return
     }
     if (meta.mode === 'tag') {
-      navigate(`/public/browse?type=all&tag=${encodeURIComponent(s.value || '')}`)
+      navigate(`/public/browse?tag=${encodeURIComponent(s.value || '')}`)
       return
     }
     submitWith(s.value)

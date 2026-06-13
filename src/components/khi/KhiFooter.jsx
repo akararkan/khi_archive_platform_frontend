@@ -19,10 +19,10 @@ export default function KhiFooter() {
 
         <div className="foot-col">
           <h5>گەڕان</h5>
-          <Link to="/public/browse?type=audio">تۆمارە دەنگییەکان</Link>
-          <Link to="/public/browse?type=video">ڤیدیۆ و فیلم</Link>
-          <Link to="/public/browse?type=text">دەستنووسەکان</Link>
-          <Link to="/public/browse?type=image">وێنەکان</Link>
+          <Link to="/public/browse?types=audio">تۆمارە دەنگییەکان</Link>
+          <Link to="/public/browse?types=video">ڤیدیۆ و فیلم</Link>
+          <Link to="/public/browse?types=text">دەستنووسەکان</Link>
+          <Link to="/public/browse?types=image">وێنەکان</Link>
           <Link to="/public/browse?type=person">پێرستی کەسەکان</Link>
         </div>
 

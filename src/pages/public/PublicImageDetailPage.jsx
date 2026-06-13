@@ -297,7 +297,7 @@ function PublicImageDetailPage() {
               keys={['tags']}
             >
               <MetaRow label="Tags" value={image.tags}>
-                <PillRow values={image.tags} tone="primary" linkPrefix="/public/browse?type=all&tag=" />
+                <PillRow values={image.tags} tone="primary" linkPrefix="/public/browse?tag=" />
               </MetaRow>
             </MetaPanelIf>
           </aside>
