@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Sun } from 'lucide-react'
 
-// A single warm control that replaces the appearance tweaker on the guest +
-// teacher surfaces. It drives the shared `--khi-tone` custom property
-// (0 = whitest, 100 = full paper); the .khi-root / .khi-teacher backgrounds
-// color-mix between white and their paper tone from it. Persists per browser.
+// A compact tone control for teacher surfaces. It drives the shared
+// `--khi-tone` custom property and persists per browser.
 const KEY = 'khi-tone'
 
 function readTone() {
@@ -36,9 +34,9 @@ export function KhiToneSlider() {
         step="1"
         value={tone}
         onChange={(e) => setTone(Number(e.target.value))}
-        aria-label="ڕووناکی پاشبنەما — لە سپیترین بۆ ڕەنگی کاغەز"
+        aria-label="ڕووناکی پاشبنەما"
       />
-      <span className="lbl">تۆنی کاغەز</span>
+      <span className="lbl">ڕووناکی</span>
     </div>
   )
 }

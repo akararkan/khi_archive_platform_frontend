@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 
 import { readFacet, personImageSrc, personInitials } from '@/components/public/public-helpers'
-import { IconFilter, IconChevron, IconCalendar, TYPE_ICON, FACET_ICON } from './icons'
+import { IconFilter, IconChevron, IconCalendar, IconClose, TYPE_ICON, FACET_ICON } from './icons'
 import { UI, TYPE_LABELS } from './khi-data'
 
 const INITIAL_VISIBLE = 6
@@ -93,7 +93,7 @@ function PersonDot({ entry }) {
 // Full public filter rail: type navigation + (for the unified feed) media-type
 // narrowing + per-type facets + creation-date range + per-kind "search within".
 export default function KhiSidebar({
-  types, activeType, onType, counts = {},
+  types, activeType, onType, counts = {}, onClose,
   type, facets, selected, onToggleFacet,
   showMediaTypes, mediaKinds = [], mediaTypeCounts = {}, selectedMediaTypes = [], onToggleMediaType,
   showDateRange, dateFrom, dateTo, onDateChange,
@@ -103,10 +103,15 @@ export default function KhiSidebar({
     <aside className="sidebar">
       <div className="side-head">
         <span className="ic"><IconFilter /></span>
-        <span>
+        <span className="side-head-txt">
           <span className="eb">{UI.collection}</span>
           <b>{UI.filter}</b>
         </span>
+        {onClose ? (
+          <button type="button" className="side-close" onClick={onClose} aria-label={UI.clearAll}>
+            <IconClose />
+          </button>
+        ) : null}
       </div>
 
       <div className="nav-list">

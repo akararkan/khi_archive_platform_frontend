@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 
 import { Highlight } from '@/components/ui/highlight'
 import KhiMediaPreview from './KhiMediaPreview'
-import { IconCollection, TYPE_ICON } from './icons'
+import { TYPE_ICON } from './icons'
 import { TYPE_LABELS } from './khi-data'
 
 function Avatar({ person }) {
@@ -16,17 +16,37 @@ function Avatar({ person }) {
   )
 }
 
-// One catalogue card for any kind (audio/video/text/image/person/project/category).
-// `index` staggers the rise-in animation. `query` highlights search matches.
-export default function KhiCard({ record, index = 0, query = '' }) {
-  const { kind, collection, title, person, region, lang, decade, tags, count, to } = record
+// One catalogue card. The grid mixes two archetypes:
+//   • "plate" (IMAGE-BASED) — a record with a real photograph (image / project /
+//     person) renders full-bleed, the caption laid over a warm scrim. Immersive.
+//   • "frame" (CONTAINER-BASED) — audio / video / text / category, and any
+//     photo-less record, keep the clean cover-on-top + body-below card.
+// `index` staggers the rise-in; `query` highlights; `view` switches grid/list;
+// `lead` marks the landing's first plate as a wide cinematic feature.
+export default function KhiCard({ record, index = 0, query = '', view = 'grid', lead = false }) {
+  const { kind, collection, title, person, region, decade, to, image } = record
   const TypeIcon = TYPE_ICON[kind]
   const isPerson = kind === 'person'
+
+  // A real photograph only exists for these kinds; everything else uses the
+  // kit's generated art and therefore stays a container "frame" card.
+  const hasCover = Boolean(image) && (kind === 'image' || kind === 'project' || kind === 'person')
+  const plate = view === 'grid' && hasCover
+  const featured = plate && lead
+
+  const creator = person?.name || null
+  const secondary = creator || region || collection || null
+  const year = decade || null
+
+  const cls = ['card', 'rise']
+  if (plate) cls.push('plate')
+  else if (isPerson) cls.push('person-card')
+  if (featured) cls.push('featured')
 
   return (
     <Link
       to={to}
-      className={`card rise${isPerson ? ' person-card' : ''}`}
+      className={cls.join(' ')}
       style={{ animationDelay: `${(0.05 + (index % 12) * 0.04).toFixed(2)}s` }}
     >
       <div className="media">
@@ -34,40 +54,23 @@ export default function KhiCard({ record, index = 0, query = '' }) {
         {TypeIcon ? (
           <span className="type-badge"><TypeIcon /> {TYPE_LABELS[kind] || kind}</span>
         ) : null}
-        <KhiMediaPreview record={record} />
+        <KhiMediaPreview record={record} plate={plate} />
       </div>
 
       <div className="body">
-        {collection ? (
-          <div className="coll"><IconCollection /><span>{collection}</span></div>
-        ) : null}
-
         <h3><Highlight text={title || ''} query={query} /></h3>
 
-        {person?.name ? (
-          <div className="person">
-            <Avatar person={person} />
-            <span>
-              <span className="pn"><Highlight text={person.name} query={query} /></span>
-              {region ? <span className="pr">{region}</span> : null}
+        {secondary ? (
+          <div className="meta">
+            {creator ? <Avatar person={person} /> : null}
+            <span className={`mn${creator ? '' : ' muted'}`}>
+              {creator ? <Highlight text={secondary} query={query} /> : secondary}
             </span>
+            {year ? <span className="yr">{year}</span> : null}
           </div>
-        ) : region && !isPerson ? (
-          <div className="person">
-            <span className="pn" style={{ color: 'var(--muted)', fontWeight: 600 }}>{region}</span>
-          </div>
+        ) : year ? (
+          <div className="meta"><span className="yr only">{year}</span></div>
         ) : null}
-
-        {isPerson && region ? (
-          <div className="person"><span className="pr" style={{ marginInlineStart: 0 }}>{region}</span></div>
-        ) : null}
-
-        <div className="tags">
-          {lang ? <span className="tag lang">{lang}</span> : null}
-          {(tags || []).map((t, idx) => <span key={`${t}-${idx}`} className="tag">{t}</span>)}
-          {decade ? <span className="tag dec">{decade}</span> : null}
-          {count ? <span className="tag dec">{count}</span> : null}
-        </div>
       </div>
     </Link>
   )

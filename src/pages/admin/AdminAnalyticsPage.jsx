@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/get-error-message'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import {
   getAnalyticsActionCatalog,
   getAnalyticsFeed,
@@ -82,8 +83,8 @@ function AdminAnalyticsPage() {
   // user has typed an invalid range — in which case loaders skip.
   const [dateMode, setDateMode] = useState('preset')
   const [days, setDays] = useState(30)
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
+  const [fromDate, setFromDate] = usePersistentState('admin.analytics.fromDate', '')
+  const [toDate, setToDate] = usePersistentState('admin.analytics.toDate', '')
   const dateFilter = useMemo(
     () => resolveDateFilter({ mode: dateMode, days, from: fromDate, to: toDate }),
     [dateMode, days, fromDate, toDate],
@@ -104,7 +105,7 @@ function AdminAnalyticsPage() {
   const [monthly, setMonthly] = useState(null)
   const [isMonthlyLoading, setIsMonthlyLoading] = useState(false)
 
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = usePersistentState('admin.analytics.tab', 'overview')
 
   // Each tab caches its own data so flipping between tabs is instant.
   // Filter changes invalidate everything below.

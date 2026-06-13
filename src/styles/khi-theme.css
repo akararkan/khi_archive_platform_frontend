@@ -120,3 +120,33 @@
     radial-gradient(1100px 700px at 18% -8%,rgba(44,84,72,.30) 0,transparent 60%),
     radial-gradient(900px 600px at 105% 30%,rgba(20,38,32,.6) 0,transparent 55%);
 }
+
+.khi-help-dialog,
+.dark .khi-help-dialog{
+  --background:#ffffff;
+  --foreground:#211d15;
+  --card:#ffffff;
+  --card-foreground:#211d15;
+  --popover:#ffffff;
+  --popover-foreground:#211d15;
+  --primary:#1f3a31;
+  --primary-foreground:#f6eeda;
+  --secondary:#f4f7f3;
+  --secondary-foreground:#1f3a31;
+  --muted:#f7f9f6;
+  --muted-foreground:#687367;
+  --accent:#e7d3a0;
+  --accent-foreground:#142620;
+  --destructive:#b4512c;
+  --border:#d8e2d7;
+  --input:#cbd8ca;
+  --ring:#2c5448;
+  --sidebar:#ffffff;
+  --sidebar-foreground:#211d15;
+  --sidebar-primary:#1f3a31;
+  --sidebar-primary-foreground:#f6eeda;
+  --sidebar-accent:#f4f7f3;
+  --sidebar-accent-foreground:#1f3a31;
+  --sidebar-border:#d8e2d7;
+  --sidebar-ring:#2c5448;
+}

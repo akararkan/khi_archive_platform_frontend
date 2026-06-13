@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, CircleAlert, Info, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { LocalizedErrorContent } from '@/components/ui/error-display'
 import { formatApiError } from '@/lib/get-error-message'
 import { ToastContext } from '@/lib/toast-context'
 import { cn } from '@/lib/utils'
@@ -14,16 +15,31 @@ function getToastIcon(variant) {
   return Info
 }
 
-function getToastClasses(variant) {
-  if (variant === 'success') {
-    return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200'
-  }
+// Card background everywhere; the variant adds a coloured border + a left
+// accent bar + a coloured icon/title. Body copy stays neutral so the toast
+// reads cleanly instead of becoming a wall of colour.
+function getToastBorder(variant) {
+  if (variant === 'success') return 'border-emerald-500/30'
+  if (variant === 'error') return 'border-destructive/30'
+  return 'border-border'
+}
 
-  if (variant === 'error') {
-    return 'border-destructive/30 bg-destructive/10 text-destructive'
-  }
+function getToastAccent(variant) {
+  if (variant === 'success') return 'bg-emerald-500'
+  if (variant === 'error') return 'bg-destructive'
+  return 'bg-primary'
+}
 
-  return 'border-border bg-card text-foreground'
+function getToastIconClass(variant) {
+  if (variant === 'success') return 'text-emerald-600 dark:text-emerald-400'
+  if (variant === 'error') return 'text-destructive'
+  return 'text-muted-foreground'
+}
+
+function getToastTitleClass(variant) {
+  if (variant === 'success') return 'text-emerald-700 dark:text-emerald-300'
+  if (variant === 'error') return 'text-destructive'
+  return 'text-foreground'
 }
 
 // `description` may be a plain string OR an options object. Normalize either
@@ -75,6 +91,7 @@ function ToastProvider({ children }) {
       details = null,
       code = null,
       status = null,
+      i18n = null,
       variant = 'info',
       duration = DEFAULT_TOAST_DURATION,
     } = options
@@ -93,6 +110,7 @@ function ToastProvider({ children }) {
         details,
         code,
         status,
+        i18n,
         variant,
       },
     ])
@@ -144,8 +162,9 @@ function ToastProvider({ children }) {
       // per-field validation errors from an `ApiErrorResponse`-shaped body.
       apiError: (error, fallbackTitle = 'Something went wrong') => {
         const formatted = formatApiError(error, fallbackTitle)
-        const duration =
-          formatted.details && formatted.details.length > 1 ? 9000 : 5500
+        // Errors with a hint / multiple field rows need more reading time.
+        const rows = (formatted.details ? formatted.details.length : 0) + (formatted.hint ? 1 : 0)
+        const duration = rows > 1 ? 9000 : 6000
         return push({
           title: formatted.title,
           description: formatted.description || '',
@@ -154,6 +173,9 @@ function ToastProvider({ children }) {
             : null,
           code: formatted.code,
           status: formatted.status,
+          // Bilingual bundle: drives the English + Kurdish rendering, the
+          // recovery hint, and the support traceId in the toast body.
+          i18n: formatted.i18n,
           variant: 'error',
           duration,
         })
@@ -175,47 +197,56 @@ function ToastProvider({ children }) {
             <div
               key={toast.id}
               className={cn(
-                'pointer-events-auto rounded-xl border p-3 shadow-lg shadow-black/10 backdrop-blur supports-[backdrop-filter]:bg-card/95',
-                getToastClasses(toast.variant),
+                'pointer-events-auto relative overflow-hidden rounded-xl border bg-card py-3 pl-4 pr-3 shadow-lg shadow-black/10 backdrop-blur supports-[backdrop-filter]:bg-card/95',
+                getToastBorder(toast.variant),
               )}
               role="status"
             >
+              <span
+                aria-hidden="true"
+                className={cn('absolute inset-y-0 left-0 w-1', getToastAccent(toast.variant))}
+              />
               <div className="flex items-start gap-3">
-                <Icon className="mt-0.5 size-4 shrink-0" />
+                <Icon className={cn('mt-0.5 size-4 shrink-0', getToastIconClass(toast.variant))} />
 
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="text-sm font-semibold leading-5">{toast.title}</p>
-                    {toast.status ? (
-                      <span className="inline-flex items-center rounded-full border border-current/30 bg-background/60 px-1.5 py-0 font-mono text-[10px] font-semibold uppercase tracking-wider opacity-80">
-                        {toast.status}
-                      </span>
+                {toast.i18n ? (
+                  // API errors: bilingual title/message/hint/traceId/details.
+                  <LocalizedErrorContent error={{ i18n: toast.i18n }} />
+                ) : (
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className={cn('text-sm font-semibold leading-5', getToastTitleClass(toast.variant))}>{toast.title}</p>
+                      {toast.status ? (
+                        <span className="inline-flex items-center rounded-full border border-current/30 bg-background/60 px-1.5 py-0 font-mono text-[10px] font-semibold uppercase tracking-wider opacity-80">
+                          {toast.status}
+                        </span>
+                      ) : null}
+                    </div>
+                    {toast.description ? (
+                      <p className="break-words text-xs leading-5 text-muted-foreground">
+                        {toast.description}
+                      </p>
+                    ) : null}
+                    {Array.isArray(toast.details) && toast.details.length > 0 ? (
+                      <ul className="space-y-0.5 pl-1 pt-0.5 text-[11px] leading-5">
+                        {toast.details.map((detail, index) => (
+                          <li
+                            key={`${detail.field || 'detail'}-${index}`}
+                            className="flex gap-1.5 break-words"
+                          >
+                            <span aria-hidden="true" className="select-none opacity-60">•</span>
+                            <span>
+                              {detail.label ? (
+                                <span className="font-semibold">{detail.label}: </span>
+                              ) : null}
+                              <span className="opacity-90">{detail.message}</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     ) : null}
                   </div>
-                  {toast.description ? (
-                    <p className="break-words text-xs leading-5 text-muted-foreground">
-                      {toast.description}
-                    </p>
-                  ) : null}
-                  {Array.isArray(toast.details) && toast.details.length > 0 ? (
-                    <ul className="space-y-0.5 pl-1 pt-0.5 text-[11px] leading-5">
-                      {toast.details.map((detail, index) => (
-                        <li
-                          key={`${detail.field || 'detail'}-${index}`}
-                          className="flex gap-1.5 break-words"
-                        >
-                          <span aria-hidden="true" className="select-none opacity-60">•</span>
-                          <span>
-                            {detail.label ? (
-                              <span className="font-semibold">{detail.label}: </span>
-                            ) : null}
-                            <span className="opacity-90">{detail.message}</span>
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
+                )}
 
                 <Button
                   type="button"

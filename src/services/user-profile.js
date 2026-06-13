@@ -34,8 +34,14 @@ async function removeMyProfileImage() {
   return normalizeUserProfile(data)
 }
 
+async function deleteMyAccount() {
+  const { data } = await apiClient.delete('/user/account')
+  return data
+}
+
 export {
   changeMyPassword,
+  deleteMyAccount,
   getMyProfile,
   removeMyProfileImage,
   updateMyProfile,

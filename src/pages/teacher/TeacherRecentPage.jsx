@@ -10,6 +10,7 @@ import { DataPagination } from '@/components/ui/pagination'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { ku } from '@/lib/maqam-i18n'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { formatDateTime } from '@/components/maqam/maqam-helpers'
 import { getMyRecentMaqam } from '@/services/maqam'
 
@@ -23,10 +24,11 @@ function TeacherRecentPage() {
 
   const [rows, setRows] = useState(null)
   const [meta, setMeta] = useState(null)
+  // Not persisted: the debounced-search effect resets this to 0 on mount.
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = usePersistentState('teacher.recent.search', '')
   const [debounced, setDebounced] = useState('')
 
   // Debounce the search box (~250ms) and reset to the first page on new terms.

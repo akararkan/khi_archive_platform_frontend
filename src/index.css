@@ -1,3 +1,11 @@
+/* Heritage fonts for the guest account "Living Archive" skin (see
+   .khi-guest-skin below). Imported here too — not only via khi-theme.css —
+   so a freshly-registered GUEST who lands straight on /account still gets
+   Amiri without first visiting a public page.
+   NOTE: this remote @import must stay at the very top. PostCSS inlines the
+   local @imports below (e.g. @fontsource-variable/geist becomes @font-face
+   rules), and a remote @import is illegal once any rule precedes it. */
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Vazirmatn:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -49,6 +57,10 @@
 }
 
 :root {
+  /* Native controls (date pickers, any remaining <select> popups, scrollbars)
+     render with correct contrast even before the appearance script runs — the
+     script also sets this on <html> to track the live theme. */
+  color-scheme: light;
   --background: oklch(1 0 0);
   --foreground: oklch(0.19 0 0);
   --card: oklch(1 0 0);
@@ -84,6 +96,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.14 0 0);
   --foreground: oklch(0.96 0 0);
   --card: oklch(0.18 0 0);
@@ -115,6 +128,49 @@
   --sidebar-accent-foreground: oklch(0.96 0 0);
   --sidebar-border: oklch(1 0 0 / 14%);
   --sidebar-ring: oklch(0.82 0 0);
+}
+
+/* ── Guest account "Living Archive" skin ──────────────────────────────────
+   A freshly-registered GUEST has no role workspace, so the account page is
+   their only home — it shouldn't wear the stark internal-dashboard palette.
+   This remaps the shadcn design tokens to the warm "paper / pine / gold"
+   heritage look of the public surface the guest came from. Because every
+   Card/Button/Field reads these same tokens, the whole page re-skins with no
+   markup changes. Declared on the page wrapper class so it overrides both
+   :root and .dark regardless of the user's chosen theme (the heritage look is
+   always warm + light). */
+.khi-guest-skin {
+  --background: #f4ecdc;
+  --foreground: #221e17;
+  --card: #fbf6ea;
+  --card-foreground: #221e17;
+  --popover: #fbf6ea;
+  --popover-foreground: #221e17;
+  --primary: #1f3a31;
+  --primary-foreground: #f3ead4;
+  --secondary: #ece0c9;
+  --secondary-foreground: #221e17;
+  --muted: #efe4ca;
+  --muted-foreground: #897c64;
+  --accent: #e7d3a0;
+  --accent-foreground: #221e17;
+  --destructive: #b4512c;
+  --border: #e0d4ba;
+  --input: #d4c5a4;
+  --ring: #2c5448;
+  color: var(--foreground);
+  background-color: var(--background);
+  /* Soft warm radial wash + faint paper grain, mirroring the public shell. */
+  background-image:
+    radial-gradient(1100px 700px at 18% -8%, #f8f1df 0, transparent 60%),
+    radial-gradient(900px 600px at 105% 30%, #efe4ca 0, transparent 55%);
+  background-attachment: fixed;
+}
+
+/* A single elegant serif flourish on the titles (brand + profile name),
+   matching the "Living Archive" headings. */
+.khi-guest-skin .font-heading {
+  font-family: 'Amiri', 'Vazirmatn', serif;
 }
 
 @layer base {

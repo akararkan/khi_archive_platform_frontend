@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { MaqamFormDialog } from '@/components/maqam/MaqamFormDialog'
@@ -60,11 +61,11 @@ function VoteBadge({ teacherVotes }) {
 function EmployeeMaqamPage() {
   const [records, setRecords] = useState(null)
   const [meta, setMeta] = useState(null)
-  const [page, setPage] = useState(0)
+  const [page, setPage] = usePersistentState('employee.maqam.page', 0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = usePersistentState('employee.maqam.search', '')
   const [searchResults, setSearchResults] = useState(null)
   const [searching, setSearching] = useState(false)
 
@@ -112,7 +113,7 @@ function EmployeeMaqamPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [setPage])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

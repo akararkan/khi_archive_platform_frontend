@@ -24,6 +24,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/get-error-message'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { getAnalyticsFeed, getUserAnalytics } from '@/services/analytics'
 import {
   ENTITY_META,
@@ -61,10 +62,10 @@ function AdminUserActivityPage() {
   const { username } = useParams()
 
   // Date range state, mirroring AdminAnalyticsPage.
-  const [dateMode, setDateMode] = useState('preset')
-  const [days, setDays] = useState(30)
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
+  const [dateMode, setDateMode] = usePersistentState('admin.userActivity.dateMode', 'preset')
+  const [days, setDays] = usePersistentState('admin.userActivity.days', 30)
+  const [fromDate, setFromDate] = usePersistentState('admin.userActivity.fromDate', '')
+  const [toDate, setToDate] = usePersistentState('admin.userActivity.toDate', '')
   const dateFilter = useMemo(
     () => resolveDateFilter({ mode: dateMode, days, from: fromDate, to: toDate }),
     [dateMode, days, fromDate, toDate],

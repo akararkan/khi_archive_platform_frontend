@@ -37,15 +37,18 @@ import {
 } from '@/components/ui/list-filters'
 import { ItemDetailDialog } from '@/components/items/ItemDetailDialog'
 import { ItemEditForm } from '@/components/items/ItemEditForm'
-import { TypeBadge, VisibilityBadges } from '@/components/items/item-badges'
+import { TypeBadge } from '@/components/items/item-badges'
+import { VisibilityToggle } from '@/components/ui/visibility-toggle'
 import { getTypeMeta } from '@/components/items/item-helpers'
-import { getErrorMessage } from '@/lib/get-error-message'
+import { usePersistentState } from '@/hooks/use-persistent-state'
+import { useToast } from '@/hooks/use-toast'
+import { getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/components/maqam/maqam-helpers'
 import { getCategories, searchCategories } from '@/services/category'
 import { getPersons, searchPersons } from '@/services/person'
 import { getProjects } from '@/services/project'
-import { ITEM_TYPES, getItemsPage } from '@/services/items'
+import { ITEM_TYPES, getItemsPage, setItemVisibility } from '@/services/items'
 
 const PAGE_SIZE = 50
 const UNTITLED = 'UNTITLED'
@@ -153,14 +156,15 @@ function CodeMultiSelect({ items, selected, onChange, getKey, getLabel, getSubti
 
 function EmployeeItemsPage() {
   const location = useLocation()
+  const toast = useToast()
   // Same component is mounted under /employee/items and /admin/items; derive the
   // section so collection links stay inside the area the user is working in.
   const sectionBase = location.pathname.startsWith('/admin') ? '/admin' : '/employee'
 
-  const [filter, setFilter] = useState(INITIAL_FILTER)
-  const [sortKey, setSortKey] = useState('newest')
-  const [page, setPage] = useState(0)
-  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filter, setFilter] = usePersistentState('employee.items.filter', INITIAL_FILTER)
+  const [sortKey, setSortKey] = usePersistentState('employee.items.sort', 'newest')
+  const [page, setPage] = usePersistentState('employee.items.page', 0)
+  const [filtersOpen, setFiltersOpen] = usePersistentState('employee.items.filtersOpen', false)
 
   const [rows, setRows] = useState(null)
   const [meta, setMeta] = useState(null)
@@ -170,6 +174,7 @@ function EmployeeItemsPage() {
 
   const [detailItem, setDetailItem] = useState(null)
   const [editItem, setEditItem] = useState(null) // when set, the full-page edit view is shown
+  const [savingVis, setSavingVis] = useState({}) // `${type}-${code}` -> true while a toggle saves
 
   // Seed lists for the filter pickers.
   const [projects, setProjects] = useState([])
@@ -184,17 +189,17 @@ function EmployeeItemsPage() {
   const updateFilter = useCallback((patch) => {
     setFilter((f) => ({ ...f, ...patch }))
     setPage(0)
-  }, [])
+  }, [setFilter, setPage])
 
   const handleSortChange = useCallback((key) => {
     setSortKey(key)
     setPage(0)
-  }, [])
+  }, [setSortKey, setPage])
 
   const clearAll = useCallback(() => {
     setFilter(INITIAL_FILTER)
     setPage(0)
-  }, [])
+  }, [setFilter, setPage])
 
   // ── Load the filter seed lists once ─────────────────────────────────────────
   useEffect(() => {
@@ -337,6 +342,42 @@ function EmployeeItemsPage() {
     setEditItem(null)
     setNonce((n) => n + 1)
   }, [])
+
+  // Flip a single item's own `isPublic` right from the row — optimistic, with
+  // a rollback + toast on failure. A stale-version conflict forces a refetch so
+  // the row picks up whoever won.
+  const handleToggleItemVisibility = useCallback(
+    async (item, next) => {
+      const key = `${item.type}-${item.code}`
+      setSavingVis((s) => ({ ...s, [key]: true }))
+      setRows((rs) =>
+        (rs || []).map((r) => (r.type === item.type && r.code === item.code ? { ...r, isPublic: next } : r)),
+      )
+      try {
+        await setItemVisibility(item, next)
+        toast.success(
+          next ? 'Item is now public' : 'Item hidden',
+          next
+            ? `${item.code} — guests can see it (when its collection is visible too).`
+            : `${item.code} — no longer shown to guests.`,
+        )
+      } catch (err) {
+        // Roll the row back to its previous state.
+        setRows((rs) =>
+          (rs || []).map((r) => (r.type === item.type && r.code === item.code ? { ...r, isPublic: !next } : r)),
+        )
+        toast.apiError(err, 'Could not change visibility')
+        if (isStaleVersionError(err)) setNonce((n) => n + 1)
+      } finally {
+        setSavingVis((s) => {
+          const copy = { ...s }
+          delete copy[key]
+          return copy
+        })
+      }
+    },
+    [toast],
+  )
 
   // ── Full-page edit view ─────────────────────────────────────────────────────
   if (editItem) {
@@ -643,7 +684,23 @@ function EmployeeItemsPage() {
                     )}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    <VisibilityBadges item={item} />
+                    <div className="flex flex-col items-start gap-1">
+                      <VisibilityToggle
+                        checked={item.isPublic !== false}
+                        pending={Boolean(savingVis[`${item.type}-${item.code}`])}
+                        onToggle={(next) => handleToggleItemVisibility(item, next)}
+                        title={
+                          item.isPublic !== false
+                            ? 'Visible to public — click to hide'
+                            : 'Hidden from public — click to show'
+                        }
+                      />
+                      {item.projectVisibleToPublic === false ? (
+                        <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                          Collection hidden
+                        </span>
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell className="hidden whitespace-nowrap text-xs text-muted-foreground lg:table-cell">
                     {formatDateTime(item.updatedAt)}

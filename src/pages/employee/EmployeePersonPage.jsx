@@ -54,6 +54,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useToast } from '@/hooks/use-toast'
 import { FormErrorBox } from '@/components/ui/form-error'
 import { formatApiError, getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
@@ -425,7 +426,7 @@ function EmployeePersonPage() {
   const [mediaPortrait, setMediaPortrait] = useState(null)
   const [previewImage, setPreviewImage] = useState(null)
 
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchTerm, setSearchTerm] = usePersistentState('employee.person.search', '')
   // Backend search results — populated by /api/person/search (across name,
   // nickname, romanized name, description, tags, keywords, region, places,
   // code, and person type) after a short debounce. `null` means "no active
@@ -439,6 +440,8 @@ function EmployeePersonPage() {
 
   // Server-side pagination for the browse view. Search uses /person/search
   // and returns top-ranked matches, so it bypasses pagination.
+  // Not persisted: a mount-running effect resets this to 0 whenever sort/filters
+  // change, so persisting it would just be overwritten on return.
   const [page, setPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
@@ -446,8 +449,8 @@ function EmployeePersonPage() {
   // Sort + filter state. These flow through to GET /api/person as
   // query params; backend applies them in-memory against its Redis
   // cache. Search bypasses both — /person/search has its own ranking.
-  const [sortKey, setSortKey] = useState(DEFAULT_SORT_KEY)
-  const [filters, setFilters] = useState(createInitialFilters)
+  const [sortKey, setSortKey] = usePersistentState('employee.person.sort', DEFAULT_SORT_KEY)
+  const [filters, setFilters] = usePersistentState('employee.person.filters', createInitialFilters)
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false)
   const filtersActive = !isPersonFilterEmpty(filters)
   const sortActive = sortKey !== DEFAULT_SORT_KEY

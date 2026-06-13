@@ -50,6 +50,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useToast } from '@/hooks/use-toast'
 import { useCurrentProfile } from '@/hooks/use-current-profile'
 import { cn } from '@/lib/utils'
@@ -110,7 +111,7 @@ function AdminUsersPage() {
   const [permissions, setPermissions] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-  const [filter, setFilter] = useState('')
+  const [filter, setFilter] = usePersistentState('admin.users.filter', '')
 
   // Per-row "what's in flight" map keyed by userId — drives the spinner
   // on the action that's currently saving so individual rows can update

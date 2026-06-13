@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Loader2, Lock, LogIn, User } from 'lucide-react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Info, Loader2, Lock, LogIn, User } from 'lucide-react'
 
 import { AuthShell } from '@/components/auth/AuthShell'
 import { IconField, PasswordField } from '@/components/auth/auth-fields'
@@ -9,8 +9,31 @@ import { FormErrorBox } from '@/components/ui/form-error'
 import { formatApiError } from '@/lib/get-error-message'
 import { login } from '@/services/auth'
 
+// Bilingual notices shown when the session interceptor bounced the user here.
+const SESSION_NOTICES = {
+  expired: {
+    en: 'Your session expired. Please sign in again.',
+    ku: 'ماوەی چوونەژوورەوەکەت بەسەرچوو. تکایە دووبارە بچۆرە ژوورەوە.',
+  },
+  invalid: {
+    en: 'Your session ended. Please sign in again.',
+    ku: 'دانیشتنەکەت کۆتایی هات. تکایە دووبارە بچۆرە ژوورەوە.',
+  },
+}
+
+// Only follow a `next` target that is a safe in-app path (avoids open redirects
+// and login loops).
+function safeNext(next) {
+  if (typeof next !== 'string' || !next.startsWith('/') || next.startsWith('//')) return null
+  if (next.startsWith('/login')) return null
+  return next
+}
+
 function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const sessionNotice = SESSION_NOTICES[searchParams.get('reason')] || null
+  const nextPath = safeNext(searchParams.get('next'))
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -37,7 +60,7 @@ function LoginPage() {
         username: formData.username,
         password: formData.password,
       })
-      navigate('/dashboard', { replace: true })
+      navigate(nextPath || '/dashboard', { replace: true })
     } catch (error) {
       setErrorMessage(formatApiError(error, 'Unable to login. Please verify your credentials.'))
     } finally {
@@ -59,6 +82,21 @@ function LoginPage() {
       }
     >
       <form className="space-y-4" onSubmit={handleSubmit}>
+        {sessionNotice ? (
+          <div
+            role="status"
+            className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-amber-700 dark:text-amber-300"
+          >
+            <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p className="text-sm leading-5">{sessionNotice.en}</p>
+              <p dir="rtl" lang="ckb" className="text-sm leading-5 opacity-90">
+                {sessionNotice.ku}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         <IconField
           id="username"
           name="username"
@@ -88,14 +126,9 @@ function LoginPage() {
             onChange={handleInputChange}
             required
           />
-          <div className="flex justify-end">
-            <Link
-              className="text-xs font-medium text-primary underline-offset-4 hover:underline"
-              to="/forgot-password"
-            >
-              Forgot password?
-            </Link>
-          </div>
+          <p className="text-right text-xs text-muted-foreground">
+            Forgot your password? Ask an administrator to reset it.
+          </p>
         </div>
 
         <FormErrorBox error={errorMessage} />

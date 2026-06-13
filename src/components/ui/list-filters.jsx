@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { TagsInput } from '@/components/ui/tags-input'
 import { cn } from '@/lib/utils'
 
@@ -36,15 +37,14 @@ import { cn } from '@/lib/utils'
 // Sort dropdown
 // ─────────────────────────────────────────────────────────────────
 
-// Native <select> styled as an outline button. Native is intentional:
-// keyboard search, screen-reader semantics, and mobile picker
-// integration come for free.
+// Sort control, rendered with the shared styled <Select> so its menu matches
+// the design system and is never clipped (it portals to <body>).
 //
 // `options` shape: [{ key, label, sortBy, sortDirection, icon? }]
-//   - key:           identifier (used as <option value>)
+//   - key:           identifier (the selected value)
 //   - label:         user-visible string
 //   - sortBy/Dir:    the page reads these via options.find(o => o.key === value)
-//   - icon:          optional lucide component for the left edge;
+//   - icon:          optional lucide component for the trigger's left edge;
 //                    falls back to an asc/desc arrow inferred from
 //                    sortDirection.
 export function SortSelect({
@@ -63,41 +63,27 @@ export function SortSelect({
     active?.icon ??
     (active?.sortDirection === 'desc' ? descIcon : ascIcon) ??
     null
+  const selectOptions = options.map((opt) => ({
+    value: opt.key,
+    label: opt.label,
+    icon: opt.icon,
+  }))
   return (
-    <label
-      className={cn(
-        'relative inline-flex items-center gap-2',
-        disabled && 'opacity-60',
-        className,
-      )}
+    <span
+      className={cn('inline-flex', className)}
       title={disabled ? 'Clear search to change sort' : title}
     >
-      {Icon ? (
-        <span className="pointer-events-none absolute left-2.5 z-10 text-muted-foreground">
-          <Icon className="size-3.5" />
-        </span>
-      ) : null}
-      <select
+      <Select
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={onChange}
+        options={selectOptions}
         disabled={disabled}
-        className={cn(
-          'h-8 w-full appearance-none rounded-lg border border-input bg-background text-[0.8rem] font-medium text-foreground shadow-sm transition-colors',
-          'hover:bg-muted/40 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40',
-          'disabled:cursor-not-allowed',
-          Icon ? 'pl-8' : 'pl-2.5',
-          'pr-7',
-          width,
-        )}
-      >
-        {options.map((opt) => (
-          <option key={opt.key} value={opt.key}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 size-3.5 text-muted-foreground" />
-    </label>
+        size="sm"
+        ariaLabel={title}
+        leadingIcon={Icon || undefined}
+        className={cn('font-medium', width)}
+      />
+    </span>
   )
 }
 

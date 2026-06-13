@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input'
 import { DataPagination } from '@/components/ui/pagination'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useToast } from '@/hooks/use-toast'
 import { useIsAdmin } from '@/hooks/use-current-profile'
 import { cn } from '@/lib/utils'
@@ -107,17 +108,17 @@ function EmployeePhysicalMediaPage() {
   const isAdmin = useIsAdmin()
 
   const [view, setView] = useState('list') // 'list' | 'create' | 'edit'
-  const [tab, setTab] = useState('active') // 'active' | 'trash' (admin only)
+  const [tab, setTab] = usePersistentState('employee.physicalMedia.tab', 'active') // 'active' | 'trash' (admin only)
 
   // Active list
   const [records, setRecords] = useState(null)
   const [meta, setMeta] = useState(null)
-  const [page, setPage] = useState(0)
+  const [page, setPage] = usePersistentState('employee.physicalMedia.page', 0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   // Search
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = usePersistentState('employee.physicalMedia.search', '')
   const [searchResults, setSearchResults] = useState(null)
   const [searching, setSearching] = useState(false)
 
@@ -253,7 +254,7 @@ function EmployeePhysicalMediaPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [setPage])
 
   const loadTrash = useCallback(async (nextPage = 0) => {
     setTrashLoading(true)

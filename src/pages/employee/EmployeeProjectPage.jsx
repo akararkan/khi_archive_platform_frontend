@@ -46,6 +46,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { TagsInput } from '@/components/ui/tags-input'
+import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
+import { KeywordSuggestInput } from '@/components/ui/keyword-suggest-input'
+import { VisibilityToggle } from '@/components/ui/visibility-toggle'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useToast } from '@/hooks/use-toast'
 import { FormErrorBox } from '@/components/ui/form-error'
 import { cn } from '@/lib/utils'
@@ -57,6 +61,7 @@ import {
   deleteProject,
   getProjects,
   getProjectsPage,
+  setProjectVisibility,
   updateProject,
 } from '@/services/project'
 
@@ -129,19 +134,21 @@ function EmployeeProjectPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchTerm, setSearchTerm] = usePersistentState('employee.project.search', '')
   const [detailsTarget, setDetailsTarget] = useState(null)
 
   // Server-side pagination. When the user is searching we fall back to
   // fetching the whole list and filtering client-side (Project doesn't have
   // a /search endpoint), so the pagination bar hides itself in that mode
   // because totalPages stays at 0.
-  const [page, setPage] = useState(0)
+  const [page, setPage] = usePersistentState('employee.project.page', 0)
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
 
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  const [visSaving, setVisSaving] = useState({}) // projectCode -> true while a toggle saves
 
   const loadProjects = useCallback(
     async (options = {}) => {
@@ -197,7 +204,7 @@ function EmployeeProjectPage() {
   const handleSearchChange = useCallback((value) => {
     setSearchTerm(value)
     setPage(0)
-  }, [])
+  }, [setSearchTerm, setPage])
 
   // V3 trash model: backend's GET /project returns active records only;
   // trashed records live at /project/trash and are managed from the admin
@@ -347,6 +354,42 @@ function EmployeeProjectPage() {
       setIsSaving(false)
     }
   }
+
+  // Flip a collection's public visibility right from the row — optimistic, with
+  // a rollback + toast on failure. cascade='NONE' touches only the collection
+  // flag (guests already need both flags true, so its media stays hidden from
+  // guests anyway). A stale-version conflict reloads so the row catches up.
+  const handleToggleVisibility = useCallback(
+    async (project, next) => {
+      const code = project.projectCode
+      setVisSaving((s) => ({ ...s, [code]: true }))
+      setProjects((ps) => ps.map((p) => (p.projectCode === code ? { ...p, isVisibleToPublic: next } : p)))
+      try {
+        await setProjectVisibility(project, next)
+        toast.success(
+          next ? 'Collection is now public' : 'Collection hidden',
+          next
+            ? `${code} — guests can find and view it.`
+            : `${code} — hidden from guests (its media is hidden from them too).`,
+        )
+      } catch (err) {
+        setProjects((ps) => ps.map((p) => (p.projectCode === code ? { ...p, isVisibleToPublic: !next } : p)))
+        if (isStaleVersionError(err)) {
+          toast.apiError(err, 'Reload required')
+          await loadProjects()
+          return
+        }
+        toast.apiError(err, 'Unable to update visibility')
+      } finally {
+        setVisSaving((s) => {
+          const copy = { ...s }
+          delete copy[code]
+          return copy
+        })
+      }
+    },
+    [toast, loadProjects],
+  )
 
   // Soft-trash. Backend cascades: trashing a project also bulk-trashes its
   // audio/video/image/text records. The linked person and category are not
@@ -617,11 +660,10 @@ function EmployeeProjectPage() {
                       <Label htmlFor="tags">Tags</Label>
                       <FieldHelpButton metadata={getProjectFieldMetadata('tags')} />
                     </div>
-                    <TagsInput
+                    <TagSuggestInput
                       id="tags"
                       value={form.tags}
                       onChange={(next) => setForm({ ...form, tags: next })}
-                      placeholder="folk, 1962…"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -629,11 +671,10 @@ function EmployeeProjectPage() {
                       <Label htmlFor="keywords">Keywords</Label>
                       <FieldHelpButton metadata={getProjectFieldMetadata('keywords')} />
                     </div>
-                    <TagsInput
+                    <KeywordSuggestInput
                       id="keywords"
                       value={form.keywords}
                       onChange={(next) => setForm({ ...form, keywords: next })}
-                      placeholder="oral history, maqam…"
                     />
                   </div>
                 </div>
@@ -735,13 +776,14 @@ function EmployeeProjectPage() {
                 <TableHead className="w-[200px]">Person</TableHead>
                 <TableHead className="w-[260px]">Categories</TableHead>
                 <TableHead>Description</TableHead>
+                <TableHead className="w-[130px]">Visibility</TableHead>
                 <TableHead className="w-[200px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredProjects.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                     No matching projects for this search.
                   </TableCell>
                 </TableRow>
@@ -825,6 +867,18 @@ function EmployeeProjectPage() {
                             '—'
                           )}
                         </p>
+                      </TableCell>
+                      <TableCell>
+                        <VisibilityToggle
+                          checked={project.isVisibleToPublic !== false}
+                          pending={Boolean(visSaving[project.projectCode])}
+                          onToggle={(next) => handleToggleVisibility(project, next)}
+                          title={
+                            project.isVisibleToPublic !== false
+                              ? 'Visible to public — click to hide'
+                              : 'Hidden from public — click to show'
+                          }
+                        />
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">

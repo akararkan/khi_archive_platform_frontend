@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label'
 import { DataPagination } from '@/components/ui/pagination'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useToast } from '@/hooks/use-toast'
 import { useCurrentProfile } from '@/hooks/use-current-profile'
 import { MaqamPlayer } from '@/components/maqam/MaqamPlayer'
@@ -60,10 +61,10 @@ function TeacherMaqamListPage() {
   // ── Paginated list state ─────────────────────────────────────────────────
   const [records, setRecords] = useState(null)
   const [meta, setMeta] = useState(null)
-  const [page, setPage] = useState(0)
+  const [page, setPage] = usePersistentState('teacher.maqam.page', 0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = usePersistentState('teacher.maqam.query', '')
 
   // ── Active record (the one shown in the detail panel) ────────────────────
   const [activeCode, setActiveCode] = useState(null)
@@ -100,7 +101,7 @@ function TeacherMaqamListPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [setPage])
 
   // Open the console focused on a specific record (used when arriving from the
   // "My recent" page via `/teacher?code=…`). Walks pages in the same order the
@@ -143,7 +144,7 @@ function TeacherMaqamListPage() {
     } finally {
       setLoading(false)
     }
-  }, [load])
+  }, [load, setPage])
 
   useEffect(() => {
     const code = searchParams.get('code')

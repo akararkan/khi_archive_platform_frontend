@@ -30,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { formatApiError, getErrorMessage } from '@/lib/get-error-message'
@@ -165,7 +166,7 @@ function formatInstant(instant) {
 function AdminTrashPage() {
   const toast = useToast()
 
-  const [activeTab, setActiveTab] = useState('category')
+  const [activeTab, setActiveTab] = usePersistentState('admin.trash.tab', 'category')
 
   // Per-tab page state. We track each tab independently so switching
   // tabs preserves where the admin was (page, last-known total) without

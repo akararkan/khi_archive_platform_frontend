@@ -23,6 +23,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { DataPagination } from '@/components/ui/pagination'
+import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -32,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { listAdminUsers } from '@/services/admin-user'
@@ -228,18 +230,19 @@ function ActionDialog({ open, onOpenChange, mode, correction, onConfirm, isProce
               <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                 Notify employee (optional — defaults to record creator)
               </label>
-              <select
+              <Select
                 value={targetEmployeeId}
-                onChange={(e) => setTargetEmployeeId(e.target.value)}
-                className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary focus:ring-3 focus:ring-primary/20"
-              >
-                <option value="">— Default: employee who created the record —</option>
-                {employees.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name || u.username} (@{u.username})
-                  </option>
-                ))}
-              </select>
+                onChange={setTargetEmployeeId}
+                ariaLabel="Notify employee"
+                className="w-full"
+                options={[
+                  { value: '', label: '— Default: employee who created the record —' },
+                  ...employees.map((u) => ({
+                    value: String(u.id),
+                    label: `${u.name || u.username} (@${u.username})`,
+                  })),
+                ]}
+              />
             </div>
           ) : null}
 
@@ -376,10 +379,10 @@ function DetailDialog({ open, onOpenChange, correction }) {
 function AdminCorrectionsPage() {
   const toast = useToast()
 
-  const [search,     setSearch]    = useState('')
-  const [status,     setStatus]    = useState('')
-  const [mediaType,  setMediaType] = useState('')
-  const [page,       setPage]      = useState(0)
+  const [search, setSearch] = usePersistentState('admin.corrections.search', '')
+  const [status, setStatus] = usePersistentState('admin.corrections.status', '')
+  const [mediaType, setMediaType] = usePersistentState('admin.corrections.mediaType', '')
+  const [page, setPage] = usePersistentState('admin.corrections.page', 0)
 
   const [corrections, setCorrections] = useState(null)
   const [meta,        setMeta]        = useState(null)
@@ -434,7 +437,7 @@ function AdminCorrectionsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [buildFilter])
+  }, [buildFilter, setPage])
 
   // Initial load: corrections + employee list for forward dialog
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { CheckCircle2, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -42,15 +42,15 @@ function PasswordField({ id, label, icon, hint, className, ...props }) {
         <Input
           id={fieldId}
           type={show ? 'text' : 'password'}
-          className={cn('h-11 pr-10', Icon && 'pl-9', className)}
+          className={cn('h-11 pr-11', Icon && 'pl-9', className)}
           {...props}
         />
         <button
           type="button"
           onClick={() => setShow((s) => !s)}
           aria-label={show ? 'Hide password' : 'Show password'}
-          tabIndex={-1}
-          className="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-pressed={show}
+          className="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
         </button>
@@ -72,11 +72,13 @@ function scorePassword(pw) {
   return Math.min(s, 4)
 }
 
+// A conventional red → amber → green traffic-light scale (theme-independent on
+// purpose: users read green = strong regardless of the brand palette).
 const STRENGTH = [
   { label: 'Too short', tone: 'bg-destructive' },
   { label: 'Weak', tone: 'bg-destructive' },
   { label: 'Fair', tone: 'bg-amber-500' },
-  { label: 'Good', tone: 'bg-primary/70' },
+  { label: 'Good', tone: 'bg-lime-500' },
   { label: 'Strong', tone: 'bg-green-600 dark:bg-green-500' },
 ]
 
@@ -88,7 +90,7 @@ function PasswordStrength({ value }) {
   const meta = STRENGTH[score]
   return (
     <div className="space-y-1.5 pt-0.5">
-      <div className="flex gap-1.5">
+      <div className="flex gap-1.5" aria-hidden="true">
         {[0, 1, 2, 3].map((i) => (
           <span
             key={i}
@@ -106,21 +108,4 @@ function PasswordStrength({ value }) {
   )
 }
 
-// A friendly success banner (used by the forgot/reset flows).
-function SuccessBox({ children, className }) {
-  if (!children) return null
-  return (
-    <div
-      role="status"
-      className={cn(
-        'flex items-start gap-2 rounded-xl border border-green-600/30 bg-green-600/10 px-3 py-2.5 text-sm text-foreground dark:border-green-500/30 dark:bg-green-500/10',
-        className,
-      )}
-    >
-      <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-green-600 dark:text-green-500" />
-      <span className="leading-6">{children}</span>
-    </div>
-  )
-}
-
-export { IconField, PasswordField, PasswordStrength, SuccessBox }
+export { IconField, PasswordField, PasswordStrength }

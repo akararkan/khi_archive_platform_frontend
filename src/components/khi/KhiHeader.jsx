@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { getStoredToken, logout } from '@/services/auth'
-import { IconBook, IconSearch, IconWorkspace, IconSignout, IconSignin, IconPerson } from './icons'
-import { KhiToneSlider } from './KhiToneSlider'
+import { useCurrentProfile } from '@/hooks/use-current-profile'
+import { getAccountArea, getAccountHomePath } from '@/lib/account-role'
+import { IconBook, IconSearch, IconSignout, IconSignin, IconPerson, IconDashboard } from './icons'
 import { UI } from './khi-data'
 
 // Sticky public header: brand → home, a global search that lands on the unified
@@ -14,14 +15,19 @@ export default function KhiHeader() {
   const [searchParams] = useSearchParams()
   const [q, setQ] = useState(searchParams.get('q') || '')
   const isAuthed = Boolean(getStoredToken())
+  const profile = useCurrentProfile()
+  const accountArea = isAuthed ? getAccountArea(profile?.role) : 'guest'
+  const dashboardPath = isAuthed && profile ? getAccountHomePath(profile) : null
+  const showDashboard = dashboardPath && ['admin', 'employee', 'teacher'].includes(accountArea)
 
-  // Keep the box in sync when the URL query changes (e.g. via hero / chips).
+  // Keep the box in sync when the URL query changes via chips or navigation.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setQ(searchParams.get('q') || '')
   }, [searchParams])
 
-  const submit = () => {
+  const submit = (event) => {
+    event?.preventDefault()
     const term = q.trim()
     navigate(`/public/browse?type=all${term ? `&q=${encodeURIComponent(term)}` : ''}`)
   }
@@ -42,21 +48,22 @@ export default function KhiHeader() {
           </span>
         </Link>
 
-        <div className="search">
-          <span className="ico"><IconSearch /></span>
+        <form className="search" onSubmit={submit}>
+          <button type="submit" className="ico" aria-label={UI.go}><IconSearch /></button>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
             placeholder={UI.searchPlaceholder}
           />
-        </div>
+        </form>
 
         <div className="nav-actions">
-          <KhiToneSlider />
           {isAuthed ? (
             <>
-              <Link className="btn btn-ghost" to="/dashboard"><IconWorkspace /><span>{UI.workspace}</span></Link>
+              {showDashboard && (
+                <Link className="btn btn-ghost" to={dashboardPath}><IconDashboard /><span>{UI.dashboard}</span></Link>
+              )}
+              <Link className="btn btn-ghost" to="/account"><IconPerson /><span>{UI.profile}</span></Link>
               <button className="btn btn-line" type="button" onClick={onSignout}><IconSignout /><span>{UI.signout}</span></button>
             </>
           ) : (

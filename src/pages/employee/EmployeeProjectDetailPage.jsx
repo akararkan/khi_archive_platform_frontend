@@ -55,6 +55,7 @@ import {
   FilterTriggerButton,
   SortSelect,
 } from '@/components/ui/list-filters'
+import { Select } from '@/components/ui/select'
 import {
   AUDIO_SORT_OPTIONS,
   DEFAULT_AUDIO_SORT_KEY,
@@ -112,6 +113,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { TagsInput } from '@/components/ui/tags-input'
+import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
+import { KeywordSuggestInput } from '@/components/ui/keyword-suggest-input'
 import { useToast } from '@/hooks/use-toast'
 import { FormErrorBox } from '@/components/ui/form-error'
 import { formatApiError, getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
@@ -537,12 +540,6 @@ function populateAudioFormFromAudio(audio) {
     isPublic: audio.isPublic !== false,
   }
 }
-
-const SELECT_CLASS = cn(
-  'flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors',
-  'focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30',
-  'disabled:cursor-not-allowed disabled:opacity-60',
-)
 
 const TEXTAREA_CLASS =
   'min-h-[96px] w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
@@ -1983,19 +1980,14 @@ function EmployeeProjectDetailPage() {
                       </Label>
                       <FieldHelpButton metadata={getImageFieldMetadata('imageVersion')} />
                     </div>
-                    <select
+                    <Select
                       id="imageVersion"
                       value={imageForm.imageVersion}
-                      onChange={(e) => setImageForm({ ...imageForm, imageVersion: e.target.value })}
-                      className={SELECT_CLASS}
+                      onChange={(v) => setImageForm({ ...imageForm, imageVersion: v })}
                       required
-                    >
-                      {IMAGE_VERSIONS.map((v) => (
-                        <option key={v} value={v}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
+                      className="w-full"
+                      options={IMAGE_VERSIONS.map((v) => ({ value: v, label: v }))}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
@@ -2281,19 +2273,14 @@ function EmployeeProjectDetailPage() {
                       </Label>
                       <FieldHelpButton metadata={getTextFieldMetadata('textVersion')} />
                     </div>
-                    <select
+                    <Select
                       id="textVersion"
                       value={textForm.textVersion}
-                      onChange={(e) => setTextForm({ ...textForm, textVersion: e.target.value })}
-                      className={SELECT_CLASS}
+                      onChange={(v) => setTextForm({ ...textForm, textVersion: v })}
                       required
-                    >
-                      {TEXT_VERSIONS.map((v) => (
-                        <option key={v} value={v}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
+                      className="w-full"
+                      options={TEXT_VERSIONS.map((v) => ({ value: v, label: v }))}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
@@ -2585,19 +2572,14 @@ function EmployeeProjectDetailPage() {
                       </Label>
                       <FieldHelpButton metadata={getVideoFieldMetadata('videoVersion')} />
                     </div>
-                    <select
+                    <Select
                       id="videoVersion"
                       value={videoForm.videoVersion}
-                      onChange={(e) => setVideoForm({ ...videoForm, videoVersion: e.target.value })}
-                      className={SELECT_CLASS}
+                      onChange={(v) => setVideoForm({ ...videoForm, videoVersion: v })}
                       required
-                    >
-                      {VIDEO_VERSIONS.map((v) => (
-                        <option key={v} value={v}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
+                      className="w-full"
+                      options={VIDEO_VERSIONS.map((v) => ({ value: v, label: v }))}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
@@ -2892,19 +2874,14 @@ function EmployeeProjectDetailPage() {
                       </Label>
                       <FieldHelpButton metadata={getAudioFieldMetadata('audioVersion')} />
                     </div>
-                    <select
+                    <Select
                       id="audioVersion"
                       value={form.audioVersion}
-                      onChange={(e) => setForm({ ...form, audioVersion: e.target.value })}
-                      className={SELECT_CLASS}
+                      onChange={(v) => setForm({ ...form, audioVersion: v })}
                       required
-                    >
-                      {AUDIO_VERSIONS.map((v) => (
-                        <option key={v} value={v}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
+                      className="w-full"
+                      options={AUDIO_VERSIONS.map((v) => ({ value: v, label: v }))}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
@@ -4844,11 +4821,11 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="audioTags" fieldKey="tags">Tags</AudioFieldLabel>
-            <TagsInput id="audioTags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} placeholder="folk, 1962…" />
+            <TagSuggestInput id="audioTags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="audioKeywords" fieldKey="keywords">Keywords</AudioFieldLabel>
-            <TagsInput id="audioKeywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} placeholder="maqam, lament…" />
+            <KeywordSuggestInput id="audioKeywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} />
           </div>
         </CardContent>
       </Card>

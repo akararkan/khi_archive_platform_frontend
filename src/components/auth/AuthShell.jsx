@@ -49,7 +49,7 @@ function BrandMark({ className }) {
 // striking. RTL Sorani identity, paired with the English form on the right.
 function BrandPanel() {
   return (
-    <aside className="auth-scene relative hidden flex-col justify-between p-10 lg:flex xl:p-12" dir="rtl">
+    <aside className="auth-scene relative hidden min-h-dvh flex-col justify-between p-10 lg:flex xl:p-12" dir="rtl">
       {/* stars */}
       <div className="pointer-events-none absolute inset-0">
         {STARS.map((s, i) => (
@@ -123,7 +123,7 @@ function BrandPanel() {
   )
 }
 
-// Shared wrapper for all four auth pages (login, register, forgot, reset).
+// Shared wrapper for the auth pages (login, register).
 // `.khi-surface` re-skins the form's Button/Input/Card to the pine·gold·paper
 // palette (with a dark variant) and `.khi-auth` adds the page backdrop + scene.
 function AuthShell({ title, description, children, footer, className }) {
@@ -144,11 +144,13 @@ function AuthShell({ title, description, children, footer, className }) {
 
           <div
             className={cn(
-              'relative overflow-hidden rounded-3xl border border-border bg-card p-7 shadow-2xl shadow-black/10 sm:p-9',
+              'relative overflow-hidden rounded-3xl border border-border bg-card p-7 shadow-2xl shadow-black/10 sm:p-9 dark:shadow-black/40',
               className,
             )}
           >
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-accent to-primary" />
+            {/* Fixed pine→gold→pine so the brand accent reads the same in light
+                and dark (the dark --accent middle would otherwise look muddy). */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#1f3a31] via-[#d6b25e] to-[#1f3a31]" />
 
             <header className="space-y-2">
               <h1 className="text-[1.7rem] font-semibold leading-tight tracking-tight text-foreground">{title}</h1>

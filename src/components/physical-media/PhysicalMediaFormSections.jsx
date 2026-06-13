@@ -3,15 +3,13 @@ import { FieldHelpButton } from '@/components/ui/field-help'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { getPhysicalMediaFieldMetadata } from '@/lib/physical-media-fields-metadata'
 import { DIGITIZATION_OPTIONS, NEED_TO_CLEAR_OPTIONS } from '@/lib/physical-media-form'
 
 const TEXTAREA_CLASS =
   'min-h-[88px] w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
-
-const SELECT_CLASS =
-  'flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
 
 const ADD_TYPE_SENTINEL = '__add_type__'
 
@@ -85,31 +83,25 @@ function TypeSelectField({ value, types, onSelect, onAddType, canManageTypes }) 
   const known = types.some((t) => t.name === value)
   return (
     <FieldRow id="pm-physicalMediaType" label="Physical media type" fieldKey="physicalMediaType">
-      <select
+      <Select
         id="pm-physicalMediaType"
         value={value || ''}
-        onChange={(e) => {
-          const v = e.target.value
+        onChange={(v) => {
           if (v === ADD_TYPE_SENTINEL) {
             onAddType?.()
             return
           }
           onSelect(v)
         }}
-        className={SELECT_CLASS}
-      >
-        <option value="" disabled>
-          Select a type…
-        </option>
-        {/* keep an unknown stamped value (e.g. an edited legacy row) selectable */}
-        {!known && value ? <option value={value}>{value}</option> : null}
-        {types.map((t) => (
-          <option key={t.id ?? t.name} value={t.name}>
-            {t.name}
-          </option>
-        ))}
-        {canManageTypes ? <option value={ADD_TYPE_SENTINEL}>+ Add new type…</option> : null}
-      </select>
+        placeholder="Select a type…"
+        className="w-full"
+        options={[
+          // keep an unknown stamped value (e.g. an edited legacy row) selectable
+          ...(!known && value ? [{ value, label: value }] : []),
+          ...types.map((t) => ({ value: t.name, label: t.name })),
+          ...(canManageTypes ? [{ value: ADD_TYPE_SENTINEL, label: '+ Add new type…' }] : []),
+        ]}
+      />
       {types.length === 0 ? <p className="text-[11px] text-muted-foreground">Loading types…</p> : null}
     </FieldRow>
   )

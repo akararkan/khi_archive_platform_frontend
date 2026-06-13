@@ -4,7 +4,6 @@ import { useSearchParams } from 'react-router-dom'
 import { HighlightProvider } from '@/components/ui/highlight'
 import { readMediaTypeCount, totalFacetCount, decodeSelectedFacets } from '@/components/public/public-helpers'
 import { guestFacets } from '@/services/guest'
-import KhiHero from '@/components/khi/KhiHero'
 import KhiSidebar from '@/components/khi/KhiSidebar'
 import KhiToolbar from '@/components/khi/KhiToolbar'
 import KhiCard from '@/components/khi/KhiCard'
@@ -65,8 +64,12 @@ function Pager({ page, totalPages, totalElements, pageSize, onPage }) {
 
 export function KhiBrowsePage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const catalogueRef = useRef(null)
   const resultsRef = useRef(null)
+  // Filter rail visibility. Open by default on desktop; closed (drawer) on
+  // phones/tablets so it never blocks the catalogue on first paint.
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => (typeof window !== 'undefined' ? window.matchMedia('(min-width:1025px)').matches : true),
+  )
 
   const typeKey = TYPE_MAP[searchParams.get('type')] ? searchParams.get('type') : DEFAULT_TYPE
   const type = TYPE_MAP[typeKey]
@@ -96,9 +99,6 @@ export function KhiBrowsePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0) // bump to force a refetch (retry button)
-  const [heroQuery, setHeroQuery] = useState(q)
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setHeroQuery(q) }, [q])
 
   // Debounced "search within" drafts so typing doesn't refetch per keystroke.
   const [textDrafts, setTextDrafts] = useState(textFilterValues)
@@ -124,7 +124,13 @@ export function KhiBrowsePage() {
     setSearchParams(sp)
   }
 
-  const scrollToCatalogue = () => catalogueRef.current?.scrollIntoView({ behavior: 'smooth' })
+  // On phones the rail is a drawer — close it after a navigation so the user
+  // lands back on the results. On desktop it stays put.
+  const closeSidebarOnMobile = () => {
+    if (typeof window !== 'undefined' && !window.matchMedia('(min-width:1025px)').matches) {
+      setSidebarOpen(false)
+    }
+  }
 
   // ── Facets (once) ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -238,19 +244,15 @@ export function KhiBrowsePage() {
 
   return (
     <HighlightProvider query={q}>
-      <KhiHero
-        query={heroQuery}
-        onQuery={setHeroQuery}
-        onSubmit={(term) => { update({ type: 'all', q: term ? term.trim() : null }); scrollToCatalogue() }}
-        onJump={(t) => { if (t && t !== 'all') switchType(t); scrollToCatalogue() }}
-      />
-      <div className="motif" />
+      <div className={`layout${sidebarOpen ? '' : ' side-hidden'}`}>
+        {/* Mobile-only dimmer behind the filter drawer. */}
+        <div className="scrim" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
 
-      <div className="layout" ref={catalogueRef}>
         <KhiSidebar
           types={TYPES}
           activeType={typeKey}
-          onType={switchType}
+          onType={(k) => { switchType(k); closeSidebarOnMobile() }}
+          onClose={() => setSidebarOpen(false)}
           counts={counts}
           type={type}
           facets={facets}
@@ -270,15 +272,19 @@ export function KhiBrowsePage() {
           onTextFilter={onTextFilter}
         />
 
-        <main>
+        <main className="catalogue-main">
           <KhiToolbar
             title={type.label}
             subtitle={subtitle}
             view={view}
             onView={(v) => update({ layout: v === 'list' ? 'list' : null }, false)}
+            showView={!!q}
             sorts={type.sorts}
             sortIndex={sortIndex}
             onSortChange={(i) => { const s = type.sorts[i]; update({ sortBy: s.key, sortDirection: s.dir }) }}
+            sidebarOpen={sidebarOpen}
+            onToggleSidebar={() => setSidebarOpen((o) => !o)}
+            activeCount={chips.length}
           />
 
           {chips.length ? (
@@ -294,7 +300,7 @@ export function KhiBrowsePage() {
           ) : null}
 
           {/* Only the card grid scrolls (desktop): the pager below stays pinned
-              at the foot of the column, always visible just before the footer. */}
+              at the foot of the results column, always visible. */}
           <div className="results-scroll" ref={resultsRef}>
             {loading ? (
               <SkeletonGrid />
@@ -305,7 +311,16 @@ export function KhiBrowsePage() {
               </div>
             ) : cards.length ? (
               <div className={`khi-grid${view === 'list' ? ' list' : ''}`}>
-                {cards.map((c, i) => <KhiCard key={`${c.kind}:${c.code}`} record={c} index={i} query={q} />)}
+                {cards.map((c, i) => (
+                  <KhiCard
+                    key={`${c.kind}:${c.code}`}
+                    record={c}
+                    index={i}
+                    query={q}
+                    view={view}
+                    lead={i === 0 && page === 0 && !q && view === 'grid'}
+                  />
+                ))}
               </div>
             ) : (
               <p className="empty">{UI.empty}</p>

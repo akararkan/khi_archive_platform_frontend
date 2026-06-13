@@ -52,6 +52,15 @@
 }
 @keyframes khi-auth-tw{0%,100%{opacity:.16}50%{opacity:.82}}
 
+/* Dark mode: lift the form inputs off the deep-pine card. The global --input
+   gold tint is very faint at its base opacity, so inputs can read as "missing"
+   on the dark card — give them a touch more fill + a clearer border. Scoped to
+   .khi-auth only, so the teacher workspace is untouched. */
+.dark .khi-auth [data-slot="input"]{
+  background-color:rgba(231,211,160,.05);
+  border-color:rgba(231,211,160,.30);
+}
+
 /* thin gold hairline divider */
 .khi-auth .auth-rule{height:1px;background:linear-gradient(90deg,transparent,rgba(214,178,94,.55),transparent)}
 

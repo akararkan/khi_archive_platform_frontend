@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom'
 
+import { ScrollMemory } from '@/components/scroll-memory'
 import { AppearanceTweaker } from '@/components/ui/appearance-tweaker'
 
 function App() {
@@ -11,6 +12,8 @@ function App() {
 
   return (
     <main className="min-h-dvh bg-background text-foreground">
+      {/* Remembers per-route scroll position across navigations. */}
+      <ScrollMemory />
       <Outlet />
       {hideTweaker ? null : <AppearanceTweaker />}
     </main>

@@ -19,6 +19,7 @@ import { Link } from 'react-router-dom'
 
 import '@/styles/khi-theme.css'
 import { useCurrentProfile } from '@/hooks/use-current-profile'
+import { pickMediaTitle } from '@/components/public/public-helpers'
 import { getMyCorrections, submitCorrection } from '@/services/corrections'
 
 // ── Kurdish (Sorani) UI strings ────────────────────────────────────────────────
@@ -44,7 +45,6 @@ const KU = {
   noSubs: 'هێشتا هیچ ناردراوێک نییە',
   loading: 'بارکردن…',
   ready: (n) => `${n} ئامادەی ناردنە`,
-  reviewNote: 'ڕاستکردنەوەکان بۆ پێداچوونەوەی بەڕێوەبەر دەنێردرێن',
   cancel: 'هەڵوەشاندنەوە',
   submit: 'ناردن',
   submitting: 'ناردن…',
@@ -209,6 +209,23 @@ function displayValue(val) {
   return String(val)
 }
 
+function displayFieldValue(mediaData, mediaTitle, key) {
+  if (key === 'title') {
+    return (
+      displayValue(mediaTitle) ||
+      displayValue(pickMediaTitle(mediaData)) ||
+      displayValue(mediaData?.title) ||
+      displayValue(mediaData?.titleEnglish) ||
+      displayValue(mediaData?.titleOriginal) ||
+      displayValue(mediaData?.originalTitle) ||
+      displayValue(mediaData?.originTitle) ||
+      displayValue(mediaData?.titleInCentralKurdish) ||
+      displayValue(mediaData?.centralKurdishTitle)
+    )
+  }
+  return displayValue(mediaData?.[key])
+}
+
 function getSectionColor(groups, key) {
   for (const g of groups) {
     if (g.fields.some((f) => f.key === key)) return g.color
@@ -291,10 +308,9 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
   const canSubmit = filledFields.length > 0
   const selectedDef = allFields.find((f) => f.key === selectedKey)
   const selectedGroup = groups.find((g) => g.fields.some((f) => f.key === selectedKey))
-  const currentVal = displayValue(mediaData?.[selectedKey])
+  const currentVal = displayFieldValue(mediaData, mediaTitle, selectedKey)
   const correctionVal = corrections[selectedKey] ?? ''
   const isLong = LONG_FIELDS.includes(selectedKey)
-  const sectionColor = getSectionColor(groups, selectedKey)
 
   const nq = fieldQuery.trim().toLowerCase()
   const visibleGroups = nq
@@ -327,7 +343,7 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
 
   return (
     <div
-      className="khi-surface fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md"
+      className="khi-surface khi-help-dialog fixed inset-0 z-[95] flex items-center justify-center bg-black/65 p-3 backdrop-blur-md sm:p-4"
       dir="rtl"
       lang="ckb"
       onMouseDown={(e) => { if (e.target === e.currentTarget && !submitting) onOpenChange(false) }}
@@ -335,21 +351,21 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
       aria-modal="true"
     >
       <div
-        className="flex w-full max-w-[900px] flex-col overflow-hidden rounded-2xl bg-card text-card-foreground shadow-2xl ring-1 ring-black/10"
-        style={{ height: 'min(88vh, 700px)' }}
+        className="flex w-full max-w-[980px] flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-2xl ring-1 ring-black/10"
+        style={{ height: 'min(92vh, 760px)' }}
       >
         {/* ═══ HEADER ═══ */}
-        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-gradient-to-b from-primary/[0.06] to-transparent px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-4 py-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="khi-mark grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
+            <div className="khi-mark grid size-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
               <MessageSquarePlus className="size-5" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[15px] font-bold text-foreground">{KU.title}</span>
-                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{mediaType}</span>
+                <span className="rounded-md border border-border bg-secondary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-secondary-foreground">{mediaType}</span>
               </div>
-              {mediaTitle ? <p className="truncate text-[12px] text-muted-foreground" style={{ maxWidth: 480 }}>{mediaTitle}</p> : null}
+              {mediaTitle ? <p className="mt-0.5 truncate text-[12px] font-medium text-muted-foreground" style={{ maxWidth: 560 }}>{mediaTitle}</p> : null}
             </div>
           </div>
           <button
@@ -389,9 +405,9 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1">
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col md:flex-row">
             {/* ─── RAIL (start side / right in RTL) ─── */}
-            <div className="flex w-[248px] shrink-0 flex-col border-e border-border bg-muted/30">
+            <div className="flex max-h-[42vh] w-full shrink-0 flex-col border-b border-border bg-secondary/45 md:max-h-none md:w-[272px] md:border-b-0 md:border-e">
               <div className="shrink-0 border-b border-border p-2.5">
                 <div className="relative">
                   <Search className="pointer-events-none absolute inset-y-0 end-2.5 my-auto size-3.5 text-muted-foreground" />
@@ -416,13 +432,13 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
                     {fields.map((field) => {
                       const isActive = field.key === selectedKey
                       const hasCorr = Boolean(corrections[field.key]?.trim())
-                      const preview = displayValue(mediaData?.[field.key])
+                      const preview = displayFieldValue(mediaData, mediaTitle, field.key)
                       return (
                         <button
                           key={field.key}
                           type="button"
                           onClick={() => setSelectedKey(field.key)}
-                          className={['relative w-full px-3 py-2.5 text-start transition-colors', isActive ? 'bg-background' : 'hover:bg-muted/60'].join(' ')}
+                          className={['relative w-full px-3 py-2.5 text-start transition-colors', isActive ? 'bg-card shadow-sm ring-1 ring-border/70' : 'hover:bg-card/70'].join(' ')}
                         >
                           {isActive && <span className={`absolute inset-y-1 start-0 w-[3px] rounded-e-full ${color}`} />}
                           <div className="flex items-start justify-between gap-1.5">
@@ -443,10 +459,10 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
                 {filledFields.length > 0 ? (
                   <div className="flex items-center gap-2 rounded-lg bg-green-500/10 px-3 py-2">
                     <span className="size-2 rounded-full bg-green-500" />
-                    <span className="text-[11px] font-semibold text-green-700 dark:text-green-400">{KU.ready(filledFields.length)}</span>
+                    <span className="text-[11px] font-semibold text-green-700">{KU.ready(filledFields.length)}</span>
                   </div>
                 ) : null}
-                <div>
+                <div className="hidden md:block">
                   <p className="mb-1.5 px-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">{KU.mySubs}</p>
                   {pastLoading ? (
                     <div className="flex items-center gap-2 px-1 py-1"><Loader2 className="size-3 animate-spin text-muted-foreground/40" /><span className="text-[10px] text-muted-foreground/40">{KU.loading}</span></div>
@@ -474,9 +490,9 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
             </div>
 
             {/* ─── PANEL ─── */}
-            <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
               {selectedDef ? (
-                <div className="flex flex-1 flex-col gap-5 px-8 py-6">
+                <div className="flex flex-1 flex-col gap-5 px-4 py-5 sm:px-6 md:px-8 md:py-6">
                   <div>
                     <div className="mb-1 flex items-center gap-1.5">
                       {selectedGroup ? (<><span className={`size-2 rounded-full ${selectedGroup.color}`} /><span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">{selectedGroup.section}</span></>) : null}
@@ -487,9 +503,9 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
                   <div>
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">{KU.currentValue}</p>
                     {currentVal ? (
-                      <div className={`rounded-xl border-s-[3px] ${sectionColor} bg-muted/40 px-4 py-3 text-sm leading-7 text-foreground`} style={{ overflowWrap: 'anywhere' }}>{currentVal}</div>
+                      <div className="rounded-lg border border-border border-s-[3px] border-s-primary bg-secondary/50 px-4 py-3 text-sm leading-7 text-foreground" style={{ overflowWrap: 'anywhere' }}>{currentVal}</div>
                     ) : (
-                      <div className="flex items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3"><span className="text-xs italic text-muted-foreground/50">{KU.noValue}</span></div>
+                      <div className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-secondary/35 px-4 py-3"><span className="text-xs italic text-muted-foreground/50">{KU.noValue}</span></div>
                     )}
                   </div>
 
@@ -506,19 +522,19 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
                       onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); doSubmit() } }}
                       placeholder={KU.enterCorrect(selectedDef.label)}
                       rows={isLong ? 6 : 4}
-                      className={['w-full flex-1 resize-none rounded-xl border-2 bg-background px-4 py-3 text-sm leading-7 text-foreground outline-none transition-colors placeholder:text-muted-foreground/40', correctionVal.trim() ? 'border-green-400 focus:border-green-500' : 'border-border focus:border-primary'].join(' ')}
+                      className={['w-full flex-1 resize-none rounded-lg border-2 bg-background px-4 py-3 text-sm leading-7 text-foreground shadow-inner outline-none transition-colors placeholder:text-muted-foreground/40', correctionVal.trim() ? 'border-green-400 focus:border-green-500' : 'border-border focus:border-primary'].join(' ')}
                     />
-                    <p className={['mt-2 text-[11px] leading-5', correctionVal.trim() ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground/50'].join(' ')}>{correctionVal.trim() ? KU.savedHint : KU.blankHint}</p>
+                    <p className={['mt-2 text-[11px] leading-5', correctionVal.trim() ? 'text-green-600' : 'text-muted-foreground/50'].join(' ')}>{correctionVal.trim() ? KU.savedHint : KU.blankHint}</p>
                   </div>
 
                   {filledFields.length > 0 ? (
-                    <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
+                    <div className="rounded-lg border border-border bg-secondary/35 px-4 py-3">
                       <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{KU.queued}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {filledFields.map((f) => {
                           const fColor = getSectionColor(groups, f.key)
                           return (
-                            <button key={f.key} type="button" onClick={() => setSelectedKey(f.key)} className={['inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition hover:opacity-80', f.key === selectedKey ? 'border-green-400/40 bg-green-500/15 text-green-700 dark:text-green-400' : 'border-border bg-background text-foreground/80'].join(' ')}>
+                            <button key={f.key} type="button" onClick={() => setSelectedKey(f.key)} className={['inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition hover:opacity-80', f.key === selectedKey ? 'border-green-400/40 bg-green-500/15 text-green-700' : 'border-border bg-background text-foreground/80'].join(' ')}>
                               <span className={`size-1.5 rounded-full ${fColor}`} />{f.label}
                             </button>
                           )
@@ -531,21 +547,12 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
                 </div>
               ) : null}
 
-              <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-muted/10 px-8 py-4">
-                <div className="flex min-w-0 items-center gap-2">
-                  <div className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-[11px] font-bold text-primary">{(profile?.username || profile?.name || '؟')[0].toUpperCase()}</div>
-                  <p className="truncate text-[12px] text-muted-foreground">
-                    <span className="font-semibold text-foreground">{profile?.username || profile?.name}</span>
-                    <span className="hidden sm:inline"> · {KU.reviewNote}</span>
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className="hidden text-[10px] text-muted-foreground/50 md:inline">{KU.ctrlEnter}</span>
-                  <button type="button" onClick={() => onOpenChange(false)} disabled={submitting} className="rounded-lg border border-border bg-background px-4 py-2 text-[13px] font-medium text-foreground transition hover:bg-muted disabled:opacity-50">{KU.cancel}</button>
-                  <button type="submit" disabled={submitting || !canSubmit} className={['flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold transition', canSubmit && !submitting ? 'bg-primary text-primary-foreground hover:opacity-90 active:scale-95' : 'cursor-not-allowed bg-muted text-muted-foreground'].join(' ')}>
-                    {submitting ? <><Loader2 className="size-3.5 animate-spin" /> {KU.submitting}</> : <><Send className="size-3.5" /> {KU.submit}{canSubmit && filledFields.length > 1 ? ` ${filledFields.length}` : ''}</>}
-                  </button>
-                </div>
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-secondary/35 px-4 py-4 sm:px-6 md:px-8">
+                <span className="hidden text-[10px] text-muted-foreground/50 md:inline">{KU.ctrlEnter}</span>
+                <button type="button" onClick={() => onOpenChange(false)} disabled={submitting} className="rounded-lg border border-border bg-background px-4 py-2 text-[13px] font-medium text-foreground transition hover:bg-muted disabled:opacity-50">{KU.cancel}</button>
+                <button type="submit" disabled={submitting || !canSubmit} className={['flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold transition', canSubmit && !submitting ? 'bg-primary text-primary-foreground hover:opacity-90 active:scale-95' : 'cursor-not-allowed bg-muted text-muted-foreground'].join(' ')}>
+                  {submitting ? <><Loader2 className="size-3.5 animate-spin" /> {KU.submitting}</> : <><Send className="size-3.5" /> {KU.submit}{canSubmit && filledFields.length > 1 ? ` ${filledFields.length}` : ''}</>}
+                </button>
               </div>
             </div>
           </form>

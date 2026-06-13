@@ -17,8 +17,9 @@ function Waveform() {
 }
 
 // Per-kind cover. Image/Project use the real photo when present; everything
-// else gets the kit's tasteful placeholder art.
-export default function KhiMediaPreview({ record }) {
+// else gets the kit's tasteful placeholder art. `plate` is true for the
+// image-based full-bleed card variant.
+export default function KhiMediaPreview({ record, plate = false }) {
   const { kind, duration, image, title } = record
 
   if (kind === 'audio') {
@@ -64,6 +65,10 @@ export default function KhiMediaPreview({ record }) {
   }
 
   if (kind === 'person') {
+    // Plate variant → full-bleed portrait; otherwise the circular avatar.
+    if (plate && image) {
+      return <img className="cover-img" src={image} alt={title || ''} loading="lazy" />
+    }
     return (
       <div className="big-avatar">
         {image ? <img src={image} alt={title || ''} loading="lazy" /> : (record.avatarText || <IconPerson />)}

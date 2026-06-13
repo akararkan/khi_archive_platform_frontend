@@ -10,6 +10,7 @@ const Svg = ({ children, sw = 1.8, fill = 'none', ...p }) => (
   </svg>
 )
 
+export const IconDashboard = (p) => <Svg {...p}><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></Svg>
 export const IconAll = (p) => <Svg {...p}><path d="m12 3 2.5 5 5.5.8-4 3.9 1 5.5L12 21l-5-2.8 1-5.5-4-3.9 5.5-.8z" /></Svg>
 export const IconAudio = (p) => <Svg {...p}><path d="M3 12v3M7 8v11M11 4v16M15 9v9M19 6v8M23 11v3" strokeLinecap="round" /></Svg>
 export const IconVideo = (p) => <Svg {...p}><rect x="2" y="6" width="14" height="12" rx="2" /><path d="m16 10 6-3v10l-6-3" /></Svg>

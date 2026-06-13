@@ -5,6 +5,8 @@ import { FieldHelpButton } from '@/components/ui/field-help'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TagsInput } from '@/components/ui/tags-input'
+import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
+import { KeywordSuggestInput } from '@/components/ui/keyword-suggest-input'
 import { cn } from '@/lib/utils'
 import { getVideoFieldMetadata } from '@/lib/video-fields-metadata'
 
@@ -334,11 +336,11 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <VideoFieldLabel htmlFor="videoTags" fieldKey="videoTags">Tags</VideoFieldLabel>
-            <TagsInput id="videoTags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} placeholder="archival, broadcast…" />
+            <TagSuggestInput id="videoTags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} />
           </div>
           <div className="space-y-1.5">
             <VideoFieldLabel htmlFor="videoKeywords" fieldKey="videoKeywords">Keywords</VideoFieldLabel>
-            <TagsInput id="videoKeywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} placeholder="kurdistan, 1962…" />
+            <KeywordSuggestInput id="videoKeywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} />
           </div>
         </CardContent>
       </Card>

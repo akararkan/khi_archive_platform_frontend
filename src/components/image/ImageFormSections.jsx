@@ -5,6 +5,8 @@ import { FieldHelpButton } from '@/components/ui/field-help'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TagsInput } from '@/components/ui/tags-input'
+import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
+import { KeywordSuggestInput } from '@/components/ui/keyword-suggest-input'
 import { cn } from '@/lib/utils'
 import { getImageFieldMetadata } from '@/lib/image-fields-metadata'
 
@@ -312,11 +314,11 @@ function ImageFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <ImageFieldLabel htmlFor="img-tags">Tags</ImageFieldLabel>
-            <TagsInput id="img-tags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} placeholder="archival, exhibition…" />
+            <TagSuggestInput id="img-tags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} />
           </div>
           <div className="space-y-1.5">
             <ImageFieldLabel htmlFor="img-keywords">Keywords</ImageFieldLabel>
-            <TagsInput id="img-keywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} placeholder="kurdistan, 1962…" />
+            <KeywordSuggestInput id="img-keywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} />
           </div>
         </CardContent>
       </Card>

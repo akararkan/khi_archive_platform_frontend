@@ -9,11 +9,10 @@ import { TeacherLayout } from '@/components/teacher/TeacherLayout'
 import { GuestRoute } from '@/components/auth/GuestRoute'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { KhiPublicLayout } from '@/components/public/KhiPublicLayout'
-import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
-import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 import { RegisterPage } from '@/pages/RegisterPage'
+import { AccountProfilePage } from '@/pages/account/AccountProfilePage'
 import { AdminAnalyticsPage } from '@/pages/admin/AdminAnalyticsPage'
 import { AdminCategoryPage } from '@/pages/admin/AdminCategoryPage'
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
@@ -107,14 +106,6 @@ const router = createBrowserRouter([
             path: 'register',
             element: <RegisterPage />,
           },
-          {
-            path: 'forgot-password',
-            element: <ForgotPasswordPage />,
-          },
-          {
-            path: 'reset-password',
-            element: <ResetPasswordPage />,
-          },
         ],
       },
       {
@@ -123,6 +114,13 @@ const router = createBrowserRouter([
           {
             path: 'dashboard',
             element: <RoleLandingRoute />,
+          },
+          {
+            // Generic signed-in account home. Not role-gated: any authenticated
+            // user can manage their profile here, but it's the default landing
+            // for GUESTs (who have no role workspace of their own).
+            path: 'account',
+            element: <AccountProfilePage />,
           },
           {
             element: <RoleRoute allowedRole="employee" />,

@@ -20,6 +20,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { DataPagination } from '@/components/ui/pagination'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { severityMetaFor } from '@/lib/warning-helpers'
@@ -213,9 +214,9 @@ function WarningCard({ warning, onAcknowledge, isAcknowledging }) {
 function EmployeeCorrectionsPage() {
   const toast = useToast()
 
-  const [filter,    setFilter]    = useState('all')   // 'all' | 'corrections' | 'other' | 'unread'
-  const [search,    setSearch]    = useState('')
-  const [page,      setPage]      = useState(0)
+  const [filter, setFilter] = usePersistentState('employee.corrections.filter', 'all') // 'all' | 'corrections' | 'other' | 'unread'
+  const [search, setSearch] = usePersistentState('employee.corrections.search', '')
+  const [page, setPage] = usePersistentState('employee.corrections.page', 0)
 
   const [warnings,  setWarnings]  = useState(null)
   const [meta,      setMeta]      = useState(null)
@@ -248,7 +249,7 @@ function EmployeeCorrectionsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [setPage])
 
   const loadMyCorrections = useCallback(async () => {
     setMyCorrLoading(true)

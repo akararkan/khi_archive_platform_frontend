@@ -20,6 +20,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Highlight } from '@/components/ui/highlight'
 import { Input } from '@/components/ui/input'
 import { DataPagination } from '@/components/ui/pagination'
+import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -30,6 +31,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { WarningDialog } from '@/components/warning/WarningDialog'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useToast } from '@/hooks/use-toast'
 import { useCurrentProfile } from '@/hooks/use-current-profile'
 import { cn } from '@/lib/utils'
@@ -52,13 +54,13 @@ function AdminWarningsPage() {
   // Filter state — drives the server query. Severity is one of the
   // SEVERITY_ORDER keys (or '' for all); acknowledged is '', 'true' or
   // 'false'; includeRevoked toggles whether soft-deleted rows show up.
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = usePersistentState('admin.warnings.search', '')
   const [severity, setSeverity] = useState('')
-  const [acknowledged, setAcknowledged] = useState('') // '' | 'true' | 'false'
-  const [includeRevoked, setIncludeRevoked] = useState(false)
-  const [targetUserId, setTargetUserId] = useState('') // optional filter
+  const [acknowledged, setAcknowledged] = usePersistentState('admin.warnings.acknowledged', '') // '' | 'true' | 'false'
+  const [includeRevoked, setIncludeRevoked] = usePersistentState('admin.warnings.includeRevoked', false)
+  const [targetUserId, setTargetUserId] = usePersistentState('admin.warnings.targetUserId', '') // optional filter
 
-  const [page, setPage] = useState(0)
+  const [page, setPage] = usePersistentState('admin.warnings.page', 0)
   const [warnings, setWarnings] = useState(null)
   const [meta, setMeta] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -120,7 +122,7 @@ function AdminWarningsPage() {
         setIsLoading(false)
       }
     },
-    [buildFilter],
+    [buildFilter, setPage],
   )
 
   // Initial data: warnings list + user catalog. Users list powers
@@ -337,18 +339,20 @@ function AdminWarningsPage() {
             Include revoked
           </label>
 
-          <select
+          <Select
             value={targetUserId}
-            onChange={(e) => setTargetUserId(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium text-foreground/80 shadow-sm"
-          >
-            <option value="">Any recipient</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name || u.username} (@{u.username})
-              </option>
-            ))}
-          </select>
+            onChange={setTargetUserId}
+            size="sm"
+            ariaLabel="Filter by recipient"
+            className="w-[13rem]"
+            options={[
+              { value: '', label: 'Any recipient' },
+              ...users.map((u) => ({
+                value: String(u.id),
+                label: `${u.name || u.username} (@${u.username})`,
+              })),
+            ]}
+          />
         </CardContent>
       </Card>
 

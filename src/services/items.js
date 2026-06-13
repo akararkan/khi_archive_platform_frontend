@@ -62,3 +62,23 @@ export async function getItemsPage({
   const { data } = await apiClient.get('/items', { params, signal })
   return data
 }
+
+// ── Inline visibility toggle ─────────────────────────────────────────────────
+// Flip ONLY an item's own public flag (isPublic) without opening the edit form.
+// One lightweight call to the dedicated unified endpoint — the backend resolves
+// {type} → the matching media service, checks `{type}:update`, flips just the
+// flag, and returns the updated DTO. Idempotent (no-op when unchanged), trash-
+// safe (404 on a trashed code), and a concurrent edit returns 409 with the
+// STALE_VERSION shape the page handler already detects.
+//   PATCH /api/items/{type}/{code}/visibility   { isPublic }
+// {type} is case-insensitive; item.type is already AUDIO|VIDEO|IMAGE|TEXT.
+export async function setItemVisibility(item, isPublic) {
+  if (!item?.type || !item?.code) {
+    throw new Error(`Cannot set visibility for item: ${item?.type} ${item?.code}`)
+  }
+  const { data } = await apiClient.patch(
+    `/items/${item.type}/${item.code}/visibility`,
+    { isPublic },
+  )
+  return data
+}

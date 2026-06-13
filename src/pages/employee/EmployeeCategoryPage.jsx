@@ -50,7 +50,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { TagsInput } from '@/components/ui/tags-input'
+import { KeywordSuggestInput } from '@/components/ui/keyword-suggest-input'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useToast } from '@/hooks/use-toast'
 import { FormErrorBox } from '@/components/ui/form-error'
 import { formatApiError, getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
@@ -202,7 +203,7 @@ function EmployeeCategoryPage() {
   const [form, setForm] = useState(createInitialForm)
   const [isSaving, setIsSaving] = useState(false)
   const [formError, setFormError] = useState('')
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchTerm, setSearchTerm] = usePersistentState('employee.category.search', '')
   // Backend search results — populated by /api/category/search (across name,
   // description, code, and keywords) after a short debounce. `null` means
   // "no active search; fall back to full list".
@@ -214,6 +215,8 @@ function EmployeeCategoryPage() {
 
   // Server-side pagination for the browse view. Search uses /category/search
   // (already wired below) and bypasses pagination.
+  // Not persisted: a mount-running effect resets this to 0 whenever sort/filters
+  // change, so persisting it would just be overwritten on return.
   const [page, setPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
@@ -222,8 +225,8 @@ function EmployeeCategoryPage() {
   // query params; backend applies them in-memory against its Redis
   // cache so toggling them is cheap. Search bypasses both — the
   // /category/search endpoint has its own ranking and no params.
-  const [sortKey, setSortKey] = useState(DEFAULT_SORT_KEY)
-  const [filters, setFilters] = useState(createInitialFilters)
+  const [sortKey, setSortKey] = usePersistentState('employee.category.sort', DEFAULT_SORT_KEY)
+  const [filters, setFilters] = usePersistentState('employee.category.filters', createInitialFilters)
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false)
   const filtersActive = !isFilterEmpty(filters)
   const sortActive = sortKey !== DEFAULT_SORT_KEY
@@ -522,7 +525,7 @@ function EmployeeCategoryPage() {
                   </Label>
                   <FieldHelpButton metadata={getCategoryFieldMetadata('keywords')} />
                 </div>
-                <TagsInput
+                <KeywordSuggestInput
                   id="keywords"
                   value={form.keywords}
                   onChange={(next) => setForm({ ...form, keywords: next })}

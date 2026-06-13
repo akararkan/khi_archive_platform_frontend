@@ -5,6 +5,8 @@ import { FieldHelpButton } from '@/components/ui/field-help'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TagsInput } from '@/components/ui/tags-input'
+import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
+import { KeywordSuggestInput } from '@/components/ui/keyword-suggest-input'
 import { cn } from '@/lib/utils'
 import { getTextFieldMetadata } from '@/lib/text-fields-metadata'
 
@@ -317,11 +319,11 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-tags">Tags</TextFieldLabel>
-            <TagsInput id="txt-tags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} placeholder="archival, manuscript…" />
+            <TagSuggestInput id="txt-tags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-keywords">Keywords</TextFieldLabel>
-            <TagsInput id="txt-keywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} placeholder="kurdistan, 1962…" />
+            <KeywordSuggestInput id="txt-keywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} />
           </div>
         </CardContent>
       </Card>

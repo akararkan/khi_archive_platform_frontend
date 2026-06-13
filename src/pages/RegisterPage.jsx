@@ -151,18 +151,20 @@ function RegisterPage() {
             onChange={handleInputChange}
             required
           />
-          {confirmTouched ? (
-            <p
-              className={
-                passwordsMatch
-                  ? 'flex items-center gap-1.5 text-xs font-medium text-green-600 dark:text-green-500'
-                  : 'text-xs text-muted-foreground'
-              }
-            >
-              {passwordsMatch ? <CheckCircle2 className="size-3.5" /> : null}
-              {passwordsMatch ? 'Passwords match' : "Passwords don't match yet"}
-            </p>
-          ) : null}
+          <div role="status" aria-live="polite">
+            {confirmTouched ? (
+              <p
+                className={
+                  passwordsMatch
+                    ? 'flex items-center gap-1.5 text-xs font-medium text-green-600 dark:text-green-500'
+                    : 'text-xs text-muted-foreground'
+                }
+              >
+                {passwordsMatch ? <CheckCircle2 className="size-3.5" /> : null}
+                {passwordsMatch ? 'Passwords match' : "Passwords don't match yet"}
+              </p>
+            ) : null}
+          </div>
         </div>
 
         <FormErrorBox error={errorMessage} />

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, Loader2, Search, X } from 'lucide-react'
 
+import { useAnchoredPosition } from '@/hooks/use-anchored-position'
 import { cn } from '@/lib/utils'
 
 /**
@@ -52,6 +54,10 @@ function SearchSelect({
   const rootRef = useRef(null)
   const inputRef = useRef(null)
   const listRef = useRef(null)
+
+  // Portal the menu to <body> and position it against the trigger so no
+  // `overflow:hidden` ancestor (filter Card, table wrapper, dialog) clips it.
+  const { floatingRef, style } = useAnchoredPosition(rootRef, open)
 
   // Selected lookup: prefer items, but fall back to a stale asyncResults entry
   // so the chip stays correct after the menu has moved on.
@@ -121,11 +127,14 @@ function SearchSelect({
   useEffect(() => {
     if (!open) return undefined
     const onDocMouseDown = (e) => {
-      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false)
+      // The menu is portaled, so it isn't inside rootRef — check both.
+      if (rootRef.current?.contains(e.target)) return
+      if (floatingRef.current?.contains(e.target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', onDocMouseDown)
     return () => document.removeEventListener('mousedown', onDocMouseDown)
-  }, [open])
+  }, [open, floatingRef])
 
   useEffect(() => {
     if (!open) return
@@ -256,8 +265,13 @@ function SearchSelect({
         ) : null}
       </div>
 
-      {open && !disabled ? (
-        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 overflow-hidden rounded-lg border border-border bg-popover shadow-xl shadow-black/10">
+      {open && !disabled
+        ? createPortal(
+            <div
+              ref={floatingRef}
+              style={style || { position: 'fixed', visibility: 'hidden' }}
+              className="overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-xl shadow-black/20 animate-in fade-in-0 zoom-in-95 duration-100"
+            >
           {loading || asyncLoading ? (
             <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
               <Loader2 className="size-3.5 animate-spin" />
@@ -266,7 +280,7 @@ function SearchSelect({
           ) : filtered.length === 0 ? (
             <div className="px-3 py-3 text-sm text-muted-foreground">{emptyHint}</div>
           ) : (
-            <ul ref={listRef} className="max-h-64 overflow-y-auto py-1" role="listbox">
+            <ul ref={listRef} className="max-h-[inherit] overflow-y-auto overscroll-contain py-1" role="listbox">
               {filtered.map((item, idx) => {
                 const key = getKey(item)
                 const isActive = idx === highlight
@@ -299,8 +313,10 @@ function SearchSelect({
               })}
             </ul>
           )}
-        </div>
-      ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

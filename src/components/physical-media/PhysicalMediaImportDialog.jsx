@@ -4,12 +4,11 @@ import { AlertTriangle, CheckCircle2, FileSpreadsheet, Loader2, Upload, X } from
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { getPhysicalMediaImportSheets, importPhysicalMedia } from '@/services/physical-media'
 
 const XLSX_ACCEPT = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-const SELECT_CLASS =
-  'flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
 
 // Sentinel for "import every sheet in the workbook in one action".
 const ALL_SHEETS = '__all_sheets__'
@@ -246,19 +245,16 @@ export function PhysicalMediaImportDialog({ open, onOpenChange, onImported }) {
             <Label htmlFor="pm-import-sheet">Sheet {sheets.length ? '' : '(optional)'}</Label>
             {sheets.length > 0 ? (
               <>
-                <select
+                <Select
                   id="pm-import-sheet"
                   value={sheet}
-                  onChange={(e) => setSheet(e.target.value)}
-                  className={SELECT_CLASS}
-                >
-                  <option value={ALL_SHEETS}>All sheets (entire workbook)</option>
-                  {sheets.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSheet}
+                  className="w-full"
+                  options={[
+                    { value: ALL_SHEETS, label: 'All sheets (entire workbook)' },
+                    ...sheets.map((s) => ({ value: s, label: s })),
+                  ]}
+                />
                 <p className="text-[11px] text-muted-foreground">
                   {sheet === ALL_SHEETS
                     ? `Imports every row from all ${sheets.length} sheet${sheets.length === 1 ? '' : 's'} in one go.`

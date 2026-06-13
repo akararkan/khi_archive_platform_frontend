@@ -32,6 +32,24 @@ export async function updateProject(code, payload) {
   return data
 }
 
+// Flip ONLY a collection's public visibility without opening the edit form.
+// One lightweight call to the dedicated endpoint, which delegates to the same
+// ProjectService.update() the long-form PATCH uses — so cascade, audit rows, and
+// cache eviction are identical. The cascade choice:
+//   cascade 'NONE'    (default) — flip only the collection flag.
+//   cascade 'CASCADE'           — also flip every media file's own isPublic.
+// Guests need BOTH the collection flag AND a media's own flag true to see it, so
+// hiding the collection already hides all its media from guests; NONE is the
+// right default for a quick toggle.
+//   PATCH /api/project/{code}/visibility   { isVisibleToPublic, visibilityCascade }
+export async function setProjectVisibility(project, isVisibleToPublic, { cascade = 'NONE' } = {}) {
+  const { data } = await apiClient.patch(`/project/${project.projectCode}/visibility`, {
+    isVisibleToPublic,
+    visibilityCascade: cascade === 'CASCADE' ? 'CASCADE' : 'NONE',
+  })
+  return data
+}
+
 // Soft-trash (V3 trash model). Important: deleting a project also bulk-
 // trashes its audio/video/image/text records (server-side cascade). The
 // linked person and category are NOT touched. Use the warning copy on

@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TagsInput } from '@/components/ui/tags-input'
+import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
+import { KeywordSuggestInput } from '@/components/ui/keyword-suggest-input'
 import { FieldHelpButton } from '@/components/ui/field-help'
 import { getAudioFieldMetadata } from '@/lib/audio-fields-metadata'
 import { cn } from '@/lib/utils'
@@ -304,11 +306,11 @@ export function AudioFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="audioTags" fieldKey="tags">Tags</AudioFieldLabel>
-            <TagsInput id="audioTags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} placeholder="folk, 1962…" />
+            <TagSuggestInput id="audioTags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="audioKeywords" fieldKey="keywords">Keywords</AudioFieldLabel>
-            <TagsInput id="audioKeywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} placeholder="maqam, lament…" />
+            <KeywordSuggestInput id="audioKeywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} />
           </div>
         </CardContent>
       </Card>
