@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 import {
   CardGridSkeleton,
@@ -171,9 +171,13 @@ function PublicPersonDetailPage() {
                 <Panel title="Tags">
                   <div className="flex flex-wrap gap-1.5">
                     {person.tags.map((t) => (
-                      <TagPill key={t} tone="primary">
+                      <Link
+                        key={t}
+                        to={`/public/browse?type=all&tag=${encodeURIComponent(t)}`}
+                        className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition hover:border-primary/50 hover:bg-primary/15"
+                      >
                         {t}
-                      </TagPill>
+                      </Link>
                     ))}
                   </div>
                 </Panel>

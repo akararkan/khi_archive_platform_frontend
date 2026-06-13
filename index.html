@@ -14,7 +14,7 @@
       (function () {
         try {
           var STORAGE_KEY = 'khi:appearance';
-          var DEFAULTS = { mode: 'system', accent: 'default', font: 'geist', radius: 'normal' };
+          var DEFAULTS = { mode: 'system', accent: 'default', font: 'geist', radius: 'normal', scale: 'default' };
           var ACCENTS = {
             'default': { light: { primary: 'oklch(0.22 0 0)',     pf: 'oklch(0.985 0 0)', ring: 'oklch(0.7 0 0)' },
                          dark:  { primary: 'oklch(0.95 0 0)',     pf: 'oklch(0.18 0 0)',  ring: 'oklch(0.82 0 0)' } },
@@ -41,6 +41,7 @@
             'mono':    'ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace'
           };
           var RADII = { 'sharp': '0.25rem', 'subtle': '0.5rem', 'normal': '0.625rem', 'round': '1rem' };
+          var SCALES = { 'default': '100%', 'large': '112.5%', 'larger': '125%', 'max': '140%' };
 
           var saved = {};
           try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch (e) {}
@@ -51,6 +52,7 @@
           var tones = isDark ? accent.dark : accent.light;
           var fontStack = FONTS[s.font] || FONTS['geist'];
           var radius = RADII[s.radius] || RADII['normal'];
+          var scale = SCALES[s.scale] || SCALES['default'];
 
           var html = document.documentElement;
           html.classList.toggle('dark', isDark);
@@ -58,6 +60,7 @@
           html.dataset.accent = s.accent;
           html.dataset.font = s.font;
           html.dataset.radius = s.radius;
+          html.dataset.scale = s.scale;
           html.style.setProperty('--primary', tones.primary);
           html.style.setProperty('--primary-foreground', tones.pf);
           html.style.setProperty('--ring', tones.ring);
@@ -67,6 +70,7 @@
           html.style.setProperty('--font-sans', fontStack);
           html.style.setProperty('--font-heading', fontStack);
           html.style.setProperty('--radius', radius);
+          html.style.fontSize = scale;
         } catch (e) {
           // Boot script must never block render. Worst case: the page
           // paints with the default theme and React fixes it on mount.

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 
 import { HighlightProvider } from '@/components/ui/highlight'
 import { readMediaTypeCount, totalFacetCount, decodeSelectedFacets } from '@/components/public/public-helpers'
-import { guestFacets } from '@/services/guest'
+import { guestFacets, guestResults } from '@/services/guest'
 import KhiSidebar from '@/components/khi/KhiSidebar'
 import KhiToolbar from '@/components/khi/KhiToolbar'
 import KhiCard from '@/components/khi/KhiCard'
@@ -62,6 +62,53 @@ function Pager({ page, totalPages, totalElements, pageSize, onPage }) {
   )
 }
 
+function readListParam(searchParams, key) {
+  return searchParams
+    .getAll(key)
+    .flatMap((value) => String(value || '').split(','))
+    .map((value) => value.trim())
+    .filter(Boolean)
+}
+
+function extractResultYear(row) {
+  if (!row) return null
+  const kind = row.kind
+  const inner = kind && row[kind] && typeof row[kind] === 'object' ? row[kind] : row
+  const values = [
+    row.dateCreated,
+    row.date,
+    row.recordedAt,
+    row.recordingDate,
+    row.documentDate,
+    row.imageDate,
+    inner.recordedAt,
+    inner.recordingDate,
+    inner.documentDate,
+    inner.imageDate,
+    inner.dateCreated,
+    inner.datePublished,
+    inner.printDate,
+  ]
+  for (const value of values) {
+    const match = String(value || '').match(/(\d{4})/)
+    if (match) return Number(match[1])
+  }
+  return null
+}
+
+function firstContent(res) {
+  const list = res?.content || (Array.isArray(res) ? res : [])
+  return Array.isArray(list) ? list[0] : null
+}
+
+function decadeChip(dateFrom, dateTo) {
+  const from = String(dateFrom || '').match(/(\d{4})/)
+  const to = String(dateTo || '').match(/(\d{4})/)
+  const fromLabel = from ? `${Math.floor(Number(from[1]) / 10) * 10}s` : '…'
+  const toLabel = to ? `${Math.floor(Number(to[1]) / 10) * 10}s` : '…'
+  return `${fromLabel} → ${toLabel}`
+}
+
 export function KhiBrowsePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const resultsRef = useRef(null)
@@ -84,8 +131,9 @@ export function KhiBrowsePage() {
   const sortIndex = Math.max(0, type.sorts.findIndex((s) => s.key === sortBy && s.dir === sortDir))
 
   const selected = useMemo(() => decodeSelectedFacets(searchParams, type.facetMap), [searchParams, type.facetMap])
+  const selectedTags = useMemo(() => readListParam(searchParams, 'tag'), [searchParams])
   const selectedMediaTypes = useMemo(
-    () => (searchParams.get('types') || '').split(',').filter((k) => MEDIA_KINDS.includes(k)),
+    () => readListParam(searchParams, 'types').filter((k) => MEDIA_KINDS.includes(k)),
     [searchParams],
   )
   const textFilterValues = useMemo(() => {
@@ -95,6 +143,7 @@ export function KhiBrowsePage() {
   }, [searchParams, type.textFilters])
 
   const [facets, setFacets] = useState(null)
+  const [dateBounds, setDateBounds] = useState({ minYear: null, maxYear: null })
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -139,9 +188,29 @@ export function KhiBrowsePage() {
     return () => ctrl.abort()
   }, [])
 
+  // Date bounds come from public media itself, so if an older record is added
+  // later, the range expands the next time this public page loads.
+  useEffect(() => {
+    const ctrl = new AbortController()
+    Promise.all([
+      guestResults({ page: 0, size: 1, sortBy: 'date', sortDirection: 'asc', signal: ctrl.signal }),
+      guestResults({ page: 0, size: 1, sortBy: 'date', sortDirection: 'desc', signal: ctrl.signal }),
+    ])
+      .then(([oldest, newest]) => {
+        if (ctrl.signal.aborted) return
+        setDateBounds({
+          minYear: extractResultYear(firstContent(oldest)),
+          maxYear: extractResultYear(firstContent(newest)),
+        })
+      })
+      .catch(() => {})
+    return () => ctrl.abort()
+  }, [])
+
   // ── Results ─────────────────────────────────────────────────────────────────
   const selectedKey = JSON.stringify(selected)
   const textKey = JSON.stringify(textFilterValues)
+  const tagKey = selectedTags.join(',')
   const mediaKey = selectedMediaTypes.join(',')
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -160,6 +229,9 @@ export function KhiBrowsePage() {
       const v = (textFilterValues[f.paramKey] || '').trim()
       if (v) params[f.paramKey] = v
     }
+    if (selectedTags.length > 0 && ['all', 'audio', 'video', 'image', 'text', 'project'].includes(typeKey)) {
+      params.tag = selectedTags
+    }
     if (type.showMediaTypes && selectedMediaTypes.length > 0) params.types = selectedMediaTypes
 
     type.api(params)
@@ -168,14 +240,14 @@ export function KhiBrowsePage() {
       .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     return () => ctrl.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeKey, q, sortBy, sortDir, page, dateFrom, dateTo, selectedKey, textKey, mediaKey, reload])
+  }, [typeKey, q, sortBy, sortDir, page, dateFrom, dateTo, selectedKey, textKey, tagKey, mediaKey, reload])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // When the result set changes (new page, type, search, sort, filters), reset
   // the internal scroll so the user always starts at the top of the new results.
   useEffect(() => {
     if (resultsRef.current) resultsRef.current.scrollTop = 0
-  }, [page, typeKey, q, sortBy, sortDir, dateFrom, dateTo, selectedKey, textKey, mediaKey])
+  }, [page, typeKey, q, sortBy, sortDir, dateFrom, dateTo, selectedKey, textKey, tagKey, mediaKey])
 
   const items = useMemo(() => data?.content || (Array.isArray(data) ? data : []), [data])
   const cards = useMemo(() => items.map((it) => cardFromItem(it, typeKey)), [items, typeKey])
@@ -210,6 +282,12 @@ export function KhiBrowsePage() {
     const arr = [...cur]
     update({ types: arr.length ? arr.join(',') : null })
   }
+  const onToggleTag = (tag) => {
+    const cur = new Set(selectedTags)
+    cur.has(tag) ? cur.delete(tag) : cur.add(tag)
+    const arr = [...cur]
+    update({ tag: arr.length ? arr.join(',') : null })
+  }
   const onTextFilter = (paramKey, value) => {
     setTextDrafts((d) => ({ ...d, [paramKey]: value }))
   }
@@ -238,7 +316,8 @@ export function KhiBrowsePage() {
     }
   }
   for (const k of selectedMediaTypes) chips.push({ key: `mt:${k}`, label: ({ audio: 'دەنگ', video: 'ڤیدیۆ', text: 'دەق', image: 'وێنە' })[k], onRemove: () => onToggleMediaType(k) })
-  if (type.showDateRange && (dateFrom || dateTo)) chips.push({ key: 'date', label: `${UI.dateCreated}: ${dateFrom || '…'} → ${dateTo || '…'}`, onRemove: () => update({ dateFrom: null, dateTo: null }) })
+  for (const tag of selectedTags) chips.push({ key: `tag:${tag}`, label: `تاگ: ${tag}`, onRemove: () => onToggleTag(tag) })
+  if (type.showDateRange && (dateFrom || dateTo)) chips.push({ key: 'date', label: `${UI.dateCreated}: ${decadeChip(dateFrom, dateTo)}`, onRemove: () => update({ dateFrom: null, dateTo: null }) })
 
   const subtitle = loading ? type.sub : `${type.sub} · ${totalElements.toLocaleString()} ${UI.results}`
 
@@ -266,6 +345,7 @@ export function KhiBrowsePage() {
           showDateRange={type.showDateRange}
           dateFrom={dateFrom}
           dateTo={dateTo}
+          dateBounds={dateBounds}
           onDateChange={({ dateFrom: f, dateTo: t }) => update({ dateFrom: f || null, dateTo: t || null })}
           textFilters={type.textFilters || []}
           textFilterValues={textDrafts}

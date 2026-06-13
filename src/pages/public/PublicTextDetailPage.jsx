@@ -293,14 +293,11 @@ function PublicTextDetailPage() {
 
             <MetaPanelIf
               obj={text}
-              title="Tags & keywords"
-              keys={['tags', 'keywords']}
+              title="Tags"
+              keys={['tags']}
             >
               <MetaRow label="Tags" value={text.tags}>
-                <PillRow values={text.tags} tone="primary" />
-              </MetaRow>
-              <MetaRow label="Keywords" value={text.keywords}>
-                <PillRow values={text.keywords} />
+                <PillRow values={text.tags} tone="primary" linkPrefix="/public/browse?type=all&tag=" />
               </MetaRow>
             </MetaPanelIf>
           </aside>

@@ -25,6 +25,7 @@ import {
   RotateCcw,
   Sun,
   Type,
+  ZoomIn,
 } from 'lucide-react'
 import { Popover } from '@base-ui/react/popover'
 
@@ -217,12 +218,58 @@ function RadiusPicker({ palette, value, onChange }) {
   )
 }
 
+// Text-size / magnifier picker. Each chip previews its own size with a
+// literal "A" rendered at a fixed pixel size (px, not rem, so the preview
+// stays stable regardless of the currently-applied scale) plus the
+// percentage it applies to the whole workspace.
+function ScalePicker({ palette, value, onChange }) {
+  return (
+    <div role="radiogroup" aria-label="Text size" className="grid grid-cols-4 gap-1.5">
+      {palette.map((scale) => {
+        const selected = scale.key === value
+        return (
+          <button
+            key={scale.key}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            aria-label={`${scale.label} text size (${scale.percent})`}
+            title={`${scale.label} — ${scale.percent}`}
+            onClick={() => onChange(scale.key)}
+            className={cn(
+              'group flex flex-col items-center justify-center gap-1 rounded-xl border px-1 pb-1.5 pt-2 transition-all duration-200',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+              selected
+                ? 'border-primary/60 bg-primary/10 text-foreground shadow-sm shadow-black/5'
+                : 'border-border/70 bg-background text-muted-foreground hover:-translate-y-0.5 hover:border-foreground/30 hover:text-foreground',
+            )}
+          >
+            <span
+              aria-hidden
+              className={cn(
+                'flex h-6 items-center font-semibold leading-none transition-colors',
+                selected ? 'text-primary' : 'text-foreground',
+              )}
+              style={{ fontSize: `${scale.previewPx}px` }}
+            >
+              A
+            </span>
+            <span className="text-[9px] font-semibold uppercase tracking-wider">
+              {scale.percent}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─────────────────────────────────────────────────────────────────
 // The trigger + panel
 // ─────────────────────────────────────────────────────────────────
 
 export function AppearanceTweaker() {
-  const { state, update, reset, accents, fonts, radii, resolved } = useAppearance()
+  const { state, update, reset, accents, fonts, radii, scales, resolved } = useAppearance()
   const currentAccent = accents.find((a) => a.key === state.accent) ?? accents[0]
   const currentMode = MODE_OPTIONS.find((m) => m.key === state.mode) ?? MODE_OPTIONS[1]
   const ModeIcon = currentMode.icon
@@ -314,6 +361,11 @@ export function AppearanceTweaker() {
               </span>
               <span className="text-border">•</span>
               <span className="text-foreground/80">{resolved.radius.label}</span>
+              <span className="text-border">•</span>
+              <span className="inline-flex items-center gap-1 text-foreground/80">
+                <ZoomIn className="size-3" />
+                {resolved.scale.percent}
+              </span>
             </div>
 
             {/* Sections separated by hairline gradients so the layout
@@ -338,6 +390,12 @@ export function AppearanceTweaker() {
 
               <Section icon={Type} label="Font">
                 <FontPicker palette={fonts} value={state.font} onChange={(v) => update({ font: v })} />
+              </Section>
+
+              <div className="h-px bg-gradient-to-r from-transparent via-border/70 to-transparent" />
+
+              <Section icon={ZoomIn} label="Text size">
+                <ScalePicker palette={scales} value={state.scale} onChange={(v) => update({ scale: v })} />
               </Section>
 
               <div className="h-px bg-gradient-to-r from-transparent via-border/70 to-transparent" />

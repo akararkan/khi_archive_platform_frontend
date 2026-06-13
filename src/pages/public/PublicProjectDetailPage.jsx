@@ -18,7 +18,6 @@ import {
   PageHeader,
   ResultCard,
   SectionTitle,
-  TagPill,
 } from '@/components/public/PublicShared'
 import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -221,7 +220,13 @@ function PublicProjectDetailPage() {
               <Panel title="Tags">
                 <div className="flex flex-wrap gap-1.5">
                   {project.tags.map((t) => (
-                    <TagPill key={t} tone="primary">{t}</TagPill>
+                    <Link
+                      key={t}
+                      to={`/public/browse?type=all&tag=${encodeURIComponent(t)}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition hover:border-primary/50 hover:bg-primary/15"
+                    >
+                      {t}
+                    </Link>
                   ))}
                 </div>
               </Panel>

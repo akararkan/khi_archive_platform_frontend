@@ -276,14 +276,11 @@ function PublicVideoDetailPage() {
 
             <MetaPanelIf
               obj={video}
-              title="Tags & keywords"
-              keys={['tags', 'keywords']}
+              title="Tags"
+              keys={['tags']}
             >
               <MetaRow label="Tags" value={video.tags}>
-                <PillRow values={video.tags} tone="primary" />
-              </MetaRow>
-              <MetaRow label="Keywords" value={video.keywords}>
-                <PillRow values={video.keywords} />
+                <PillRow values={video.tags} tone="primary" linkPrefix="/public/browse?type=all&tag=" />
               </MetaRow>
             </MetaPanelIf>
           </aside>

@@ -147,11 +147,25 @@ export const RADIUS_PALETTE = [
   { key: 'round',  label: 'Round',  value: '1rem'    },
 ]
 
+// Text-size / magnifier stops — an accessibility comfort control for
+// users with weak eyes. Each scales the ROOT font-size, and because the
+// whole UI is rem-based (Tailwind), every text field, label, input and
+// button grows proportionally — a true magnifier, not just body copy.
+// Percentages are relative to the browser's own base size, so a user who
+// already enlarged their browser default is respected on top of this.
+export const SCALE_PALETTE = [
+  { key: 'default', label: 'Default', percent: '100%', fontSize: '100%',   previewPx: 12 },
+  { key: 'large',   label: 'Large',   percent: '112%', fontSize: '112.5%', previewPx: 14 },
+  { key: 'larger',  label: 'Larger',  percent: '125%', fontSize: '125%',   previewPx: 16 },
+  { key: 'max',     label: 'Max',     percent: '140%', fontSize: '140%',   previewPx: 19 },
+]
+
 export const DEFAULT_APPEARANCE = Object.freeze({
   mode: 'system',
   accent: 'default',
   font: 'geist',
   radius: 'normal',
+  scale: 'default',
 })
 
 // ─────────────────────────────────────────────────────────────────
@@ -177,6 +191,7 @@ export function resolveAppearance(state) {
   const accent = findOrFirst(ACCENT_PALETTE, merged.accent)
   const font = findOrFirst(FONT_PALETTE, merged.font)
   const radius = findOrFirst(RADIUS_PALETTE, merged.radius)
+  const scale = findOrFirst(SCALE_PALETTE, merged.scale)
   const isDark = merged.mode === 'dark' || (merged.mode === 'system' && prefersDark())
   const tones = isDark ? accent.dark : accent.light
   return {
@@ -193,9 +208,13 @@ export function resolveAppearance(state) {
       '--font-heading': font.stack,
       '--radius': radius.value,
     },
+    // Root font-size (the magnifier). Applied directly on <html> rather
+    // than as a custom property so rem units resolve against it.
+    rootFontSize: scale.fontSize,
     accent,
     font,
     radius,
+    scale,
   }
 }
 
@@ -210,9 +229,13 @@ export function applyAppearance(state) {
   root.dataset.accent = resolved.accent.key
   root.dataset.font = resolved.font.key
   root.dataset.radius = resolved.radius.key
+  root.dataset.scale = resolved.scale.key
   for (const [name, value] of Object.entries(resolved.cssVars)) {
     root.style.setProperty(name, value)
   }
+  // The magnifier: scaling the root font-size grows every rem-based size
+  // across the app (text, inputs, padding) in one move.
+  root.style.fontSize = resolved.rootFontSize
 }
 
 // ─────────────────────────────────────────────────────────────────

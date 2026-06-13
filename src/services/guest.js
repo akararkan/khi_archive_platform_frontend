@@ -5,6 +5,8 @@
 
 import { apiClient } from '@/lib/api-client'
 
+const REPEAT_PARAMS = { indexes: null }
+
 // Universal global search — single round-trip that returns the top N rows in
 // every section (projects/categories/persons/audios/videos/texts/images) plus
 // per-section counts. The home page and the global results page both use it.
@@ -27,7 +29,7 @@ export async function guestResults(params = {}) {
   const { signal, ...rest } = params
   const { data } = await apiClient.get('/guest/results', {
     params: rest,
-    paramsSerializer: { indexes: null },
+    paramsSerializer: REPEAT_PARAMS,
     signal,
   })
   return data
@@ -52,7 +54,7 @@ export async function guestFacets({ signal } = {}) {
 // ── Projects ─────────────────────────────────────────────────────────────
 export async function guestProjects(params = {}) {
   const { signal, ...query } = params
-  const { data } = await apiClient.get('/guest/projects', { params: query, signal })
+  const { data } = await apiClient.get('/guest/projects', { params: query, paramsSerializer: REPEAT_PARAMS, signal })
   return data
 }
 
@@ -92,7 +94,7 @@ export async function guestCategoryProjects(categoryCode, params = {}) {
 // ── Persons ──────────────────────────────────────────────────────────────
 export async function guestPersons(params = {}) {
   const { signal, ...query } = params
-  const { data } = await apiClient.get('/guest/persons', { params: query, signal })
+  const { data } = await apiClient.get('/guest/persons', { params: query, paramsSerializer: REPEAT_PARAMS, signal })
   return data
 }
 
@@ -115,7 +117,7 @@ function makeMediaApi(resource) {
   return {
     async list(params = {}) {
       const { signal, ...query } = params
-      const { data } = await apiClient.get(`/guest/${resource}`, { params: query, signal })
+      const { data } = await apiClient.get(`/guest/${resource}`, { params: query, paramsSerializer: REPEAT_PARAMS, signal })
       return data
     },
     async one(code, { signal } = {}) {

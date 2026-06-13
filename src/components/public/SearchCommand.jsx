@@ -49,7 +49,7 @@ const SUGGEST_LIMIT = 8
 
 // Per-kind icon + label + how to act on a click (navigate vs. submit).
 // `entity` kinds resolve to a public detail route via the suggestion's
-// `code`; `tag` (the only `query` kind) just becomes the search term.
+// `code`; `tag` suggestions jump into the structured tag filter.
 // Keyword suggestions are intentionally not exposed on the public
 // surface — they're a backend cataloguing concept, not something
 // readers should see or browse by.
@@ -61,12 +61,12 @@ const SUGGEST_KINDS = {
   video: { icon: VideoIcon, label: 'Video', mode: 'entity', path: 'videos' },
   text: { icon: FileText, label: 'Text', mode: 'entity', path: 'texts' },
   image: { icon: ImageIcon, label: 'Image', mode: 'entity', path: 'images' },
-  tag: { icon: Tag, label: 'Tag', mode: 'query' },
+  tag: { icon: Tag, label: 'Tag', mode: 'tag' },
 }
 
 // Display order for grouped suggestion buckets. Entity kinds come first
-// because they jump straight to a record; tags trail because they just
-// narrow the next search.
+// because they jump straight to a record; tags trail because they narrow
+// the browse feed through the structured tag filter.
 const SUGGEST_ORDER = [
   'person', 'project', 'audio', 'video', 'text', 'image', 'category', 'tag',
 ]
@@ -243,6 +243,10 @@ function SearchCommand({ className, autoFocus = false }) {
       navigate(`/public/${meta.path}/${encodeURIComponent(s.code)}`)
       return
     }
+    if (meta.mode === 'tag') {
+      navigate(`/public/browse?type=all&tag=${encodeURIComponent(s.value || '')}`)
+      return
+    }
     submitWith(s.value)
   }
 
@@ -301,7 +305,7 @@ function SearchCommand({ className, autoFocus = false }) {
           }}
           onFocus={() => setSuggestOpen(true)}
           onKeyDown={onInputKeyDown}
-          placeholder="Search the archive — title, person, region, language, tag…"
+          placeholder="Search the archive — title, person, region, language…"
           className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-medium tracking-tight text-foreground outline-none placeholder:text-muted-foreground/80"
           aria-label="Search the archive"
           aria-autocomplete="list"

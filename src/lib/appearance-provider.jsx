@@ -14,6 +14,7 @@ import {
   DEFAULT_APPEARANCE,
   FONT_PALETTE,
   RADIUS_PALETTE,
+  SCALE_PALETTE,
   applyAppearance,
   readAppearance,
   resolveAppearance,
@@ -73,6 +74,7 @@ export function AppearanceProvider({ children }) {
       accents: ACCENT_PALETTE,
       fonts: FONT_PALETTE,
       radii: RADIUS_PALETTE,
+      scales: SCALE_PALETTE,
     }),
     [state, resolved, update, reset],
   )
