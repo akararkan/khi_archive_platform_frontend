@@ -15,31 +15,42 @@ function getToastIcon(variant) {
   return Info
 }
 
-// Card background everywhere; the variant adds a coloured border + a left
-// accent bar + a coloured icon/title. Body copy stays neutral so the toast
-// reads cleanly instead of becoming a wall of colour.
-function getToastBorder(variant) {
-  if (variant === 'success') return 'border-emerald-500/30'
-  if (variant === 'error') return 'border-destructive/30'
-  return 'border-border'
+// A restrained tinted-glass wash + a variant ring sit on a translucent card so
+// the toast reads as clearly intentional (the brand-correct answer to "plain /
+// weak") without becoming a wall of colour. The crisp variant colour lives in
+// a filled icon chip + the title; body copy stays neutral.
+function getToastSurface(variant) {
+  if (variant === 'success')
+    return 'border-emerald-500/20 bg-emerald-50/70 ring-emerald-500/15 dark:bg-emerald-950/40 dark:ring-emerald-400/15'
+  if (variant === 'error')
+    return 'border-destructive/25 bg-red-50/70 ring-destructive/15 dark:bg-red-950/40 dark:ring-destructive/20'
+  return 'border-border bg-card/80 ring-black/5 dark:ring-white/10'
 }
 
-function getToastAccent(variant) {
-  if (variant === 'success') return 'bg-emerald-500'
-  if (variant === 'error') return 'bg-destructive'
-  return 'bg-primary'
+// Filled circular chip behind the variant icon.
+function getToastChip(variant) {
+  if (variant === 'success') return 'bg-emerald-500/15 ring-emerald-500/25 dark:bg-emerald-400/15'
+  if (variant === 'error') return 'bg-destructive/15 ring-destructive/25'
+  return 'bg-primary/10 ring-primary/20'
 }
 
 function getToastIconClass(variant) {
   if (variant === 'success') return 'text-emerald-600 dark:text-emerald-400'
   if (variant === 'error') return 'text-destructive'
-  return 'text-muted-foreground'
+  return 'text-primary'
 }
 
 function getToastTitleClass(variant) {
   if (variant === 'success') return 'text-emerald-700 dark:text-emerald-300'
   if (variant === 'error') return 'text-destructive'
   return 'text-foreground'
+}
+
+// Thin bottom auto-dismiss bar fill.
+function getToastProgress(variant) {
+  if (variant === 'success') return 'bg-emerald-500/70 dark:bg-emerald-400/60'
+  if (variant === 'error') return 'bg-destructive/70'
+  return 'bg-primary/60'
 }
 
 // `description` may be a plain string OR an options object. Normalize either
@@ -73,6 +84,10 @@ function resolveToastFields(secondArg) {
 function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
   const timeoutMapRef = useRef(new Map())
+  // Per-toast dismiss bookkeeping for the truthful hover-pause: `endAt` is when
+  // the current run will dismiss; `remaining` is captured on pause so resume
+  // continues from exactly where it froze (timer AND progress bar in lockstep).
+  const runMapRef = useRef(new Map())
 
   const dismiss = useCallback((id) => {
     const timeoutId = timeoutMapRef.current.get(id)
@@ -80,6 +95,7 @@ function ToastProvider({ children }) {
       clearTimeout(timeoutId)
       timeoutMapRef.current.delete(id)
     }
+    runMapRef.current.delete(id)
 
     setToasts((currentToasts) => currentToasts.filter((toast) => toast.id !== id))
   }, [])
@@ -112,6 +128,12 @@ function ToastProvider({ children }) {
         status,
         i18n,
         variant,
+        duration,
+        // `runKey` re-keys the progress bar to restart its CSS animation on
+        // resume; `elapsed` becomes a negative animation-delay so the bar
+        // resumes from exactly where it paused (no jump).
+        runKey: 0,
+        elapsed: 0,
       },
     ])
 
@@ -120,8 +142,41 @@ function ToastProvider({ children }) {
     }, duration)
 
     timeoutMapRef.current.set(id, timeoutId)
+    runMapRef.current.set(id, { endAt: Date.now() + duration, remaining: duration })
 
     return id
+  }, [dismiss])
+
+  // Truthful hover-pause: while the pointer is over a toast we cancel the real
+  // auto-dismiss timer (not just the visual bar) and capture how much time is
+  // left, so a toast you're reading never vanishes mid-sentence.
+  const pauseTimer = useCallback((id) => {
+    const timeoutId = timeoutMapRef.current.get(id)
+    if (!timeoutId) return
+    clearTimeout(timeoutId)
+    timeoutMapRef.current.delete(id)
+    const run = runMapRef.current.get(id)
+    if (run) run.remaining = Math.max(0, run.endAt - Date.now())
+  }, [])
+
+  // On leave, resume from the captured remaining time (NOT a fresh full
+  // duration) and re-key the bar with a negative delay so the visual bar and
+  // the real timer finish together. The has() guard makes repeated enter/leave
+  // race-free — two timers can never stack for one toast.
+  const resumeTimer = useCallback((id, duration) => {
+    if (timeoutMapRef.current.has(id)) return
+    const full = duration ?? DEFAULT_TOAST_DURATION
+    const run = runMapRef.current.get(id)
+    const remaining = run ? run.remaining : full
+    const timeoutId = window.setTimeout(() => dismiss(id), remaining)
+    timeoutMapRef.current.set(id, timeoutId)
+    runMapRef.current.set(id, { endAt: Date.now() + remaining, remaining })
+    const elapsed = Math.max(0, full - remaining)
+    setToasts((currentToasts) =>
+      currentToasts.map((toast) =>
+        toast.id === id ? { ...toast, runKey: (toast.runKey ?? 0) + 1, elapsed } : toast,
+      ),
+    )
   }, [dismiss])
 
   useEffect(() => {
@@ -189,28 +244,34 @@ function ToastProvider({ children }) {
     <ToastContext.Provider value={api}>
       {children}
 
-      <div className="pointer-events-none fixed right-4 top-4 z-[100] flex w-[min(92vw,420px)] flex-col gap-2">
+      <div className="pointer-events-none fixed right-4 top-4 z-[100] flex w-[min(92vw,420px)] flex-col gap-2.5">
         {toasts.map((toast) => {
           const Icon = getToastIcon(toast.variant)
 
           return (
             <div
               key={toast.id}
+              role={toast.variant === 'error' ? 'alert' : 'status'}
+              aria-live={toast.variant === 'error' ? 'assertive' : 'polite'}
+              onMouseEnter={() => pauseTimer(toast.id)}
+              onMouseLeave={() => resumeTimer(toast.id, toast.duration)}
               className={cn(
-                'pointer-events-auto relative overflow-hidden rounded-xl border bg-card py-3 pl-4 pr-3 shadow-lg shadow-black/10 backdrop-blur supports-[backdrop-filter]:bg-card/95',
-                getToastBorder(toast.variant),
+                'group pointer-events-auto relative overflow-hidden rounded-xl border p-3.5 pr-2.5 shadow-lg shadow-black/10 ring-1 backdrop-blur-md',
+                'supports-[backdrop-filter]:bg-card/80',
+                'animate-in fade-in-0 slide-in-from-right-3 zoom-in-[0.98] duration-300 ease-out motion-reduce:animate-none',
+                getToastSurface(toast.variant),
               )}
-              role="status"
             >
-              <span
-                aria-hidden="true"
-                className={cn('absolute inset-y-0 left-0 w-1', getToastAccent(toast.variant))}
-              />
               <div className="flex items-start gap-3">
-                <Icon className={cn('mt-0.5 size-4 shrink-0', getToastIconClass(toast.variant))} />
+                {/* Filled circular icon chip — the crisp variant colour lives
+                    here, not as a full-card wash. */}
+                <span className={cn('mt-0.5 grid size-7 shrink-0 place-items-center rounded-full ring-1', getToastChip(toast.variant))}>
+                  <Icon className={cn('size-4', getToastIconClass(toast.variant))} aria-hidden="true" />
+                </span>
 
                 {toast.i18n ? (
                   // API errors: bilingual title/message/hint/traceId/details.
+                  // (LocalizedErrorContent applies min-w-0 flex-1 on its root.)
                   <LocalizedErrorContent error={{ i18n: toast.i18n }} />
                 ) : (
                   <div className="min-w-0 flex-1 space-y-1">
@@ -252,13 +313,34 @@ function ToastProvider({ children }) {
                   type="button"
                   variant="ghost"
                   size="icon-xs"
-                  className="size-6 rounded-full"
+                  className="size-6 shrink-0 rounded-full text-muted-foreground/70 transition-opacity hover:text-foreground"
                   onClick={() => dismiss(toast.id)}
                 >
                   <X className="size-3.5" />
                   <span className="sr-only">Dismiss notification</span>
                 </Button>
               </div>
+
+              {/* Thin auto-dismiss bar pinned to the bottom, depleting L→R over
+                  the toast's own `duration`. group-hover freezes the CSS
+                  animation while the real timer is paused (pauseTimer); on
+                  leave the span is re-keyed (runKey) with a negative
+                  animation-delay equal to the elapsed time, so the bar resumes
+                  exactly where it froze and finishes in lockstep with the
+                  resumed timer — the affordance is truthful. */}
+              <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden">
+                <span
+                  key={toast.runKey ?? 0}
+                  className={cn(
+                    'block h-full origin-left animate-toast-progress group-hover:[animation-play-state:paused] motion-reduce:animate-none',
+                    getToastProgress(toast.variant),
+                  )}
+                  style={{
+                    animationDuration: `${toast.duration ?? DEFAULT_TOAST_DURATION}ms`,
+                    animationDelay: `-${toast.elapsed ?? 0}ms`,
+                  }}
+                />
+              </span>
             </div>
           )
         })}
