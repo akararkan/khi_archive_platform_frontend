@@ -22,8 +22,8 @@ import {
 } from '@/components/public/public-helpers'
 
 export const PAGE_SIZE = 24
-export const DEFAULT_TYPE = 'all'
-export const MEDIA_KINDS = ['audio', 'video', 'image', 'text']
+export const DEFAULT_TYPE = 'audio'
+export const MEDIA_KINDS = ['audio', 'video', 'text', 'image']
 
 export const KIND_TO_RESOURCE = {
   audio: 'audios',
@@ -73,26 +73,24 @@ export const UI = {
 export const TYPE_LABELS = { audio: 'دەنگ', video: 'ڤیدیۆ', text: 'دەق', image: 'وێنە', person: 'کەس', project: 'پڕۆژە', category: 'پۆل' }
 
 const SHARED_MEDIA_FACETS = [
-  { paramKey: 'personCode', facetKey: 'persons', title: 'کەس', person: true, defaultOpen: true },
   { paramKey: 'categoryCode', facetKey: 'categories', title: 'پۆل', defaultOpen: true },
-  { paramKey: 'projectCode', facetKey: 'projects', title: 'پڕۆژە' },
+  { paramKey: 'personCode', facetKey: 'persons', title: 'کەس', person: true },
   { paramKey: 'language', facetKey: 'languages', title: 'زمان' },
   { paramKey: 'dialect', facetKey: 'dialects', title: 'زاراوە' },
   { paramKey: 'genre', facetKey: 'genres', title: 'ژانر' },
 ]
-const UNIFIED_FACETS = SHARED_MEDIA_FACETS.filter((f) => f.paramKey !== 'genre')
 const IMAGE_FACETS = SHARED_MEDIA_FACETS.filter((f) => !['language', 'dialect'].includes(f.paramKey))
 const PROJECT_FACETS = [
-  { paramKey: 'personCode', facetKey: 'persons', title: 'کەس', person: true, defaultOpen: true },
   { paramKey: 'categoryCode', facetKey: 'categories', title: 'پۆل', defaultOpen: true },
+  { paramKey: 'personCode', facetKey: 'persons', title: 'کەس', person: true },
 ]
 const PERSON_FACETS = [{ paramKey: 'region', facetKey: 'regions', title: 'ناوچە', defaultOpen: true }]
 
 const MEDIA_SORTS = [
-  { key: 'dateCreated', dir: 'desc', label: 'نوێترین' },
-  { key: 'dateCreated', dir: 'asc', label: 'کۆنترین' },
-  { key: 'title', dir: 'asc', label: 'ناونیشان ↑' },
-  { key: 'title', dir: 'desc', label: 'ناونیشان ↓' },
+  { key: 'createdAt', dir: 'desc', label: 'نوێترین' },
+  { key: 'createdAt', dir: 'asc', label: 'کۆنترین' },
+  { key: 'titleEnglish', dir: 'asc', label: 'ناونیشان ↑' },
+  { key: 'titleEnglish', dir: 'desc', label: 'ناونیشان ↓' },
 ]
 const ALL_SORTS = [
   { key: 'relevance', dir: 'desc', label: 'پەیوەندیدار' },
@@ -117,31 +115,23 @@ const IMAGE_TEXT_FILTERS = [{ paramKey: 'location', label: 'شوێن' }, { param
 const TEXT_TEXT_FILTERS = [{ paramKey: 'author', label: 'نووسەر' }]
 
 // ── Type registry ────────────────────────────────────────────────────────────
-// The unified catalogue ('all') is the public home: all four media types in one
-// feed, narrowed by the shared facets (person → category → project), media-type
-// checkboxes, and the decade range. The four media types stay in the registry
-// (so TYPE_MAP resolves them for legacy /public/<type> deep links AND for the
-// "focus one type" behaviour that unlocks that type's uncommon search-within
-// fields) but are `navHidden` — they are checkboxes inside the catalogue, not
-// their own nav tabs. Person / Project / Category remain real nav tabs so a
-// visitor can open an entity.
 export const TYPES = [
-  { key: 'all', group: 'discover', label: 'گەنجینەکە', sub: 'دەنگ، ڤیدیۆ، وێنە و دەق بەیەکەوە', resource: null, kind: null,
-    api: (p) => guestResults(p), facetMap: UNIFIED_FACETS, sorts: ALL_SORTS, showMediaTypes: true, showDateRange: true },
-  { key: 'person', group: 'entities', label: 'کەسەکان', sub: 'هونەرمەند، دەنگبێژ و چیرۆکبێژ', resource: 'persons', kind: 'person',
-    api: (p) => guestPersons(p), facetMap: PERSON_FACETS, sorts: BASIC_SORTS },
-  { key: 'project', group: 'entities', label: 'پڕۆژەکان', sub: 'کۆکراوە و توێژینەوەکان', resource: 'projects', kind: 'project',
-    api: (p) => guestProjects(p), facetMap: PROJECT_FACETS, sorts: BASIC_SORTS },
-  { key: 'category', group: 'entities', label: 'پۆلەکان', sub: 'پۆلێنی کەلەپوور', resource: 'categories', kind: 'category',
-    api: (p) => guestCategories(p), facetMap: [], sorts: BASIC_SORTS },
-  { key: 'audio', group: 'media', navHidden: true, label: 'دەنگەکان', sub: 'گۆرانی، دەنگبێژ و گێڕانەوەی زارەکی', resource: 'audios', kind: 'audio',
+  { key: 'all', label: 'هەموو ئەنجامەکان', sub: 'گەنجینەی تەواوی دەزگا', resource: null, kind: null,
+    api: (p) => guestResults(p), facetMap: [], sorts: ALL_SORTS, showMediaTypes: true },
+  { key: 'audio', label: 'دەنگەکان', sub: 'گۆرانی، دەنگبێژ و گێڕانەوەی زارەکی', resource: 'audios', kind: 'audio',
     api: (p) => guestAudios.list(p), facetMap: SHARED_MEDIA_FACETS, sorts: MEDIA_SORTS, showDateRange: true, textFilters: AUDIO_TEXT_FILTERS },
-  { key: 'video', group: 'media', navHidden: true, label: 'ڤیدیۆکان', sub: 'فیلم و تۆماری بینراو', resource: 'videos', kind: 'video',
+  { key: 'video', label: 'ڤیدیۆکان', sub: 'فیلم و تۆماری بینراو', resource: 'videos', kind: 'video',
     api: (p) => guestVideos.list(p), facetMap: SHARED_MEDIA_FACETS, sorts: MEDIA_SORTS, showDateRange: true, textFilters: VIDEO_TEXT_FILTERS },
-  { key: 'image', group: 'media', navHidden: true, label: 'وێنەکان', sub: 'وێنە مێژووییەکان', resource: 'images', kind: 'image',
-    api: (p) => guestImages.list(p), facetMap: IMAGE_FACETS, sorts: MEDIA_SORTS, showDateRange: true, textFilters: IMAGE_TEXT_FILTERS },
-  { key: 'text', group: 'media', navHidden: true, label: 'دەقەکان', sub: 'دەستنووس و نووسراوەکان', resource: 'texts', kind: 'text',
+  { key: 'text', label: 'دەقەکان', sub: 'دەستنووس و نووسراوەکان', resource: 'texts', kind: 'text',
     api: (p) => guestTexts.list(p), facetMap: SHARED_MEDIA_FACETS, sorts: MEDIA_SORTS, showDateRange: true, textFilters: TEXT_TEXT_FILTERS },
+  { key: 'image', label: 'وێنەکان', sub: 'وێنە مێژووییەکان', resource: 'images', kind: 'image',
+    api: (p) => guestImages.list(p), facetMap: IMAGE_FACETS, sorts: MEDIA_SORTS, showDateRange: true, textFilters: IMAGE_TEXT_FILTERS },
+  { key: 'person', label: 'کەسەکان', sub: 'هونەرمەند، دەنگبێژ و چیرۆکبێژ', resource: 'persons', kind: 'person',
+    api: (p) => guestPersons(p), facetMap: PERSON_FACETS, sorts: BASIC_SORTS },
+  { key: 'project', label: 'پڕۆژەکان', sub: 'کۆکراوە و توێژینەوەکان', resource: 'projects', kind: 'project',
+    api: (p) => guestProjects(p), facetMap: PROJECT_FACETS, sorts: BASIC_SORTS },
+  { key: 'category', label: 'پۆلەکان', sub: 'پۆلێنی کەلەپوور', resource: 'categories', kind: 'category',
+    api: (p) => guestCategories(p), facetMap: [], sorts: BASIC_SORTS },
 ]
 export const TYPE_MAP = Object.fromEntries(TYPES.map((t) => [t.key, t]))
 
@@ -206,7 +196,6 @@ export function cardFromItem(item, typeKey) {
       image: personImageSrc(item),
       avatarText: personInitials(name),
       tags: tagsOf(item),
-      filterTags: tagsOf(item),
       count: item.projectCount || item.totalCount || null,
     }
   }
@@ -226,7 +215,6 @@ export function cardFromItem(item, typeKey) {
         : null,
       person: person ? { name: person.fullName || person.name, code: person.personCode, image: personImageSrc(person) } : null,
       tags: counts,
-      filterTags: tagsOf(item),
       image: mediaThumbHref(item),
     }
   }
@@ -237,7 +225,6 @@ export function cardFromItem(item, typeKey) {
       title: item.categoryName || item.name || code,
       collection: null,
       tags: item.projectCount ? [`${item.projectCount} پڕۆژە`] : tagsOf(item),
-      filterTags: tagsOf(item),
     }
   }
 
@@ -254,7 +241,6 @@ export function cardFromItem(item, typeKey) {
     duration: durationOf(item),
     image: kind === 'image' ? mediaThumbHref(item) : null,
     tags: tagsOf(item),
-    filterTags: tagsOf(item),
     matchedOn: Array.isArray(item.matchedOn) ? item.matchedOn : null,
   }
 }

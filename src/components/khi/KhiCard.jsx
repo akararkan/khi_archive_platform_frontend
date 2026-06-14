@@ -1,5 +1,5 @@
 import React from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
 import { Highlight } from '@/components/ui/highlight'
 import KhiMediaPreview from './KhiMediaPreview'
@@ -24,11 +24,9 @@ function Avatar({ person }) {
 // `index` staggers the rise-in; `query` highlights; `view` switches grid/list;
 // `lead` marks the landing's first plate as a wide cinematic feature.
 export default function KhiCard({ record, index = 0, query = '', view = 'grid', lead = false }) {
-  const navigate = useNavigate()
   const { kind, collection, title, person, region, decade, to, image } = record
   const TypeIcon = TYPE_ICON[kind]
   const isPerson = kind === 'person'
-  const filterTags = Array.isArray(record.filterTags) ? record.filterTags.filter(Boolean).slice(0, 3) : []
 
   // A real photograph only exists for these kinds; everything else uses the
   // kit's generated art and therefore stays a container "frame" card.
@@ -46,11 +44,11 @@ export default function KhiCard({ record, index = 0, query = '', view = 'grid', 
   if (featured) cls.push('featured')
 
   return (
-    <article
+    <Link
+      to={to}
       className={cls.join(' ')}
       style={{ animationDelay: `${(0.05 + (index % 12) * 0.04).toFixed(2)}s` }}
     >
-      <Link className="card-hit" to={to} aria-label={title || TYPE_LABELS[kind] || kind} />
       <div className="media">
         {/* Internal codes are never shown on public pages. */}
         {TypeIcon ? (
@@ -73,26 +71,7 @@ export default function KhiCard({ record, index = 0, query = '', view = 'grid', 
         ) : year ? (
           <div className="meta"><span className="yr only">{year}</span></div>
         ) : null}
-
-        {filterTags.length ? (
-          <div className="tags">
-            {filterTags.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                className="tag tag-link"
-                onClick={(event) => {
-                  event.preventDefault()
-                  event.stopPropagation()
-                  navigate(`/public/browse?tag=${encodeURIComponent(tag)}`)
-                }}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
-    </article>
+    </Link>
   )
 }

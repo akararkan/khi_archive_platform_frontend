@@ -293,11 +293,14 @@ function PublicImageDetailPage() {
 
             <MetaPanelIf
               obj={image}
-              title="Tags"
-              keys={['tags']}
+              title="Tags & keywords"
+              keys={['tags', 'keywords']}
             >
               <MetaRow label="Tags" value={image.tags}>
-                <PillRow values={image.tags} tone="primary" linkPrefix="/public/browse?tag=" />
+                <PillRow values={image.tags} tone="primary" />
+              </MetaRow>
+              <MetaRow label="Keywords" value={image.keywords}>
+                <PillRow values={image.keywords} />
               </MetaRow>
             </MetaPanelIf>
           </aside>

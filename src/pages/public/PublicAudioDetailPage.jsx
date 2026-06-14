@@ -304,11 +304,14 @@ function PublicAudioDetailPage() {
 
             <MetaPanelIf
               obj={audio}
-              title="Tags"
-              keys={['tags']}
+              title="Tags & keywords"
+              keys={['tags', 'keywords']}
             >
               <MetaRow label="Tags" value={audio.tags}>
-                <PillRow values={audio.tags} tone="primary" linkPrefix="/public/browse?tag=" />
+                <PillRow values={audio.tags} tone="primary" />
+              </MetaRow>
+              <MetaRow label="Keywords" value={audio.keywords}>
+                <PillRow values={audio.keywords} />
               </MetaRow>
             </MetaPanelIf>
           </aside>
