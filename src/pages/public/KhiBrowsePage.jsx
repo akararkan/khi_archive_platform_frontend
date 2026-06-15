@@ -7,6 +7,7 @@ import { guestFacets } from '@/services/guest'
 import KhiSidebar from '@/components/khi/KhiSidebar'
 import KhiToolbar from '@/components/khi/KhiToolbar'
 import KhiCard from '@/components/khi/KhiCard'
+import { useYearBounds } from '@/components/khi/use-year-bounds'
 import { IconClose } from '@/components/khi/icons'
 import {
   TYPES, TYPE_MAP, DEFAULT_TYPE, PAGE_SIZE, MEDIA_KINDS, UI, cardFromItem,
@@ -78,6 +79,11 @@ export function KhiBrowsePage() {
   const page = Math.max(0, Number(searchParams.get('page')) || 0)
   const dateFrom = searchParams.get('dateFrom') || ''
   const dateTo = searchParams.get('dateTo') || ''
+  // The timeline filter works in plain YEARS; the URL keeps backend-native
+  // ISO dates (YYYY-01-01 … YYYY-12-31) so links stay shareable + the API
+  // contract is untouched.
+  const yearFrom = dateFrom ? Number(dateFrom.slice(0, 4)) || null : null
+  const yearTo = dateTo ? Number(dateTo.slice(0, 4)) || null : null
 
   const sortBy = searchParams.get('sortBy') || type.sorts[0].key
   const sortDir = searchParams.get('sortDirection') || type.sorts[0].dir
@@ -95,6 +101,8 @@ export function KhiBrowsePage() {
   }, [searchParams, type.textFilters])
 
   const [facets, setFacets] = useState(null)
+  // Oldest → newest YEAR span for the timeline filter, derived from live data.
+  const yearBounds = useYearBounds(type, facets)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -213,6 +221,13 @@ export function KhiBrowsePage() {
   const onTextFilter = (paramKey, value) => {
     setTextDrafts((d) => ({ ...d, [paramKey]: value }))
   }
+  // Years → backend-native ISO span (full-day inclusive on both ends).
+  const onYearChange = ({ from, to }) => {
+    update({
+      dateFrom: from != null ? `${from}-01-01` : null,
+      dateTo: to != null ? `${to}-12-31` : null,
+    })
+  }
   // Commit text drafts to the URL after a pause.
   useEffect(() => {
     const id = setTimeout(() => {
@@ -238,7 +253,7 @@ export function KhiBrowsePage() {
     }
   }
   for (const k of selectedMediaTypes) chips.push({ key: `mt:${k}`, label: ({ audio: 'دەنگ', video: 'ڤیدیۆ', text: 'دەق', image: 'وێنە' })[k], onRemove: () => onToggleMediaType(k) })
-  if (type.showDateRange && (dateFrom || dateTo)) chips.push({ key: 'date', label: `${UI.dateCreated}: ${dateFrom || '…'} → ${dateTo || '…'}`, onRemove: () => update({ dateFrom: null, dateTo: null }) })
+  if (type.showDateRange && (dateFrom || dateTo)) chips.push({ key: 'date', label: `${UI.dateRange}: ${yearFrom || '…'}–${yearTo || '…'}`, onRemove: () => update({ dateFrom: null, dateTo: null }) })
 
   const subtitle = loading ? type.sub : `${type.sub} · ${totalElements.toLocaleString()} ${UI.results}`
 
@@ -264,9 +279,12 @@ export function KhiBrowsePage() {
           selectedMediaTypes={selectedMediaTypes}
           onToggleMediaType={onToggleMediaType}
           showDateRange={type.showDateRange}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          onDateChange={({ dateFrom: f, dateTo: t }) => update({ dateFrom: f || null, dateTo: t || null })}
+          yearMin={yearBounds.min}
+          yearMax={yearBounds.max}
+          yearFrom={yearFrom}
+          yearTo={yearTo}
+          yearLoading={!yearBounds.ready}
+          onYearChange={onYearChange}
           textFilters={type.textFilters || []}
           textFilterValues={textDrafts}
           onTextFilter={onTextFilter}

@@ -1,28 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { MessageSquarePlus } from 'lucide-react'
 
 import { VideoPlayer } from '@/components/ui/video-player'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import {
-  ErrorState,
-  PageContainer,
-} from '@/components/public/PublicShared'
-import {
-  CategoryLinks,
-  MediaHero,
-  MetaPanel,
-  MetaPanelIf,
-  MetaRow,
-  PersonLink,
-  PillRow,
-  ProjectLink,
-  SearchValue,
-} from '@/components/public/PublicMediaDetailShared'
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
-import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
+import {
+  formatPublicDate, mediaThumbHref, pickMediaTitle, extractPersonFromItem,
+} from '@/components/public/public-helpers'
+import { DETAIL, yearNum } from '@/components/khi/khi-data'
+import KhiMediaDetail from '@/components/khi/KhiMediaDetail'
+import {
+  KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaPanelIf, KhiMetaRow,
+  KhiPillRow, KhiSearchValue, KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
+} from '@/components/khi/KhiDetail'
+import {
+  IconPerson, IconProject, IconCalendar, IconLanguage, IconRegion, IconClock,
+  IconLayers, IconVideo, IconMic, IconText, IconPlus,
+} from '@/components/khi/icons'
 import { guestVideos } from '@/services/guest'
+
+function toList(v, cap = 12) {
+  if (!v) return []
+  const arr = Array.isArray(v) ? v : String(v).split(/[,،;]/)
+  return arr.map((s) => String(s).trim()).filter(Boolean).slice(0, cap)
+}
 
 function PublicVideoDetailPage() {
   const { code } = useParams()
@@ -35,268 +35,111 @@ function PublicVideoDetailPage() {
     const ctrl = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
-     
     setError('')
     guestVideos
       .one(code, { signal: ctrl.signal })
-      .then((d) => setVideo(d || null))
-      .catch((err) => {
-        if (err?.code === 'ERR_CANCELED') return
-        setError('Could not load this video.')
-      })
-      .finally(() => setLoading(false))
+      .then((d) => { if (!ctrl.signal.aborted) setVideo(d || null) })
+      .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError('Could not load this video.') })
+      .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     return () => ctrl.abort()
   }, [code])
 
-  const breadcrumbs = useMemo(
-    () => [
-      { to: '/public', label: 'Home' },
-      { to: '/public/videos', label: 'Videos' },
-      { label: pickMediaTitle(video) || 'Untitled video' },
-    ],
-    [video],
+  const person = useMemo(() => extractPersonFromItem(video), [video])
+
+  if (loading || error || !video) {
+    return <KhiDetailShell loading={loading} error={error} notFound={!video} />
+  }
+
+  const title = pickMediaTitle(video) || DETAIL.none
+  const originalCandidate = video.originalTitle || video.titleOriginal || video.titleInCentralKurdish || video.centralKurdishTitle
+  const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
+  const projectCode = video.project?.projectCode || video.projectCode
+
+  const infoCards = [
+    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? `/public/persons/${person.personCode}` : null },
+    { icon: IconProject, label: DETAIL.project, value: video.project?.projectName || video.projectName, to: projectCode ? `/public/projects/${projectCode}` : null },
+    { icon: IconCalendar, label: DETAIL.event, value: video.event },
+    { icon: IconRegion, label: DETAIL.location, value: video.location || video.region },
+    { icon: IconLanguage, label: DETAIL.language, value: video.language },
+    { icon: IconCalendar, label: DETAIL.year, value: yearNum(video) },
+    { icon: IconClock, label: DETAIL.duration, value: video.durationFormatted || video.duration },
+  ]
+
+  const content = (
+    <>
+      {video.videoFileUrl ? (
+        <div className="player-mount" style={{ marginBottom: 22 }}>
+          <VideoPlayer src={video.videoFileUrl} title={title} subtitle={video.event || video.location || video.language || ''} downloadHref={video.videoFileUrl} />
+        </div>
+      ) : (
+        <div className="media-unavailable">{DETAIL.fileUnavailable}</div>
+      )}
+      {video.transcription ? <KhiContentCard icon={IconText} title={DETAIL.transcription}><p>{video.transcription}</p></KhiContentCard> : null}
+    </>
   )
 
-  if (loading) {
-    return (
-      <PageContainer>
-        <Skeleton className="h-6 w-32" />
-        <Skeleton className="mt-4 h-10 w-2/3" />
-        <Skeleton className="mt-3 h-4 w-1/2" />
-        <Skeleton className="mt-8 aspect-video w-full rounded-2xl" />
-      </PageContainer>
-    )
-  }
-  if (error || !video) {
-    return (
-      <PageContainer>
-        <ErrorState error={error || 'Video not found.'} />
-      </PageContainer>
-    )
-  }
+  const meta = (
+    <>
+      <KhiMetaPanel icon={IconLayers} title={DETAIL.details}>
+        <KhiMetaRow label={DETAIL.project} value={projectCode}><KhiProjectLink project={video.project || { projectCode: video.projectCode, projectName: video.projectName }} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.person} value={person?.personCode}><KhiPersonLink person={person} fallbackName={person?.name} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.categories} value={video.categories}><KhiCategoryLinks categories={video.categories} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.subject} value={video.subject}><KhiPillRow values={video.subject} search /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.audience} value={video.audience}><KhiSearchValue value={video.audience} /></KhiMetaRow>
+      </KhiMetaPanel>
 
-  const title = pickMediaTitle(video) || 'Untitled video'
-  const originalCandidate =
-    video.originalTitle ||
-    video.titleOriginal ||
-    video.titleInCentralKurdish ||
-    video.centralKurdishTitle
-  const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
+      <KhiMetaPanelIf obj={video} icon={IconVideo} title={DETAIL.subjectForm} keys={['event', 'location', 'genre', 'personShownInVideo', 'colorOfVideo', 'whereThisVideoUsed']}>
+        <KhiMetaRow label={DETAIL.event} value={video.event}><KhiSearchValue value={video.event} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.location} value={video.location}><KhiSearchValue value={video.location} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.genre} value={video.genre}><KhiPillRow values={video.genre} search /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.peopleShown} value={video.personShownInVideo}><KhiSearchValue value={video.personShownInVideo} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.color} value={video.colorOfVideo}><KhiPillRow values={video.colorOfVideo} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.usedIn} value={video.whereThisVideoUsed}><KhiPillRow values={video.whereThisVideoUsed} /></KhiMetaRow>
+      </KhiMetaPanelIf>
+
+      <KhiMetaPanelIf obj={video} icon={IconMic} title={DETAIL.credits} keys={['creatorArtistDirector', 'producer', 'contributors', 'contributor', 'subtitle']}>
+        <KhiMetaRow label={DETAIL.director} value={video.creatorArtistDirector}><KhiSearchValue value={video.creatorArtistDirector} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.producer} value={video.producer}><KhiSearchValue value={video.producer} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.contributors} value={video.contributors || video.contributor}><KhiPillRow values={video.contributors || video.contributor} search /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.subtitle} value={video.subtitle}><KhiSearchValue value={video.subtitle} /></KhiMetaRow>
+      </KhiMetaPanelIf>
+
+      <KhiMetaPanelIf obj={video} icon={IconLanguage} title={DETAIL.langPlace} keys={['language', 'dialect']}>
+        <KhiMetaRow label={DETAIL.language} value={video.language}><KhiSearchValue value={video.language} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.dialect} value={video.dialect}><KhiSearchValue value={video.dialect} /></KhiMetaRow>
+      </KhiMetaPanelIf>
+
+      <KhiMetaPanelIf obj={video} icon={IconCalendar} title={DETAIL.dates} keys={['recordedAt', 'recordingDate', 'dateCreated', 'publisher']}>
+        <KhiMetaRow label={DETAIL.recorded}>{formatPublicDate(video.recordedAt || video.recordingDate)}</KhiMetaRow>
+        <KhiMetaRow label={DETAIL.date}>{formatPublicDate(video.dateCreated)}</KhiMetaRow>
+        <KhiMetaRow label={DETAIL.publisher} value={video.publisher}><KhiSearchValue value={video.publisher} /></KhiMetaRow>
+      </KhiMetaPanelIf>
+    </>
+  )
 
   return (
     <>
-      <HelpUsDialog
-        open={helpOpen}
-        onOpenChange={setHelpOpen}
-        mediaType="VIDEO"
-        mediaCode={code}
-        mediaTitle={title}
-        mediaData={video}
-      />
-      <MediaHero
-        kind="Video"
-        title={title}
-        originalTitle={original}
-        description={video.description}
-        breadcrumbs={breadcrumbs}
-        action={
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setHelpOpen(true)}
-          >
-            <MessageSquarePlus className="size-4" />
-            Help Us Improve
-          </Button>
-        }
-      />
-      <PageContainer>
-        <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
-          <div className="min-w-0 space-y-6">
-            {video.videoFileUrl ? (
-              <VideoPlayer
-                src={video.videoFileUrl}
-                title={title}
-                subtitle={video.event || video.location || video.language || ''}
-                downloadHref={video.videoFileUrl}
-              />
-            ) : (
-              <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center text-sm text-muted-foreground">
-                Video file not publicly available.
-              </div>
-            )}
-
-            {video.description ? (
-              <Section title="Description">
-                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
-                  {video.description}
-                </p>
-              </Section>
-            ) : null}
-
-            {video.transcription ? (
-              <Section title="Transcription">
-                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
-                  {video.transcription}
-                </p>
-              </Section>
-            ) : null}
-          </div>
-
-          <aside className="space-y-5 lg:sticky lg:top-32 lg:self-start">
-            <MetaPanel title="Details">
-              <MetaRow
-                label="Project"
-                value={video.project?.projectCode || video.projectCode}
-              >
-                <ProjectLink project={video.project || { projectCode: video.projectCode, projectName: video.projectName }} />
-              </MetaRow>
-              <MetaRow
-                label="Person"
-                value={video.person?.personCode || video.personCode}
-              >
-                <PersonLink person={video.person} fallbackCode={video.personCode} fallbackName={video.personName} />
-              </MetaRow>
-              <MetaRow label="Categories" value={video.categories}>
-                <CategoryLinks categories={video.categories} />
-              </MetaRow>
-              <MetaRow label="Recorded">{formatPublicDate(video.recordedAt || video.recordingDate)}</MetaRow>
-              <MetaRow label="Duration" value={video.duration || video.durationFormatted}>
-                {video.duration || video.durationFormatted}
-              </MetaRow>
-            </MetaPanel>
-
-            <MetaPanelIf
-              obj={video}
-              title="Subject & form"
-              keys={['event', 'location', 'subject', 'genre', 'personShownInVideo', 'colorOfVideo', 'whereThisVideoUsed']}
-            >
-              <MetaRow label="Event" value={video.event}><SearchValue value={video.event} /></MetaRow>
-              <MetaRow label="Location" value={video.location}><SearchValue value={video.location} /></MetaRow>
-              <MetaRow label="Subject" value={video.subject}>
-                <PillRow values={video.subject} search />
-              </MetaRow>
-              <MetaRow label="Genre" value={video.genre}>
-                <PillRow values={video.genre} search />
-              </MetaRow>
-              <MetaRow label="People shown" value={video.personShownInVideo}><SearchValue value={video.personShownInVideo} /></MetaRow>
-              <MetaRow label="Color" value={video.colorOfVideo}><SearchValue value={video.colorOfVideo} /></MetaRow>
-              <MetaRow label="Used in" value={video.whereThisVideoUsed}><SearchValue value={video.whereThisVideoUsed} /></MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={video}
-              title="Credits"
-              keys={['creatorArtistDirector', 'producer', 'contributor', 'contributors', 'audience']}
-            >
-              <MetaRow label="Creator / Director" value={video.creatorArtistDirector}><SearchValue value={video.creatorArtistDirector} /></MetaRow>
-              <MetaRow label="Producer" value={video.producer}><SearchValue value={video.producer} /></MetaRow>
-              <MetaRow label="Contributors" value={video.contributors || video.contributor}>
-                <PillRow values={video.contributors || video.contributor} search />
-              </MetaRow>
-              <MetaRow label="Audience" value={video.audience}><SearchValue value={video.audience} /></MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={video}
-              title="Language"
-              keys={['language', 'dialect', 'subtitle']}
-            >
-              <MetaRow label="Language" value={video.language}><SearchValue value={video.language} /></MetaRow>
-              <MetaRow label="Dialect" value={video.dialect}><SearchValue value={video.dialect} /></MetaRow>
-              <MetaRow label="Subtitle" value={video.subtitle}><SearchValue value={video.subtitle} /></MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={video}
-              title="Dates"
-              keys={['dateCreated', 'datePublished', 'dateModified']}
-            >
-              <MetaRow label="Created">{formatPublicDate(video.dateCreated)}</MetaRow>
-              <MetaRow label="Published">{formatPublicDate(video.datePublished)}</MetaRow>
-              <MetaRow label="Modified">{formatPublicDate(video.dateModified)}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={video}
-              title="Technical"
-              keys={['orientation', 'dimension', 'resolution', 'frameRate', 'bitDepth', 'overallBitRate', 'videoCodec', 'audioCodec', 'audioChannels', 'extension', 'fileSize', 'videoVersion']}
-            >
-              <MetaRow label="Orientation">{video.orientation}</MetaRow>
-              <MetaRow label="Dimension">{video.dimension}</MetaRow>
-              <MetaRow label="Resolution">{video.resolution}</MetaRow>
-              <MetaRow label="Frame rate">{video.frameRate}</MetaRow>
-              <MetaRow label="Bit depth">{video.bitDepth}</MetaRow>
-              <MetaRow label="Bit rate">{video.overallBitRate}</MetaRow>
-              <MetaRow label="Video codec">{video.videoCodec}</MetaRow>
-              <MetaRow label="Audio codec">{video.audioCodec}</MetaRow>
-              <MetaRow label="Audio channels">{video.audioChannels}</MetaRow>
-              <MetaRow label="Extension">{video.extension}</MetaRow>
-              <MetaRow label="File size">{video.fileSize}</MetaRow>
-              <MetaRow label="Version">{video.videoVersion}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={video}
-              title="Archive & provenance"
-              keys={['videoStatus', 'archiveCataloging', 'provenance', 'accrualMethod', 'physicalLabel', 'locationInArchiveRoom', 'lccClassification']}
-            >
-              <MetaRow label="Status">{video.videoStatus}</MetaRow>
-              <MetaRow label="Cataloging">{video.archiveCataloging}</MetaRow>
-              <MetaRow label="Provenance">{video.provenance}</MetaRow>
-              <MetaRow label="Accrual method">{video.accrualMethod}</MetaRow>
-              <MetaRow label="Physical label">{video.physicalLabel}</MetaRow>
-              <MetaRow label="Archive room">{video.locationInArchiveRoom}</MetaRow>
-              <MetaRow label="LCC">{video.lccClassification}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={video}
-              title="Rights"
-              keys={['copyright', 'rightOwner', 'dateCopyrighted', 'availability', 'licenseType', 'usageRights', 'owner', 'publisher']}
-            >
-              <MetaRow label="Copyright">{video.copyright}</MetaRow>
-              <MetaRow label="Right owner">{video.rightOwner}</MetaRow>
-              <MetaRow label="Date copyrighted">{formatPublicDate(video.dateCopyrighted)}</MetaRow>
-              <MetaRow label="Availability">{video.availability}</MetaRow>
-              <MetaRow label="License">{video.licenseType}</MetaRow>
-              <MetaRow label="Usage">{video.usageRights}</MetaRow>
-              <MetaRow label="Owner">{video.owner}</MetaRow>
-              <MetaRow label="Publisher">{video.publisher}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={video}
-              title="Notes"
-              keys={['note']}
-            >
-              <MetaRow label="Note">{video.note}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={video}
-              title="Tags"
-              keys={['tags']}
-            >
-              <MetaRow label="Tags" value={video.tags}>
-                <PillRow values={video.tags} tone="primary" search />
-              </MetaRow>
-            </MetaPanelIf>
-          </aside>
-        </div>
-      </PageContainer>
+      <HelpUsDialog open={helpOpen} onOpenChange={setHelpOpen} mediaType="VIDEO" mediaCode={code} mediaTitle={title} mediaData={video} />
+      <KhiDetailShell>
+        <KhiMediaDetail
+          kind="video"
+          title={title}
+          subtitle={original}
+          description={video.description}
+          image={mediaThumbHref(video)}
+          tags={toList(video.tags)}
+          breadcrumbItems={[
+            { to: '/public', label: DETAIL.home },
+            { to: '/public/browse?type=video', label: 'ڤیدیۆکان' },
+            { label: title },
+          ]}
+          actions={[{ label: DETAIL.help, icon: IconPlus, onClick: () => setHelpOpen(true) }]}
+          infoCards={infoCards}
+          content={content}
+          meta={meta}
+        />
+      </KhiDetailShell>
     </>
-  )
-}
-
-function Section({ title, children }) {
-  return (
-    <section className="rounded-2xl border border-border bg-card p-6 shadow-sm shadow-black/5">
-      <h2 className="font-heading text-base font-semibold text-foreground">{title}</h2>
-      <div className="mt-3">{children}</div>
-    </section>
   )
 }
 

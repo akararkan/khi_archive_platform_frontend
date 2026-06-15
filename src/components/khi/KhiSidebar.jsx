@@ -3,6 +3,7 @@ import React, { useState } from 'react'
 import { readFacet, personImageSrc, personInitials } from '@/components/public/public-helpers'
 import { IconFilter, IconChevron, IconCalendar, IconClose, TYPE_ICON, FACET_ICON } from './icons'
 import { UI, TYPE_LABELS } from './khi-data'
+import KhiYearRange from './KhiYearRange'
 
 const INITIAL_VISIBLE = 6
 const PERSON_VISIBLE = 7
@@ -96,7 +97,7 @@ export default function KhiSidebar({
   types, activeType, onType, counts = {}, onClose,
   type, facets, selected, onToggleFacet,
   showMediaTypes, mediaKinds = [], mediaTypeCounts = {}, selectedMediaTypes = [], onToggleMediaType,
-  showDateRange, dateFrom, dateTo, onDateChange,
+  showDateRange, yearMin, yearMax, yearFrom, yearTo, onYearChange, yearLoading = false,
   textFilters = [], textFilterValues = {}, onTextFilter,
 }) {
   return (
@@ -164,11 +165,17 @@ export default function KhiSidebar({
       {showDateRange ? (
         <div className="facet">
           <summary style={{ listStyle: 'none' }}>
-            <IconCalendar className="lead-ic" /> {UI.dateCreated}
+            <IconCalendar className="lead-ic" /> {UI.dateRange}
           </summary>
-          <div className="facet-body" style={{ flexDirection: 'row', gap: 8 }}>
-            <input type="date" className="filterbox" value={dateFrom || ''} onChange={(e) => onDateChange({ dateFrom: e.target.value, dateTo })} style={{ marginBottom: 0, direction: 'ltr' }} />
-            <input type="date" className="filterbox" value={dateTo || ''} onChange={(e) => onDateChange({ dateFrom, dateTo: e.target.value })} style={{ marginBottom: 0, direction: 'ltr' }} />
+          <div className="facet-body">
+            <KhiYearRange
+              min={yearMin}
+              max={yearMax}
+              from={yearFrom}
+              to={yearTo}
+              loading={yearLoading}
+              onChange={onYearChange}
+            />
           </div>
         </div>
       ) : null}

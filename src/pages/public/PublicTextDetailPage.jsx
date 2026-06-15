@@ -1,28 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Download, ExternalLink, MessageSquarePlus } from 'lucide-react'
 
-import { Button, buttonVariants } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-import { Skeleton } from '@/components/ui/skeleton'
-import {
-  ErrorState,
-  PageContainer,
-} from '@/components/public/PublicShared'
-import {
-  CategoryLinks,
-  MediaHero,
-  MetaPanel,
-  MetaPanelIf,
-  MetaRow,
-  PersonLink,
-  PillRow,
-  ProjectLink,
-  SearchValue,
-} from '@/components/public/PublicMediaDetailShared'
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
-import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
+import {
+  formatPublicDate, mediaThumbHref, pickMediaTitle, extractPersonFromItem,
+} from '@/components/public/public-helpers'
+import { DETAIL, yearNum } from '@/components/khi/khi-data'
+import KhiMediaDetail from '@/components/khi/KhiMediaDetail'
+import {
+  KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaPanelIf, KhiMetaRow,
+  KhiPillRow, KhiSearchValue, KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
+} from '@/components/khi/KhiDetail'
+import {
+  IconPerson, IconProject, IconBook, IconLanguage, IconCalendar, IconLayers,
+  IconText, IconMic, IconQuote, IconExternal, IconDownload, IconPlus,
+} from '@/components/khi/icons'
 import { guestTexts } from '@/services/guest'
+
+function toList(v, cap = 12) {
+  if (!v) return []
+  const arr = Array.isArray(v) ? v : String(v).split(/[,،;]/)
+  return arr.map((s) => String(s).trim()).filter(Boolean).slice(0, cap)
+}
 
 function PublicTextDetailPage() {
   const { code } = useParams()
@@ -35,285 +34,114 @@ function PublicTextDetailPage() {
     const ctrl = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
-     
     setError('')
     guestTexts
       .one(code, { signal: ctrl.signal })
-      .then((d) => setText(d || null))
-      .catch((err) => {
-        if (err?.code === 'ERR_CANCELED') return
-        setError('Could not load this text.')
-      })
-      .finally(() => setLoading(false))
+      .then((d) => { if (!ctrl.signal.aborted) setText(d || null) })
+      .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError('Could not load this text.') })
+      .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     return () => ctrl.abort()
   }, [code])
 
-  const breadcrumbs = useMemo(
-    () => [
-      { to: '/public', label: 'Home' },
-      { to: '/public/texts', label: 'Texts' },
-      { label: pickMediaTitle(text) || 'Untitled text' },
-    ],
-    [text],
-  )
+  const person = useMemo(() => extractPersonFromItem(text), [text])
 
-  if (loading) {
-    return (
-      <PageContainer>
-        <Skeleton className="h-6 w-32" />
-        <Skeleton className="mt-4 h-10 w-2/3" />
-        <Skeleton className="mt-3 h-4 w-1/2" />
-        <Skeleton className="mt-8 h-96 w-full rounded-2xl" />
-      </PageContainer>
-    )
-  }
-  if (error || !text) {
-    return (
-      <PageContainer>
-        <ErrorState error={error || 'Text not found.'} />
-      </PageContainer>
-    )
+  if (loading || error || !text) {
+    return <KhiDetailShell loading={loading} error={error} notFound={!text} />
   }
 
-  const title = pickMediaTitle(text) || 'Untitled text'
-  const originalCandidate =
-    text.originalTitle ||
-    text.titleOriginal ||
-    text.titleInCentralKurdish ||
-    text.centralKurdishTitle
+  const title = pickMediaTitle(text) || DETAIL.none
+  const originalCandidate = text.originalTitle || text.titleOriginal || text.titleInCentralKurdish || text.centralKurdishTitle
   const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
   const fileUrl = text.textFileUrl
   const isPdf = fileUrl && /\.pdf($|\?)/i.test(fileUrl)
+  const projectCode = text.project?.projectCode || text.projectCode
+
+  const infoCards = [
+    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? `/public/persons/${person.personCode}` : null },
+    { icon: IconProject, label: DETAIL.project, value: text.project?.projectName || text.projectName, to: projectCode ? `/public/projects/${projectCode}` : null },
+    { icon: IconBook, label: DETAIL.documentType, value: text.documentType },
+    { icon: IconMic, label: DETAIL.author, value: text.author },
+    { icon: IconLanguage, label: DETAIL.language, value: text.language },
+    { icon: IconCalendar, label: DETAIL.year, value: yearNum(text) },
+  ]
+
+  const content = (
+    <>
+      {fileUrl && isPdf ? (
+        <div className="media-stage"><iframe src={fileUrl} title={title} loading="lazy" /></div>
+      ) : null}
+      {!fileUrl ? <div className="media-unavailable">{DETAIL.fileUnavailable}</div> : null}
+      {text.summary ? <KhiContentCard icon={IconQuote} title={DETAIL.summary}><p>{text.summary}</p></KhiContentCard> : null}
+      {text.bodyText ? <KhiContentCard icon={IconText} title={DETAIL.body}><p>{text.bodyText}</p></KhiContentCard> : null}
+    </>
+  )
+
+  const meta = (
+    <>
+      <KhiMetaPanel icon={IconLayers} title={DETAIL.details}>
+        <KhiMetaRow label={DETAIL.project} value={projectCode}><KhiProjectLink project={text.project || { projectCode: text.projectCode, projectName: text.projectName }} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.person} value={person?.personCode}><KhiPersonLink person={person} fallbackName={person?.name} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.categories} value={text.categories}><KhiCategoryLinks categories={text.categories} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.subject} value={text.subject || text.subjects}><KhiPillRow values={text.subject || text.subjects} search /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.audience} value={text.audience}><KhiSearchValue value={text.audience} /></KhiMetaRow>
+      </KhiMetaPanel>
+
+      <KhiMetaPanelIf obj={text} icon={IconBook} title={DETAIL.document} keys={['documentType', 'genre', 'script', 'series', 'publisher', 'printingHouse', 'isbn']}>
+        <KhiMetaRow label={DETAIL.documentType} value={text.documentType}><KhiSearchValue value={text.documentType} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.genre} value={text.genre}><KhiPillRow values={text.genre} search /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.script} value={text.script}><KhiSearchValue value={text.script} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.series} value={text.series}><KhiSearchValue value={text.series} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.publisher} value={text.publisher}><KhiSearchValue value={text.publisher} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.printingHouse} value={text.printingHouse}><KhiSearchValue value={text.printingHouse} /></KhiMetaRow>
+        <KhiMetaRow label="ISBN" value={text.isbn}>{text.isbn}</KhiMetaRow>
+      </KhiMetaPanelIf>
+
+      <KhiMetaPanelIf obj={text} icon={IconMic} title={DETAIL.credits} keys={['author', 'contributors', 'contributor']}>
+        <KhiMetaRow label={DETAIL.author} value={text.author}><KhiSearchValue value={text.author} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.contributors} value={text.contributors || text.contributor}><KhiPillRow values={text.contributors || text.contributor} search /></KhiMetaRow>
+      </KhiMetaPanelIf>
+
+      <KhiMetaPanelIf obj={text} icon={IconLanguage} title={DETAIL.langPlace} keys={['language', 'dialect']}>
+        <KhiMetaRow label={DETAIL.language} value={text.language}><KhiSearchValue value={text.language} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.dialect} value={text.dialect}><KhiSearchValue value={text.dialect} /></KhiMetaRow>
+      </KhiMetaPanelIf>
+
+      <KhiMetaPanelIf obj={text} icon={IconCalendar} title={DETAIL.dates} keys={['printDate', 'documentDate', 'dateCreated']}>
+        <KhiMetaRow label={DETAIL.date}>{formatPublicDate(text.documentDate || text.printDate)}</KhiMetaRow>
+        <KhiMetaRow label={DETAIL.recorded}>{formatPublicDate(text.dateCreated)}</KhiMetaRow>
+      </KhiMetaPanelIf>
+    </>
+  )
 
   return (
     <>
-      <HelpUsDialog
-        open={helpOpen}
-        onOpenChange={setHelpOpen}
-        mediaType="TEXT"
-        mediaCode={code}
-        mediaTitle={title}
-        mediaData={text}
-      />
-      <MediaHero
-        kind="Text"
-        title={title}
-        originalTitle={original}
-        description={text.description || text.summary}
-        breadcrumbs={breadcrumbs}
-        action={
-          <div className="flex flex-wrap gap-2">
-            {fileUrl ? (
-              <>
-                <a
-                  href={fileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={cn(buttonVariants(), 'gap-1.5')}
-                >
-                  <ExternalLink className="size-4" />
-                  Open document
-                </a>
-                <a
-                  href={fileUrl}
-                  download
-                  className={cn(buttonVariants({ variant: 'outline' }), 'gap-1.5')}
-                >
-                  <Download className="size-4" />
-                  Download
-                </a>
-              </>
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => setHelpOpen(true)}
-            >
-              <MessageSquarePlus className="size-4" />
-              Help Us Improve
-            </Button>
-          </div>
-        }
-      />
-      <PageContainer>
-        <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
-          <div className="min-w-0 space-y-6">
-            {fileUrl && isPdf ? (
-              <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm shadow-black/5">
-                <iframe
-                  src={fileUrl}
-                  title={title}
-                  className="h-[80vh] w-full"
-                  loading="lazy"
-                />
-              </div>
-            ) : null}
-
-            {text.summary ? (
-              <Section title="Summary">
-                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
-                  {text.summary}
-                </p>
-              </Section>
-            ) : null}
-
-            {text.bodyText ? (
-              <Section title="Text">
-                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
-                  {text.bodyText}
-                </p>
-              </Section>
-            ) : null}
-          </div>
-
-          <aside className="space-y-5 lg:sticky lg:top-32 lg:self-start">
-            <MetaPanel title="Details">
-              <MetaRow
-                label="Project"
-                value={text.project?.projectCode || text.projectCode}
-              >
-                <ProjectLink project={text.project || { projectCode: text.projectCode, projectName: text.projectName }} />
-              </MetaRow>
-              <MetaRow
-                label="Person"
-                value={text.person?.personCode || text.personCode}
-              >
-                <PersonLink person={text.person} fallbackCode={text.personCode} fallbackName={text.personName} />
-              </MetaRow>
-              <MetaRow label="Categories" value={text.categories}>
-                <CategoryLinks categories={text.categories} />
-              </MetaRow>
-              <MetaRow label="Date">{formatPublicDate(text.documentDate || text.recordedAt)}</MetaRow>
-            </MetaPanel>
-
-            <MetaPanelIf
-              obj={text}
-              title="Document"
-              keys={['documentType', 'subject', 'subjects', 'genre', 'script', 'isbn', 'edition', 'volume', 'series', 'assignmentNumber']}
-            >
-              <MetaRow label="Document type" value={text.documentType}><SearchValue value={text.documentType} /></MetaRow>
-              <MetaRow label="Subject" value={text.subject || text.subjects}>
-                <PillRow values={text.subject || text.subjects} search />
-              </MetaRow>
-              <MetaRow label="Genre" value={text.genre}>
-                <PillRow values={text.genre} search />
-              </MetaRow>
-              <MetaRow label="Script" value={text.script}><SearchValue value={text.script} /></MetaRow>
-              <MetaRow label="ISBN">{text.isbn}</MetaRow>
-              <MetaRow label="Edition">{text.edition}</MetaRow>
-              <MetaRow label="Volume">{text.volume}</MetaRow>
-              <MetaRow label="Series" value={text.series}><SearchValue value={text.series} /></MetaRow>
-              <MetaRow label="Assignment #">{text.assignmentNumber}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={text}
-              title="Credits"
-              keys={['author', 'contributors', 'contributor', 'printingHouse', 'audience']}
-            >
-              <MetaRow label="Author" value={text.author}><SearchValue value={text.author} /></MetaRow>
-              <MetaRow label="Contributors" value={text.contributors || text.contributor}>
-                <PillRow values={text.contributors || text.contributor} search />
-              </MetaRow>
-              <MetaRow label="Printing house" value={text.printingHouse}><SearchValue value={text.printingHouse} /></MetaRow>
-              <MetaRow label="Audience" value={text.audience}><SearchValue value={text.audience} /></MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={text}
-              title="Language"
-              keys={['language', 'dialect']}
-            >
-              <MetaRow label="Language" value={text.language}><SearchValue value={text.language} /></MetaRow>
-              <MetaRow label="Dialect" value={text.dialect}><SearchValue value={text.dialect} /></MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={text}
-              title="Dates"
-              keys={['dateCreated', 'printDate', 'datePublished', 'dateModified']}
-            >
-              <MetaRow label="Created">{formatPublicDate(text.dateCreated)}</MetaRow>
-              <MetaRow label="Print date">{formatPublicDate(text.printDate)}</MetaRow>
-              <MetaRow label="Published">{formatPublicDate(text.datePublished)}</MetaRow>
-              <MetaRow label="Modified">{formatPublicDate(text.dateModified)}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={text}
-              title="Physical & technical"
-              keys={['pageCount', 'orientation', 'size', 'physicalDimensions', 'extension', 'fileSize', 'textVersion']}
-            >
-              <MetaRow label="Pages">{text.pageCount}</MetaRow>
-              <MetaRow label="Orientation">{text.orientation}</MetaRow>
-              <MetaRow label="Size">{text.size}</MetaRow>
-              <MetaRow label="Dimensions">{text.physicalDimensions}</MetaRow>
-              <MetaRow label="Extension">{text.extension}</MetaRow>
-              <MetaRow label="File size">{text.fileSize}</MetaRow>
-              <MetaRow label="Version">{text.textVersion}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={text}
-              title="Archive & provenance"
-              keys={['textStatus', 'archiveCataloging', 'provenance', 'accrualMethod', 'physicalLabel', 'locationInArchiveRoom', 'lccClassification']}
-            >
-              <MetaRow label="Status">{text.textStatus}</MetaRow>
-              <MetaRow label="Cataloging">{text.archiveCataloging}</MetaRow>
-              <MetaRow label="Provenance">{text.provenance}</MetaRow>
-              <MetaRow label="Accrual method">{text.accrualMethod}</MetaRow>
-              <MetaRow label="Physical label">{text.physicalLabel}</MetaRow>
-              <MetaRow label="Archive room">{text.locationInArchiveRoom}</MetaRow>
-              <MetaRow label="LCC">{text.lccClassification}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={text}
-              title="Rights"
-              keys={['copyright', 'rightOwner', 'dateCopyrighted', 'availability', 'licenseType', 'usageRights', 'owner', 'publisher']}
-            >
-              <MetaRow label="Copyright">{text.copyright}</MetaRow>
-              <MetaRow label="Right owner">{text.rightOwner}</MetaRow>
-              <MetaRow label="Date copyrighted">{formatPublicDate(text.dateCopyrighted)}</MetaRow>
-              <MetaRow label="Availability">{text.availability}</MetaRow>
-              <MetaRow label="License">{text.licenseType}</MetaRow>
-              <MetaRow label="Usage">{text.usageRights}</MetaRow>
-              <MetaRow label="Owner">{text.owner}</MetaRow>
-              <MetaRow label="Publisher">{text.publisher}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={text}
-              title="Notes"
-              keys={['note']}
-            >
-              <MetaRow label="Note">{text.note}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={text}
-              title="Tags"
-              keys={['tags']}
-            >
-              <MetaRow label="Tags" value={text.tags}>
-                <PillRow values={text.tags} tone="primary" search />
-              </MetaRow>
-            </MetaPanelIf>
-          </aside>
-        </div>
-      </PageContainer>
+      <HelpUsDialog open={helpOpen} onOpenChange={setHelpOpen} mediaType="TEXT" mediaCode={code} mediaTitle={title} mediaData={text} />
+      <KhiDetailShell>
+        <KhiMediaDetail
+          kind="text"
+          title={title}
+          subtitle={original}
+          description={text.description || text.summary}
+          image={mediaThumbHref(text)}
+          tags={toList(text.tags)}
+          breadcrumbItems={[
+            { to: '/public', label: DETAIL.home },
+            { to: '/public/browse?type=text', label: 'دەقەکان' },
+            { label: title },
+          ]}
+          actions={[
+            ...(fileUrl ? [
+              { label: DETAIL.openDoc, href: fileUrl, icon: IconExternal, external: true, primary: true },
+              { label: DETAIL.download, href: fileUrl, icon: IconDownload, download: true },
+            ] : []),
+            { label: DETAIL.help, icon: IconPlus, onClick: () => setHelpOpen(true) },
+          ]}
+          infoCards={infoCards}
+          content={content}
+          meta={meta}
+        />
+      </KhiDetailShell>
     </>
-  )
-}
-
-function Section({ title, children }) {
-  return (
-    <section className="rounded-2xl border border-border bg-card p-6 shadow-sm shadow-black/5">
-      <h2 className="font-heading text-base font-semibold text-foreground">{title}</h2>
-      <div className="mt-3">{children}</div>
-    </section>
   )
 }
 

@@ -1,17 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
-import { Tags } from 'lucide-react'
 
+import { DETAIL, cardFromItem } from '@/components/khi/khi-data'
+import KhiCard from '@/components/khi/KhiCard'
 import {
-  CardGridSkeleton,
-  ErrorState,
-  PageContainer,
-  PageHeader,
-  ResultCard,
-} from '@/components/public/PublicShared'
-import { projectMeta } from '@/components/public/public-helpers'
-import { DataPagination } from '@/components/ui/pagination'
-import { Skeleton } from '@/components/ui/skeleton'
+  KhiDetailShell, KhiBreadcrumb, KhiDetailHero, KhiDetailDisc, KhiInfoGrid,
+  KhiSectionCard, KhiEmptyState, KhiPager,
+} from '@/components/khi/KhiDetail'
+import { CardGridSkeleton } from '@/components/public/PublicShared'
+import { IconCategory, IconProject } from '@/components/khi/icons'
 import { guestCategory, guestCategoryProjects } from '@/services/guest'
 
 const PAGE_SIZE = 24
@@ -31,15 +28,11 @@ function PublicCategoryDetailPage() {
     const ctrl = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
-     
     setError('')
     guestCategory(code, { signal: ctrl.signal })
-      .then((d) => setCategory(d || null))
-      .catch((err) => {
-        if (err?.code === 'ERR_CANCELED') return
-        setError('Could not load this category.')
-      })
-      .finally(() => setLoading(false))
+      .then((d) => { if (!ctrl.signal.aborted) setCategory(d || null) })
+      .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError('Could not load this category.') })
+      .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     return () => ctrl.abort()
   }, [code])
 
@@ -48,9 +41,9 @@ function PublicCategoryDetailPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setProjectsLoading(true)
     guestCategoryProjects(code, { page, size: PAGE_SIZE, signal: ctrl.signal })
-      .then((d) => setProjects(d || null))
+      .then((d) => { if (!ctrl.signal.aborted) setProjects(d || null) })
       .catch(() => {})
-      .finally(() => setProjectsLoading(false))
+      .finally(() => { if (!ctrl.signal.aborted) setProjectsLoading(false) })
     return () => ctrl.abort()
   }, [code, page])
 
@@ -61,88 +54,55 @@ function PublicCategoryDetailPage() {
     setSearchParams(sp)
   }
 
-  const breadcrumbs = useMemo(
-    () => [
-      { to: '/public', label: 'Home' },
-      { to: '/public/categories', label: 'Categories' },
-      { label: category?.name || 'Untitled category' },
-    ],
-    [category],
-  )
-
-  if (loading) {
-    return (
-      <PageContainer>
-        <Skeleton className="h-6 w-32" />
-        <Skeleton className="mt-4 h-10 w-2/3" />
-        <Skeleton className="mt-3 h-4 w-1/2" />
-      </PageContainer>
-    )
-  }
-  if (error || !category) {
-    return (
-      <PageContainer>
-        <ErrorState error={error || 'Category not found.'} />
-      </PageContainer>
-    )
+  if (loading || error || !category) {
+    return <KhiDetailShell loading={loading} error={error} notFound={!category} />
   }
 
+  const title = category.categoryName || category.name || DETAIL.none
   const items = projects?.content || []
+  const total = projects?.totalElements
+
+  const infoCards = [
+    { icon: IconCategory, label: DETAIL.name, value: title },
+    { icon: IconProject, label: DETAIL.projects, value: Number.isFinite(total) ? total.toLocaleString() : null },
+  ]
 
   return (
-    <>
-      <section className="border-b border-border/60 bg-gradient-to-b from-primary/5 via-background to-background">
-        <PageContainer className="py-10 sm:py-14">
-          <PageHeader
-            eyebrow="Category"
-            title={category.name || 'Untitled category'}
-            description={category.description}
-            breadcrumbs={breadcrumbs}
-          />
-        </PageContainer>
-      </section>
+    <KhiDetailShell>
+      <KhiDetailHero
+        kind="category"
+        title={title}
+        description={category.description}
+        breadcrumb={<KhiBreadcrumb items={[
+          { to: '/public', label: DETAIL.home },
+          { to: '/public/browse?type=category', label: 'پۆلەکان' },
+          { label: title },
+        ]} />}
+        disc={<KhiDetailDisc kind="category" alt={title} badge={DETAIL.category} />}
+      />
 
-      <PageContainer>
-        <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
-          Projects in this category
-          {Number.isFinite(projects?.totalElements) ? (
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              · {projects.totalElements.toLocaleString()}
-            </span>
-          ) : null}
-        </h2>
+      <KhiInfoGrid items={infoCards} />
+
+      <KhiSectionCard icon={IconProject} title={DETAIL.projects} count={Number.isFinite(total) ? total : (items.length || 0)}>
         {projectsLoading ? (
-          <CardGridSkeleton count={8} />
+          <CardGridSkeleton count={4} />
         ) : items.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center text-sm text-muted-foreground">
-            No projects assigned to this category yet.
-          </div>
+          <KhiEmptyState
+            title="هێشتا هیچ پڕۆژەیەک نییە"
+            text="هەرکاتێک پڕۆژەیەک لەم پۆلەدا تۆماربکرێت، لێرە دەردەکەوێت."
+          />
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="khi-grid">
               {items.map((p) => (
-                <ResultCard
-                  key={p.projectCode}
-                  kind="project"
-                  to={`/public/projects/${p.projectCode}`}
-                  title={p.projectName || 'Untitled project'}
-                  description={p.description}
-                  meta={projectMeta(p)}
-                />
+                <KhiCard key={p.projectCode || p.code} record={cardFromItem(p, 'project')} />
               ))}
             </div>
-            <DataPagination
-              page={projects?.number ?? page}
-              totalPages={projects?.totalPages ?? 0}
-              totalElements={projects?.totalElements ?? 0}
-              pageSize={projects?.size ?? PAGE_SIZE}
-              onPageChange={setPage}
-              className="mt-8"
-            />
+            <KhiPager page={projects?.number ?? page} totalPages={projects?.totalPages ?? 0} onPage={setPage} />
           </>
         )}
-      </PageContainer>
-    </>
+      </KhiSectionCard>
+    </KhiDetailShell>
   )
 }
 

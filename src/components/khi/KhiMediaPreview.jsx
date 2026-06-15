@@ -25,6 +25,8 @@ export default function KhiMediaPreview({ record, plate = false }) {
   if (kind === 'audio') {
     return (
       <div className="m-audio">
+        <span className="halo" aria-hidden="true" />
+        <span className="base-line" aria-hidden="true" />
         <Waveform />
         {duration ? <span className="duration">{duration}</span> : null}
         <span className="play" aria-hidden="true"><IconPlay /></span>
@@ -38,8 +40,10 @@ export default function KhiMediaPreview({ record, plate = false }) {
         <div className="filmstrip" />
         <div className="filmstrip bottom" />
         <div className="frame" />
+        <span className="vig" aria-hidden="true" />
+        <span className="scrub" aria-hidden="true"><i /></span>
         {duration ? <span className="duration">{duration}</span> : null}
-        <span className="play" aria-hidden="true"><IconPlay /></span>
+        <span className="play ring" aria-hidden="true"><IconPlay /></span>
       </div>
     )
   }
@@ -76,15 +80,19 @@ export default function KhiMediaPreview({ record, plate = false }) {
     )
   }
 
-  // text / manuscript
+  // text / manuscript — a tasteful aged-page sheet
   return (
     <div className="m-text">
-      <div className="doc">
-        <div className="fl">بسم</div>
-        <div className="ln" style={{ width: '96%' }} />
-        <div className="ln" style={{ width: '88%' }} />
-        <div className="ln" style={{ width: '92%' }} />
-        <div className="ln" style={{ width: '74%' }} />
+      <div className="page">
+        <span className="fold" aria-hidden="true" />
+        <div className="doc">
+          <div className="fl">بسم</div>
+          <div className="ln" style={{ width: '96%' }} />
+          <div className="ln" style={{ width: '88%' }} />
+          <div className="ln" style={{ width: '92%' }} />
+          <div className="ln" style={{ width: '74%' }} />
+          <div className="ln" style={{ width: '84%' }} />
+        </div>
       </div>
     </div>
   )

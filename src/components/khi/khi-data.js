@@ -63,6 +63,11 @@ export const UI = {
   retry: 'دووبارە هەوڵبدەرەوە',
   searchWithin: 'گەڕان لەناو',
   dateCreated: 'بەرواری تۆمارکردن',
+  dateRange: 'مەودای ساڵ',
+  allYears: 'هەموو ساڵەکان',
+  reset: 'سڕینەوە',
+  yearFrom: 'لە ساڵی',
+  yearTo: 'تا ساڵی',
   open: 'کردنەوە',
   untitled: 'بێ ناو',
   by: 'لەلایەن',
@@ -71,6 +76,85 @@ export const UI = {
 }
 
 export const TYPE_LABELS = { audio: 'دەنگ', video: 'ڤیدیۆ', text: 'دەق', image: 'وێنە', person: 'کەس', project: 'پڕۆژە', category: 'پۆل' }
+
+// English kind word for the small Latin "type pill" accent on detail heroes.
+export const TYPE_PILL = { audio: 'AUDIO', video: 'VIDEO', text: 'TEXT', image: 'IMAGE', person: 'PERSON', project: 'PROJECT', category: 'CATEGORY' }
+
+// ── Detail-page Sorani labels ─────────────────────────────────────────────────
+// One central dictionary so every public detail page reads the same way.
+export const DETAIL = {
+  home: 'سەرەتا',
+  notFound: 'نەدۆزرایەوە.',
+  back: 'گەڕانەوە',
+  openDoc: 'کردنەوەی بەڵگەنامە',
+  openOriginal: 'کردنەوەی ڕەسەن',
+  download: 'داگرتن',
+  help: 'یارمەتیمان بدە',
+  seeAll: 'بینینی هەموو',
+  none: 'هیچ نییە',
+  fileUnavailable: 'فایل بەردەست نییە بۆ گشت.',
+  // section titles
+  summary: 'کورتە',
+  body: 'دەق',
+  lyrics: 'گۆرانی',
+  transcription: 'نووسینەوە',
+  photostory: 'چیرۆکی وێنە',
+  details: 'وردەکاری',
+  credits: 'بەشداربووان',
+  musicForm: 'مۆسیقا و فۆڕم',
+  subjectForm: 'بابەت و فۆڕم',
+  document: 'بەڵگەنامە',
+  langPlace: 'زمان و شوێن',
+  dates: 'بەروارەکان',
+  projects: 'پڕۆژەکان',
+  media: 'مێدیا',
+  // field labels
+  name: 'ناو',
+  type: 'جۆر',
+  category: 'پۆل',
+  categories: 'پۆلەکان',
+  region: 'ناوچە',
+  genre: 'ژانر',
+  subject: 'بابەت',
+  language: 'زمان',
+  dialect: 'زاراوە',
+  year: 'ساڵ',
+  birthYear: 'ساڵی لەدایکبوون',
+  date: 'بەروار',
+  recorded: 'تۆمارکراوە',
+  duration: 'ماوە',
+  project: 'پڕۆژە',
+  person: 'کەس',
+  gender: 'ڕەگەز',
+  nickname: 'نازناو',
+  event: 'بۆنە',
+  location: 'شوێن',
+  form: 'فۆڕم',
+  audience: 'بینەر/گوێگر',
+  subtitle: 'ژێرنووس',
+  author: 'نووسەر',
+  poet: 'شاعیر',
+  composer: 'مۆسیقاژەن',
+  speaker: 'قسەکەر',
+  singer: 'گۆرانیبێژ',
+  producer: 'بەرهەمهێنەر',
+  director: 'دەرهێنەر',
+  photographer: 'وێنەگر',
+  contributors: 'هاوبەشان',
+  peopleShown: 'کەسانی دیار',
+  typeOfMaqam: 'جۆری مەقام',
+  typeOfBasta: 'جۆری بەستە',
+  typeOfComposition: 'جۆری ئاوازدانان',
+  typeOfPerformance: 'جۆری پێشکەشکردن',
+  documentType: 'جۆری بەڵگەنامە',
+  script: 'ڕێنووس',
+  series: 'زنجیرە',
+  publisher: 'بڵاوکەرەوە',
+  printingHouse: 'چاپخانە',
+  color: 'ڕەنگ',
+  usedIn: 'بەکارهاتووە لە',
+  counts: { audio: 'دەنگ', video: 'ڤیدیۆ', text: 'دەق', image: 'وێنە' },
+}
 
 const SHARED_MEDIA_FACETS = [
   { paramKey: 'categoryCode', facetKey: 'categories', title: 'پۆل', defaultOpen: true },
@@ -117,7 +201,7 @@ const TEXT_TEXT_FILTERS = [{ paramKey: 'author', label: 'نووسەر' }]
 // ── Type registry ────────────────────────────────────────────────────────────
 export const TYPES = [
   { key: 'all', label: 'هەموو ئەنجامەکان', sub: 'گەنجینەی تەواوی دەزگا', resource: null, kind: null,
-    api: (p) => guestResults(p), facetMap: [], sorts: ALL_SORTS, showMediaTypes: true },
+    api: (p) => guestResults(p), facetMap: [], sorts: ALL_SORTS, showMediaTypes: true, showDateRange: true },
   { key: 'audio', label: 'دەنگەکان', sub: 'گۆرانی، دەنگبێژ و گێڕانەوەی زارەکی', resource: 'audios', kind: 'audio',
     api: (p) => guestAudios.list(p), facetMap: SHARED_MEDIA_FACETS, sorts: MEDIA_SORTS, showDateRange: true, textFilters: AUDIO_TEXT_FILTERS },
   { key: 'video', label: 'ڤیدیۆکان', sub: 'فیلم و تۆماری بینراو', resource: 'videos', kind: 'video',
@@ -146,7 +230,13 @@ function fmtSeconds(s) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
+// Pull a 4-digit content year out of any media DTO, trying the descriptive
+// date fields (recording / document / image / created / published / print)
+// before the bookkeeping `createdAt`, so the value reflects WHEN the work is
+// from rather than when the row was entered. Returns a string ('1991') for
+// display, or null. `yearNum` returns the same as a number for range math.
 function yearOf(item) {
+  if (!item) return null
   const raw =
     item.recordedAt || item.recordingDate || item.documentDate || item.imageDate ||
     item.dateCreated || item.datePublished || item.printDate || item.createdAt ||
@@ -154,6 +244,12 @@ function yearOf(item) {
   if (!raw) return null
   const m = String(raw).match(/(\d{4})/)
   return m ? m[1] : null
+}
+
+export function yearNum(item) {
+  const y = yearOf(item)
+  const n = y ? Number(y) : NaN
+  return Number.isFinite(n) ? n : null
 }
 
 function durationOf(item) {

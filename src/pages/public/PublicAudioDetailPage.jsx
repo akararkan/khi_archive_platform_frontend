@@ -1,28 +1,29 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { MessageSquarePlus } from 'lucide-react'
 
 import { AudioPlayer } from '@/components/ui/audio-player'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import {
-  ErrorState,
-  PageContainer,
-} from '@/components/public/PublicShared'
-import {
-  CategoryLinks,
-  MediaHero,
-  MetaPanel,
-  MetaPanelIf,
-  MetaRow,
-  PersonLink,
-  PillRow,
-  ProjectLink,
-  SearchValue,
-} from '@/components/public/PublicMediaDetailShared'
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
-import { formatBool, formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
+import {
+  formatPublicDate, mediaThumbHref, pickMediaTitle, extractPersonFromItem, personImageSrc,
+} from '@/components/public/public-helpers'
+import { DETAIL, yearNum } from '@/components/khi/khi-data'
+import KhiMediaDetail from '@/components/khi/KhiMediaDetail'
+import {
+  KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaPanelIf, KhiMetaRow,
+  KhiPillRow, KhiSearchValue, KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
+} from '@/components/khi/KhiDetail'
+import {
+  IconPerson, IconProject, IconCategory, IconAudio, IconLanguage, IconRegion,
+  IconCalendar, IconClock, IconLayers, IconMic, IconText, IconQuote, IconPlus,
+} from '@/components/khi/icons'
 import { guestAudios } from '@/services/guest'
+
+// Normalise a list-ish value (array | comma/semicolon/Arabic-comma string).
+function toList(v, cap = 12) {
+  if (!v) return []
+  const arr = Array.isArray(v) ? v : String(v).split(/[,،;]/)
+  return arr.map((s) => String(s).trim()).filter(Boolean).slice(0, cap)
+}
 
 function PublicAudioDetailPage() {
   const { code } = useParams()
@@ -35,298 +36,121 @@ function PublicAudioDetailPage() {
     const ctrl = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
-     
     setError('')
     guestAudios
       .one(code, { signal: ctrl.signal })
-      .then((d) => setAudio(d || null))
-      .catch((err) => {
-        if (err?.code === 'ERR_CANCELED') return
-        setError('Could not load this audio.')
-      })
-      .finally(() => setLoading(false))
+      .then((d) => { if (!ctrl.signal.aborted) setAudio(d || null) })
+      .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError('Could not load this audio.') })
+      .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     return () => ctrl.abort()
   }, [code])
 
-  const breadcrumbs = useMemo(
-    () => [
-      { to: '/public', label: 'Home' },
-      { to: '/public/audios', label: 'Audios' },
-      { label: pickMediaTitle(audio) || 'Untitled audio' },
-    ],
-    [audio],
+  const person = useMemo(() => extractPersonFromItem(audio), [audio])
+
+  if (loading || error || !audio) {
+    return <KhiDetailShell loading={loading} error={error} notFound={!audio} />
+  }
+
+  const title = pickMediaTitle(audio) || DETAIL.none
+  const originalCandidate = audio.originTitle || audio.titleOriginal || audio.centralKurdishTitle || audio.titleInCentralKurdish
+  const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
+  const firstCat = Array.isArray(audio.categories) && audio.categories[0]
+  const catName = firstCat ? (firstCat.categoryName || firstCat.name || firstCat.categoryCode) : null
+  const catCode = firstCat ? (firstCat.categoryCode || firstCat.code) : null
+  const projectCode = audio.project?.projectCode || audio.projectCode
+
+  const infoCards = [
+    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? `/public/persons/${person.personCode}` : null },
+    { icon: IconProject, label: DETAIL.project, value: audio.project?.projectName || audio.projectName, to: projectCode ? `/public/projects/${projectCode}` : null },
+    { icon: IconCategory, label: DETAIL.category, value: catName, to: catCode ? `/public/categories/${catCode}` : null },
+    { icon: IconAudio, label: DETAIL.form, value: audio.form },
+    { icon: IconLanguage, label: DETAIL.language, value: audio.language },
+    { icon: IconRegion, label: DETAIL.region, value: audio.region || audio.city },
+    { icon: IconCalendar, label: DETAIL.year, value: yearNum(audio) },
+    { icon: IconClock, label: DETAIL.duration, value: audio.durationFormatted || (audio.duration ? `${audio.duration}s` : null) },
+  ]
+
+  const content = (
+    <>
+      {audio.audioFileUrl ? (
+        <div className="player-mount" style={{ marginBottom: 22 }}>
+          <AudioPlayer src={audio.audioFileUrl} title={title} subtitle={audio.form || audio.language || ''} downloadHref={audio.audioFileUrl} />
+        </div>
+      ) : (
+        <div className="media-unavailable">{DETAIL.fileUnavailable}</div>
+      )}
+      {audio.lyrics ? <KhiContentCard icon={IconQuote} title={DETAIL.lyrics}><p>{audio.lyrics}</p></KhiContentCard> : null}
+      {audio.transcription ? <KhiContentCard icon={IconText} title={DETAIL.transcription}><p>{audio.transcription}</p></KhiContentCard> : null}
+    </>
   )
 
-  if (loading) {
-    return (
-      <PageContainer>
-        <Skeleton className="h-6 w-32" />
-        <Skeleton className="mt-4 h-10 w-2/3" />
-        <Skeleton className="mt-3 h-4 w-1/2" />
-        <Skeleton className="mt-8 h-32 w-full rounded-2xl" />
-      </PageContainer>
-    )
-  }
-  if (error || !audio) {
-    return (
-      <PageContainer>
-        <ErrorState error={error || 'Audio not found.'} />
-      </PageContainer>
-    )
-  }
+  const meta = (
+    <>
+      <KhiMetaPanel icon={IconLayers} title={DETAIL.details}>
+        <KhiMetaRow label={DETAIL.project} value={projectCode}><KhiProjectLink project={audio.project || { projectCode: audio.projectCode, projectName: audio.projectName }} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.person} value={person?.personCode}><KhiPersonLink person={person} fallbackName={person?.name} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.categories} value={audio.categories}><KhiCategoryLinks categories={audio.categories} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.subject} value={audio.subjects || audio.subject}><KhiPillRow values={audio.subjects || audio.subject} search /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.audience} value={audio.audience}><KhiSearchValue value={audio.audience} /></KhiMetaRow>
+      </KhiMetaPanel>
 
-  const title = pickMediaTitle(audio) || 'Untitled audio'
-  // Prefer the original-script title for the "originalTitle" hero
-  // line — show it only when it actually differs from the resolved
-  // primary title (so we don't print the same string twice).
-  const originalCandidate =
-    audio.originTitle ||
-    audio.titleOriginal ||
-    audio.centralKurdishTitle ||
-    audio.titleInCentralKurdish
-  const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
+      <KhiMetaPanelIf obj={audio} icon={IconAudio} title={DETAIL.musicForm} keys={['form', 'typeOfMaqam', 'typeOfBasta', 'typeOfComposition', 'typeOfPerformance', 'poet', 'genre']}>
+        <KhiMetaRow label={DETAIL.form} value={audio.form}><KhiSearchValue value={audio.form} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.typeOfMaqam} value={audio.typeOfMaqam}><KhiSearchValue value={audio.typeOfMaqam} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.typeOfBasta} value={audio.typeOfBasta}><KhiSearchValue value={audio.typeOfBasta} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.typeOfComposition} value={audio.typeOfComposition}><KhiSearchValue value={audio.typeOfComposition} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.typeOfPerformance} value={audio.typeOfPerformance}><KhiSearchValue value={audio.typeOfPerformance} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.poet} value={audio.poet}><KhiSearchValue value={audio.poet} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.genre} value={audio.genre}><KhiPillRow values={audio.genre} search /></KhiMetaRow>
+      </KhiMetaPanelIf>
+
+      <KhiMetaPanelIf obj={audio} icon={IconMic} title={DETAIL.credits} keys={['singer', 'speaker', 'composer', 'producer', 'contributors', 'contributor']}>
+        <KhiMetaRow label={DETAIL.singer} value={audio.singer}><KhiSearchValue value={audio.singer} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.speaker} value={audio.speaker}><KhiSearchValue value={audio.speaker} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.composer} value={audio.composer}><KhiSearchValue value={audio.composer} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.producer} value={audio.producer}><KhiSearchValue value={audio.producer} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.contributors} value={audio.contributors || audio.contributor}><KhiPillRow values={audio.contributors || audio.contributor} search /></KhiMetaRow>
+      </KhiMetaPanelIf>
+
+      <KhiMetaPanelIf obj={audio} icon={IconRegion} title={DETAIL.langPlace} keys={['language', 'dialect', 'recordingVenue', 'city', 'region']}>
+        <KhiMetaRow label={DETAIL.language} value={audio.language}><KhiSearchValue value={audio.language} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.dialect} value={audio.dialect}><KhiSearchValue value={audio.dialect} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.location} value={audio.recordingVenue}><KhiSearchValue value={audio.recordingVenue} /></KhiMetaRow>
+        <KhiMetaRow label={DETAIL.region} value={audio.city || audio.region}><KhiSearchValue value={audio.city || audio.region} /></KhiMetaRow>
+      </KhiMetaPanelIf>
+
+      <KhiMetaPanelIf obj={audio} icon={IconCalendar} title={DETAIL.dates} keys={['recordedAt', 'recordingDate', 'dateCreated', 'publisher']}>
+        <KhiMetaRow label={DETAIL.recorded}>{formatPublicDate(audio.recordedAt || audio.recordingDate)}</KhiMetaRow>
+        <KhiMetaRow label={DETAIL.date}>{formatPublicDate(audio.dateCreated)}</KhiMetaRow>
+        <KhiMetaRow label={DETAIL.publisher} value={audio.publisher}><KhiSearchValue value={audio.publisher} /></KhiMetaRow>
+      </KhiMetaPanelIf>
+    </>
+  )
 
   return (
     <>
-      <HelpUsDialog
-        open={helpOpen}
-        onOpenChange={setHelpOpen}
-        mediaType="AUDIO"
-        mediaCode={code}
-        mediaTitle={title}
-        mediaData={audio}
-      />
-      <MediaHero
-        kind="Audio"
-        title={title}
-        originalTitle={original}
-        description={audio.description}
-        breadcrumbs={breadcrumbs}
-        action={
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setHelpOpen(true)}
-          >
-            <MessageSquarePlus className="size-4" />
-            Help Us Improve
-          </Button>
-        }
-      />
-      <PageContainer>
-        <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
-          <div className="min-w-0 space-y-6">
-            {audio.audioFileUrl ? (
-              <AudioPlayer
-                src={audio.audioFileUrl}
-                title={title}
-                subtitle={audio.form || audio.language || ''}
-                downloadHref={audio.audioFileUrl}
-              />
-            ) : (
-              <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center text-sm text-muted-foreground">
-                Audio file not publicly available.
-              </div>
-            )}
-
-            {audio.description ? (
-              <Section title="Description">
-                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
-                  {audio.description}
-                </p>
-              </Section>
-            ) : null}
-
-            {audio.transcription ? (
-              <Section title="Transcription">
-                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
-                  {audio.transcription}
-                </p>
-              </Section>
-            ) : null}
-
-            {audio.lyrics ? (
-              <Section title="Lyrics">
-                <p className="whitespace-pre-line break-words text-sm leading-7 text-foreground/90" style={{ overflowWrap: 'anywhere' }}>
-                  {audio.lyrics}
-                </p>
-              </Section>
-            ) : null}
-          </div>
-
-          <aside className="space-y-5 lg:sticky lg:top-32 lg:self-start">
-            <MetaPanel title="Details">
-              <MetaRow
-                label="Project"
-                value={audio.project?.projectCode || audio.projectCode}
-              >
-                <ProjectLink project={audio.project || { projectCode: audio.projectCode, projectName: audio.projectName }} />
-              </MetaRow>
-              <MetaRow
-                label="Person"
-                value={audio.person?.personCode || audio.personCode}
-              >
-                <PersonLink person={audio.person} fallbackCode={audio.personCode} fallbackName={audio.personName} />
-              </MetaRow>
-              <MetaRow label="Categories" value={audio.categories}>
-                <CategoryLinks categories={audio.categories} />
-              </MetaRow>
-              <MetaRow label="Subjects" value={audio.subjects || audio.subject}>
-                <PillRow values={audio.subjects || audio.subject} search />
-              </MetaRow>
-              <MetaRow label="Audience" value={audio.audience}>
-                <SearchValue value={audio.audience} />
-              </MetaRow>
-              <MetaRow label="Recorded">{formatPublicDate(audio.recordedAt || audio.recordingDate)}</MetaRow>
-              <MetaRow label="Duration" value={audio.duration || audio.durationFormatted}>
-                {audio.duration ? `${audio.duration}s` : audio.durationFormatted}
-              </MetaRow>
-            </MetaPanel>
-
-            <MetaPanelIf
-              obj={audio}
-              title="Music & form"
-              keys={['form', 'genre', 'typeOfBasta', 'typeOfMaqam', 'typeOfComposition', 'typeOfPerformance', 'poet']}
-            >
-              <MetaRow label="Form" value={audio.form}><SearchValue value={audio.form} /></MetaRow>
-              <MetaRow label="Type of basta" value={audio.typeOfBasta}><SearchValue value={audio.typeOfBasta} /></MetaRow>
-              <MetaRow label="Type of maqam" value={audio.typeOfMaqam}><SearchValue value={audio.typeOfMaqam} /></MetaRow>
-              <MetaRow label="Type of composition" value={audio.typeOfComposition}><SearchValue value={audio.typeOfComposition} /></MetaRow>
-              <MetaRow label="Type of performance" value={audio.typeOfPerformance}><SearchValue value={audio.typeOfPerformance} /></MetaRow>
-              <MetaRow label="Poet" value={audio.poet}><SearchValue value={audio.poet} /></MetaRow>
-              <MetaRow label="Genre" value={audio.genre}>
-                <PillRow values={audio.genre} search />
-              </MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={audio}
-              title="Credits"
-              keys={['composer', 'speaker', 'producer', 'contributors', 'contributor']}
-            >
-              <MetaRow label="Composer" value={audio.composer}><SearchValue value={audio.composer} /></MetaRow>
-              <MetaRow label="Speaker" value={audio.speaker}><SearchValue value={audio.speaker} /></MetaRow>
-              <MetaRow label="Producer" value={audio.producer}><SearchValue value={audio.producer} /></MetaRow>
-              <MetaRow label="Contributors" value={audio.contributors || audio.contributor}>
-                <PillRow values={audio.contributors || audio.contributor} search />
-              </MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={audio}
-              title="Language"
-              keys={['language', 'dialect']}
-            >
-              <MetaRow label="Language" value={audio.language}><SearchValue value={audio.language} /></MetaRow>
-              <MetaRow label="Dialect" value={audio.dialect}><SearchValue value={audio.dialect} /></MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={audio}
-              title="Recording location"
-              keys={['recordingVenue', 'city', 'region']}
-            >
-              <MetaRow label="Venue" value={audio.recordingVenue}><SearchValue value={audio.recordingVenue} /></MetaRow>
-              <MetaRow label="City" value={audio.city}><SearchValue value={audio.city} /></MetaRow>
-              <MetaRow label="Region" value={audio.region}><SearchValue value={audio.region} /></MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={audio}
-              title="Dates"
-              keys={['dateCreated', 'datePublished', 'dateModified']}
-            >
-              <MetaRow label="Created">{formatPublicDate(audio.dateCreated)}</MetaRow>
-              <MetaRow label="Published">{formatPublicDate(audio.datePublished)}</MetaRow>
-              <MetaRow label="Modified">{formatPublicDate(audio.dateModified)}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={audio}
-              title="Technical"
-              keys={['audioChannel', 'fileExtension', 'fileSize', 'bitRate', 'bitDepth', 'sampleRate', 'audioQualityOutOf10', 'audioVersion']}
-            >
-              <MetaRow label="Channel">{audio.audioChannel}</MetaRow>
-              <MetaRow label="Bit rate">{audio.bitRate}</MetaRow>
-              <MetaRow label="Sample rate">{audio.sampleRate}</MetaRow>
-              <MetaRow label="Bit depth">{audio.bitDepth}</MetaRow>
-              <MetaRow
-                label="Quality"
-                value={audio.audioQualityOutOf10}
-              >
-                {audio.audioQualityOutOf10 != null ? `${audio.audioQualityOutOf10} / 10` : null}
-              </MetaRow>
-              <MetaRow label="Extension">{audio.fileExtension}</MetaRow>
-              <MetaRow label="File size">{audio.fileSize}</MetaRow>
-              <MetaRow label="Version">{audio.audioVersion}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={audio}
-              title="Archive & provenance"
-              keys={['locationArchive', 'degitizedBy', 'degitizationEquipment', 'physicalLabel', 'physicalAvailability', 'provenance', 'accrualMethod']}
-            >
-              <MetaRow label="Archive location">{audio.locationArchive}</MetaRow>
-              <MetaRow label="Digitized by">{audio.degitizedBy}</MetaRow>
-              <MetaRow label="Digitization equipment">{audio.degitizationEquipment}</MetaRow>
-              <MetaRow label="Physical label">{audio.physicalLabel}</MetaRow>
-              <MetaRow
-                label="Physical copy"
-                value={formatBool(audio.physicalAvailability)}
-              >
-                {formatBool(audio.physicalAvailability)}
-              </MetaRow>
-              <MetaRow label="Provenance">{audio.provenance}</MetaRow>
-              <MetaRow label="Accrual method">{audio.accrualMethod}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={audio}
-              title="Rights"
-              keys={['copyright', 'rightOwner', 'dateCopyrighted', 'availability', 'licenseType', 'usageRights', 'owner', 'publisher']}
-            >
-              <MetaRow label="Copyright">{audio.copyright}</MetaRow>
-              <MetaRow label="Right owner">{audio.rightOwner}</MetaRow>
-              <MetaRow label="Date copyrighted">{formatPublicDate(audio.dateCopyrighted)}</MetaRow>
-              <MetaRow label="Availability">{audio.availability}</MetaRow>
-              <MetaRow label="License">{audio.licenseType}</MetaRow>
-              <MetaRow label="Usage">{audio.usageRights}</MetaRow>
-              <MetaRow label="Owner">{audio.owner}</MetaRow>
-              <MetaRow label="Publisher">{audio.publisher}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={audio}
-              title="Notes"
-              keys={['audioFileNote']}
-            >
-              <MetaRow label="File note">{audio.audioFileNote}</MetaRow>
-            </MetaPanelIf>
-
-            <MetaPanelIf
-              obj={audio}
-              title="Tags"
-              keys={['tags']}
-            >
-              <MetaRow label="Tags" value={audio.tags}>
-                <PillRow values={audio.tags} tone="primary" search />
-              </MetaRow>
-            </MetaPanelIf>
-          </aside>
-        </div>
-      </PageContainer>
+      <HelpUsDialog open={helpOpen} onOpenChange={setHelpOpen} mediaType="AUDIO" mediaCode={code} mediaTitle={title} mediaData={audio} />
+      <KhiDetailShell>
+        <KhiMediaDetail
+          kind="audio"
+          vinyl
+          title={title}
+          subtitle={original}
+          description={audio.description}
+          image={mediaThumbHref(audio) || personImageSrc(person)}
+          tags={toList(audio.tags)}
+          breadcrumbItems={[
+            { to: '/public', label: DETAIL.home },
+            { to: '/public/browse?type=audio', label: 'دەنگەکان' },
+            { label: title },
+          ]}
+          actions={[{ label: DETAIL.help, icon: IconPlus, onClick: () => setHelpOpen(true) }]}
+          infoCards={infoCards}
+          content={content}
+          meta={meta}
+        />
+      </KhiDetailShell>
     </>
-  )
-}
-
-function Section({ title, children }) {
-  return (
-    <section className="rounded-2xl border border-border bg-card p-6 shadow-sm shadow-black/5">
-      <h2 className="font-heading text-base font-semibold text-foreground">{title}</h2>
-      <div className="mt-3">{children}</div>
-    </section>
   )
 }
 

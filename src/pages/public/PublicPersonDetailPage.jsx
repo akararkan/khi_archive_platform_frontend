@@ -2,42 +2,27 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 
 import {
-  CardGridSkeleton,
-  ErrorState,
-  PageContainer,
-  PageHeader,
-  ResultCard,
-} from '@/components/public/PublicShared'
-import { SearchPill } from '@/components/public/PublicMediaDetailShared'
-import { projectMeta } from '@/components/public/public-helpers'
-import { DataPagination } from '@/components/ui/pagination'
-import { Skeleton } from '@/components/ui/skeleton'
+  personImageSrc, personInitials,
+} from '@/components/public/public-helpers'
+import { DETAIL, yearNum, cardFromItem } from '@/components/khi/khi-data'
+import KhiCard from '@/components/khi/KhiCard'
+import {
+  KhiDetailShell, KhiBreadcrumb, KhiDetailHero, KhiDetailDisc, KhiInfoGrid,
+  KhiSectionCard, KhiSeeAll, KhiEmptyState, KhiPager,
+} from '@/components/khi/KhiDetail'
+import { CardGridSkeleton } from '@/components/public/PublicShared'
+import {
+  IconPerson, IconMic, IconRegion, IconCalendar, IconTag, IconProject,
+} from '@/components/khi/icons'
 import { guestPerson, guestPersonProjects } from '@/services/guest'
 
 const PAGE_SIZE = 24
+const GENDER = { MALE: 'نێر', FEMALE: 'مێ', OTHER: 'تر', M: 'نێر', F: 'مێ' }
 
-// Normalise a "list-ish" backend value into a clean array of strings.
-// Tolerates: real arrays, comma/semicolon/Arabic-comma-separated
-// strings, and nullish values. Used so a multi-role person ("Singer",
-// "Maqam Bezh", "Sozhairan") never renders concatenated.
-function splitToList(value) {
-  if (value == null) return []
-  if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean)
-  return String(value)
-    .split(/[,،;]/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-}
-
-function getInitials(text) {
-  if (!text) return '·'
-  const parts = String(text).trim().split(/\s+/).filter(Boolean)
-  return (
-    parts
-      .slice(0, 2)
-      .map((p) => p.charAt(0).toUpperCase())
-      .join('') || '·'
-  )
+function toList(v, cap = 12) {
+  if (!v) return []
+  const arr = Array.isArray(v) ? v : String(v).split(/[,،;]/)
+  return arr.map((s) => String(s).trim()).filter(Boolean).slice(0, cap)
 }
 
 function PublicPersonDetailPage() {
@@ -55,15 +40,11 @@ function PublicPersonDetailPage() {
     const ctrl = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
-     
     setError('')
     guestPerson(code, { signal: ctrl.signal })
-      .then((d) => setPerson(d || null))
-      .catch((err) => {
-        if (err?.code === 'ERR_CANCELED') return
-        setError('Could not load this person.')
-      })
-      .finally(() => setLoading(false))
+      .then((d) => { if (!ctrl.signal.aborted) setPerson(d || null) })
+      .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError('Could not load this person.') })
+      .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     return () => ctrl.abort()
   }, [code])
 
@@ -72,9 +53,9 @@ function PublicPersonDetailPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setProjectsLoading(true)
     guestPersonProjects(code, { page, size: PAGE_SIZE, signal: ctrl.signal })
-      .then((d) => setProjects(d || null))
+      .then((d) => { if (!ctrl.signal.aborted) setProjects(d || null) })
       .catch(() => {})
-      .finally(() => setProjectsLoading(false))
+      .finally(() => { if (!ctrl.signal.aborted) setProjectsLoading(false) })
     return () => ctrl.abort()
   }, [code, page])
 
@@ -85,152 +66,79 @@ function PublicPersonDetailPage() {
     setSearchParams(sp)
   }
 
-  const breadcrumbs = useMemo(
-    () => [
-      { to: '/public', label: 'Home' },
-      { to: '/public/persons', label: 'Persons' },
-      { label: person?.fullName || person?.name || 'Untitled person' },
-    ],
-    [person],
-  )
+  const roles = useMemo(() => toList(person?.personType), [person])
 
-  if (loading) {
-    return (
-      <PageContainer>
-        <Skeleton className="h-6 w-32" />
-        <Skeleton className="mt-4 h-10 w-2/3" />
-        <Skeleton className="mt-3 h-4 w-1/2" />
-      </PageContainer>
-    )
-  }
-  if (error || !person) {
-    return (
-      <PageContainer>
-        <ErrorState error={error || 'Person not found.'} />
-      </PageContainer>
-    )
+  if (loading || error || !person) {
+    return <KhiDetailShell loading={loading} error={error} notFound={!person} />
   }
 
+  const display = person.fullName || person.name || DETAIL.none
+  const portrait = personImageSrc(person)
+  const year = yearNum(person)
   const items = projects?.content || []
-  const display = person.fullName || person.name || 'Untitled person'
-  const portrait =
-    person.mediaPortrait ||
-    person.profileImage ||
-    person.profileImageUrl ||
-    null
+  const total = projects?.totalElements
+
+  const heroTags = [
+    person.nickname || null,
+    person.region || null,
+    GENDER[person.gender] || person.gender || null,
+    ...toList(person.tags, 6),
+  ].filter(Boolean)
+
+  const infoCards = [
+    { icon: IconPerson, label: DETAIL.name, value: display },
+    { icon: IconMic, label: DETAIL.type, value: roles.join(' · ') || null },
+    { icon: IconRegion, label: DETAIL.region, value: person.region },
+    { icon: IconPerson, label: DETAIL.gender, value: GENDER[person.gender] || person.gender },
+    { icon: IconTag, label: DETAIL.nickname, value: person.nickname },
+    { icon: IconCalendar, label: DETAIL.birthYear, value: year },
+  ]
 
   return (
-    <>
-      <section className="border-b border-border/60 bg-gradient-to-b from-primary/5 via-background to-background">
-        <PageContainer className="py-10 sm:py-14">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-            <div className="grid size-24 shrink-0 place-items-center overflow-hidden rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 font-heading text-3xl font-semibold text-primary ring-1 ring-primary/20 shadow-md shadow-primary/10">
-              {portrait ? (
-                <img src={portrait} alt={display} className="size-full object-cover" />
-              ) : (
-                getInitials(display)
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <PageHeader
-                eyebrow="Person"
-                title={display}
-                description={person.bio || person.description}
-                breadcrumbs={breadcrumbs}
-              />
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {/* personType can come back as a string array
-                    (["Singer","Maqam Bezh","Sozhairan"]) OR as a single
-                    comma/semicolon-separated string. Split either shape
-                    into one pill per role so React doesn't render the
-                    array concatenated like "SingerMaqam BezhSozhairan". */}
-                {splitToList(person.personType).map((role) => (
-                  <SearchPill key={role} value={role} tone="primary" />
-                ))}
-                <SearchPill value={person.gender} tone="muted" />
-                <SearchPill value={person.region} />
-                {person.nickname ? <SearchPill value={person.nickname}>aka {person.nickname}</SearchPill> : null}
-              </div>
-            </div>
-          </div>
+    <KhiDetailShell>
+      <KhiDetailHero
+        kind="person"
+        title={display}
+        subtitle={roles.join(' · ') || null}
+        description={person.bio || person.description}
+        tags={heroTags}
+        breadcrumb={<KhiBreadcrumb items={[
+          { to: '/public', label: DETAIL.home },
+          { to: '/public/browse?type=person', label: 'کەسەکان' },
+          { label: display },
+        ]} />}
+        disc={<KhiDetailDisc kind="person" image={portrait} alt={display} badge={roles[0] || DETAIL.person} vinyl initials={personInitials(display)} />}
+      />
 
-          {(person.places?.length || person.tags?.length) ? (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              {person.places?.length ? (
-                <Panel title="Places">
-                  <div className="flex flex-wrap gap-1.5">
-                    {person.places.map((p) => (
-                      <SearchPill key={p} value={p} />
-                    ))}
-                  </div>
-                </Panel>
-              ) : null}
-              {person.tags?.length ? (
-                <Panel title="Tags">
-                  <div className="flex flex-wrap gap-1.5">
-                    {person.tags.map((t) => (
-                      <SearchPill key={t} value={t} tone="primary" />
-                    ))}
-                  </div>
-                </Panel>
-              ) : null}
-            </div>
-          ) : null}
-        </PageContainer>
-      </section>
+      <KhiInfoGrid items={infoCards} />
 
-      <PageContainer>
-        <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
-          Projects
-          {Number.isFinite(projects?.totalElements) ? (
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              · {projects.totalElements.toLocaleString()}
-            </span>
-          ) : null}
-        </h2>
+      <KhiSectionCard
+        icon={IconProject}
+        title={DETAIL.projects}
+        count={Number.isFinite(total) ? total : (items.length || 0)}
+        action={Number.isFinite(total) && total > items.length
+          ? <KhiSeeAll to={`/public/browse?type=project&q=${encodeURIComponent(display)}`} />
+          : null}
+      >
         {projectsLoading ? (
-          <CardGridSkeleton count={6} />
+          <CardGridSkeleton count={4} />
         ) : items.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center text-sm text-muted-foreground">
-            No projects linked to this person yet.
-          </div>
+          <KhiEmptyState
+            title="هێشتا هیچ پڕۆژەیەک نییە"
+            text="هەرکاتێک پڕۆژەیەک — گۆرانی، ڤیدیۆ یان بەڵگەنامە — بەم کەسە پەیوەست بکرێت، لێرە دەردەکەوێت."
+          />
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="khi-grid">
               {items.map((p) => (
-                <ResultCard
-                  key={p.projectCode}
-                  kind="project"
-                  to={`/public/projects/${p.projectCode}`}
-                  title={p.projectName || 'Untitled project'}
-                  description={p.description}
-                  meta={projectMeta(p)}
-                />
+                <KhiCard key={p.projectCode || p.code} record={cardFromItem(p, 'project')} />
               ))}
             </div>
-            <DataPagination
-              page={projects?.number ?? page}
-              totalPages={projects?.totalPages ?? 0}
-              totalElements={projects?.totalElements ?? 0}
-              pageSize={projects?.size ?? PAGE_SIZE}
-              onPageChange={setPage}
-              className="mt-8"
-            />
+            <KhiPager page={projects?.number ?? page} totalPages={projects?.totalPages ?? 0} onPage={setPage} />
           </>
         )}
-      </PageContainer>
-    </>
-  )
-}
-
-function Panel({ title, children }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm shadow-black/5">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        {title}
-      </p>
-      <div className="mt-2.5">{children}</div>
-    </div>
+      </KhiSectionCard>
+    </KhiDetailShell>
   )
 }
 
