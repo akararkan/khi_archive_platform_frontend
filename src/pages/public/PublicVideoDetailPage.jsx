@@ -18,6 +18,7 @@ import {
   PersonLink,
   PillRow,
   ProjectLink,
+  SearchValue,
 } from '@/components/public/PublicMediaDetailShared'
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
@@ -172,17 +173,17 @@ function PublicVideoDetailPage() {
               title="Subject & form"
               keys={['event', 'location', 'subject', 'genre', 'personShownInVideo', 'colorOfVideo', 'whereThisVideoUsed']}
             >
-              <MetaRow label="Event">{video.event}</MetaRow>
-              <MetaRow label="Location">{video.location}</MetaRow>
+              <MetaRow label="Event" value={video.event}><SearchValue value={video.event} /></MetaRow>
+              <MetaRow label="Location" value={video.location}><SearchValue value={video.location} /></MetaRow>
               <MetaRow label="Subject" value={video.subject}>
-                <PillRow values={video.subject} />
+                <PillRow values={video.subject} search />
               </MetaRow>
               <MetaRow label="Genre" value={video.genre}>
-                <PillRow values={video.genre} />
+                <PillRow values={video.genre} search />
               </MetaRow>
-              <MetaRow label="People shown">{video.personShownInVideo}</MetaRow>
-              <MetaRow label="Color">{video.colorOfVideo}</MetaRow>
-              <MetaRow label="Used in">{video.whereThisVideoUsed}</MetaRow>
+              <MetaRow label="People shown" value={video.personShownInVideo}><SearchValue value={video.personShownInVideo} /></MetaRow>
+              <MetaRow label="Color" value={video.colorOfVideo}><SearchValue value={video.colorOfVideo} /></MetaRow>
+              <MetaRow label="Used in" value={video.whereThisVideoUsed}><SearchValue value={video.whereThisVideoUsed} /></MetaRow>
             </MetaPanelIf>
 
             <MetaPanelIf
@@ -190,12 +191,12 @@ function PublicVideoDetailPage() {
               title="Credits"
               keys={['creatorArtistDirector', 'producer', 'contributor', 'contributors', 'audience']}
             >
-              <MetaRow label="Creator / Director">{video.creatorArtistDirector}</MetaRow>
-              <MetaRow label="Producer">{video.producer}</MetaRow>
+              <MetaRow label="Creator / Director" value={video.creatorArtistDirector}><SearchValue value={video.creatorArtistDirector} /></MetaRow>
+              <MetaRow label="Producer" value={video.producer}><SearchValue value={video.producer} /></MetaRow>
               <MetaRow label="Contributors" value={video.contributors || video.contributor}>
-                <PillRow values={video.contributors || video.contributor} />
+                <PillRow values={video.contributors || video.contributor} search />
               </MetaRow>
-              <MetaRow label="Audience">{video.audience}</MetaRow>
+              <MetaRow label="Audience" value={video.audience}><SearchValue value={video.audience} /></MetaRow>
             </MetaPanelIf>
 
             <MetaPanelIf
@@ -203,9 +204,9 @@ function PublicVideoDetailPage() {
               title="Language"
               keys={['language', 'dialect', 'subtitle']}
             >
-              <MetaRow label="Language">{video.language}</MetaRow>
-              <MetaRow label="Dialect">{video.dialect}</MetaRow>
-              <MetaRow label="Subtitle">{video.subtitle}</MetaRow>
+              <MetaRow label="Language" value={video.language}><SearchValue value={video.language} /></MetaRow>
+              <MetaRow label="Dialect" value={video.dialect}><SearchValue value={video.dialect} /></MetaRow>
+              <MetaRow label="Subtitle" value={video.subtitle}><SearchValue value={video.subtitle} /></MetaRow>
             </MetaPanelIf>
 
             <MetaPanelIf
@@ -276,14 +277,11 @@ function PublicVideoDetailPage() {
 
             <MetaPanelIf
               obj={video}
-              title="Tags & keywords"
-              keys={['tags', 'keywords']}
+              title="Tags"
+              keys={['tags']}
             >
               <MetaRow label="Tags" value={video.tags}>
-                <PillRow values={video.tags} tone="primary" />
-              </MetaRow>
-              <MetaRow label="Keywords" value={video.keywords}>
-                <PillRow values={video.keywords} />
+                <PillRow values={video.tags} tone="primary" search />
               </MetaRow>
             </MetaPanelIf>
           </aside>

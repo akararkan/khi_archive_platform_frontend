@@ -18,8 +18,8 @@ import {
   PageHeader,
   ResultCard,
   SectionTitle,
-  TagPill,
 } from '@/components/public/PublicShared'
+import { SearchPill } from '@/components/public/PublicMediaDetailShared'
 import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -221,7 +221,7 @@ function PublicProjectDetailPage() {
               <Panel title="Tags">
                 <div className="flex flex-wrap gap-1.5">
                   {project.tags.map((t) => (
-                    <TagPill key={t} tone="primary">{t}</TagPill>
+                    <SearchPill key={t} value={t} tone="primary" />
                   ))}
                 </div>
               </Panel>

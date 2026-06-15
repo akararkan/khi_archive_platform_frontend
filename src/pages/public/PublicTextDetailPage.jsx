@@ -18,6 +18,7 @@ import {
   PersonLink,
   PillRow,
   ProjectLink,
+  SearchValue,
 } from '@/components/public/PublicMediaDetailShared'
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
@@ -192,18 +193,18 @@ function PublicTextDetailPage() {
               title="Document"
               keys={['documentType', 'subject', 'subjects', 'genre', 'script', 'isbn', 'edition', 'volume', 'series', 'assignmentNumber']}
             >
-              <MetaRow label="Document type">{text.documentType}</MetaRow>
+              <MetaRow label="Document type" value={text.documentType}><SearchValue value={text.documentType} /></MetaRow>
               <MetaRow label="Subject" value={text.subject || text.subjects}>
-                <PillRow values={text.subject || text.subjects} />
+                <PillRow values={text.subject || text.subjects} search />
               </MetaRow>
               <MetaRow label="Genre" value={text.genre}>
-                <PillRow values={text.genre} />
+                <PillRow values={text.genre} search />
               </MetaRow>
-              <MetaRow label="Script">{text.script}</MetaRow>
+              <MetaRow label="Script" value={text.script}><SearchValue value={text.script} /></MetaRow>
               <MetaRow label="ISBN">{text.isbn}</MetaRow>
               <MetaRow label="Edition">{text.edition}</MetaRow>
               <MetaRow label="Volume">{text.volume}</MetaRow>
-              <MetaRow label="Series">{text.series}</MetaRow>
+              <MetaRow label="Series" value={text.series}><SearchValue value={text.series} /></MetaRow>
               <MetaRow label="Assignment #">{text.assignmentNumber}</MetaRow>
             </MetaPanelIf>
 
@@ -212,12 +213,12 @@ function PublicTextDetailPage() {
               title="Credits"
               keys={['author', 'contributors', 'contributor', 'printingHouse', 'audience']}
             >
-              <MetaRow label="Author">{text.author}</MetaRow>
+              <MetaRow label="Author" value={text.author}><SearchValue value={text.author} /></MetaRow>
               <MetaRow label="Contributors" value={text.contributors || text.contributor}>
-                <PillRow values={text.contributors || text.contributor} />
+                <PillRow values={text.contributors || text.contributor} search />
               </MetaRow>
-              <MetaRow label="Printing house">{text.printingHouse}</MetaRow>
-              <MetaRow label="Audience">{text.audience}</MetaRow>
+              <MetaRow label="Printing house" value={text.printingHouse}><SearchValue value={text.printingHouse} /></MetaRow>
+              <MetaRow label="Audience" value={text.audience}><SearchValue value={text.audience} /></MetaRow>
             </MetaPanelIf>
 
             <MetaPanelIf
@@ -225,8 +226,8 @@ function PublicTextDetailPage() {
               title="Language"
               keys={['language', 'dialect']}
             >
-              <MetaRow label="Language">{text.language}</MetaRow>
-              <MetaRow label="Dialect">{text.dialect}</MetaRow>
+              <MetaRow label="Language" value={text.language}><SearchValue value={text.language} /></MetaRow>
+              <MetaRow label="Dialect" value={text.dialect}><SearchValue value={text.dialect} /></MetaRow>
             </MetaPanelIf>
 
             <MetaPanelIf
@@ -293,14 +294,11 @@ function PublicTextDetailPage() {
 
             <MetaPanelIf
               obj={text}
-              title="Tags & keywords"
-              keys={['tags', 'keywords']}
+              title="Tags"
+              keys={['tags']}
             >
               <MetaRow label="Tags" value={text.tags}>
-                <PillRow values={text.tags} tone="primary" />
-              </MetaRow>
-              <MetaRow label="Keywords" value={text.keywords}>
-                <PillRow values={text.keywords} />
+                <PillRow values={text.tags} tone="primary" search />
               </MetaRow>
             </MetaPanelIf>
           </aside>

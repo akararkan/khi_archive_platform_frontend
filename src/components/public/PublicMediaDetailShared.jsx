@@ -9,6 +9,11 @@ import {
 import { hasAny } from '@/components/public/public-helpers'
 import { cn } from '@/lib/utils'
 
+function publicSearchHref(value) {
+  const q = String(value ?? '').trim()
+  return q ? `/public/browse?type=all&q=${encodeURIComponent(q)}` : '#'
+}
+
 // ── MediaHero ──────────────────────────────────────────────────────────
 //
 // Detail-page hero used by every media kind (audio / video / text /
@@ -104,7 +109,40 @@ function MetaRow({ label, value, children }) {
 }
 
 // ── PillRow ────────────────────────────────────────────────────────────
-function PillRow({ values, tone = 'default', linkPrefix }) {
+function SearchValue({ value, children, className }) {
+  const label = children ?? value
+  if (value == null || value === '') return null
+  return (
+    <Link
+      to={publicSearchHref(value)}
+      className={cn('font-medium text-foreground underline decoration-primary/25 underline-offset-4 transition hover:text-primary hover:decoration-primary', className)}
+    >
+      {label}
+    </Link>
+  )
+}
+
+function SearchPill({ value, children, tone = 'default' }) {
+  if (value == null || value === '') return null
+  const label = children ?? value
+  return (
+    <Link
+      to={publicSearchHref(value)}
+      className={cn(
+        'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition hover:-translate-y-px hover:shadow-sm',
+        tone === 'primary'
+          ? 'border-primary/30 bg-primary/10 text-primary hover:border-primary/50'
+          : tone === 'muted'
+            ? 'border-border bg-muted/40 text-muted-foreground hover:border-primary/30 hover:text-primary'
+            : 'border-border bg-background text-foreground/80 hover:border-primary/30 hover:text-primary',
+      )}
+    >
+      {label}
+    </Link>
+  )
+}
+
+function PillRow({ values, tone = 'default', linkPrefix, search = false }) {
   if (!values) return null
   const arr = Array.isArray(values)
     ? values.filter(Boolean)
@@ -113,6 +151,7 @@ function PillRow({ values, tone = 'default', linkPrefix }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {arr.map((v) => {
+        if (search) return <SearchPill key={v} value={v} tone={tone} />
         if (linkPrefix) {
           return (
             <Link
@@ -208,6 +247,8 @@ export {
   MetaPanelIf,
   MetaRow,
   PillRow,
+  SearchPill,
+  SearchValue,
   ProjectLink,
   PersonLink,
   CategoryLinks,

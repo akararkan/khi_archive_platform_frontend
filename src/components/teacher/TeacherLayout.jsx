@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { GraduationCap, History, LogOut, Music4 } from 'lucide-react'
+import { GraduationCap, History, House, LogOut, Music4 } from 'lucide-react'
 
 import '@/styles/khi-theme.css'
 import { Button } from '@/components/ui/button'
@@ -56,6 +56,10 @@ function TeacherLayout() {
     logout()
     clearCurrentProfile()
     navigate('/login', { replace: true })
+  }
+
+  const handleHome = () => {
+    navigate('/public')
   }
 
   return (
@@ -179,8 +183,12 @@ function TeacherLayout() {
           </NavLink>
         </div>
 
-        {/* logout */}
-        <div className="mt-5">
+        {/* home / logout */}
+        <div className="mt-5 space-y-2">
+          <Button className="w-full gap-2" variant="secondary" type="button" onClick={handleHome}>
+            <House className="size-4" />
+            Home
+          </Button>
           <Button className="w-full gap-2" variant="outline" type="button" onClick={handleLogout}>
             <LogOut className="size-4" />
             {ku.signOut}

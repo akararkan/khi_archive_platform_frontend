@@ -18,6 +18,7 @@ import {
   PersonLink,
   PillRow,
   ProjectLink,
+  SearchValue,
 } from '@/components/public/PublicMediaDetailShared'
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import { formatBool, formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
@@ -173,9 +174,11 @@ function PublicAudioDetailPage() {
                 <CategoryLinks categories={audio.categories} />
               </MetaRow>
               <MetaRow label="Subjects" value={audio.subjects || audio.subject}>
-                <PillRow values={audio.subjects || audio.subject} />
+                <PillRow values={audio.subjects || audio.subject} search />
               </MetaRow>
-              <MetaRow label="Audience">{audio.audience}</MetaRow>
+              <MetaRow label="Audience" value={audio.audience}>
+                <SearchValue value={audio.audience} />
+              </MetaRow>
               <MetaRow label="Recorded">{formatPublicDate(audio.recordedAt || audio.recordingDate)}</MetaRow>
               <MetaRow label="Duration" value={audio.duration || audio.durationFormatted}>
                 {audio.duration ? `${audio.duration}s` : audio.durationFormatted}
@@ -187,14 +190,14 @@ function PublicAudioDetailPage() {
               title="Music & form"
               keys={['form', 'genre', 'typeOfBasta', 'typeOfMaqam', 'typeOfComposition', 'typeOfPerformance', 'poet']}
             >
-              <MetaRow label="Form">{audio.form}</MetaRow>
-              <MetaRow label="Type of basta">{audio.typeOfBasta}</MetaRow>
-              <MetaRow label="Type of maqam">{audio.typeOfMaqam}</MetaRow>
-              <MetaRow label="Type of composition">{audio.typeOfComposition}</MetaRow>
-              <MetaRow label="Type of performance">{audio.typeOfPerformance}</MetaRow>
-              <MetaRow label="Poet">{audio.poet}</MetaRow>
+              <MetaRow label="Form" value={audio.form}><SearchValue value={audio.form} /></MetaRow>
+              <MetaRow label="Type of basta" value={audio.typeOfBasta}><SearchValue value={audio.typeOfBasta} /></MetaRow>
+              <MetaRow label="Type of maqam" value={audio.typeOfMaqam}><SearchValue value={audio.typeOfMaqam} /></MetaRow>
+              <MetaRow label="Type of composition" value={audio.typeOfComposition}><SearchValue value={audio.typeOfComposition} /></MetaRow>
+              <MetaRow label="Type of performance" value={audio.typeOfPerformance}><SearchValue value={audio.typeOfPerformance} /></MetaRow>
+              <MetaRow label="Poet" value={audio.poet}><SearchValue value={audio.poet} /></MetaRow>
               <MetaRow label="Genre" value={audio.genre}>
-                <PillRow values={audio.genre} />
+                <PillRow values={audio.genre} search />
               </MetaRow>
             </MetaPanelIf>
 
@@ -203,11 +206,11 @@ function PublicAudioDetailPage() {
               title="Credits"
               keys={['composer', 'speaker', 'producer', 'contributors', 'contributor']}
             >
-              <MetaRow label="Composer">{audio.composer}</MetaRow>
-              <MetaRow label="Speaker">{audio.speaker}</MetaRow>
-              <MetaRow label="Producer">{audio.producer}</MetaRow>
+              <MetaRow label="Composer" value={audio.composer}><SearchValue value={audio.composer} /></MetaRow>
+              <MetaRow label="Speaker" value={audio.speaker}><SearchValue value={audio.speaker} /></MetaRow>
+              <MetaRow label="Producer" value={audio.producer}><SearchValue value={audio.producer} /></MetaRow>
               <MetaRow label="Contributors" value={audio.contributors || audio.contributor}>
-                <PillRow values={audio.contributors || audio.contributor} />
+                <PillRow values={audio.contributors || audio.contributor} search />
               </MetaRow>
             </MetaPanelIf>
 
@@ -216,8 +219,8 @@ function PublicAudioDetailPage() {
               title="Language"
               keys={['language', 'dialect']}
             >
-              <MetaRow label="Language">{audio.language}</MetaRow>
-              <MetaRow label="Dialect">{audio.dialect}</MetaRow>
+              <MetaRow label="Language" value={audio.language}><SearchValue value={audio.language} /></MetaRow>
+              <MetaRow label="Dialect" value={audio.dialect}><SearchValue value={audio.dialect} /></MetaRow>
             </MetaPanelIf>
 
             <MetaPanelIf
@@ -225,9 +228,9 @@ function PublicAudioDetailPage() {
               title="Recording location"
               keys={['recordingVenue', 'city', 'region']}
             >
-              <MetaRow label="Venue">{audio.recordingVenue}</MetaRow>
-              <MetaRow label="City">{audio.city}</MetaRow>
-              <MetaRow label="Region">{audio.region}</MetaRow>
+              <MetaRow label="Venue" value={audio.recordingVenue}><SearchValue value={audio.recordingVenue} /></MetaRow>
+              <MetaRow label="City" value={audio.city}><SearchValue value={audio.city} /></MetaRow>
+              <MetaRow label="Region" value={audio.region}><SearchValue value={audio.region} /></MetaRow>
             </MetaPanelIf>
 
             <MetaPanelIf
@@ -304,14 +307,11 @@ function PublicAudioDetailPage() {
 
             <MetaPanelIf
               obj={audio}
-              title="Tags & keywords"
-              keys={['tags', 'keywords']}
+              title="Tags"
+              keys={['tags']}
             >
               <MetaRow label="Tags" value={audio.tags}>
-                <PillRow values={audio.tags} tone="primary" />
-              </MetaRow>
-              <MetaRow label="Keywords" value={audio.keywords}>
-                <PillRow values={audio.keywords} />
+                <PillRow values={audio.tags} tone="primary" search />
               </MetaRow>
             </MetaPanelIf>
           </aside>

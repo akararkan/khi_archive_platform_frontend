@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Archive, ChevronRight, FolderOpen, HardDrive, Library, LogOut, MessageSquarePlus, Music4, Tags, Users } from 'lucide-react'
+import { Archive, ChevronRight, FolderOpen, HardDrive, House, Library, LogOut, MessageSquarePlus, Music4, Tags, Users } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { GuestActivationBanner } from '@/components/ui/guest-activation-banner'
@@ -114,6 +114,10 @@ function EmployeeLayout() {
     logout()
     clearCurrentProfile()
     navigate('/login', { replace: true })
+  }
+
+  const handleHome = () => {
+    navigate('/public')
   }
 
   return (
@@ -280,8 +284,12 @@ function EmployeeLayout() {
           </div>
         </div>
 
-        {/* logout */}
-        <div className="mt-5">
+        {/* home / logout */}
+        <div className="mt-5 space-y-2">
+          <Button className="w-full gap-2" variant="secondary" type="button" onClick={handleHome}>
+            <House className="size-4" />
+            Home
+          </Button>
           <Button className="w-full gap-2" variant="outline" type="button" onClick={handleLogout}>
             <LogOut className="size-4" />
             Sign out

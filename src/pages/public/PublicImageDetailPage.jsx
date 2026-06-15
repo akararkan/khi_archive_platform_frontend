@@ -18,6 +18,7 @@ import {
   PersonLink,
   PillRow,
   ProjectLink,
+  SearchValue,
 } from '@/components/public/PublicMediaDetailShared'
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import { formatPublicDate, pickMediaTitle } from '@/components/public/public-helpers'
@@ -195,16 +196,16 @@ function PublicImageDetailPage() {
               title="Subject & form"
               keys={['form', 'event', 'location', 'subject', 'subjects', 'genre', 'personShownInImage']}
             >
-              <MetaRow label="Form">{image.form}</MetaRow>
-              <MetaRow label="Event">{image.event}</MetaRow>
-              <MetaRow label="Location">{image.location}</MetaRow>
+              <MetaRow label="Form" value={image.form}><SearchValue value={image.form} /></MetaRow>
+              <MetaRow label="Event" value={image.event}><SearchValue value={image.event} /></MetaRow>
+              <MetaRow label="Location" value={image.location}><SearchValue value={image.location} /></MetaRow>
               <MetaRow label="Subject" value={image.subject || image.subjects}>
-                <PillRow values={image.subject || image.subjects} />
+                <PillRow values={image.subject || image.subjects} search />
               </MetaRow>
               <MetaRow label="Genre" value={image.genre}>
-                <PillRow values={image.genre} />
+                <PillRow values={image.genre} search />
               </MetaRow>
-              <MetaRow label="People shown">{image.personShownInImage}</MetaRow>
+              <MetaRow label="People shown" value={image.personShownInImage}><SearchValue value={image.personShownInImage} /></MetaRow>
             </MetaPanelIf>
 
             <MetaPanelIf
@@ -212,11 +213,11 @@ function PublicImageDetailPage() {
               title="Credits"
               keys={['creatorArtistPhotographer', 'contributor', 'contributors', 'audience']}
             >
-              <MetaRow label="Creator / Photographer">{image.creatorArtistPhotographer}</MetaRow>
+              <MetaRow label="Creator / Photographer" value={image.creatorArtistPhotographer}><SearchValue value={image.creatorArtistPhotographer} /></MetaRow>
               <MetaRow label="Contributors" value={image.contributors || image.contributor}>
-                <PillRow values={image.contributors || image.contributor} />
+                <PillRow values={image.contributors || image.contributor} search />
               </MetaRow>
-              <MetaRow label="Audience">{image.audience}</MetaRow>
+              <MetaRow label="Audience" value={image.audience}><SearchValue value={image.audience} /></MetaRow>
             </MetaPanelIf>
 
             <MetaPanelIf
@@ -224,9 +225,9 @@ function PublicImageDetailPage() {
               title="Camera"
               keys={['manufacturer', 'model', 'lens']}
             >
-              <MetaRow label="Manufacturer">{image.manufacturer}</MetaRow>
-              <MetaRow label="Model">{image.model}</MetaRow>
-              <MetaRow label="Lens">{image.lens}</MetaRow>
+              <MetaRow label="Manufacturer" value={image.manufacturer}><SearchValue value={image.manufacturer} /></MetaRow>
+              <MetaRow label="Model" value={image.model}><SearchValue value={image.model} /></MetaRow>
+              <MetaRow label="Lens" value={image.lens}><SearchValue value={image.lens} /></MetaRow>
             </MetaPanelIf>
 
             <MetaPanelIf
@@ -293,14 +294,11 @@ function PublicImageDetailPage() {
 
             <MetaPanelIf
               obj={image}
-              title="Tags & keywords"
-              keys={['tags', 'keywords']}
+              title="Tags"
+              keys={['tags']}
             >
               <MetaRow label="Tags" value={image.tags}>
-                <PillRow values={image.tags} tone="primary" />
-              </MetaRow>
-              <MetaRow label="Keywords" value={image.keywords}>
-                <PillRow values={image.keywords} />
+                <PillRow values={image.tags} tone="primary" search />
               </MetaRow>
             </MetaPanelIf>
           </aside>

@@ -7,8 +7,8 @@ import {
   PageContainer,
   PageHeader,
   ResultCard,
-  TagPill,
 } from '@/components/public/PublicShared'
+import { SearchPill } from '@/components/public/PublicMediaDetailShared'
 import { projectMeta } from '@/components/public/public-helpers'
 import { DataPagination } from '@/components/ui/pagination'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -145,13 +145,11 @@ function PublicPersonDetailPage() {
                     into one pill per role so React doesn't render the
                     array concatenated like "SingerMaqam BezhSozhairan". */}
                 {splitToList(person.personType).map((role) => (
-                  <TagPill key={role} tone="primary">
-                    {role}
-                  </TagPill>
+                  <SearchPill key={role} value={role} tone="primary" />
                 ))}
-                {person.gender ? <TagPill tone="muted">{person.gender}</TagPill> : null}
-                {person.region ? <TagPill>{person.region}</TagPill> : null}
-                {person.nickname ? <TagPill>aka {person.nickname}</TagPill> : null}
+                <SearchPill value={person.gender} tone="muted" />
+                <SearchPill value={person.region} />
+                {person.nickname ? <SearchPill value={person.nickname}>aka {person.nickname}</SearchPill> : null}
               </div>
             </div>
           </div>
@@ -162,7 +160,7 @@ function PublicPersonDetailPage() {
                 <Panel title="Places">
                   <div className="flex flex-wrap gap-1.5">
                     {person.places.map((p) => (
-                      <TagPill key={p}>{p}</TagPill>
+                      <SearchPill key={p} value={p} />
                     ))}
                   </div>
                 </Panel>
@@ -171,9 +169,7 @@ function PublicPersonDetailPage() {
                 <Panel title="Tags">
                   <div className="flex flex-wrap gap-1.5">
                     {person.tags.map((t) => (
-                      <TagPill key={t} tone="primary">
-                        {t}
-                      </TagPill>
+                      <SearchPill key={t} value={t} tone="primary" />
                     ))}
                   </div>
                 </Panel>
