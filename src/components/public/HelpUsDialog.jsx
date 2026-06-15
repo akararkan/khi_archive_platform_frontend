@@ -351,18 +351,18 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
       aria-modal="true"
     >
       <div
-        className="flex w-full max-w-[980px] flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-2xl ring-1 ring-black/10"
+        className="khi-help-shell flex w-full max-w-[980px] flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl ring-1 ring-black/10"
         style={{ height: 'min(92vh, 760px)' }}
       >
         {/* ═══ HEADER ═══ */}
-        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-4 py-4 sm:px-6">
+        <div className="khi-help-head flex shrink-0 items-center justify-between gap-4 border-b border-border px-4 py-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="khi-mark grid size-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <div className="khi-help-mark grid size-11 shrink-0 place-items-center rounded-xl text-primary-foreground shadow-sm">
               <MessageSquarePlus className="size-5" />
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[15px] font-bold text-foreground">{KU.title}</span>
+                <span className="font-heading text-[18px] font-bold text-foreground">{KU.title}</span>
                 <span className="rounded-md border border-border bg-secondary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-secondary-foreground">{mediaType}</span>
               </div>
               {mediaTitle ? <p className="mt-0.5 truncate text-[12px] font-medium text-muted-foreground" style={{ maxWidth: 560 }}>{mediaTitle}</p> : null}
@@ -383,7 +383,7 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
           <div className="flex flex-1 items-center justify-center p-8">
             <div className="w-full max-w-sm text-center">
               <div className="mx-auto mb-6 grid size-16 place-items-center rounded-2xl bg-primary/10 text-primary"><LogIn className="size-7" /></div>
-              <h3 className="text-lg font-bold text-foreground">{KU.signInTitle}</h3>
+              <h3 className="font-heading text-xl font-bold text-foreground">{KU.signInTitle}</h3>
               <p className="mt-2 text-sm leading-7 text-muted-foreground">{KU.signInBody}</p>
               <div className="mt-8 flex flex-col gap-2">
                 <Link to="/login" onClick={() => onOpenChange(false)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90">
@@ -397,7 +397,7 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
           <div className="flex flex-1 items-center justify-center p-8">
             <div className="w-full max-w-sm text-center">
               <div className="mx-auto mb-6 grid size-16 place-items-center rounded-2xl bg-green-500/10 text-green-600"><CheckCircle2 className="size-7" /></div>
-              <h3 className="text-lg font-bold text-foreground">{KU.thanks}</h3>
+              <h3 className="font-heading text-xl font-bold text-foreground">{KU.thanks}</h3>
               <p className="mt-2 text-sm leading-7 text-muted-foreground">{KU.thanksBody(submittedCount)}</p>
               <button type="button" onClick={() => onOpenChange(false)} className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90">
                 <CheckCircle2 className="size-4" /> {KU.done}
@@ -497,7 +497,7 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
                     <div className="mb-1 flex items-center gap-1.5">
                       {selectedGroup ? (<><span className={`size-2 rounded-full ${selectedGroup.color}`} /><span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">{selectedGroup.section}</span></>) : null}
                     </div>
-                    <h3 className="text-xl font-bold text-foreground">{selectedDef.label}</h3>
+                    <h3 className="font-heading text-xl font-bold text-foreground">{selectedDef.label}</h3>
                   </div>
 
                   <div>
@@ -550,7 +550,7 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
               <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-secondary/35 px-4 py-4 sm:px-6 md:px-8">
                 <span className="hidden text-[10px] text-muted-foreground/50 md:inline">{KU.ctrlEnter}</span>
                 <button type="button" onClick={() => onOpenChange(false)} disabled={submitting} className="rounded-lg border border-border bg-background px-4 py-2 text-[13px] font-medium text-foreground transition hover:bg-muted disabled:opacity-50">{KU.cancel}</button>
-                <button type="submit" disabled={submitting || !canSubmit} className={['flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold transition', canSubmit && !submitting ? 'bg-primary text-primary-foreground hover:opacity-90 active:scale-95' : 'cursor-not-allowed bg-muted text-muted-foreground'].join(' ')}>
+                <button type="submit" disabled={submitting || !canSubmit} className={['khi-help-submit flex items-center gap-2 rounded-xl px-5 py-2 text-[13px] font-bold transition', canSubmit && !submitting ? 'text-primary-foreground active:scale-95' : 'cursor-not-allowed bg-muted text-muted-foreground'].join(' ')}>
                   {submitting ? <><Loader2 className="size-3.5 animate-spin" /> {KU.submitting}</> : <><Send className="size-3.5" /> {KU.submit}{canSubmit && filledFields.length > 1 ? ` ${filledFields.length}` : ''}</>}
                 </button>
               </div>

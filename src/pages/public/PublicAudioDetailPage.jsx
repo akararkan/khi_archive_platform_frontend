@@ -133,7 +133,6 @@ function PublicAudioDetailPage() {
       <KhiDetailShell>
         <KhiMediaDetail
           kind="audio"
-          vinyl
           title={title}
           subtitle={original}
           description={audio.description}
@@ -141,7 +140,7 @@ function PublicAudioDetailPage() {
           tags={toList(audio.tags)}
           breadcrumbItems={[
             { to: '/public', label: DETAIL.home },
-            { to: '/public/browse?type=audio', label: 'دەنگەکان' },
+            { to: '/public/browse?types=audio', label: 'دەنگەکان' },
             { label: title },
           ]}
           actions={[{ label: DETAIL.help, icon: IconPlus, onClick: () => setHelpOpen(true) }]}

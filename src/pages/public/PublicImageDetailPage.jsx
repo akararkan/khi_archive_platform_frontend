@@ -120,7 +120,7 @@ function PublicImageDetailPage() {
           tags={toList(image.tags)}
           breadcrumbItems={[
             { to: '/public', label: DETAIL.home },
-            { to: '/public/browse?type=image', label: 'وێنەکان' },
+            { to: '/public/browse?types=image', label: 'وێنەکان' },
             { label: title },
           ]}
           actions={[

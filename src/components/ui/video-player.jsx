@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   Check,
   Download,
@@ -50,6 +50,14 @@ function VideoPlayer({ src, title, subtitle, downloadHref, className }) {
   const [hover, setHover] = useState(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isPip, setIsPip] = useState(false)
+  const [isRtl, setIsRtl] = useState(false)
+
+  // Mirror the ambient writing direction so the scrubber fills right→left under
+  // RTL (left→right otherwise) and the seek/hover math matches.
+  useLayoutEffect(() => {
+    const el = containerRef.current
+    if (el) setIsRtl(getComputedStyle(el).direction === 'rtl')
+  }, [])
 
   // Track isSeeking via ref so the video-element effect doesn't have to depend
   // on it (otherwise tearing down + resetting state would happen on every click).
@@ -180,10 +188,10 @@ function VideoPlayer({ src, title, subtitle, downloadHref, className }) {
       if (!node) return
       const rect = node.getBoundingClientRect()
       if (rect.width <= 0) return
-      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+      const ratio = Math.min(1, Math.max(0, (isRtl ? rect.right - clientX : clientX - rect.left) / rect.width))
       handleSeek(ratio * duration)
     },
-    [duration, handleSeek],
+    [duration, handleSeek, isRtl],
   )
 
   const skip = useCallback(
@@ -325,7 +333,7 @@ function VideoPlayer({ src, title, subtitle, downloadHref, className }) {
   const onScrubberMouseMove = (e) => {
     if (!duration || !scrubberRef.current) return
     const rect = scrubberRef.current.getBoundingClientRect()
-    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
+    const ratio = Math.min(1, Math.max(0, (isRtl ? rect.right - e.clientX : e.clientX - rect.left) / rect.width))
     setHover({ x: ratio * rect.width, time: ratio * duration })
   }
 
@@ -415,16 +423,19 @@ function VideoPlayer({ src, title, subtitle, downloadHref, className }) {
               if (e.touches[0]) seekFromClientX(e.touches[0].clientX)
             }}
           >
-            <div className="absolute inset-y-0 left-0 rounded-full bg-muted-foreground/25" style={{ width: `${bufferedPct}%` }} />
-            <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary to-primary/80 transition-[width] duration-75" style={{ width: `${progressPct}%` }} />
+            <div className="absolute inset-y-0 rounded-full bg-muted-foreground/25" style={{ [isRtl ? 'right' : 'left']: 0, width: `${bufferedPct}%` }} />
             <div
-              className="pointer-events-none absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow ring-2 ring-background transition-opacity group-hover:opacity-100"
-              style={{ left: `${progressPct}%`, opacity: isSeeking ? 1 : undefined }}
+              className={cn('absolute inset-y-0 rounded-full from-primary to-primary/80 transition-[width] duration-75', isRtl ? 'bg-gradient-to-l' : 'bg-gradient-to-r')}
+              style={{ [isRtl ? 'right' : 'left']: 0, width: `${progressPct}%` }}
+            />
+            <div
+              className="pointer-events-none absolute top-1/2 size-3 rounded-full bg-primary shadow ring-2 ring-background transition-opacity group-hover:opacity-100"
+              style={{ [isRtl ? 'right' : 'left']: `${progressPct}%`, transform: `translate(${isRtl ? '50%' : '-50%'}, -50%)`, opacity: isSeeking ? 1 : undefined }}
             />
             {hover && duration ? (
               <div
-                className="pointer-events-none absolute -top-7 -translate-x-1/2 rounded-md bg-foreground px-1.5 py-0.5 font-mono text-[10px] font-semibold text-background shadow"
-                style={{ left: `${hover.x}px` }}
+                className="pointer-events-none absolute -top-7 rounded-md bg-foreground px-1.5 py-0.5 font-mono text-[10px] font-semibold text-background shadow"
+                style={{ [isRtl ? 'right' : 'left']: `${hover.x}px`, transform: `translateX(${isRtl ? '50%' : '-50%'})` }}
               >
                 {formatTime(hover.time)}
               </div>

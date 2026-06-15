@@ -414,45 +414,46 @@
    slider + one-tap decade chips. Laid out LTR (years read
    oldest → newest) inside the RTL rail. Bounds are data-driven.
    ============================================================ */
-.khi-root .khi-yr{display:flex;flex-direction:column;gap:15px;width:100%}
-.khi-root .khi-yr-head{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:22px}
-.khi-root .khi-yr-readout{display:inline-flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;direction:ltr;font-size:15px;font-weight:600;color:var(--ink)}
-.khi-root .khi-yr-readout b{font-weight:700;color:var(--pine)}
-.khi-root .khi-yr-readout i{color:var(--gold);font-style:normal;font-weight:700}
-.khi-root .khi-yr-all{font-family:'Vazirmatn',Tahoma,sans-serif;font-size:13px;font-weight:600;color:var(--muted)}
-.khi-root .khi-yr-reset{font-size:12.5px;font-weight:700;color:var(--clay);transition:.15s}
+.khi-root .khi-yr{display:flex;flex-direction:column;gap:13px;width:100%}
+/* readout: the live range shown as a mono pill, with a reset link */
+.khi-root .khi-yr-readout{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:32px}
+.khi-root .khi-yr-range{display:inline-flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;direction:ltr;font-size:15px;font-weight:700;color:var(--pine);background:var(--paper-3);border:1px solid var(--line);border-radius:9px;padding:5px 12px}
+.khi-root .khi-yr-range i{color:var(--gold);font-style:normal}
+.khi-root .khi-yr-all{font-size:13.5px;font-weight:600;color:var(--muted)}
+.khi-root .khi-yr-reset{font-size:12.5px;font-weight:800;color:var(--clay);transition:.15s}
 .khi-root .khi-yr-reset:hover{text-decoration:underline}
 
-/* the rail + thumbs sit in a padded stage so bubbles clear the top and the
+/* the rail + thumbs sit in a padded stage so the bubble clears the top and the
    end thumbs (radius 11px) never clip the rail's left/right edges */
-.khi-root .khi-yr-stage{padding:26px 16px 0}
-.khi-root .khi-yr-rail{position:relative;height:8px;border-radius:8px;cursor:pointer;touch-action:none;
-  background:linear-gradient(180deg,#e8ede5,#dce5d9);box-shadow:inset 0 1px 3px rgba(20,38,32,.2)}
+.khi-root .khi-yr-stage{padding:30px 16px 2px}
+.khi-root .khi-yr-rail{position:relative;height:9px;border-radius:9px;cursor:pointer;touch-action:none;
+  background:linear-gradient(180deg,#e8ede5,#d8e2d4);box-shadow:inset 0 1px 3px rgba(20,38,32,.22)}
 .khi-root .khi-yr-ticks{position:absolute;inset:0;pointer-events:none}
-.khi-root .khi-yr-tick{position:absolute;top:50%;width:2px;height:8px;transform:translate(-50%,-50%);background:rgba(31,58,49,.2);border-radius:2px}
-.khi-root .khi-yr-fill{position:absolute;top:0;bottom:0;border-radius:8px;
+.khi-root .khi-yr-tick{position:absolute;top:50%;width:2px;height:9px;transform:translate(-50%,-50%);background:rgba(31,58,49,.16);border-radius:2px}
+.khi-root .khi-yr-fill{position:absolute;top:0;bottom:0;border-radius:9px;
   background:linear-gradient(90deg,var(--gold),var(--gold-bright));
-  box-shadow:0 0 0 1px rgba(176,136,51,.25),0 2px 8px rgba(214,178,94,.32)}
+  box-shadow:0 0 0 1px rgba(176,136,51,.3),0 3px 10px rgba(214,178,94,.4)}
 .khi-root .khi-yr-thumb{position:absolute;top:50%;width:22px;height:22px;border-radius:50%;transform:translate(-50%,-50%);
-  background:radial-gradient(circle at 35% 30%,#fff,var(--gold-bright) 72%);border:2px solid var(--pine);
-  box-shadow:0 3px 10px rgba(20,38,32,.34);cursor:grab;touch-action:none;z-index:3;
+  background:radial-gradient(circle at 34% 28%,#fff,#f4dca0 58%,var(--gold-bright) 100%);border:2px solid var(--pine);
+  box-shadow:0 3px 10px rgba(20,38,32,.36),inset 0 1px 0 rgba(255,255,255,.7);cursor:grab;touch-action:none;z-index:3;
   transition:box-shadow .18s ease,transform .08s ease}
-.khi-root .khi-yr-thumb:hover{box-shadow:0 4px 14px rgba(20,38,32,.42)}
+.khi-root .khi-yr-thumb::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:5px;height:5px;border-radius:50%;background:var(--pine)}
+.khi-root .khi-yr-thumb:hover{box-shadow:0 5px 16px rgba(20,38,32,.45)}
 .khi-root .khi-yr-thumb:focus-visible{outline:none;box-shadow:0 0 0 4px rgba(44,84,72,.28)}
-.khi-root .khi-yr-thumb.dragging{cursor:grabbing;transform:translate(-50%,-50%) scale(1.14)}
-.khi-root .khi-yr-bubble{position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);
+.khi-root .khi-yr-thumb.dragging{cursor:grabbing;transform:translate(-50%,-50%) scale(1.15)}
+.khi-root .khi-yr-bubble{position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);
   font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:700;direction:ltr;white-space:nowrap;
-  color:var(--cream);background:var(--pine);padding:3px 7px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .18s}
-.khi-root .khi-yr-bubble::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:var(--pine)}
+  color:var(--cream);background:var(--pine);padding:3px 8px;border-radius:7px;opacity:0;pointer-events:none;transition:opacity .18s;box-shadow:0 4px 10px -4px rgba(20,38,32,.6)}
+.khi-root .khi-yr-bubble::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--pine)}
 .khi-root .khi-yr-thumb:hover .khi-yr-bubble,
 .khi-root .khi-yr-thumb:focus-visible .khi-yr-bubble,
 .khi-root .khi-yr-thumb.dragging .khi-yr-bubble{opacity:1}
-.khi-root .khi-yr-ends{display:flex;justify-content:space-between;margin-top:9px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);direction:ltr}
+.khi-root .khi-yr-ends{display:flex;justify-content:space-between;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);direction:ltr}
 
-.khi-root .khi-yr-decades{display:flex;flex-wrap:wrap;gap:6px}
-.khi-root .khi-yr-chip{font-family:'IBM Plex Mono',monospace;direction:ltr;font-size:12px;font-weight:600;color:var(--ink-soft);background:var(--paper-3);border:1px solid var(--line);border-radius:7px;padding:5px 9px;cursor:pointer;transition:.15s}
-.khi-root .khi-yr-chip:hover{border-color:var(--pine-2);color:var(--pine);background:#fff}
-.khi-root .khi-yr-chip.on{background:var(--pine);border-color:var(--pine);color:var(--cream)}
+.khi-root .khi-yr-decades{display:flex;flex-wrap:wrap;gap:7px}
+.khi-root .khi-yr-chip{flex:0 0 auto;font-family:'IBM Plex Mono',monospace;direction:ltr;font-size:12px;font-weight:700;color:var(--ink-soft);background:#fff;border:1px solid var(--line-2);border-radius:999px;padding:6px 12px;cursor:pointer;transition:.15s}
+.khi-root .khi-yr-chip:hover{border-color:var(--pine-2);color:var(--pine);background:var(--paper-3)}
+.khi-root .khi-yr-chip.on{background:var(--pine);border-color:var(--pine);color:var(--cream);box-shadow:0 4px 12px -5px rgba(31,58,49,.7)}
 
 .khi-root .khi-yr.loading{opacity:.65;pointer-events:none}
 .khi-root .khi-yr.loading .khi-yr-rail{background:linear-gradient(110deg,var(--paper-3) 8%,#fff 18%,var(--paper-3) 33%);background-size:200% 100%;animation:khi-shimmer 1.3s linear infinite}
@@ -520,10 +521,13 @@
   background:linear-gradient(#fffdf8,#f4ead9);border:1px solid #d7c49d;
   box-shadow:0 34px 70px -26px rgba(61,45,20,.5),inset 0 0 0 5px rgba(255,255,255,.55)}
 .khi-root .record-image{position:relative;width:100%;height:100%;border-radius:50%;overflow:hidden;display:grid;place-items:center;
-  background:repeating-radial-gradient(circle,rgba(0,0,0,.05) 0 1px,transparent 1px 9px),#e8dfcf}
-.khi-root .record-image img{width:100%;height:100%;object-fit:cover;filter:sepia(.3) contrast(.96) saturate(.82)}
+  background:#eef1ea}
+/* Show the REAL photo — true colours, no CD/vinyl sepia treatment. */
+.khi-root .record-image img{width:100%;height:100%;object-fit:cover}
+/* A whisper of top sheen only — keeps the medallion from looking flat without
+   the old dark vinyl spot. */
 .khi-root .record-image::after{content:"";position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(circle at 72% 46%,rgba(0,0,0,.12),transparent 20%),linear-gradient(120deg,rgba(255,255,255,.22),transparent 44%)}
+  background:linear-gradient(150deg,rgba(255,255,255,.16),transparent 42%)}
 .khi-root .record-ph{display:grid;place-items:center;color:var(--pine);opacity:.55}
 .khi-root .record-frame.vinyl .record-image{background:repeating-radial-gradient(circle,rgba(255,255,255,.05) 0 1px,transparent 1px 7px),#171512}
 .khi-root .record-frame.vinyl .record-ph{color:var(--gold-soft);opacity:.75}
@@ -645,3 +649,8 @@
 .khi-root .detail-tab.active svg{color:var(--gold-bright);opacity:1}
 .khi-root .detail-group-title{font-family:'Amiri',serif;font-size:18px;font-weight:700;color:var(--ink);margin:0 0 14px}
 .khi-root .detail-group + .detail-group{margin-top:26px}
+
+/* ── Media-type checkbox group (primary sidebar control) ────────────────────── */
+.khi-root .media-facet{border-top:none;padding-top:2px}
+.khi-root .check .check-ic{width:16px;height:16px;flex-shrink:0;color:var(--pine);opacity:.6}
+.khi-root .check.on .check-ic{opacity:1;color:var(--pine-2)}

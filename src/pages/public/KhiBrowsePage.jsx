@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { HighlightProvider } from '@/components/ui/highlight'
-import { readMediaTypeCount, totalFacetCount, decodeSelectedFacets } from '@/components/public/public-helpers'
+import { readMediaTypeCount, decodeSelectedFacets } from '@/components/public/public-helpers'
 import { guestFacets } from '@/services/guest'
 import KhiSidebar from '@/components/khi/KhiSidebar'
 import KhiToolbar from '@/components/khi/KhiToolbar'
@@ -10,7 +10,7 @@ import KhiCard from '@/components/khi/KhiCard'
 import { useYearBounds } from '@/components/khi/use-year-bounds'
 import { IconClose } from '@/components/khi/icons'
 import {
-  TYPES, TYPE_MAP, DEFAULT_TYPE, PAGE_SIZE, MEDIA_KINDS, UI, cardFromItem,
+  NAV_TYPES, TYPE_MAP, DEFAULT_TYPE, PAGE_SIZE, MEDIA_KINDS, UI, cardFromItem,
 } from '@/components/khi/khi-data'
 
 // Skeleton placeholder cards shown while a page of results loads.
@@ -85,8 +85,13 @@ export function KhiBrowsePage() {
   const yearFrom = dateFrom ? Number(dateFrom.slice(0, 4)) || null : null
   const yearTo = dateTo ? Number(dateTo.slice(0, 4)) || null : null
 
-  const sortBy = searchParams.get('sortBy') || type.sorts[0].key
-  const sortDir = searchParams.get('sortDirection') || type.sorts[0].dir
+  // Default sort: "relevance" only earns its place when there's a query —
+  // otherwise lead with Newest (the catalogue's natural landing order).
+  const defaultSort = (!q && type.sorts.some((s) => s.key === 'date'))
+    ? (type.sorts.find((s) => s.key === 'date' && s.dir === 'desc') || type.sorts[0])
+    : type.sorts[0]
+  const sortBy = searchParams.get('sortBy') || defaultSort.key
+  const sortDir = searchParams.get('sortDirection') || defaultSort.dir
   const sortIndex = Math.max(0, type.sorts.findIndex((s) => s.key === sortBy && s.dir === sortDir))
 
   const selected = useMemo(() => decodeSelectedFacets(searchParams, type.facetMap), [searchParams, type.facetMap])
@@ -126,7 +131,8 @@ export function KhiBrowsePage() {
 
   const switchType = (key) => {
     const sp = new URLSearchParams()
-    sp.set('type', key)
+    // 'all' is the default feed — leave it out of the URL for a clean link.
+    if (key && key !== 'all') sp.set('type', key)
     if (q) sp.set('q', q)
     if (view === 'list') sp.set('layout', 'list')
     setSearchParams(sp)
@@ -192,17 +198,19 @@ export function KhiBrowsePage() {
 
   // Type-rail counts from global facets.
   const counts = useMemo(() => {
-    if (!facets) return {}
-    const a = readMediaTypeCount(facets, 'audio') || 0
-    const v = readMediaTypeCount(facets, 'video') || 0
-    const t = readMediaTypeCount(facets, 'text') || 0
-    const i = readMediaTypeCount(facets, 'image') || 0
-    return {
-      all: a + v + t + i, audio: a, video: v, text: t, image: i,
-      person: totalFacetCount(facets, 'persons') || undefined,
-      category: totalFacetCount(facets, 'categories') || undefined,
+    const c = {}
+    if (facets) {
+      c.audio = readMediaTypeCount(facets, 'audio') || 0
+      c.video = readMediaTypeCount(facets, 'video') || 0
+      c.text = readMediaTypeCount(facets, 'text') || 0
+      c.image = readMediaTypeCount(facets, 'image') || 0
     }
-  }, [facets])
+    // Only the ACTIVE entity scope gets a count, taken from its list total.
+    // Facet sums under-count entities with no linked media (a person with 0
+    // items isn't in the facet map), which is what made "persons" read 1/3.
+    if (['person', 'project', 'category'].includes(typeKey)) c[typeKey] = totalElements
+    return c
+  }, [facets, typeKey, totalElements])
   const mediaTypeCounts = { audio: counts.audio, video: counts.video, text: counts.text, image: counts.image }
 
   // ── Facet / filter handlers ─────────────────────────────────────────────────
@@ -216,7 +224,17 @@ export function KhiBrowsePage() {
     const cur = new Set(selectedMediaTypes)
     cur.has(k) ? cur.delete(k) : cur.add(k)
     const arr = [...cur]
-    update({ types: arr.length ? arr.join(',') : null })
+    if (typeKey === 'all') {
+      update({ types: arr.length ? arr.join(',') : null })
+    } else {
+      // The media checkboxes always operate on the unified feed — jump there,
+      // carrying just the current query, so they double as "back to media".
+      const sp = new URLSearchParams()
+      if (q) sp.set('q', q)
+      if (arr.length) sp.set('types', arr.join(','))
+      if (view === 'list') sp.set('layout', 'list')
+      setSearchParams(sp)
+    }
   }
   const onTextFilter = (paramKey, value) => {
     setTextDrafts((d) => ({ ...d, [paramKey]: value }))
@@ -264,16 +282,16 @@ export function KhiBrowsePage() {
         <div className="scrim" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
 
         <KhiSidebar
-          types={TYPES}
+          types={NAV_TYPES}
           activeType={typeKey}
-          onType={(k) => { switchType(k); closeSidebarOnMobile() }}
+          onType={(k) => { switchType(k === typeKey ? 'all' : k); closeSidebarOnMobile() }}
           onClose={() => setSidebarOpen(false)}
           counts={counts}
           type={type}
           facets={facets}
           selected={selected}
           onToggleFacet={onToggleFacet}
-          showMediaTypes={type.showMediaTypes}
+          showMediaTypes
           mediaKinds={MEDIA_KINDS}
           mediaTypeCounts={mediaTypeCounts}
           selectedMediaTypes={selectedMediaTypes}

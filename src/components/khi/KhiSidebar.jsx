@@ -115,37 +115,49 @@ export default function KhiSidebar({
         ) : null}
       </div>
 
-      <div className="nav-list">
-        {types.map((t) => {
-          const Icon = TYPE_ICON[t.key]
-          const c = counts[t.key]
-          return (
-            <button
-              key={t.key}
-              className={`nav-item${t.key === activeType ? ' active' : ''}`}
-              onClick={() => onType(t.key)}
-            >
-              <Icon /> {t.label}
-              {typeof c === 'number' && c > 0 ? <span className="n-count">{c.toLocaleString()}</span> : null}
-            </button>
-          )
-        })}
-      </div>
-
+      {/* Media-type checkboxes — the primary way to browse the unified feed,
+          always shown; toggling one jumps to the feed from any scope. */}
       {showMediaTypes ? (
-        <div className="facet">
+        <div className="facet media-facet">
           <summary style={{ listStyle: 'none' }}>
-            {TYPE_ICON.all ? <TYPE_ICON.all className="lead-ic" /> : null} جۆری مێدیا
+            {TYPE_ICON.all ? <TYPE_ICON.all className="lead-ic" /> : null} {UI.mediaType}
           </summary>
           <div className="facet-body">
             {mediaKinds.map((k) => {
               const on = selectedMediaTypes.includes(k)
+              const KindIcon = TYPE_ICON[k]
               return (
                 <label key={k} className={`check${on ? ' on' : ''}`} onClick={(e) => { e.preventDefault(); onToggleMediaType(k) }}>
                   <span className="box" />
+                  {KindIcon ? <KindIcon className="check-ic" /> : null}
                   <span>{TYPE_LABELS[k]}</span>
                   {mediaTypeCounts[k] ? <span className="c-count">{mediaTypeCounts[k].toLocaleString()}</span> : null}
                 </label>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Browse by distinct entity (persons / projects / categories). */}
+      {types.length ? (
+        <div className="facet">
+          <summary style={{ listStyle: 'none' }}>
+            {TYPE_ICON.person ? <TYPE_ICON.person className="lead-ic" /> : null} {UI.browseBy}
+          </summary>
+          <div className="nav-list" style={{ paddingTop: 12 }}>
+            {types.map((t) => {
+              const Icon = TYPE_ICON[t.key]
+              const c = counts[t.key]
+              return (
+                <button
+                  key={t.key}
+                  className={`nav-item${t.key === activeType ? ' active' : ''}`}
+                  onClick={() => onType(t.key)}
+                >
+                  <Icon /> {t.label}
+                  {typeof c === 'number' && c > 0 ? <span className="n-count">{c.toLocaleString()}</span> : null}
+                </button>
               )
             })}
           </div>

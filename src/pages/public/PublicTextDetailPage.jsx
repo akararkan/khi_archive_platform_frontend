@@ -126,7 +126,7 @@ function PublicTextDetailPage() {
           tags={toList(text.tags)}
           breadcrumbItems={[
             { to: '/public', label: DETAIL.home },
-            { to: '/public/browse?type=text', label: 'دەقەکان' },
+            { to: '/public/browse?types=text', label: 'دەقەکان' },
             { label: title },
           ]}
           actions={[

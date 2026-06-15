@@ -107,7 +107,7 @@ function PublicPersonDetailPage() {
           { to: '/public/browse?type=person', label: 'کەسەکان' },
           { label: display },
         ]} />}
-        disc={<KhiDetailDisc kind="person" image={portrait} alt={display} badge={roles[0] || DETAIL.person} vinyl initials={personInitials(display)} />}
+        disc={<KhiDetailDisc kind="person" image={portrait} alt={display} badge={roles[0] || DETAIL.person} initials={personInitials(display)} />}
       />
 
       <KhiInfoGrid items={infoCards} />

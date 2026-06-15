@@ -130,7 +130,7 @@ function PublicVideoDetailPage() {
           tags={toList(video.tags)}
           breadcrumbItems={[
             { to: '/public', label: DETAIL.home },
-            { to: '/public/browse?type=video', label: 'ڤیدیۆکان' },
+            { to: '/public/browse?types=video', label: 'ڤیدیۆکان' },
             { label: title },
           ]}
           actions={[{ label: DETAIL.help, icon: IconPlus, onClick: () => setHelpOpen(true) }]}

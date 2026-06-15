@@ -133,9 +133,12 @@ export function useYearBounds(type, facets) {
     let min = mins.length ? Math.min(...mins) : fallback.min
     let max = maxs.length ? Math.max(...maxs) : fallback.max
     if (max < min) [min, max] = [max, min]
-    // The span tracks the DATA: oldest record → newest record. Only guard
-    // against a collapsed (single-year) span so the track is always draggable.
-    if (max - min < 1) min = max - 1
+    // Snap to whole DECADES so the timeline + its decade chips always line up
+    // and the track reads as an intentional span even when the data covers
+    // only a year or two. Selection still filters on the exact chosen years.
+    min = Math.floor(min / 10) * 10
+    max = Math.ceil((max + 1) / 10) * 10
+    if (max - min < 10) max = min + 10
     // Interactive once the probe settles or a facet range is known — never
     // stuck if a type has no dated rows (we fall back to [1900 … now]).
     const ready = settled || facetRange != null
