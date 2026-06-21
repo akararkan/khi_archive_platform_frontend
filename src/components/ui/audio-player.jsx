@@ -57,10 +57,13 @@ function AudioPlayer({
   const [loop, setLoop] = useState(false)
   const [rateMenuOpen, setRateMenuOpen] = useState(false)
   const [hover, setHover] = useState(null) // { x, time }
+  // The player is pinned to a normal left→right layout (the `dir="ltr"` below)
+  // so it always reads like the dashboard player — elapsed time grows from the
+  // left, the handle travels left→right — even inside the RTL public surface.
+  // `isRtl` stays in the wiring so the scrubber/seek math has a single source of
+  // truth; the container's forced LTR keeps it resolving to false.
   const [isRtl, setIsRtl] = useState(false)
 
-  // Mirror the ambient writing direction so the scrubber fills the natural way
-  // (right→left under RTL, left→right otherwise) and seek/hover math matches.
   useLayoutEffect(() => {
     const el = containerRef.current
     if (el) setIsRtl(getComputedStyle(el).direction === 'rtl')
@@ -348,6 +351,7 @@ function AudioPlayer({
     <div
       ref={containerRef}
       tabIndex={0}
+      dir="ltr"
       className={cn(
         // No overflow-hidden here on purpose — the playback-rate popover opens
         // upward and would be clipped if the container clipped its overflow.

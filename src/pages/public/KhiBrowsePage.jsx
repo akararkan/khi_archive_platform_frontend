@@ -239,12 +239,10 @@ export function KhiBrowsePage() {
   const onTextFilter = (paramKey, value) => {
     setTextDrafts((d) => ({ ...d, [paramKey]: value }))
   }
-  // Years → backend-native ISO span (full-day inclusive on both ends).
-  const onYearChange = ({ from, to }) => {
-    update({
-      dateFrom: from != null ? `${from}-01-01` : null,
-      dateTo: to != null ? `${to}-12-31` : null,
-    })
+  // Calendar picker emits backend-native ISO dates (yyyy-mm-dd) directly, so the
+  // filter is exact to the day; an empty edge clears that bound.
+  const onDateChange = ({ from, to }) => {
+    update({ dateFrom: from || null, dateTo: to || null })
   }
   // Commit text drafts to the URL after a pause.
   useEffect(() => {
@@ -299,10 +297,10 @@ export function KhiBrowsePage() {
           showDateRange={type.showDateRange}
           yearMin={yearBounds.min}
           yearMax={yearBounds.max}
-          yearFrom={yearFrom}
-          yearTo={yearTo}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
           yearLoading={!yearBounds.ready}
-          onYearChange={onYearChange}
+          onDateChange={onDateChange}
           textFilters={type.textFilters || []}
           textFilterValues={textDrafts}
           onTextFilter={onTextFilter}

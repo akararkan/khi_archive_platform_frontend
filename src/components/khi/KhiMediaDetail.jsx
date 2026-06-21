@@ -23,7 +23,7 @@ export default function KhiMediaDetail({
         tags={tags}
         action={actions.length ? <KhiActions actions={actions} /> : null}
         breadcrumb={<KhiBreadcrumb items={breadcrumbItems} />}
-        disc={<KhiDetailDisc kind={kind} image={image} alt={title} badge={TYPE_LABELS[kind]} vinyl={vinyl} />}
+        disc={<KhiDetailDisc kind={kind} image={image} alt={title} badge={TYPE_LABELS[kind]} vinyl={vinyl} frame={kind === 'image'} />}
       />
       <KhiInfoGrid items={infoCards} />
       {content}

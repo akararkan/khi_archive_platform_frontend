@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 import { readFacet, personImageSrc, personInitials } from '@/components/public/public-helpers'
 import { IconFilter, IconChevron, IconCalendar, IconClose, TYPE_ICON, FACET_ICON } from './icons'
 import { UI, TYPE_LABELS } from './khi-data'
-import KhiYearRange from './KhiYearRange'
+import KhiDateRange from './KhiDateRange'
 
 const INITIAL_VISIBLE = 6
 const PERSON_VISIBLE = 7
@@ -97,7 +97,7 @@ export default function KhiSidebar({
   types, activeType, onType, counts = {}, onClose,
   type, facets, selected, onToggleFacet,
   showMediaTypes, mediaKinds = [], mediaTypeCounts = {}, selectedMediaTypes = [], onToggleMediaType,
-  showDateRange, yearMin, yearMax, yearFrom, yearTo, onYearChange, yearLoading = false,
+  showDateRange, yearMin, yearMax, dateFrom, dateTo, onDateChange, yearLoading = false,
   textFilters = [], textFilterValues = {}, onTextFilter,
 }) {
   return (
@@ -180,13 +180,13 @@ export default function KhiSidebar({
             <IconCalendar className="lead-ic" /> {UI.dateRange}
           </summary>
           <div className="facet-body">
-            <KhiYearRange
+            <KhiDateRange
               min={yearMin}
               max={yearMax}
-              from={yearFrom}
-              to={yearTo}
+              from={dateFrom}
+              to={dateTo}
               loading={yearLoading}
-              onChange={onYearChange}
+              onChange={onDateChange}
             />
           </div>
         </div>

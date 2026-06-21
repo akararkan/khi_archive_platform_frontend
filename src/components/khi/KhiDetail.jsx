@@ -76,8 +76,31 @@ export function KhiActions({ actions = [] }) {
 }
 
 // ── The record / medallion disc ──────────────────────────────────────────────
-export function KhiDetailDisc({ kind, image, alt, badge, vinyl = false, initials }) {
+// `frame` swaps the circular medallion for a rectangular photo frame that shows
+// the picture at its own aspect ratio (no circular crop, no distortion) — used
+// for the IMAGE detail hero so a photograph reads as a photograph.
+export function KhiDetailDisc({ kind, image, alt, badge, vinyl = false, initials, frame = false }) {
   const BadgeIcon = KIND_BADGE_ICON[kind] || IconMic
+
+  if (frame) {
+    return (
+      <div className="hero-image-area">
+        <span className="wave wave-left" aria-hidden="true" />
+        <span className="wave wave-right" aria-hidden="true" />
+        <div className="photo-frame">
+          {image ? (
+            <img src={image} alt={alt || ''} loading="lazy" />
+          ) : (
+            <span className="record-ph">{initials || <BadgeIcon width="64" height="64" />}</span>
+          )}
+        </div>
+        {badge ? (
+          <span className="mic-badge"><BadgeIcon width="18" height="18" /> {badge}</span>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div className="hero-image-area">
       <span className="wave wave-left" aria-hidden="true" />
