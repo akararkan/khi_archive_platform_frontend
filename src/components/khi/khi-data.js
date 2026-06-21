@@ -73,6 +73,7 @@ export const UI = {
   yearTo: 'تا ساڵی',
   dateStart: 'لە بەرواری',
   dateEnd: 'تا بەرواری',
+  exactDates: 'یان بەرواری ورد هەڵبژێرە',
   dateInvalid: 'بەرواری دەستپێک دوای بەرواری کۆتاییە.',
   open: 'کردنەوە',
   untitled: 'بێ ناو',

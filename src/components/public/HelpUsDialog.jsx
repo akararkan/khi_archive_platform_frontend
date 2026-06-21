@@ -407,7 +407,7 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
         ) : (
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col md:flex-row">
             {/* ─── RAIL (start side / right in RTL) ─── */}
-            <div className="flex max-h-[42vh] w-full shrink-0 flex-col border-b border-border bg-secondary/45 md:max-h-none md:w-[272px] md:border-b-0 md:border-e">
+            <div className="khi-help-rail flex max-h-[42vh] w-full shrink-0 flex-col border-b border-border bg-secondary/45 md:max-h-none md:w-[272px] md:border-b-0 md:border-e">
               <div className="shrink-0 border-b border-border p-2.5">
                 <div className="relative">
                   <Search className="pointer-events-none absolute inset-y-0 end-2.5 my-auto size-3.5 text-muted-foreground" />
@@ -503,7 +503,7 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
                   <div>
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">{KU.currentValue}</p>
                     {currentVal ? (
-                      <div className="rounded-lg border border-border border-s-[3px] border-s-primary bg-secondary/50 px-4 py-3 text-sm leading-7 text-foreground" style={{ overflowWrap: 'anywhere' }}>{currentVal}</div>
+                      <div className="khi-help-current rounded-lg border border-border border-s-[3px] border-s-primary bg-secondary/50 px-4 py-3 text-sm leading-7 text-foreground" style={{ overflowWrap: 'anywhere' }}>{currentVal}</div>
                     ) : (
                       <div className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-secondary/35 px-4 py-3"><span className="text-xs italic text-muted-foreground/50">{KU.noValue}</span></div>
                     )}
@@ -522,7 +522,7 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
                       onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); doSubmit() } }}
                       placeholder={KU.enterCorrect(selectedDef.label)}
                       rows={isLong ? 6 : 4}
-                      className={['w-full flex-1 resize-none rounded-lg border-2 bg-background px-4 py-3 text-sm leading-7 text-foreground shadow-inner outline-none transition-colors placeholder:text-muted-foreground/40', correctionVal.trim() ? 'border-green-400 focus:border-green-500' : 'border-border focus:border-primary'].join(' ')}
+                      className={['khi-help-textarea w-full flex-1 resize-none rounded-lg border-2 bg-background px-4 py-3 text-sm leading-7 text-foreground shadow-inner outline-none transition-colors placeholder:text-muted-foreground/40', correctionVal.trim() ? 'border-green-400 focus:border-green-500' : 'border-border focus:border-primary'].join(' ')}
                     />
                     <p className={['mt-2 text-[11px] leading-5', correctionVal.trim() ? 'text-green-600' : 'text-muted-foreground/50'].join(' ')}>{correctionVal.trim() ? KU.savedHint : KU.blankHint}</p>
                   </div>
