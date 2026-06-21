@@ -301,13 +301,18 @@ export function cardFromItem(item, typeKey) {
   const to = code ? `/public/${resource}/${code}` : '#'
 
   if (kind === 'person') {
-    const name = item.fullName || item.name || code
+    // Two DTO shapes flow through here: the full Person record (dedicated
+    // `person` scope — `fullName` + `mediaPortrait`) and the slim /guest/feed
+    // row (name in `title`/`personName`, portrait in `personMediaPortrait` and
+    // mirrored to `fileUrl`). Read both so feed person cards show the real name
+    // and photo instead of falling through to the technical code.
+    const name = item.fullName || item.name || item.personName || item.title || code
     return {
       kind, code, to, acc: code,
       title: name,
       collection: Array.isArray(item.personType) ? item.personType.join(' · ') : item.personType || null,
       region: item.region || null,
-      image: personImageSrc(item),
+      image: personImageSrc(item) || item.personMediaPortrait || item.fileUrl || '',
       avatarText: personInitials(name),
       tags: tagsOf(item),
       count: item.projectCount || item.totalCount || null,
@@ -323,13 +328,15 @@ export function cardFromItem(item, typeKey) {
     const person = extractPersonFromItem(item)
     return {
       kind, code, to, acc: code,
-      title: item.projectName || item.name || code,
+      title: item.projectName || item.name || item.title || code,
       collection: Array.isArray(item.categories) && item.categories[0]
         ? (item.categories[0].categoryName || item.categories[0].name || item.categories[0].categoryCode)
         : null,
       person: person ? { name: person.fullName || person.name, code: person.personCode, image: personImageSrc(person) } : null,
       tags: counts,
-      image: mediaThumbHref(item),
+      // Per-type project DTOs carry a thumbnail field; the slim feed row mirrors
+      // the cover into `fileUrl`.
+      image: mediaThumbHref(item) || item.fileUrl || null,
     }
   }
 
