@@ -8,10 +8,15 @@ import KhiSidebar from '@/components/khi/KhiSidebar'
 import KhiToolbar from '@/components/khi/KhiToolbar'
 import KhiCard from '@/components/khi/KhiCard'
 import { useYearBounds } from '@/components/khi/use-year-bounds'
+import { useDataFacets } from '@/components/khi/use-data-facets'
 import { IconClose } from '@/components/khi/icons'
 import {
-  NAV_TYPES, TYPE_MAP, DEFAULT_TYPE, PAGE_SIZE, MEDIA_KINDS, UI, cardFromItem,
+  NAV_TYPES, TYPE_MAP, DEFAULT_TYPE, PAGE_SIZE, MEDIA_KINDS, UI, cardFromItem, ENTITY_FILTER_KEYS,
 } from '@/components/khi/khi-data'
+
+// Entity scopes reachable via ?type= (the media kinds are reached by selecting
+// a single media-type checkbox, which drops into that per-entity scope).
+const ENTITY_SCOPES = ['person', 'project', 'category']
 
 // Skeleton placeholder cards shown while a page of results loads.
 function SkeletonGrid() {
@@ -72,18 +77,41 @@ export function KhiBrowsePage() {
     () => (typeof window !== 'undefined' ? window.matchMedia('(min-width:1025px)').matches : true),
   )
 
-  const typeKey = TYPE_MAP[searchParams.get('type')] ? searchParams.get('type') : DEFAULT_TYPE
-  const type = TYPE_MAP[typeKey]
   const q = searchParams.get('q') || ''
   const view = searchParams.get('layout') === 'list' ? 'list' : 'grid'
   const page = Math.max(0, Number(searchParams.get('page')) || 0)
   const dateFrom = searchParams.get('dateFrom') || ''
   const dateTo = searchParams.get('dateTo') || ''
-  // The timeline filter works in plain YEARS; the URL keeps backend-native
-  // ISO dates (YYYY-01-01 … YYYY-12-31) so links stay shareable + the API
-  // contract is untouched.
+  // Years are derived only for the compact active-filter chip; the URL keeps
+  // backend-native ISO dates (yyyy-mm-dd) so links stay shareable + exact.
   const yearFrom = dateFrom ? Number(dateFrom.slice(0, 4)) || null : null
   const yearTo = dateTo ? Number(dateTo.slice(0, 4)) || null : null
+
+  const selectedMediaTypes = useMemo(
+    () => (searchParams.get('types') || '').split(',').filter((k) => MEDIA_KINDS.includes(k)),
+    [searchParams],
+  )
+  // Scope resolution: an explicit ?type= entity (person/project/category) wins;
+  // else selecting exactly ONE media type drops into that media's per-entity
+  // scope — the only place the entity-specific filters work (the feed accepts
+  // just the common block). 0 or 2+ media kinds → the unified feed ('all').
+  const typeParam = searchParams.get('type')
+  const isEntityScope = ENTITY_SCOPES.includes(typeParam) && Boolean(TYPE_MAP[typeParam])
+  const typeKey = isEntityScope
+    ? typeParam
+    : (selectedMediaTypes.length === 1 ? selectedMediaTypes[0] : DEFAULT_TYPE)
+  const type = TYPE_MAP[typeKey]
+
+  // Shared (server) facets + the scope's entity-specific (data-driven) facets,
+  // rendered through one FacetGroup list. Data groups key their options by the
+  // filter param itself.
+  const filterGroups = useMemo(
+    () => [
+      ...(type.facetMap || []),
+      ...(type.dataFacets || []).map((d) => ({ ...d, facetKey: d.paramKey })),
+    ],
+    [type],
+  )
 
   // Default sort: "relevance" only earns its place when there's a query —
   // otherwise lead with Newest (the catalogue's natural landing order).
@@ -94,11 +122,7 @@ export function KhiBrowsePage() {
   const sortDir = searchParams.get('sortDirection') || defaultSort.dir
   const sortIndex = Math.max(0, type.sorts.findIndex((s) => s.key === sortBy && s.dir === sortDir))
 
-  const selected = useMemo(() => decodeSelectedFacets(searchParams, type.facetMap), [searchParams, type.facetMap])
-  const selectedMediaTypes = useMemo(
-    () => (searchParams.get('types') || '').split(',').filter((k) => MEDIA_KINDS.includes(k)),
-    [searchParams],
-  )
+  const selected = useMemo(() => decodeSelectedFacets(searchParams, filterGroups), [searchParams, filterGroups])
   const textFilterValues = useMemo(() => {
     const out = {}
     for (const f of type.textFilters || []) out[f.paramKey] = searchParams.get(f.paramKey) || ''
@@ -106,7 +130,12 @@ export function KhiBrowsePage() {
   }, [searchParams, type.textFilters])
 
   const [facets, setFacets] = useState(null)
-  // Oldest → newest YEAR span for the timeline filter, derived from live data.
+  // Entity-specific checkbox options, tallied from the live archive for the
+  // active media scope (empty for the feed / entity scopes). Merged on top of
+  // the server facets so the FacetGroup list renders both from one object.
+  const dataFacets = useDataFacets(type)
+  const allFacets = useMemo(() => ({ ...(facets || {}), ...dataFacets }), [facets, dataFacets])
+  // Oldest → newest YEAR span for the date filter bounds, derived from live data.
   const yearBounds = useYearBounds(type, facets)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -166,13 +195,11 @@ export function KhiBrowsePage() {
     if (q) params.q = q
     if (type.showDateRange && dateFrom) params.dateFrom = dateFrom
     if (type.showDateRange && dateTo) params.dateTo = dateTo
-    for (const group of type.facetMap) {
+    for (const group of filterGroups) {
       const list = selected[group.paramKey]
-      if (Array.isArray(list) && list.length > 0) params[group.paramKey] = list[0]
-    }
-    for (const f of type.textFilters || []) {
-      const v = (textFilterValues[f.paramKey] || '').trim()
-      if (v) params[f.paramKey] = v
+      if (!Array.isArray(list) || !list.length) continue
+      // Repeatable params send every selection; single params send one value.
+      params[group.paramKey] = group.multi ? list : list[0]
     }
     if (type.showMediaTypes && selectedMediaTypes.length > 0) params.types = selectedMediaTypes
 
@@ -214,9 +241,20 @@ export function KhiBrowsePage() {
   const mediaTypeCounts = { audio: counts.audio, video: counts.video, text: counts.text, image: counts.image }
 
   // ── Facet / filter handlers ─────────────────────────────────────────────────
+  // Repeatable params (genre + entity list fields) accumulate; single-value
+  // params (category/person/language/… + single entity fields) replace, so the
+  // checkbox group behaves like the backend's one-value contract.
   const onToggleFacet = (paramKey, val) => {
+    const group = filterGroups.find((g) => g.paramKey === paramKey)
     const cur = new Set(selected[paramKey] || [])
-    cur.has(val) ? cur.delete(val) : cur.add(val)
+    if (group && group.multi) {
+      cur.has(val) ? cur.delete(val) : cur.add(val)
+    } else if (cur.has(val) && cur.size === 1) {
+      cur.clear()
+    } else {
+      cur.clear()
+      cur.add(val)
+    }
     const arr = [...cur]
     update({ [paramKey]: arr.length ? arr.join(',') : null })
   }
@@ -224,17 +262,28 @@ export function KhiBrowsePage() {
     const cur = new Set(selectedMediaTypes)
     cur.has(k) ? cur.delete(k) : cur.add(k)
     const arr = [...cur]
-    if (typeKey === 'all') {
-      update({ types: arr.length ? arr.join(',') : null })
-    } else {
-      // The media checkboxes always operate on the unified feed — jump there,
-      // carrying just the current query, so they double as "back to media".
-      const sp = new URLSearchParams()
-      if (q) sp.set('q', q)
-      if (arr.length) sp.set('types', arr.join(','))
-      if (view === 'list') sp.set('layout', 'list')
-      setSearchParams(sp)
-    }
+    // Media selection governs the scope. Keep what's universal (q, date range,
+    // layout, shared facets); drop the entity ?type=, paging, sort and any
+    // scope-specific entity filters — they don't carry across media kinds.
+    const sp = new URLSearchParams(searchParams)
+    sp.delete('type')
+    sp.delete('page')
+    sp.delete('sortBy')
+    sp.delete('sortDirection')
+    for (const key of ENTITY_FILTER_KEYS) sp.delete(key)
+    if (arr.length) sp.set('types', arr.join(','))
+    else sp.delete('types')
+    setSearchParams(sp)
+  }
+  // Clear every filter but stay in the current scope (entity ?type= or the
+  // selected media kinds) and keep the query.
+  const clearAll = () => {
+    const sp = new URLSearchParams()
+    if (q) sp.set('q', q)
+    if (view === 'list') sp.set('layout', 'list')
+    if (isEntityScope) sp.set('type', typeKey)
+    else if (selectedMediaTypes.length) sp.set('types', selectedMediaTypes.join(','))
+    setSearchParams(sp)
   }
   const onTextFilter = (paramKey, value) => {
     setTextDrafts((d) => ({ ...d, [paramKey]: value }))
@@ -263,7 +312,7 @@ export function KhiBrowsePage() {
   // ── Active-filter chips ──────────────────────────────────────────────────────
   const chips = []
   if (q) chips.push({ key: 'q', label: `«${q}»`, onRemove: () => update({ q: null }) })
-  for (const group of type.facetMap) {
+  for (const group of filterGroups) {
     for (const val of selected[group.paramKey] || []) {
       chips.push({ key: `${group.paramKey}:${val}`, label: `${group.title}: ${val}`, onRemove: () => onToggleFacet(group.paramKey, val) })
     }
@@ -285,8 +334,8 @@ export function KhiBrowsePage() {
           onType={(k) => { switchType(k === typeKey ? 'all' : k); closeSidebarOnMobile() }}
           onClose={() => setSidebarOpen(false)}
           counts={counts}
-          type={type}
-          facets={facets}
+          facetGroups={filterGroups}
+          facets={allFacets}
           selected={selected}
           onToggleFacet={onToggleFacet}
           showMediaTypes
@@ -329,7 +378,7 @@ export function KhiBrowsePage() {
                   <button className="x" onClick={c.onRemove} aria-label="لابردن"><IconClose width="10" height="10" /></button>
                 </span>
               ))}
-              <button className="clear-all" onClick={() => switchType(typeKey)}>{UI.clearAll}</button>
+              <button className="clear-all" onClick={clearAll}>{UI.clearAll}</button>
             </div>
           ) : null}
 

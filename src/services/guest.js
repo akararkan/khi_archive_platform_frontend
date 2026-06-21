@@ -131,7 +131,15 @@ function makeMediaApi(resource) {
   return {
     async list(params = {}) {
       const { signal, ...query } = params
-      const { data } = await apiClient.get(`/guest/${resource}`, { params: query, signal })
+      // Repeatable filters (genre/subject/tag/keyword + the entity-specific list
+      // fields like color/whereUsed/contributor) must serialize as
+      // `?genre=a&genre=b`, not axios's default `genre[]=…` brackets — same
+      // contract the feed/results calls use.
+      const { data } = await apiClient.get(`/guest/${resource}`, {
+        params: query,
+        paramsSerializer: { indexes: null },
+        signal,
+      })
       return data
     },
     async one(code, { signal } = {}) {

@@ -167,7 +167,7 @@ const SHARED_MEDIA_FACETS = [
   { paramKey: 'personCode', facetKey: 'persons', title: 'کەس', person: true },
   { paramKey: 'language', facetKey: 'languages', title: 'زمان' },
   { paramKey: 'dialect', facetKey: 'dialects', title: 'زاراوە' },
-  { paramKey: 'genre', facetKey: 'genres', title: 'ژانر' },
+  { paramKey: 'genre', facetKey: 'genres', title: 'ژانر', multi: true },
 ]
 const IMAGE_FACETS = SHARED_MEDIA_FACETS.filter((f) => !['language', 'dialect'].includes(f.paramKey))
 const PROJECT_FACETS = [
@@ -180,7 +180,7 @@ const PERSON_FACETS = [{ paramKey: 'region', facetKey: 'regions', title: 'ناو
 const FEED_FACETS = [
   { paramKey: 'categoryCode', facetKey: 'categories', title: 'پۆل', defaultOpen: true },
   { paramKey: 'personCode', facetKey: 'persons', title: 'کەس', person: true },
-  { paramKey: 'genre', facetKey: 'genres', title: 'ژانر' },
+  { paramKey: 'genre', facetKey: 'genres', title: 'ژانر', multi: true },
   { paramKey: 'region', facetKey: 'regions', title: 'ناوچە' },
   { paramKey: 'language', facetKey: 'languages', title: 'زمان' },
   { paramKey: 'dialect', facetKey: 'dialects', title: 'زاراوە' },
@@ -204,28 +204,88 @@ const BASIC_SORTS = [
   { key: 'createdAt', dir: 'asc', label: 'کۆنترین' },
 ]
 
-// Per-kind "search within" substring filters (kept lean — the high-value ones).
-const AUDIO_TEXT_FILTERS = [
-  { paramKey: 'composer', label: 'مۆسیقاژەن' },
-  { paramKey: 'speaker', label: 'دەنگبێژ' },
-  { paramKey: 'poet', label: 'شاعیر' },
+// ── Entity-specific checkbox filters (DATA-DRIVEN) ───────────────────────────
+// These per-kind fields are FREE TEXT on the backend (no fixed enum), so the
+// checkbox options can't be hardcoded — they're tallied from the real values in
+// the archive (see use-data-facets.js) and rendered through the same FacetGroup
+// the shared facets use. `paramKey` is the GET filter param; `field` is the DTO
+// property to read option values from (they differ for color/whereUsed/
+// contributor); `multi` marks a repeatable list param. DETAIL holds the Sorani
+// labels. Empty groups (no values / not in the public DTO) auto-hide.
+const AUDIO_DATA_FACETS = [
+  { paramKey: 'form', field: 'form', title: DETAIL.form },
+  { paramKey: 'typeOfMaqam', field: 'typeOfMaqam', title: DETAIL.typeOfMaqam },
+  { paramKey: 'typeOfBasta', field: 'typeOfBasta', title: DETAIL.typeOfBasta },
+  { paramKey: 'typeOfComposition', field: 'typeOfComposition', title: DETAIL.typeOfComposition },
+  { paramKey: 'typeOfPerformance', field: 'typeOfPerformance', title: DETAIL.typeOfPerformance },
+  { paramKey: 'composer', field: 'composer', title: DETAIL.composer },
+  { paramKey: 'poet', field: 'poet', title: DETAIL.poet },
+  { paramKey: 'speaker', field: 'speaker', title: DETAIL.speaker },
+  { paramKey: 'producer', field: 'producer', title: DETAIL.producer },
+  { paramKey: 'recordingVenue', field: 'recordingVenue', title: 'شوێنی تۆمار' },
+  { paramKey: 'city', field: 'city', title: 'شار' },
+  { paramKey: 'audience', field: 'audience', title: DETAIL.audience },
+  { paramKey: 'contributor', field: 'contributors', title: DETAIL.contributors, multi: true },
 ]
-const VIDEO_TEXT_FILTERS = [{ paramKey: 'location', label: 'شوێن' }, { paramKey: 'event', label: 'بۆنە' }]
-const IMAGE_TEXT_FILTERS = [{ paramKey: 'location', label: 'شوێن' }, { paramKey: 'event', label: 'بۆنە' }]
-const TEXT_TEXT_FILTERS = [{ paramKey: 'author', label: 'نووسەر' }]
+const VIDEO_DATA_FACETS = [
+  { paramKey: 'event', field: 'event', title: DETAIL.event },
+  { paramKey: 'location', field: 'location', title: DETAIL.location },
+  { paramKey: 'creatorArtistDirector', field: 'creatorArtistDirector', title: DETAIL.director },
+  { paramKey: 'producer', field: 'producer', title: DETAIL.producer },
+  { paramKey: 'personShownInVideo', field: 'personShownInVideo', title: DETAIL.peopleShown },
+  { paramKey: 'subtitle', field: 'subtitle', title: DETAIL.subtitle },
+  { paramKey: 'audience', field: 'audience', title: DETAIL.audience },
+  { paramKey: 'provenance', field: 'provenance', title: 'سەرچاوە' },
+  { paramKey: 'videoStatus', field: 'videoStatus', title: 'دۆخ' },
+  { paramKey: 'publisher', field: 'publisher', title: DETAIL.publisher },
+  { paramKey: 'color', field: 'colorOfVideo', title: DETAIL.color, multi: true },
+  { paramKey: 'whereUsed', field: 'whereThisVideoUsed', title: DETAIL.usedIn, multi: true },
+]
+const TEXT_DATA_FACETS = [
+  { paramKey: 'documentType', field: 'documentType', title: DETAIL.documentType },
+  { paramKey: 'author', field: 'author', title: DETAIL.author },
+  { paramKey: 'script', field: 'script', title: DETAIL.script },
+  { paramKey: 'series', field: 'series', title: DETAIL.series },
+  { paramKey: 'edition', field: 'edition', title: 'چاپ' },
+  { paramKey: 'volume', field: 'volume', title: 'بەرگ' },
+  { paramKey: 'printingHouse', field: 'printingHouse', title: DETAIL.printingHouse },
+  { paramKey: 'audience', field: 'audience', title: DETAIL.audience },
+  { paramKey: 'provenance', field: 'provenance', title: 'سەرچاوە' },
+  { paramKey: 'publisher', field: 'publisher', title: DETAIL.publisher },
+]
+const IMAGE_DATA_FACETS = [
+  { paramKey: 'event', field: 'event', title: DETAIL.event },
+  { paramKey: 'location', field: 'location', title: DETAIL.location },
+  { paramKey: 'creatorArtistPhotographer', field: 'creatorArtistPhotographer', title: DETAIL.photographer },
+  { paramKey: 'personShownInImage', field: 'personShownInImage', title: DETAIL.peopleShown },
+  { paramKey: 'audience', field: 'audience', title: DETAIL.audience },
+  { paramKey: 'provenance', field: 'provenance', title: 'سەرچاوە' },
+  { paramKey: 'imageStatus', field: 'imageStatus', title: 'دۆخ' },
+  { paramKey: 'publisher', field: 'publisher', title: DETAIL.publisher },
+  { paramKey: 'color', field: 'colorOfImage', title: DETAIL.color, multi: true },
+  { paramKey: 'whereUsed', field: 'whereThisImageUsed', title: DETAIL.usedIn, multi: true },
+]
+
+// Every entity-specific filter param across the 4 media kinds — used to strip
+// scope-specific filters from the URL when the active media scope changes.
+export const ENTITY_FILTER_KEYS = [
+  ...new Set(
+    [...AUDIO_DATA_FACETS, ...VIDEO_DATA_FACETS, ...TEXT_DATA_FACETS, ...IMAGE_DATA_FACETS].map((f) => f.paramKey),
+  ),
+]
 
 // ── Type registry ────────────────────────────────────────────────────────────
 export const TYPES = [
   { key: 'all', label: 'گەنجینەکە', sub: 'هەموو دەنگ، ڤیدیۆ، دەق و وێنە', resource: null, kind: null,
     api: (p) => guestFeed(p), facetMap: FEED_FACETS, sorts: ALL_SORTS, showMediaTypes: true, showDateRange: true },
   { key: 'audio', label: 'دەنگەکان', sub: 'گۆرانی، دەنگبێژ و گێڕانەوەی زارەکی', resource: 'audios', kind: 'audio',
-    api: (p) => guestAudios.list(p), facetMap: SHARED_MEDIA_FACETS, sorts: MEDIA_SORTS, showDateRange: true, textFilters: AUDIO_TEXT_FILTERS },
+    api: (p) => guestAudios.list(p), facetMap: SHARED_MEDIA_FACETS, dataFacets: AUDIO_DATA_FACETS, sorts: MEDIA_SORTS, showDateRange: true },
   { key: 'video', label: 'ڤیدیۆکان', sub: 'فیلم و تۆماری بینراو', resource: 'videos', kind: 'video',
-    api: (p) => guestVideos.list(p), facetMap: SHARED_MEDIA_FACETS, sorts: MEDIA_SORTS, showDateRange: true, textFilters: VIDEO_TEXT_FILTERS },
+    api: (p) => guestVideos.list(p), facetMap: SHARED_MEDIA_FACETS, dataFacets: VIDEO_DATA_FACETS, sorts: MEDIA_SORTS, showDateRange: true },
   { key: 'text', label: 'دەقەکان', sub: 'دەستنووس و نووسراوەکان', resource: 'texts', kind: 'text',
-    api: (p) => guestTexts.list(p), facetMap: SHARED_MEDIA_FACETS, sorts: MEDIA_SORTS, showDateRange: true, textFilters: TEXT_TEXT_FILTERS },
+    api: (p) => guestTexts.list(p), facetMap: SHARED_MEDIA_FACETS, dataFacets: TEXT_DATA_FACETS, sorts: MEDIA_SORTS, showDateRange: true },
   { key: 'image', label: 'وێنەکان', sub: 'وێنە مێژووییەکان', resource: 'images', kind: 'image',
-    api: (p) => guestImages.list(p), facetMap: IMAGE_FACETS, sorts: MEDIA_SORTS, showDateRange: true, textFilters: IMAGE_TEXT_FILTERS },
+    api: (p) => guestImages.list(p), facetMap: IMAGE_FACETS, dataFacets: IMAGE_DATA_FACETS, sorts: MEDIA_SORTS, showDateRange: true },
   { key: 'person', label: 'کەسەکان', sub: 'هونەرمەند، دەنگبێژ و چیرۆکبێژ', resource: 'persons', kind: 'person',
     api: (p) => guestPersons(p), facetMap: PERSON_FACETS, sorts: BASIC_SORTS },
   { key: 'project', label: 'پڕۆژەکان', sub: 'کۆکراوە و توێژینەوەکان', resource: 'projects', kind: 'project',

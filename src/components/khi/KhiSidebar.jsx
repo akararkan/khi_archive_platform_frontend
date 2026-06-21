@@ -14,7 +14,7 @@ function FacetGroup({ group, facets, selectedValues, onToggle }) {
   const [showAll, setShowAll] = useState(false)
   const [needle, setNeedle] = useState('')
 
-  const entries = readFacet(facets, group.facetKey)
+  const entries = readFacet(facets, group.facetKey || group.paramKey)
   if (!entries.length) return null
 
   const LeadIcon = FACET_ICON[group.paramKey] || FACET_ICON[group.facetKey] || IconChevron
@@ -95,7 +95,7 @@ function PersonDot({ entry }) {
 // narrowing + per-type facets + creation-date range + per-kind "search within".
 export default function KhiSidebar({
   types, activeType, onType, counts = {}, onClose,
-  type, facets, selected, onToggleFacet,
+  facetGroups = [], facets, selected, onToggleFacet,
   showMediaTypes, mediaKinds = [], mediaTypeCounts = {}, selectedMediaTypes = [], onToggleMediaType,
   showDateRange, yearMin, yearMax, dateFrom, dateTo, onDateChange, yearLoading = false,
   textFilters = [], textFilterValues = {}, onTextFilter,
@@ -164,7 +164,7 @@ export default function KhiSidebar({
         </div>
       ) : null}
 
-      {(type?.facetMap || []).map((group) => (
+      {facetGroups.map((group) => (
         <FacetGroup
           key={group.paramKey}
           group={group}
