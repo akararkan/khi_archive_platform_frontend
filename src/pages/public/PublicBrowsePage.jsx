@@ -522,7 +522,9 @@ function PublicBrowsePage() {
   }, [searchParams, textFilters])
   // For the `all` type: which media kinds to include in the merged feed.
   // URL `types=audio,video` → ['audio','video']. Empty / absent means
-  // "all four" — the backend defaults to that when the param is omitted.
+  // "all four" — the fetch effect then sends every kind explicitly (the
+  // backend returns nothing when the param is omitted, so we never rely
+  // on an implicit default).
   const selectedMediaTypes = useMemo(() => {
     if (!type.showMediaTypes) return []
     const raw = searchParams.get('types')
@@ -579,11 +581,17 @@ function PublicBrowsePage() {
       if (v) params[f.paramKey] = v
     }
     // The unified `all` endpoint accepts a repeatable `types` filter
-    // (audio/video/text/image). Omitting it means "all four". The
+    // (audio/video/text/image). When the user hasn't narrowed to a
+    // subset we send ALL FOUR explicitly rather than omitting the
+    // param — clicking a tag/region/keyword lands here with no `types`
+    // selected and must surface every matching kind. We can't rely on a
+    // backend "empty means all" default (it returns nothing when the
+    // param is absent), so we always pass the full kind list. The
     // service-level paramsSerializer rewrites arrays to repeated
     // `?types=audio&types=video` for Spring's @RequestParam binder.
-    if (type.showMediaTypes && selectedMediaTypes.length > 0) {
-      params.types = selectedMediaTypes
+    if (type.showMediaTypes) {
+      params.types =
+        selectedMediaTypes.length > 0 ? selectedMediaTypes : MEDIA_KINDS
     }
     const t0 = performance.now()
     type.api
