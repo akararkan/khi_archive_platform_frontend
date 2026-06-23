@@ -101,17 +101,23 @@
    Mobile drawer behaviour is defined in the APP ADDITIONS block below. */
 @media(min-width:1025px){
   .khi-root .layout.side-hidden{grid-template-columns:0 1fr;gap:0}
-  .khi-root .layout.side-hidden > .sidebar{opacity:0;transform:translateX(20px);pointer-events:none;overflow:hidden}
+  .khi-root .layout.side-hidden > .sidebar{opacity:0;transform:translateX(18px);pointer-events:none;overflow:hidden}
 }
 
-/* ============ SIDEBAR ============ */
-/* Standard catalogue: the page scrolls the full results grid and the filter rail
-   is ALWAYS shown (sticky, stays pinned the whole way thanks to
-   align-items:stretch on .layout). The filter only scrolls inside itself in the
-   rare case its expanded facets are taller than the screen — that keeps ALL
-   filters reachable without ever hiding the bottom ones. */
-.khi-root .sidebar{position:sticky;top:84px;max-height:calc(100dvh - 96px);overflow-y:auto;overflow-x:hidden;min-width:0;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent;transition:opacity .3s ease,transform .42s cubic-bezier(.4,0,.2,1)}
-.khi-root .sidebar::-webkit-scrollbar{width:7px}
+/* ============ SIDEBAR / RAIL ============ */
+/* Redesigned: the rail is now a single quiet card with hairline dividers. It is
+   sticky and ALWAYS shown on desktop; it only scrolls inside itself when its
+   expanded facets are taller than the screen, so every filter stays reachable. */
+.khi-root .sidebar{
+  position:sticky;top:84px;max-height:calc(100dvh - 104px);
+  overflow-y:auto;overflow-x:hidden;min-width:0;
+  background:#fffdf9;border:1px solid var(--line);border-radius:16px;
+  padding:4px 16px 16px;
+  box-shadow:0 1px 2px rgba(31,58,49,.04),0 14px 34px -26px rgba(31,58,49,.3);
+  scrollbar-width:thin;scrollbar-color:var(--line-2) transparent;
+  transition:opacity .3s ease,transform .42s cubic-bezier(.4,0,.2,1)
+}
+.khi-root .sidebar::-webkit-scrollbar{width:6px}
 .khi-root .sidebar::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:8px}
 .khi-root .sidebar::-webkit-scrollbar-track{background:transparent}
 
@@ -130,39 +136,51 @@
   .khi-root .results-scroll::-webkit-scrollbar-track{background:transparent}
   .khi-root .catalogue-main > .pager{flex-shrink:0;margin-top:0;padding-top:16px;border-top:1px solid var(--line)}
 }
-.khi-root .side-head{display:flex;align-items:center;gap:13px;padding-bottom:16px;margin-bottom:12px;border-bottom:1px solid var(--line)}
-.khi-root .side-head .ic{width:40px;height:40px;border-radius:8px;background:var(--paper-2);border:1px solid var(--line-2);display:grid;place-items:center;color:var(--pine)}
-.khi-root .side-head .ic svg{width:20px;height:20px}
-.khi-root .side-head .eb{font-size:12px;color:var(--muted)}
-.khi-root .side-head b{font-family:'Amiri',serif;font-weight:700;font-size:21px;display:block;line-height:1.2}
+.khi-root .side-head{display:flex;align-items:center;gap:12px;padding:15px 2px 13px}
+.khi-root .side-head .ic{width:38px;height:38px;border-radius:11px;background:var(--paper-2);border:1px solid var(--line);display:grid;place-items:center;color:var(--pine);flex-shrink:0}
+.khi-root .side-head .ic svg{width:19px;height:19px}
+.khi-root .side-head .eb{font-size:11px;letter-spacing:.09em;color:var(--muted)}
+.khi-root .side-head b{font-family:'Amiri',serif;font-weight:700;font-size:22px;display:block;line-height:1.15}
 .khi-root .side-head-txt{display:block;min-width:0}
-.khi-root .side-close{display:none;margin-inline-start:auto;width:38px;height:38px;flex-shrink:0;border-radius:8px;border:1px solid var(--line-2);background:var(--paper-2);color:var(--ink-soft);place-items:center;transition:.18s}
-.khi-root .side-close svg{width:18px;height:18px}
+.khi-root .side-close{display:none;margin-inline-start:auto;width:36px;height:36px;flex-shrink:0;border-radius:9px;border:1px solid var(--line-2);background:var(--paper-2);color:var(--ink-soft);place-items:center;transition:.18s}
+.khi-root .side-close svg{width:17px;height:17px}
 .khi-root .side-close:hover{border-color:var(--pine-2);color:var(--ink);background:var(--paper-3)}
+
+/* Browse-by nav */
 .khi-root .nav-list{display:flex;flex-direction:column;gap:3px}
-.khi-root .nav-item{display:flex;align-items:center;gap:13px;padding:11px 13px;border-radius:8px;font-weight:600;font-size:15px;color:var(--ink-soft);transition:.18s;position:relative;text-align:right;width:100%}
-.khi-root .nav-item svg{width:19px;height:19px;opacity:.7;flex-shrink:0}
-.khi-root .nav-item:hover{background:var(--paper-2);color:var(--ink)}
+.khi-root .nav-item{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;font-weight:600;font-size:14px;color:var(--ink-soft);transition:.16s;position:relative;text-align:right;width:100%}
+.khi-root .nav-item svg{width:17px;height:17px;opacity:.7;flex-shrink:0}
+.khi-root .nav-item:hover{background:#f6f1e5;color:var(--ink)}
 .khi-root .nav-item.active{background:var(--pine);color:var(--cream)}
 .khi-root .nav-item.active svg{opacity:1;color:var(--gold-bright)}
-.khi-root .nav-item.active::after{content:"";position:absolute;right:-1px;top:9px;bottom:9px;width:3px;border-radius:3px;background:var(--gold-bright)}
-.khi-root .nav-item .n-count{margin-right:auto;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);direction:ltr}
+.khi-root .nav-item.active::after{content:"";position:absolute;right:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:var(--gold-bright)}
+.khi-root .nav-item .n-count{margin-right:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);direction:ltr}
 .khi-root .nav-item.active .n-count{color:var(--gold-soft)}
-.khi-root .facet{border-top:1px solid var(--line);padding:16px 0}
-.khi-root .facet summary{display:flex;align-items:center;cursor:pointer;list-style:none;font-weight:700;font-size:15px}
+
+/* Facet groups — tighter, hairline dividers */
+.khi-root .facet{border-top:1px solid #ece3d0;padding:13px 0}
+.khi-root .facet summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none;font-weight:700;font-size:13.5px;color:var(--ink)}
 .khi-root .facet summary::-webkit-details-marker{display:none}
-.khi-root .facet summary .chev{margin-right:auto;transition:.25s;color:var(--muted)}
+.khi-root .facet summary .chev{margin-right:auto;transition:transform .22s cubic-bezier(.2,.7,.2,1);color:var(--muted)}
 .khi-root .facet[open] summary .chev{transform:rotate(180deg)}
-.khi-root .facet summary svg.lead-ic{width:18px;height:18px;margin-left:11px;color:var(--pine)}
-.khi-root .facet-body{padding-top:13px;display:flex;flex-direction:column;gap:9px}
-.khi-root .check{display:flex;align-items:center;gap:11px;font-size:14.5px;color:var(--ink-soft);cursor:pointer;padding:2px 0}
-.khi-root .check .box{width:17px;height:17px;border:1.5px solid var(--line-2);border-radius:4px;flex-shrink:0;transition:.15s;display:grid;place-items:center}
+.khi-root .facet summary svg.lead-ic{width:17px;height:17px;color:var(--pine);flex-shrink:0}
+.khi-root .facet-body{padding-top:12px;display:flex;flex-direction:column;gap:6px}
+
+/* Checkboxes — small, crisp, gold tick on pine */
+.khi-root .check{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--ink-soft);cursor:pointer;padding:5px 8px;border-radius:9px;transition:background .14s}
+.khi-root .check:hover{background:#f6f1e5}
+.khi-root .check .box{width:16px;height:16px;border:1.5px solid var(--line-2);border-radius:5px;flex-shrink:0;transition:.15s;display:grid;place-items:center}
 .khi-root .check:hover .box{border-color:var(--pine-2)}
 .khi-root .check.on .box{background:var(--pine);border-color:var(--pine)}
-.khi-root .check.on .box::after{content:"✓";color:var(--gold-bright);font-size:11px;font-weight:700}
-.khi-root .check .c-count{margin-right:auto;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);direction:ltr}
-.khi-root .filterbox{width:100%;padding:9px 12px;border:1px solid var(--line-2);border-radius:8px;background:var(--paper-2);font-size:13.5px;margin-bottom:6px}
-.khi-root .filterbox:focus{outline:none;border-color:var(--pine-2)}
+.khi-root .check.on .box::after{content:"✓";color:var(--gold-bright);font-size:10px;font-weight:700;line-height:1}
+.khi-root .check .c-count{margin-right:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);direction:ltr}
+
+.khi-root .filterbox{width:100%;padding:8px 11px;border:1px solid var(--line-2);border-radius:9px;background:var(--paper);font-size:13px;margin-bottom:3px;color:var(--ink)}
+.khi-root .filterbox:focus{outline:none;border-color:var(--pine)}
+
+/* "Show more / fewer" link */
+.khi-root .facet-body > button{margin-top:3px;align-self:flex-start;font-size:12.5px;font-weight:700;color:var(--pine-2);background:none;border:none;cursor:pointer;padding:3px 8px}
+.khi-root .facet-body > button:hover{text-decoration:underline}
 
 /* ============ RESULTS ============ */
 .khi-root .toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:22px;flex-wrap:wrap}
@@ -170,12 +188,12 @@
 .khi-root .toolbar h2{font-family:'Amiri',serif;font-weight:700;font-size:36px;line-height:1.2}
 .khi-root .toolbar .sub{color:var(--ink-soft);font-size:15px;margin-top:4px}
 /* Filters toggle — shows/hides the rail; badges the live-filter count. */
-.khi-root .filters-toggle{display:inline-flex;align-items:center;gap:9px;flex-shrink:0;height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line-2);background:var(--paper-2);color:var(--ink-soft);font-weight:700;font-size:14.5px;transition:.18s}
-.khi-root .filters-toggle svg{width:18px;height:18px}
+.khi-root .filters-toggle{display:inline-flex;align-items:center;gap:9px;flex-shrink:0;height:44px;padding:0 16px;border-radius:11px;border:1px solid var(--line-2);background:var(--paper-2);color:var(--ink-soft);font-weight:700;font-size:14px;transition:.16s}
+.khi-root .filters-toggle svg{width:17px;height:17px}
 .khi-root .filters-toggle:hover{border-color:var(--pine-2);color:var(--ink);background:var(--paper-3)}
 .khi-root .filters-toggle.on{background:var(--pine);border-color:var(--pine);color:var(--cream)}
 .khi-root .filters-toggle.on svg{color:var(--gold-bright)}
-.khi-root .filters-toggle .cnt{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:20px;background:var(--gold-bright);color:var(--pine-deep);font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:700;direction:ltr}
+.khi-root .filters-toggle .cnt{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:20px;background:var(--gold-bright);color:var(--pine-deep);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;direction:ltr}
 .khi-root .controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .khi-root .toggle{display:flex;background:var(--paper-2);border:1px solid var(--line-2);border-radius:8px;padding:4px;gap:3px}
 .khi-root .toggle button{display:flex;align-items:center;gap:7px;padding:8px 15px;border-radius:8px;font-weight:600;font-size:13.5px;color:var(--muted);transition:.18s}
@@ -308,7 +326,7 @@
    is correct under RTL. */
 .khi-root .scrim{position:fixed;inset:0;z-index:85;background:rgba(16,30,23,.5);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .3s ease}
 @media(max-width:1024px){
-  .khi-root .sidebar{position:fixed;top:0;bottom:0;right:0;left:auto;width:min(88vw,360px);max-height:100dvh;z-index:90;background:var(--paper-2);border-left:1px solid var(--line-2);box-shadow:-22px 0 60px -28px rgba(16,30,23,.55);padding:22px 20px calc(22px + env(safe-area-inset-bottom));transform:translateX(110%);opacity:1;overflow-y:auto}
+  .khi-root .sidebar{position:fixed;top:0;bottom:0;right:0;left:auto;width:min(88vw,360px);max-height:100dvh;border-radius:0;z-index:90;background:#fffdf9;border:none;border-left:1px solid var(--line-2);box-shadow:-22px 0 60px -28px rgba(16,30,23,.55);padding:20px 18px calc(20px + env(safe-area-inset-bottom));transform:translateX(110%);opacity:1;overflow-y:auto}
   .khi-root .layout:not(.side-hidden) > .sidebar{transform:none}
   .khi-root .layout:not(.side-hidden) .scrim{opacity:1;pointer-events:auto}
   .khi-root .side-close{display:grid}
@@ -329,11 +347,11 @@
 .khi-root .pager .info{margin:0 6px;color:var(--muted);font-size:13px}
 
 /* A small inline "active filters" strip above the grid */
-.khi-root .active-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
-.khi-root .active-chips .ac{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:8px;background:var(--pine);color:var(--cream);font-size:13px;font-weight:600;animation:khi-chip-in .28s cubic-bezier(.2,.7,.2,1)}
-.khi-root .active-chips .ac .x{display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:rgba(231,211,160,.2);color:var(--gold-soft)}
+.khi-root .active-chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:18px}
+.khi-root .active-chips .ac{display:inline-flex;align-items:center;gap:8px;padding:6px 11px;border-radius:9px;background:var(--pine);color:var(--cream);font-size:12.5px;font-weight:600;animation:khi-chip-in .25s cubic-bezier(.2,.7,.2,1)}
+.khi-root .active-chips .ac .x{display:grid;place-items:center;width:17px;height:17px;border-radius:50%;background:rgba(236,219,176,.18);color:var(--gold-soft);transition:.15s}
 .khi-root .active-chips .ac .x:hover{background:var(--gold-bright);color:var(--pine-deep)}
-.khi-root .active-chips .clear-all{font-size:13px;font-weight:600;color:var(--clay)}
+.khi-root .active-chips .clear-all{font-size:12.5px;font-weight:700;color:var(--clay)}
 
 /* Mobile filter toggle (sidebar is hidden < 1024px) */
 .khi-root .mobile-filter{display:none}
@@ -345,24 +363,12 @@
 .khi-root .card.person-card .media .big-avatar{width:108px;height:108px;border-radius:50%;border:2px solid var(--gold-soft);overflow:hidden;display:grid;place-items:center;font-family:'Amiri',serif;font-size:40px;color:var(--gold-soft);background:linear-gradient(150deg,var(--pine-2),var(--pine))}
 .khi-root .card.person-card .media .big-avatar img{width:100%;height:100%;object-fit:cover}
 
-/* ── Filter animations (nice, layout-safe) ──────────────────────────────────
-   Facet panels glide open; their rows stagger in; chips pop. All transforms,
-   so they never reflow neighbouring elements ("don't crash the style"). */
-@keyframes khi-facet-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
-@keyframes khi-row-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@keyframes khi-chip-in{from{opacity:0;transform:scale(.82) translateY(4px)}to{opacity:1;transform:none}}
-.khi-root .facet-body{animation:khi-facet-in .26s cubic-bezier(.2,.7,.2,1)}
-/* Stagger the first several rows of a freshly-opened facet. */
-.khi-root .facet-body > .check{animation:khi-row-in .3s cubic-bezier(.2,.7,.2,1) both}
-.khi-root .facet-body > .check:nth-child(1){animation-delay:.02s}
-.khi-root .facet-body > .check:nth-child(2){animation-delay:.05s}
-.khi-root .facet-body > .check:nth-child(3){animation-delay:.08s}
-.khi-root .facet-body > .check:nth-child(4){animation-delay:.11s}
-.khi-root .facet-body > .check:nth-child(5){animation-delay:.14s}
-.khi-root .facet-body > .check:nth-child(6){animation-delay:.17s}
-.khi-root .facet summary .chev{transition:transform .25s cubic-bezier(.2,.7,.2,1)}
+/* ── Filter animations (layout-safe) ── */
+@keyframes khi-facet-in{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
+@keyframes khi-chip-in{from{opacity:0;transform:scale(.84)}to{opacity:1;transform:none}}
+.khi-root .facet-body{animation:khi-facet-in .22s cubic-bezier(.2,.7,.2,1)}
 @media (prefers-reduced-motion: reduce){
-  .khi-root .facet-body,.khi-root .facet-body > .check,.khi-root .active-chips .ac{animation:none}
+  .khi-root .facet-body,.khi-root .active-chips .ac{animation:none}
 }
 /* Public catalogue styling stays independent from the teacher tone controls. */
 
@@ -458,68 +464,56 @@
 .khi-root .khi-yr.loading{opacity:.65;pointer-events:none}
 .khi-root .khi-yr.loading .khi-yr-rail{background:linear-gradient(110deg,var(--paper-3) 8%,#fff 18%,var(--paper-3) 33%);background-size:200% 100%;animation:khi-shimmer 1.3s linear infinite}
 
-/* ── Date range — enhanced YEAR slider + decade chips + calendar ────────────── */
+/* ── Date range — quiet, modern year slider + decade chips + calendar ──────────
+   Thin rail · clean handles · always-on year labels · no looping sheen. */
 .khi-root .khi-dr{display:flex;flex-direction:column;gap:14px;width:100%}
-.khi-root .khi-dr-readout{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:30px}
-.khi-root .khi-dr-range{display:inline-flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;direction:ltr;font-size:15px;font-weight:800;color:var(--pine);
-  background:linear-gradient(180deg,#fffdf8,var(--paper-3));border:1px solid var(--line);border-radius:10px;padding:5px 14px;box-shadow:0 2px 7px -4px rgba(31,58,49,.4)}
+.khi-root .khi-dr-readout{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:26px}
+.khi-root .khi-dr-range{display:inline-flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;direction:ltr;font-size:13.5px;font-weight:700;color:var(--pine);
+  background:var(--paper-2);border:1px solid var(--line);border-radius:9px;padding:4px 12px}
 .khi-root .khi-dr-range i{color:var(--gold);font-style:normal;font-weight:700}
-.khi-root .khi-dr-all{font-size:13.5px;font-weight:600;color:var(--muted)}
-.khi-root .khi-dr-reset{font-size:12.5px;font-weight:800;color:var(--clay);transition:.15s}
+.khi-root .khi-dr-all{font-size:13px;font-weight:600;color:var(--muted)}
+.khi-root .khi-dr-reset{font-size:12px;font-weight:700;color:var(--clay);transition:.15s}
 .khi-root .khi-dr-reset:hover{text-decoration:underline}
 
-/* the slider sits in a padded stage so bubbles clear the top + end thumbs never clip */
-.khi-root .khi-dr-slider{padding:34px 13px 2px}
-.khi-root .khi-dr-rail{position:relative;height:12px;border-radius:99px;cursor:pointer;touch-action:none;
-  background:linear-gradient(180deg,#e9efe6,#d6e1d2);
-  box-shadow:inset 0 2px 5px rgba(20,38,32,.26),inset 0 -1px 0 rgba(255,255,255,.55),0 1px 0 rgba(255,255,255,.6)}
+/* slider stage — room for the small year labels above the thumbs */
+.khi-root .khi-dr-slider{padding:26px 10px 2px}
+.khi-root .khi-dr-rail{position:relative;height:6px;border-radius:99px;cursor:pointer;touch-action:none;
+  background:var(--paper-3);box-shadow:inset 0 1px 2px rgba(31,58,49,.18)}
 .khi-root .khi-dr-ticks{position:absolute;inset:0;pointer-events:none}
-.khi-root .khi-dr-tick{position:absolute;top:50%;width:2px;height:12px;transform:translate(-50%,-50%);background:rgba(31,58,49,.14);border-radius:2px}
-.khi-root .khi-dr-fill{position:absolute;top:0;bottom:0;border-radius:99px;overflow:hidden;
-  background:linear-gradient(90deg,var(--gold),var(--gold-bright));
-  box-shadow:0 0 0 1px rgba(176,136,51,.35),0 4px 14px -3px rgba(214,178,94,.6),inset 0 1px 0 rgba(255,255,255,.45)}
-/* a slow sheen drifts across the active span */
-.khi-root .khi-dr-fill::after{content:"";position:absolute;inset:0;
-  background:linear-gradient(100deg,transparent 32%,rgba(255,255,255,.55) 50%,transparent 68%);
-  background-size:220% 100%;animation:khi-dr-sheen 3.6s ease-in-out infinite}
-@keyframes khi-dr-sheen{0%{background-position:130% 0}55%,100%{background-position:-50% 0}}
-.khi-root .khi-dr-thumb{position:absolute;top:50%;width:26px;height:26px;border-radius:50%;transform:translate(-50%,-50%);z-index:3;cursor:grab;touch-action:none;
-  background:radial-gradient(circle at 34% 28%,#fff,#f6dca0 56%,var(--gold-bright) 100%);border:2.5px solid var(--pine);
-  box-shadow:0 4px 12px rgba(20,38,32,.4),inset 0 1px 0 rgba(255,255,255,.8);
-  transition:box-shadow .18s ease,transform .1s ease}
-.khi-root .khi-dr-thumb::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:var(--pine);box-shadow:0 0 0 2px rgba(255,255,255,.5)}
-.khi-root .khi-dr-thumb:hover{transform:translate(-50%,-50%) scale(1.08);box-shadow:0 6px 18px rgba(20,38,32,.5),0 0 0 6px rgba(44,84,72,.12)}
-.khi-root .khi-dr-thumb:focus-visible{outline:none;box-shadow:0 4px 12px rgba(20,38,32,.4),0 0 0 5px rgba(44,84,72,.3)}
-.khi-root .khi-dr-thumb.dragging{cursor:grabbing;transform:translate(-50%,-50%) scale(1.14);box-shadow:0 8px 22px rgba(20,38,32,.55),0 0 0 7px rgba(44,84,72,.16)}
-/* always-on year bubble above each thumb */
-.khi-root .khi-dr-bubble{position:absolute;bottom:calc(100% + 11px);left:50%;transform:translateX(-50%);
-  font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:800;direction:ltr;white-space:nowrap;color:var(--cream);
-  background:linear-gradient(165deg,var(--pine-2),var(--pine));padding:3px 9px;border-radius:8px;border:1px solid rgba(214,178,94,.45);
-  box-shadow:0 6px 14px -6px rgba(20,38,32,.7);transition:transform .1s ease}
-.khi-root .khi-dr-bubble::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--pine)}
-.khi-root .khi-dr-thumb.dragging .khi-dr-bubble{transform:translateX(-50%) scale(1.1)}
-.khi-root .khi-dr-ends{display:flex;justify-content:space-between;margin-top:11px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:var(--muted);direction:ltr}
+.khi-root .khi-dr-tick{position:absolute;top:50%;width:2px;height:6px;transform:translate(-50%,-50%);background:rgba(31,58,49,.16);border-radius:2px}
+.khi-root .khi-dr-fill{position:absolute;top:0;bottom:0;border-radius:99px;
+  background:linear-gradient(90deg,var(--pine),var(--pine-2))}
+.khi-root .khi-dr-thumb{position:absolute;top:50%;width:18px;height:18px;border-radius:50%;transform:translate(-50%,-50%);z-index:3;cursor:grab;touch-action:none;
+  background:#fff;border:2px solid var(--pine);
+  box-shadow:0 2px 6px rgba(31,58,49,.3);transition:box-shadow .15s ease,transform .1s ease}
+.khi-root .khi-dr-thumb:hover{transform:translate(-50%,-50%) scale(1.08);box-shadow:0 4px 12px rgba(31,58,49,.4),0 0 0 5px rgba(44,84,72,.12)}
+.khi-root .khi-dr-thumb:focus-visible{outline:none;box-shadow:0 2px 6px rgba(31,58,49,.3),0 0 0 5px rgba(44,84,72,.28)}
+.khi-root .khi-dr-thumb.dragging{cursor:grabbing;transform:translate(-50%,-50%) scale(1.14);box-shadow:0 5px 14px rgba(31,58,49,.42),0 0 0 6px rgba(44,84,72,.14)}
+/* quiet always-on year label above each thumb (restyle of .khi-dr-bubble) */
+.khi-root .khi-dr-bubble{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;direction:ltr;white-space:nowrap;color:var(--pine)}
+.khi-root .khi-dr-ends{display:flex;justify-content:space-between;margin-top:9px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;color:var(--muted);direction:ltr}
 
-/* one-tap decade shortcuts */
-.khi-root .khi-dr-decades{display:flex;flex-wrap:wrap;gap:7px}
-.khi-root .khi-dr-chip{flex:0 0 auto;font-family:'IBM Plex Mono',monospace;direction:ltr;font-size:12px;font-weight:700;color:var(--ink-soft);background:#fff;border:1px solid var(--line-2);border-radius:999px;padding:6px 12px;cursor:pointer;transition:.15s}
-.khi-root .khi-dr-chip:hover{border-color:var(--pine-2);color:var(--pine);background:var(--paper-3);transform:translateY(-1px)}
-.khi-root .khi-dr-chip.on{background:linear-gradient(165deg,var(--pine-2),var(--pine));border-color:var(--pine);color:var(--cream);box-shadow:0 5px 14px -5px rgba(31,58,49,.7)}
+/* one-tap decade chips */
+.khi-root .khi-dr-decades{display:flex;flex-wrap:wrap;gap:6px}
+.khi-root .khi-dr-chip{flex:0 0 auto;font-family:'IBM Plex Mono',monospace;direction:ltr;font-size:11.5px;font-weight:700;color:var(--ink-soft);background:#fff;border:1px solid var(--line-2);border-radius:999px;padding:5px 11px;cursor:pointer;transition:.15s}
+.khi-root .khi-dr-chip:hover{border-color:var(--pine-2);color:var(--pine);background:var(--paper-3)}
+.khi-root .khi-dr-chip.on{background:var(--pine);border-color:var(--pine);color:var(--cream)}
 
 /* exact-day calendar inputs */
-.khi-root .khi-dr-exact{display:flex;flex-direction:column;gap:8px;padding-top:13px;border-top:1px dashed var(--line-2)}
-.khi-root .khi-dr-exact-label{font-size:11px;font-weight:700;color:var(--muted)}
+.khi-root .khi-dr-exact{display:flex;flex-direction:column;gap:9px;padding-top:13px;border-top:1px dashed var(--line-2)}
+.khi-root .khi-dr-exact-label{font-size:10.5px;font-weight:700;color:var(--muted)}
 .khi-root .khi-dr-fields{display:flex;align-items:flex-end;gap:8px}
 .khi-root .khi-dr-field{display:flex;flex-direction:column;gap:5px;flex:1 1 0;min-width:0}
-.khi-root .khi-dr-cap{font-size:10.5px;font-weight:700;color:var(--muted)}
-.khi-root .khi-dr-field input[type=date]{color-scheme:light;width:100%;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--pine);
-  background:#fff;border:1px solid var(--line-2);border-radius:10px;padding:8px 10px;cursor:pointer;transition:.15s}
+.khi-root .khi-dr-cap{font-size:10px;font-weight:700;color:var(--muted)}
+.khi-root .khi-dr-field input[type=date]{color-scheme:light;width:100%;font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;color:var(--pine);
+  background:#fff;border:1px solid var(--line-2);border-radius:9px;padding:7px 9px;cursor:pointer;transition:.15s}
 .khi-root .khi-dr-field input[type=date]:hover{border-color:var(--pine-2)}
-.khi-root .khi-dr-field input[type=date]:focus{outline:none;border-color:var(--pine);box-shadow:0 0 0 3px rgba(44,84,72,.16)}
-.khi-root .khi-dr-field input[type=date]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.55;transition:.15s}
+.khi-root .khi-dr-field input[type=date]:focus{outline:none;border-color:var(--pine);box-shadow:0 0 0 3px rgba(44,84,72,.14)}
+.khi-root .khi-dr-field input[type=date]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.5;transition:.15s}
 .khi-root .khi-dr-field input[type=date]:hover::-webkit-calendar-picker-indicator{opacity:1}
 .khi-root .khi-dr-arrow{padding-bottom:9px;color:var(--gold);font-weight:800}
-.khi-root .khi-dr-err{font-size:11.5px;font-weight:700;color:var(--clay);margin:0}
+.khi-root .khi-dr-err{font-size:11.5px;font-weight:700;color:var(--clay);margin:8px 0 0}
 .khi-root .khi-dr.loading{opacity:.6;pointer-events:none}
 .khi-root .khi-dr.loading .khi-dr-rail{background:linear-gradient(110deg,var(--paper-3) 8%,#fff 18%,var(--paper-3) 33%);background-size:200% 100%;animation:khi-shimmer 1.3s linear infinite}
 
@@ -530,7 +524,6 @@
   .khi-root .card:hover .m-video .scrub i{transition:none}
   .khi-root .card:hover .m-text .page{transform:none}
   .khi-root .khi-yr.loading .khi-yr-rail{animation:none}
-  .khi-root .khi-dr-fill::after{animation:none}
   .khi-root .khi-dr.loading .khi-dr-rail{animation:none}
 }
 
@@ -729,5 +722,5 @@
 
 /* ── Media-type checkbox group (primary sidebar control) ────────────────────── */
 .khi-root .media-facet{border-top:none;padding-top:2px}
-.khi-root .check .check-ic{width:16px;height:16px;flex-shrink:0;color:var(--pine);opacity:.6}
+.khi-root .check .check-ic{width:16px;height:16px;flex-shrink:0;color:var(--pine);opacity:.55}
 .khi-root .check.on .check-ic{opacity:1;color:var(--pine-2)}

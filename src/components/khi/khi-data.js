@@ -357,7 +357,11 @@ function tagsOf(item) {
 }
 
 // Turn one DTO into the card shape KhiCard renders. `typeKey` is the active
-// browse type; for the unified 'all' feed each row carries its own `kind`.
+// browse type; for the unified 'all' feed each row carries its own `kind` —
+// now only the media kinds image|video|audio|text (the feed is media-only).
+// The person/project/category branches below are reached only via the dedicated
+// entity scopes (?type=… → guestPersons/guestProjects/guestCategories) and
+// explicit detail-page calls — never the feed.
 export function cardFromItem(item, typeKey) {
   const kind = typeKey === 'all' ? (item.kind || 'audio') : typeKey
   const code = codeOf(item, kind)

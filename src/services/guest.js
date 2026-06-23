@@ -33,12 +33,17 @@ export async function guestResults(params = {}) {
   return data
 }
 
-// Unified cross-entity FEED — the fast UNION-ALL endpoint that powers the
-// public home/browse grid. Same repeatable-param contract as guestResults
-// (types/subject/genre/tag/keyword must serialize as `?types=a&types=b`, not
-// axios's bracket form), plus exact filters (category/person/language/dialect/
-// region) and a date range. Returns a Spring Page of slim card rows, each
-// carrying its own `kind`.
+// Unified media FEED — the fast endpoint that powers the public home/browse
+// grid. As of the media-only rewrite it returns ONLY the four media kinds
+// (image|video|audio|text; aliases photo→image, sound→audio). Project/person
+// rows now live at their dedicated endpoints (guestProjects/guestPersons), and
+// any project/person value in `types` is silently ignored. Rows come back
+// DB-grouped by kind as the PRIMARY sort (image→video→audio→text, then your
+// sortBy, then id) — so a page is contiguous per-kind blocks, never interleaved.
+// Same repeatable-param contract as guestResults (types/genre/tag/keyword must
+// serialize as `?types=a&types=b`, not axios's bracket form), plus exact filters
+// (category/person/language/dialect/region) and a date range. Returns a Spring
+// Page of slim card rows, each carrying its own `kind`.
 export async function guestFeed(params = {}) {
   const { signal, ...rest } = params
   const { data } = await apiClient.get('/guest/feed', {
