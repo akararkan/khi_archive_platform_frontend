@@ -36,38 +36,6 @@ function SkeletonGrid() {
   )
 }
 
-function Pager({ page, totalPages, totalElements, pageSize, onPage }) {
-  if (!totalPages || totalPages <= 1) return null
-  const slots = []
-  const add = (n) => { if (n >= 0 && n < totalPages && !slots.includes(n)) slots.push(n) }
-  add(0); add(1); add(page - 1); add(page); add(page + 1); add(totalPages - 2); add(totalPages - 1)
-  slots.sort((a, b) => a - b)
-  const isFirst = page <= 0
-  const isLast = page >= totalPages - 1
-  const total = Number(totalElements) || 0
-  const start = total ? page * pageSize + 1 : 0
-  const end = total ? Math.min(total, (page + 1) * pageSize) : 0
-  return (
-    <div className="pager">
-      {total ? (
-        <span className="info">
-          <b>{start.toLocaleString()}</b>–<b>{end.toLocaleString()}</b> {UI.of} <b>{total.toLocaleString()}</b>
-        </span>
-      ) : null}
-      <button aria-label="first" disabled={isFirst} onClick={() => onPage(0)}>«</button>
-      <button aria-label="previous" disabled={isFirst} onClick={() => onPage(page - 1)}>‹</button>
-      {slots.map((n, i) => (
-        <React.Fragment key={n}>
-          {i > 0 && n - slots[i - 1] > 1 ? <span className="info">…</span> : null}
-          <button className={n === page ? 'active' : ''} onClick={() => onPage(n)}>{(n + 1).toLocaleString()}</button>
-        </React.Fragment>
-      ))}
-      <button aria-label="next" disabled={isLast} onClick={() => onPage(page + 1)}>›</button>
-      <button aria-label="last" disabled={isLast} onClick={() => onPage(totalPages - 1)}>»</button>
-    </div>
-  )
-}
-
 export function KhiBrowsePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const resultsRef = useRef(null)
@@ -79,7 +47,6 @@ export function KhiBrowsePage() {
 
   const q = searchParams.get('q') || ''
   const view = searchParams.get('layout') === 'list' ? 'list' : 'grid'
-  const page = Math.max(0, Number(searchParams.get('page')) || 0)
   const dateFrom = searchParams.get('dateFrom') || ''
   const dateTo = searchParams.get('dateTo') || ''
   // Years are derived only for the compact active-filter chip; the URL keeps
@@ -137,8 +104,14 @@ export function KhiBrowsePage() {
   const allFacets = useMemo(() => ({ ...(facets || {}), ...dataFacets }), [facets, dataFacets])
   // Oldest → newest YEAR span for the date filter bounds, derived from live data.
   const yearBounds = useYearBounds(type, facets)
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  // Accumulating result list: a fresh query replaces it; "Show more" appends the
+  // next API page. `meta` mirrors the Spring Page envelope (number/totalPages/
+  // totalElements). `page` is the highest page index loaded so far.
+  const [items, setItems] = useState([])
+  const [meta, setMeta] = useState({ totalElements: 0, totalPages: 0, number: 0 })
+  const [page, setPage] = useState(0)
+  const [loading, setLoading] = useState(true)        // first/replacing load → skeleton
+  const [loadingMore, setLoadingMore] = useState(false) // appending the next page
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0) // bump to force a refetch (retry button)
 
@@ -186,12 +159,29 @@ export function KhiBrowsePage() {
   const selectedKey = JSON.stringify(selected)
   const textKey = JSON.stringify(textFilterValues)
   const mediaKey = selectedMediaTypes.join(',')
+  // Identifies the query independent of paging. When it changes we start over at
+  // page 0 and REPLACE the list; while it's stable, bumping `page` APPENDS.
+  const queryKey = `${typeKey}|${q}|${sortBy}|${sortDir}|${dateFrom}|${dateTo}|${selectedKey}|${textKey}|${mediaKey}|${reload}`
+
   /* eslint-disable react-hooks/set-state-in-effect */
+  // A new query resets paging to 0 (the fetch below then replaces the list).
+  useEffect(() => { setPage(0) }, [queryKey])
+
+  const queryKeyRef = useRef('')
   useEffect(() => {
     const ctrl = new AbortController()
-    setLoading(true)
+    // On a query change the page state may still hold a stale value for one
+    // render; force page 0 so we never append the wrong page to a fresh list.
+    const fresh = queryKeyRef.current !== queryKey
+    queryKeyRef.current = queryKey
+    const targetPage = fresh ? 0 : page
+    const append = targetPage > 0
+
+    if (append) setLoadingMore(true)
+    else setLoading(true)
     setError('')
-    const params = { page, size: PAGE_SIZE, sortBy, sortDirection: sortDir, signal: ctrl.signal }
+
+    const params = { page: targetPage, size: PAGE_SIZE, sortBy, sortDirection: sortDir, signal: ctrl.signal }
     if (q) params.q = q
     if (type.showDateRange && dateFrom) params.dateFrom = dateFrom
     if (type.showDateRange && dateTo) params.dateTo = dateTo
@@ -204,24 +194,32 @@ export function KhiBrowsePage() {
     if (type.showMediaTypes && selectedMediaTypes.length > 0) params.types = selectedMediaTypes
 
     type.api(params)
-      .then((res) => { if (!ctrl.signal.aborted) setData(res || null) })
+      .then((res) => {
+        if (ctrl.signal.aborted) return
+        const content = res?.content || (Array.isArray(res) ? res : [])
+        setItems((prev) => (append ? [...prev, ...content] : content))
+        setMeta({
+          totalElements: Number(res?.totalElements ?? content.length),
+          totalPages: Number(res?.totalPages ?? (content.length ? 1 : 0)),
+          number: Number(res?.number ?? targetPage),
+        })
+      })
       .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError(UI.loadError) })
-      .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
+      .finally(() => { if (!ctrl.signal.aborted) { setLoading(false); setLoadingMore(false) } })
     return () => ctrl.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeKey, q, sortBy, sortDir, page, dateFrom, dateTo, selectedKey, textKey, mediaKey, reload])
+  }, [queryKey, page])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // When the result set changes (new page, type, search, sort, filters), reset
-  // the internal scroll so the user always starts at the top of the new results.
+  // On a NEW query (not when appending), reset the internal scroll so the user
+  // starts at the top; "Show more" keeps the scroll position so the list grows.
   useEffect(() => {
     if (resultsRef.current) resultsRef.current.scrollTop = 0
-  }, [page, typeKey, q, sortBy, sortDir, dateFrom, dateTo, selectedKey, textKey, mediaKey])
+  }, [queryKey])
 
-  const items = useMemo(() => data?.content || (Array.isArray(data) ? data : []), [data])
   const cards = useMemo(() => items.map((it) => cardFromItem(it, typeKey)), [items, typeKey])
-  const totalElements = Number(data?.totalElements ?? items.length)
-  const totalPages = Number(data?.totalPages ?? (totalElements ? Math.ceil(totalElements / PAGE_SIZE) : 0))
+  const totalElements = meta.totalElements
+  const hasMore = items.length < totalElements
 
   // Type-rail counts from global facets.
   const counts = useMemo(() => {
@@ -393,32 +391,35 @@ export function KhiBrowsePage() {
                 <button className="clear-all" onClick={() => setReload((n) => n + 1)}>{UI.retry}</button>
               </div>
             ) : cards.length ? (
-              <div className={`khi-grid${view === 'list' ? ' list' : ''}`}>
-                {cards.map((c, i) => (
-                  <KhiCard
-                    key={`${c.kind}:${c.code}`}
-                    record={c}
-                    index={i}
-                    query={q}
-                    view={view}
-                    lead={i === 0 && page === 0 && !q && view === 'grid'}
-                  />
-                ))}
-              </div>
+              <>
+                <div className={`khi-grid${view === 'list' ? ' list' : ''}`}>
+                  {cards.map((c, i) => (
+                    <KhiCard key={`${c.kind}:${c.code}:${i}`} record={c} index={i} query={q} />
+                  ))}
+                </div>
+
+                {hasMore ? (
+                  <div className="show-more-wrap">
+                    <button
+                      type="button"
+                      className="show-more-btn"
+                      onClick={() => setPage((p) => p + 1)}
+                      disabled={loadingMore}
+                    >
+                      {loadingMore ? UI.loadingMore : UI.showMore}
+                      <span className="sm-count">
+                        {items.length.toLocaleString()} / {totalElements.toLocaleString()}
+                      </span>
+                    </button>
+                  </div>
+                ) : totalElements > PAGE_SIZE ? (
+                  <p className="show-more-done">{`${totalElements.toLocaleString()} ${UI.results}`}</p>
+                ) : null}
+              </>
             ) : (
               <p className="empty">{UI.empty}</p>
             )}
           </div>
-
-          {!loading && !error && cards.length ? (
-            <Pager
-              page={data?.number ?? page}
-              totalPages={totalPages}
-              totalElements={totalElements}
-              pageSize={PAGE_SIZE}
-              onPage={(n) => update({ page: String(n) }, false)}
-            />
-          ) : null}
         </main>
       </div>
     </HighlightProvider>

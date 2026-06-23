@@ -58,6 +58,7 @@ export const UI = {
   sort: 'ڕیزکردن',
   showMore: 'زیاتر پیشانبدە',
   showFewer: 'کەمتر پیشانبدە',
+  loadingMore: 'بارکردن…',
   clearAll: 'پاککردنەوەی هەموو',
   empty: 'هیچ ئەنجامێک نەدۆزرایەوە.',
   loadError: 'نەتوانرا داتاکان باربکرێن.',

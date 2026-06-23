@@ -16,37 +16,23 @@ function Avatar({ person }) {
   )
 }
 
-// One catalogue card. The grid mixes two archetypes:
-//   • "plate" (IMAGE-BASED) — a record with a real photograph (image / project /
-//     person) renders full-bleed, the caption laid over a warm scrim. Immersive.
-//   • "frame" (CONTAINER-BASED) — audio / video / text / category, and any
-//     photo-less record, keep the clean cover-on-top + body-below card.
-// `index` staggers the rise-in; `query` highlights; `view` switches grid/list;
-// `lead` marks the landing's first plate as a wide cinematic feature.
-export default function KhiCard({ record, index = 0, query = '', view = 'grid', lead = false }) {
-  const { kind, collection, title, person, region, decade, to, image } = record
+// One catalogue card. Every record renders in the SAME uniform shape — a
+// fixed-ratio cover on top (the real photo for image/project/person, the kit's
+// generated art for audio/video/text/category) and a body below with a
+// two-line-clamped title + a single meta row — so the grid reads as an even set
+// of equal-sized cards. `index` staggers the rise-in; `query` highlights.
+export default function KhiCard({ record, index = 0, query = '' }) {
+  const { kind, collection, title, person, region, decade, to } = record
   const TypeIcon = TYPE_ICON[kind]
-  const isPerson = kind === 'person'
-
-  // A real photograph only exists for these kinds; everything else uses the
-  // kit's generated art and therefore stays a container "frame" card.
-  const hasCover = Boolean(image) && (kind === 'image' || kind === 'project' || kind === 'person')
-  const plate = view === 'grid' && hasCover
-  const featured = plate && lead
 
   const creator = person?.name || null
   const secondary = creator || region || collection || null
   const year = decade || null
 
-  const cls = ['card', 'rise']
-  if (plate) cls.push('plate')
-  else if (isPerson) cls.push('person-card')
-  if (featured) cls.push('featured')
-
   return (
     <Link
       to={to}
-      className={cls.join(' ')}
+      className="card rise"
       style={{ animationDelay: `${(0.05 + (index % 12) * 0.04).toFixed(2)}s` }}
     >
       <div className="media">
@@ -54,7 +40,7 @@ export default function KhiCard({ record, index = 0, query = '', view = 'grid', 
         {TypeIcon ? (
           <span className="type-badge"><TypeIcon /> {TYPE_LABELS[kind] || kind}</span>
         ) : null}
-        <KhiMediaPreview record={record} plate={plate} />
+        <KhiMediaPreview record={record} />
       </div>
 
       <div className="body">
