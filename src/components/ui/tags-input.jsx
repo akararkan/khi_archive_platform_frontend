@@ -7,10 +7,11 @@ import { cn } from '@/lib/utils'
 
 /**
  * Chip-style tag input.
- * - Type and use a separator (`,` `;` `،`) or Tab to commit a chip.
- *   Enter is intentionally NOT a commit key (so it can't accidentally submit
- *   the surrounding form mid-typing) — UNLESS `suggest` is enabled, where Enter
- *   picks the highlighted suggestion or commits the typed draft as a new tag.
+ * - Type and press Enter, or use a separator (`,` `;` `،`) or Tab, to commit a
+ *   chip. Enter ALWAYS commits the typed draft (and, when `suggest` is enabled,
+ *   picks the highlighted suggestion instead). Enter never submits the
+ *   surrounding form — the entity is saved via its own button, so Enter inside a
+ *   multi-value field only ever adds a value.
  * - Backspace on empty input removes the last chip
  * - Pasting "a, b, c" splits into multiple chips
  * - Blurring the field also commits whatever's in the draft
@@ -30,7 +31,7 @@ import { cn } from '@/lib/utils'
 function TagsInput({
   value = [],
   onChange,
-  placeholder = 'Type and separate with comma…',
+  placeholder = 'Type and press Enter or comma…',
   id,
   maxTags,
   disabled = false,
@@ -173,11 +174,11 @@ function TagsInput({
     }
 
     if (event.key === 'Enter') {
-      // Stop the surrounding form from submitting mid-typing. In suggest mode
-      // (no menu open) Enter commits the typed draft as a new tag; in plain
-      // mode it only blocks submit — commit happens on separator / Tab / blur.
+      // Enter commits the typed draft as a chip in BOTH plain and suggest modes
+      // and always blocks the surrounding form from submitting — the entity is
+      // saved via its own button, never by Enter inside a multi-value field.
       event.preventDefault()
-      if (suggest && draft.trim()) commit(draft)
+      if (draft.trim()) commit(draft)
       return
     }
     if (event.key === ',' || event.key === ';' || event.key === 'Tab') {
