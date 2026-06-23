@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { IconBook } from './icons'
+
+import { KhiLogo } from '@/components/brand/KhiLogo'
 import { UI } from './khi-data'
 
 export default function KhiFooter() {
@@ -8,7 +9,7 @@ export default function KhiFooter() {
     <footer className="footer">
       <div className="foot-wrap">
         <div className="foot-brand">
-          <span className="mark"><IconBook /></span>
+          <KhiLogo className="mark" />
           <b>{UI.org}</b>
           <div className="tg">گەنجینەی زیندووی یادەوەری گەلێک</div>
           <p>

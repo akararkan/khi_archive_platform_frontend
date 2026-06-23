@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
+import { KhiLogo } from '@/components/brand/KhiLogo'
 import { getStoredToken, logout } from '@/services/auth'
 import { useCurrentProfile } from '@/hooks/use-current-profile'
 import { getAccountArea, getAccountHomePath } from '@/lib/account-role'
-import { IconBook, IconSearch, IconSignout, IconSignin, IconPerson, IconDashboard } from './icons'
+import { IconSearch, IconSignout, IconSignin, IconPerson, IconDashboard } from './icons'
 import { UI } from './khi-data'
 
 // Sticky public header: brand → home, a global search that lands on the unified
@@ -41,7 +42,7 @@ export default function KhiHeader() {
     <header className="nav">
       <div className="wrap">
         <Link className="brand" to="/public">
-          <span className="mark"><IconBook /></span>
+          <KhiLogo className="mark" priority />
           <span className="txt">
             <b>{UI.brand}</b>
             <span>{UI.brandSub}</span>

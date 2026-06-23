@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Archive,
   AudioLines,
   FileText,
   FolderOpen,
@@ -16,6 +15,7 @@ import {
   X,
 } from 'lucide-react'
 
+import { KhiLogo } from '@/components/brand/KhiLogo'
 import { SearchCommand } from '@/components/public/SearchCommand'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -94,9 +94,7 @@ function PublicLayout() {
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-3 px-4 sm:gap-5 sm:px-6 lg:px-8">
           <Link to="/public" className="flex shrink-0 items-center gap-2.5">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-md shadow-primary/20 ring-1 ring-primary/30">
-              <Archive className="size-4.5" />
-            </span>
+            <KhiLogo className="size-10 shadow-md shadow-primary/10" priority />
             <span className="hidden flex-col leading-none sm:flex">
               <span className="font-heading text-[15px] font-semibold tracking-tight text-foreground">
                 KHI Archive

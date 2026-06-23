@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { GraduationCap, History, House, LogOut, Music4 } from 'lucide-react'
+import { History, House, LogOut, Music4 } from 'lucide-react'
 
 import '@/styles/khi-theme.css'
+import { KhiLogo } from '@/components/brand/KhiLogo'
 import { Button } from '@/components/ui/button'
 import { KhiToneSlider } from '@/components/khi/KhiToneSlider'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -71,9 +72,7 @@ function TeacherLayout() {
       <aside className="flex min-h-0 flex-col rounded-3xl border border-border bg-card p-4 shadow-sm shadow-black/5 lg:sticky lg:top-6 lg:h-[calc(100dvh-3rem)]">
         {/* brand */}
         <div className="flex items-center gap-3 px-2 py-2">
-          <div className="khi-mark flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <GraduationCap className="size-5" />
-          </div>
+          <KhiLogo className="khi-mark size-11 shadow-sm" priority />
           <div className="min-w-0">
             <p className="font-heading text-sm font-semibold tracking-tight text-foreground">{ku.brand}</p>
             <p className="text-[11px] text-muted-foreground">{ku.workspace}</p>

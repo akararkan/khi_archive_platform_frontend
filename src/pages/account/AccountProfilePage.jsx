@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Archive,
   AtSign,
   CheckCircle2,
   KeyRound,
@@ -16,6 +15,7 @@ import {
   UserRound,
 } from 'lucide-react'
 
+import { KhiLogo } from '@/components/brand/KhiLogo'
 import { GuestActivationBanner } from '@/components/ui/guest-activation-banner'
 import { IconField, PasswordField, PasswordStrength } from '@/components/auth/auth-fields'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -302,9 +302,7 @@ function AccountProfilePage() {
           role workspace, so it brings a minimal brand bar + global actions. */}
       <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <Archive className="size-5" />
-          </div>
+          <KhiLogo className="size-10 shadow-sm" priority />
           <div className="min-w-0 flex-1">
             <p className="font-heading text-sm font-semibold tracking-tight text-foreground">KHI Archive</p>
             <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">My account</p>

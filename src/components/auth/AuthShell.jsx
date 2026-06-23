@@ -1,5 +1,6 @@
 import { AudioLines, Image as ImageIcon, ScrollText, ShieldCheck, Video } from 'lucide-react'
 
+import { KhiLogo } from '@/components/brand/KhiLogo'
 import { cn } from '@/lib/utils'
 import '@/styles/khi-theme.css'
 import '@/styles/khi-auth.css'
@@ -26,23 +27,6 @@ const CHIPS = [
   { icon: ImageIcon, label: 'وێنە' },
   { icon: ScrollText, label: 'دەستنووس' },
 ]
-
-// A small gold sun-over-mountains glyph used as the brand mark.
-function BrandMark({ className }) {
-  return (
-    <span
-      className={cn(
-        'grid size-11 shrink-0 place-items-center rounded-2xl border border-[#d6b25e]/45 bg-gradient-to-br from-[#23463b] to-[#142620] shadow-lg shadow-[#0e211a]/40',
-        className,
-      )}
-    >
-      <svg viewBox="0 0 32 32" className="size-6" fill="none">
-        <circle cx="16" cy="13" r="5.4" fill="#e7d3a0" />
-        <path d="M3 27 L11 18 L16 23 L21 16 L29 27 Z" fill="#1d362c" stroke="#d6b25e" strokeWidth="1.3" strokeLinejoin="round" />
-      </svg>
-    </span>
-  )
-}
 
 // The cinematic heritage brand panel (left on desktop). Always the dark-pine
 // night scene with a rising sun — independent of light/dark so it stays
@@ -81,7 +65,7 @@ function BrandPanel() {
 
       {/* ── content (above the scene) ── */}
       <div className="relative z-10 flex items-center gap-3.5 text-right">
-        <BrandMark />
+        <KhiLogo className="size-14 shadow-lg shadow-[#0e211a]/40 ring-[#d6b25e]/45" priority />
         <div>
           <b className="block text-[22px] leading-tight text-[#f3ead4]" style={amiri}>ئەرشیفی KHI</b>
           <span className="text-[11px] font-semibold tracking-[0.22em] text-[#e7d3a0]/80">KHI ARCHIVE PLATFORM</span>
@@ -135,7 +119,7 @@ function AuthShell({ title, description, children, footer, className }) {
         <div className="w-full max-w-md">
           {/* compact brand row — shown when the panel is hidden (mobile) */}
           <div className="mb-7 flex items-center gap-3 lg:hidden">
-            <BrandMark className="size-10" />
+            <KhiLogo className="size-12 shadow-md" priority />
             <div>
               <b className="block text-xl leading-tight text-foreground" style={amiri}>ئەرشیفی KHI</b>
               <span className="text-[10px] font-semibold tracking-[0.2em] text-muted-foreground">KHI ARCHIVE PLATFORM</span>

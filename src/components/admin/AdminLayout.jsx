@@ -19,6 +19,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 
+import { KhiLogo } from '@/components/brand/KhiLogo'
 import { Button } from '@/components/ui/button'
 import { GuestActivationBanner } from '@/components/ui/guest-activation-banner'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -131,9 +132,7 @@ function AdminLayout() {
       <aside className="flex min-h-0 flex-col rounded-3xl border border-border bg-card p-4 shadow-sm shadow-black/5 lg:sticky lg:top-6 lg:h-[calc(100dvh-3rem)]">
         {/* brand */}
         <div className="flex items-center gap-3 px-2 py-2">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <ShieldCheck className="size-5" />
-          </div>
+          <KhiLogo className="size-11 shadow-sm" priority />
           <div className="min-w-0">
             <p className="font-heading text-sm font-semibold tracking-tight text-foreground">KHI Archive</p>
             <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Admin Workspace</p>
