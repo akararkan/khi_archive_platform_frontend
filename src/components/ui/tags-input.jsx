@@ -181,7 +181,7 @@ function TagsInput({
       if (draft.trim()) commit(draft)
       return
     }
-    if (event.key === ',' || event.key === ';' || event.key === 'Tab') {
+    if (event.key === ',' || event.key === ';' || event.key === '،' || event.key === 'Tab') {
       if (!draft.trim()) return
       if (event.key === 'Tab' && event.shiftKey) return
       event.preventDefault()

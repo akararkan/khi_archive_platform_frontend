@@ -28,6 +28,16 @@ function TextFieldLabel({ htmlFor, fieldKey, className, children }) {
 const TEXTAREA_CLASS =
   'min-h-[96px] w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
 
+// `contributors` is stored as a comma-joined string (text-form.js → trimOrNull),
+// but it is conceptually a collection — multiple people, rendered as a pill row on
+// the public detail page. Edit it as chips (Enter/comma to add) while keeping the
+// string storage shape, so the API contract stays unchanged.
+const splitToChips = (str) =>
+  String(str ?? '')
+    .split(/[,،;]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+
 function GenreChips({ categories, value, onChange }) {
   const selected = Array.isArray(value) ? value : []
   const selectedLower = new Set(selected.map((s) => s.toLowerCase()))
@@ -264,7 +274,12 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-contributors">Contributors</TextFieldLabel>
-            <Input id="txt-contributors" value={form.contributors} onChange={(e) => setForm({ ...form, contributors: e.target.value })} />
+            <TagsInput
+              id="txt-contributors"
+              value={splitToChips(form.contributors)}
+              onChange={(arr) => setForm({ ...form, contributors: arr.join(', ') })}
+              placeholder="Type a contributor, then Enter or comma…"
+            />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-printingHouse">Printing House</TextFieldLabel>

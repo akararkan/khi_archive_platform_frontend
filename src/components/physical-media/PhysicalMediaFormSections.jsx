@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
+import { TagsInput } from '@/components/ui/tags-input'
+import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
 import { cn } from '@/lib/utils'
 import { getPhysicalMediaFieldMetadata } from '@/lib/physical-media-fields-metadata'
 import { DIGITIZATION_OPTIONS, NEED_TO_CLEAR_OPTIONS } from '@/lib/physical-media-form'
@@ -41,6 +43,35 @@ function TextField({ k, label, required, placeholder, mono, value, onText }) {
         onChange={(e) => onText(k, e.target.value)}
         placeholder={placeholder}
         className={cn(mono && 'font-mono tracking-wide')}
+      />
+    </FieldRow>
+  )
+}
+
+// Split a stored comma-string ("a, b, c") into chip values, and join chips back
+// into the same delimited string the API expects. Storage stays a single string
+// (TEXT_FIELDS in physical-media-form.js) — only the editing UI becomes chips.
+const splitChips = (str) =>
+  String(str ?? '')
+    .split(/[,،;]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+const joinChips = (arr) => (Array.isArray(arr) ? arr.join(', ') : '')
+
+// Comma-separated multi-value field rendered as removable chips via the shared
+// TagsInput, so values are added with Enter OR comma and Enter never submits the
+// surrounding pm-form. `suggest` swaps in TagSuggestInput (tag autocomplete) for
+// the tags field, matching Audio/Video/Image/Text/Project tags.
+function ChipField({ k, label, fieldKey, placeholder, value, onText, suggest }) {
+  const Comp = suggest ? TagSuggestInput : TagsInput
+  return (
+    <FieldRow id={`pm-${k}`} label={label} fieldKey={fieldKey || k}>
+      <Comp
+        id={`pm-${k}`}
+        value={splitChips(value)}
+        onChange={(arr) => onText(k, joinChips(arr))}
+        placeholder={placeholder}
       />
     </FieldRow>
   )
@@ -182,8 +213,8 @@ function PhysicalMediaFormSections({
             <NumberField k="year" label="Year" placeholder="e.g. 1985" value={form.year} onText={onText} />
             <NumberField k="durationMin" label="Duration (minutes)" placeholder="e.g. 60" value={form.durationMin} onText={onText} />
             <NumberField k="trackNumbers" label="Track count" placeholder="e.g. 12" value={form.trackNumbers} onText={onText} />
-            <TextField k="trackName" label="Track name(s)" placeholder="Comma-separated" value={form.trackName} onText={onText} />
-            <TextField k="tags" label="Tags" placeholder="Comma-separated keywords" value={form.tags} onText={onText} />
+            <ChipField k="trackName" label="Track name(s)" placeholder="Type a track name, then Enter or comma…" value={form.trackName} onText={onText} />
+            <ChipField k="tags" label="Tags" placeholder="Type a tag, then Enter or comma…" value={form.tags} onText={onText} suggest />
           </div>
         </CardContent>
       </Card>
