@@ -126,12 +126,13 @@ export default function KhiSidebar({
             {mediaKinds.map((k) => {
               const on = selectedMediaTypes.includes(k)
               const KindIcon = TYPE_ICON[k]
+              const count = Number(mediaTypeCounts[k])
               return (
                 <label key={k} className={`check${on ? ' on' : ''}`} onClick={(e) => { e.preventDefault(); onToggleMediaType(k) }}>
                   <span className="box" />
                   {KindIcon ? <KindIcon className="check-ic" /> : null}
                   <span>{TYPE_LABELS[k]}</span>
-                  {mediaTypeCounts[k] ? <span className="c-count">{mediaTypeCounts[k].toLocaleString()}</span> : null}
+                  {Number.isFinite(count) ? <span className="c-count">{count.toLocaleString()}</span> : null}
                 </label>
               )
             })}
@@ -148,7 +149,7 @@ export default function KhiSidebar({
           <div className="nav-list" style={{ paddingTop: 12 }}>
             {types.map((t) => {
               const Icon = TYPE_ICON[t.key]
-              const c = counts[t.key]
+              const c = Number(counts[t.key])
               return (
                 <button
                   key={t.key}
@@ -156,7 +157,7 @@ export default function KhiSidebar({
                   onClick={() => onType(t.key)}
                 >
                   <Icon /> {t.label}
-                  {typeof c === 'number' && c > 0 ? <span className="n-count">{c.toLocaleString()}</span> : null}
+                  {Number.isFinite(c) ? <span className="n-count">{c.toLocaleString()}</span> : null}
                 </button>
               )
             })}

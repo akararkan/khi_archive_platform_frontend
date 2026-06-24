@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   ArrowDownAZ,
@@ -21,7 +21,6 @@ import {
 } from 'lucide-react'
 
 import { HighlightProvider } from '@/components/ui/highlight'
-import { DataPagination } from '@/components/ui/pagination'
 import { BrowseSidebar } from '@/components/public/BrowseSidebar'
 import {
   CardGridSkeleton,
@@ -489,7 +488,6 @@ function PublicBrowsePage() {
   const q = searchParams.get('q') || ''
   const sortKey = searchParams.get('sortBy') || type.sorts[0].key
   const sortDir = searchParams.get('sortDirection') || type.sorts[0].dir
-  const page = Number(searchParams.get('page') || 0) || 0
   const layout = searchParams.get('layout') === 'list' ? 'list' : 'grid'
   const dateFrom = searchParams.get('dateFrom') || ''
   const dateTo = searchParams.get('dateTo') || ''
@@ -535,12 +533,21 @@ function PublicBrowsePage() {
       .filter((s) => MEDIA_KINDS.includes(s))
   }, [searchParams, type.showMediaTypes])
 
-  const [data, setData] = useState(null)
+  const [items, setItems] = useState([])
+  const [meta, setMeta] = useState({
+    totalElements: 0,
+    totalPages: 0,
+    number: 0,
+    size: PAGE_SIZE,
+  })
+  const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [facets, setFacets] = useState(null)
   const [tookMs, setTookMs] = useState(null)
+  const [reload, setReload] = useState(0)
 
   // Fetch facets once for hero stats and the type-rail counts.
   useEffect(() => {
@@ -551,13 +558,40 @@ function PublicBrowsePage() {
     return () => ctrl.abort()
   }, [])
 
+  const selectedKey = JSON.stringify(selected)
+  const textKey = JSON.stringify(textFilterValues)
+  const mediaKey = selectedMediaTypes.join(',')
+  const queryKey = [
+    typeKey,
+    q,
+    sortKey,
+    sortDir,
+    dateFrom,
+    dateTo,
+    publishedFrom,
+    publishedTo,
+    printDateFrom,
+    printDateTo,
+    selectedKey,
+    textKey,
+    mediaKey,
+    reload,
+  ].join('|')
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  const queryKeyRef = useRef('')
   useEffect(() => {
     const ctrl = new AbortController()
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true)
+    const fresh = queryKeyRef.current !== queryKey
+    queryKeyRef.current = queryKey
+    const targetPage = fresh ? 0 : page
+    const append = targetPage > 0
+
+    if (append) setLoadingMore(true)
+    else setLoading(true)
     setError('')
     const params = {
-      page,
+      page: targetPage,
       size: PAGE_SIZE,
       sortBy: sortKey,
       sortDirection: sortDir,
@@ -597,39 +631,44 @@ function PublicBrowsePage() {
     type.api
       .list(params)
       .then((res) => {
-        setData(res || null)
+        if (ctrl.signal.aborted) return
+        const content = res?.content || []
+        setItems((prev) => (append ? [...prev, ...content] : content))
+        setMeta({
+          totalElements: Number(res?.totalElements ?? content.length),
+          totalPages: Number(res?.totalPages ?? (content.length ? 1 : 0)),
+          number: Number(res?.number ?? targetPage),
+          size: Number(res?.size ?? PAGE_SIZE),
+        })
         setTookMs(Math.max(1, Math.round(performance.now() - t0)))
       })
       .catch((err) => {
         if (err?.code === 'ERR_CANCELED') return
         setError(`Could not load ${type.label.toLowerCase()}.`)
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (!ctrl.signal.aborted) {
+          setLoading(false)
+          setLoadingMore(false)
+        }
+      })
     return () => ctrl.abort()
-  }, [
-    type,
-    q,
-    sortKey,
-    sortDir,
-    page,
-    selected,
-    dateFrom,
-    dateTo,
-    publishedFrom,
-    publishedTo,
-    printDateFrom,
-    printDateTo,
-    selectedMediaTypes,
-    textFilters,
-    textFilterValues,
-  ])
+    // queryKey intentionally captures every non-paging filter/sort input.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryKey, page])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const update = (next) => {
     const sp = new URLSearchParams(searchParams)
     Object.entries(next).forEach(([k, v]) => {
+      if (k === 'page') {
+        sp.delete('page')
+        return
+      }
       if (v == null || v === '') sp.delete(k)
       else sp.set(k, String(v))
     })
+    sp.delete('page')
     setSearchParams(sp)
   }
 
@@ -654,8 +693,11 @@ function PublicBrowsePage() {
     setSearchParams(sp)
   }
 
-  const items = useMemo(() => data?.content || [], [data])
-  const totalElements = Number(data?.totalElements ?? items.length)
+  const totalElements = Number(meta.totalElements ?? items.length)
+  const hasMore =
+    meta.totalPages > 0
+      ? meta.number < meta.totalPages - 1
+      : items.length < totalElements
   const activeTextFilterCount = textFilters.reduce(
     (acc, f) => acc + ((textFilterValues[f.paramKey] || '').trim() ? 1 : 0),
     0,
@@ -927,7 +969,7 @@ function PublicBrowsePage() {
           {loading ? (
             layout === 'list' ? <ListSkeleton count={6} /> : <CardGridSkeleton count={10} />
           ) : error ? (
-            <ErrorState error={error} onRetry={() => update({})} />
+            <ErrorState error={error} onRetry={() => setReload((n) => n + 1)} />
           ) : items.length === 0 && type.key !== 'all' ? (
             // The unified `all` view never falls through to ListEmpty —
             // ResultsBody renders all four kind sections with their own
@@ -950,14 +992,26 @@ function PublicBrowsePage() {
                   layout={layout}
                 />
               </HighlightProvider>
-              <DataPagination
-                page={data?.number ?? page}
-                totalPages={data?.totalPages ?? 0}
-                totalElements={data?.totalElements ?? 0}
-                pageSize={data?.size ?? PAGE_SIZE}
-                onPageChange={(next) => update({ page: next })}
-                className="mt-8"
-              />
+              {hasMore ? (
+                <div className="mt-8 flex justify-center border-t border-border pt-5">
+                  <button
+                    type="button"
+                    onClick={() => setPage(meta.number + 1)}
+                    disabled={loadingMore}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-background px-5 py-2 text-[13px] font-semibold text-foreground shadow-sm transition-colors hover:bg-accent disabled:cursor-wait disabled:opacity-70"
+                  >
+                    {loadingMore ? 'Loading more...' : 'Show more'}
+                    <ChevronDown className="size-4" />
+                    <span className="ml-1 rounded-full bg-secondary px-2 py-0.5 font-mono text-[11px] font-medium tabular-nums text-muted-foreground">
+                      {items.length.toLocaleString()} / {totalElements.toLocaleString()}
+                    </span>
+                  </button>
+                </div>
+              ) : totalElements > PAGE_SIZE ? (
+                <p className="mt-8 border-t border-border pt-5 text-center text-xs font-medium text-muted-foreground">
+                  Showing all {totalElements.toLocaleString()} {type.short}
+                </p>
+              ) : null}
             </>
           )}
         </main>

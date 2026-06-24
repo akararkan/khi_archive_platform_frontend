@@ -14,7 +14,8 @@ import { useEffect, useState } from 'react'
 //    tallied. A field missing from the public DTO yields an empty group, which
 //    FacetGroup hides — graceful, never an error.
 
-const SAMPLE_SIZE = 200
+const FETCH_SIZE = 500
+const MAX_PAGES = 200
 
 function tally(map, raw) {
   if (raw == null) return
@@ -37,11 +38,40 @@ export function useDataFacets(type) {
     const ctrl = new AbortController()
     let alive = true
 
-    type
-      .api({ size: SAMPLE_SIZE, sortBy: 'createdAt', sortDirection: 'desc', signal: ctrl.signal })
+    async function fetchAll() {
+      const items = []
+      let page = 0
+      let totalPages = 1
+
+      while (alive && !ctrl.signal.aborted && page < totalPages && page < MAX_PAGES) {
+        const res = await type.api({
+          page,
+          size: FETCH_SIZE,
+          sortBy: 'createdAt',
+          sortDirection: 'desc',
+          signal: ctrl.signal,
+        })
+        const content = res?.content || (Array.isArray(res) ? res : [])
+        items.push(...content)
+        const explicitPages = Number(res?.totalPages)
+        if (Number.isFinite(explicitPages) && explicitPages > 0) {
+          totalPages = explicitPages
+        } else {
+          const total = Number(res?.totalElements)
+          totalPages = Number.isFinite(total) && content.length > 0
+            ? Math.ceil(total / content.length)
+            : 1
+        }
+        page += 1
+      }
+
+      return items
+    }
+
+    fetchAll()
       .then((res) => {
         if (!alive) return
-        const items = res?.content || (Array.isArray(res) ? res : [])
+        const items = Array.isArray(res) ? res : []
         const maps = new Map(defs.map((d) => [d.paramKey, new Map()]))
         for (const item of items) {
           for (const d of defs) {

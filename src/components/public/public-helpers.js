@@ -111,7 +111,7 @@ function formatBool(value) {
 //
 // /api/guest/facets returns:
 //   {
-//     mediaTypes: [{ value, count }, …],   // 'audio' | 'video' | 'text' | 'image'
+//     mediaTypes: [{ value, count }, …] OR { audios, videos, texts, images }
 //     categories: [{ value, count, code? }, …],
 //     persons:    [{ value, count, code? }, …],
 //     languages:  [{ value, count }, …],
@@ -143,8 +143,20 @@ function readFacetEntry(entry) {
   const value = entry.value ?? entry.label ?? entry.name ?? entry.code ?? entry.key
   const code = entry.code ?? entry.value ?? entry.key
   const count = entry.count ?? entry.total ?? entry.docCount ?? 0
+  const image =
+    entry.image ??
+    entry.mediaPortrait ??
+    entry.profileImage ??
+    entry.profileImageUrl ??
+    entry.imageUrl ??
+    null
   if (value == null) return null
-  return { value: String(value), code: code != null ? String(code) : null, count: Number(count) || 0 }
+  return {
+    value: String(value),
+    code: code != null ? String(code) : null,
+    count: Number(count) || 0,
+    image,
+  }
 }
 
 function readFacet(facets, key) {
@@ -155,6 +167,19 @@ function readFacet(facets, key) {
 }
 
 function readMediaTypeCount(facets, mediaType) {
+  const raw = facets?.mediaTypes
+  if (raw && !Array.isArray(raw) && typeof raw === 'object') {
+    const aliases = {
+      audio: ['audio', 'audios', 'sound', 'sounds'],
+      video: ['video', 'videos'],
+      text: ['text', 'texts'],
+      image: ['image', 'images', 'photo', 'photos'],
+    }[mediaType] || [mediaType]
+    for (const key of aliases) {
+      const n = Number(raw[key])
+      if (Number.isFinite(n)) return n
+    }
+  }
   for (const entry of readFacet(facets, 'mediaTypes')) {
     if (entry.value.toLowerCase() === mediaType) return entry.count
     if (entry.code && entry.code.toLowerCase() === mediaType) return entry.count

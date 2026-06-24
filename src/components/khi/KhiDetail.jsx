@@ -406,25 +406,3 @@ export function KhiDetailShell({ loading, error, notFound, children }) {
   }
   return <div className="detail-page">{children}</div>
 }
-
-// ── Pager (heritage) ─────────────────────────────────────────────────────────
-export function KhiPager({ page, totalPages, onPage }) {
-  if (!totalPages || totalPages <= 1) return null
-  const slots = []
-  const add = (n) => { if (n >= 0 && n < totalPages && !slots.includes(n)) slots.push(n) }
-  add(0); add(1); add(page - 1); add(page); add(page + 1); add(totalPages - 2); add(totalPages - 1)
-  slots.sort((a, b) => a - b)
-  return (
-    <div className="pager" style={{ marginTop: 26 }}>
-      <button aria-label="previous" disabled={page <= 0} onClick={() => onPage(page - 1)}>‹</button>
-      {slots.map((n, i) => (
-        <React.Fragment key={n}>
-          {i > 0 && n - slots[i - 1] > 1 ? <span className="info">…</span> : null}
-          <button className={n === page ? 'active' : ''} onClick={() => onPage(n)}>{(n + 1).toLocaleString()}</button>
-        </React.Fragment>
-      ))}
-      <button aria-label="next" disabled={page >= totalPages - 1} onClick={() => onPage(page + 1)}>›</button>
-    </div>
-  )
-}
-

@@ -9,6 +9,7 @@ import KhiToolbar from '@/components/khi/KhiToolbar'
 import KhiCard from '@/components/khi/KhiCard'
 import { useYearBounds } from '@/components/khi/use-year-bounds'
 import { useDataFacets } from '@/components/khi/use-data-facets'
+import { usePublicFilterCounts } from '@/components/khi/use-public-filter-counts'
 import { IconClose } from '@/components/khi/icons'
 import {
   NAV_TYPES, TYPE_MAP, DEFAULT_TYPE, PAGE_SIZE, MEDIA_KINDS, UI, cardFromItem, ENTITY_FILTER_KEYS,
@@ -101,7 +102,11 @@ export function KhiBrowsePage() {
   // active media scope (empty for the feed / entity scopes). Merged on top of
   // the server facets so the FacetGroup list renders both from one object.
   const dataFacets = useDataFacets(type)
-  const allFacets = useMemo(() => ({ ...(facets || {}), ...dataFacets }), [facets, dataFacets])
+  const publicFilterCounts = usePublicFilterCounts(typeKey, selectedMediaTypes)
+  const allFacets = useMemo(
+    () => ({ ...(facets || {}), ...(publicFilterCounts.facets || {}), ...dataFacets }),
+    [facets, publicFilterCounts.facets, dataFacets],
+  )
   // Oldest → newest YEAR span for the date filter bounds, derived from live data.
   const yearBounds = useYearBounds(type, facets)
   // Accumulating result list: a fresh query replaces it; "Show more" appends the
@@ -223,19 +228,23 @@ export function KhiBrowsePage() {
 
   // Type-rail counts from global facets.
   const counts = useMemo(() => {
-    const c = {}
-    if (facets) {
-      c.audio = readMediaTypeCount(facets, 'audio') || 0
-      c.video = readMediaTypeCount(facets, 'video') || 0
-      c.text = readMediaTypeCount(facets, 'text') || 0
-      c.image = readMediaTypeCount(facets, 'image') || 0
+    const apiCounts = publicFilterCounts.counts || {}
+    const pick = (primary, fallback) => {
+      const first = Number(primary)
+      if (Number.isFinite(first)) return first
+      const second = Number(fallback)
+      return Number.isFinite(second) ? second : undefined
     }
-    // Only the ACTIVE entity scope gets a count, taken from its list total.
-    // Facet sums under-count entities with no linked media (a person with 0
-    // items isn't in the facet map), which is what made "persons" read 1/3.
-    if (['person', 'project', 'category'].includes(typeKey)) c[typeKey] = totalElements
+    const c = {}
+    c.audio = pick(apiCounts.audio, readMediaTypeCount(facets, 'audio'))
+    c.video = pick(apiCounts.video, readMediaTypeCount(facets, 'video'))
+    c.text = pick(apiCounts.text, readMediaTypeCount(facets, 'text'))
+    c.image = pick(apiCounts.image, readMediaTypeCount(facets, 'image'))
+    c.person = pick(apiCounts.person, typeKey === 'person' ? totalElements : undefined)
+    c.project = pick(apiCounts.project, typeKey === 'project' ? totalElements : undefined)
+    c.category = pick(apiCounts.category, typeKey === 'category' ? totalElements : undefined)
     return c
-  }, [facets, typeKey, totalElements])
+  }, [facets, publicFilterCounts.counts, typeKey, totalElements])
   const mediaTypeCounts = { audio: counts.audio, video: counts.video, text: counts.text, image: counts.image }
 
   // ── Facet / filter handlers ─────────────────────────────────────────────────
@@ -380,8 +389,8 @@ export function KhiBrowsePage() {
             </div>
           ) : null}
 
-          {/* Only the card grid scrolls (desktop): the pager below stays pinned
-              at the foot of the results column, always visible. */}
+          {/* Only the card grid scrolls (desktop): the show-more control stays
+              inside the results column, just after the loaded cards. */}
           <div className="results-scroll" ref={resultsRef}>
             {loading ? (
               <SkeletonGrid />
