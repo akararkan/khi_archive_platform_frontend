@@ -5,7 +5,7 @@ It includes the toolbar, active-filter chips, loading/error/empty states, media
 card grid, list view, scrolling result panel, and pagination.
 
 ## Extracted files
-
+hhhhhhhhh
 - `GuestMediaResultsContainer.jsx` — copy-ready React container using the
   project's existing `KhiToolbar` and `KhiCard` components.
 - `guest-media-results.css` — the relevant container, card, media-preview,
