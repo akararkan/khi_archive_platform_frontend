@@ -18,17 +18,17 @@ import {
 
 import { Highlight, HighlightProvider } from '@/components/ui/highlight'
 import { cn } from '@/lib/utils'
-import { guestSuggest } from '@/services/guest'
+import { guestSuggest, guestTrending } from '@/services/guest'
 
 // ── SearchCommand ───────────────────────────────────────────────────────
 //
 // The single global search bar. Lives in the public header (PublicLayout)
 // and is the *only* search entry point on the site — there's no per-page
 // scope picker any more, no in-page search hero, no separate "open search"
-// trigger. Always navigates to /public/browse?type=all&q=<q>, which is the
-// unified ranked feed across audio/video/text/image. The destination page's
-// sidebar still narrows by category/person/date/etc; this bar's only job
-// is "I want to search the archive for X".
+// trigger. Always navigates to /public/browse?type=all&q=<q>, where the
+// browse page uses /api/guest/feed. The destination page's sidebar still
+// narrows by category/person/date/etc; this bar's only job is "I want to
+// search the archive for X".
 //
 // Three pieces:
 //
@@ -50,9 +50,6 @@ const SUGGEST_LIMIT = 8
 // Per-kind icon + label + how to act on a click (navigate vs. submit).
 // `entity` kinds resolve to a public detail route via the suggestion's
 // `code`; `tag` (the only `query` kind) just becomes the search term.
-// Keyword suggestions are intentionally not exposed on the public
-// surface — they're a backend cataloguing concept, not something
-// readers should see or browse by.
 const SUGGEST_KINDS = {
   project: { icon: FolderOpen, label: 'Project', mode: 'entity', path: 'projects' },
   category: { icon: Tags, label: 'Category', mode: 'entity', path: 'categories' },
@@ -62,13 +59,14 @@ const SUGGEST_KINDS = {
   text: { icon: FileText, label: 'Text', mode: 'entity', path: 'texts' },
   image: { icon: ImageIcon, label: 'Image', mode: 'entity', path: 'images' },
   tag: { icon: Tag, label: 'Tag', mode: 'query' },
+  keyword: { icon: Tag, label: 'Keyword', mode: 'query' },
 }
 
 // Display order for grouped suggestion buckets. Entity kinds come first
 // because they jump straight to a record; tags trail because they just
 // narrow the next search.
 const SUGGEST_ORDER = [
-  'person', 'project', 'audio', 'video', 'text', 'image', 'category', 'tag',
+  'person', 'project', 'audio', 'video', 'text', 'image', 'category', 'tag', 'keyword',
 ]
 
 // One-tap starter chips shown in the dropdown when the input is focused
@@ -88,9 +86,6 @@ function groupSuggestions(list) {
   const buckets = new Map()
   for (const s of list || []) {
     const kind = s?.kind || 'tag'
-    // Keywords are not surfaced on the public catalogue. Strip them
-    // before they ever reach the suggestion dropdown.
-    if (kind === 'keyword') continue
     const arr = buckets.get(kind) || []
     arr.push(s)
     buckets.set(kind, arr)
@@ -114,6 +109,35 @@ function flattenGroups(groups) {
     for (const item of g.items) flat.push({ ...item, kind: item.kind || g.kind })
   }
   return flat
+}
+
+function trendingLabel(item) {
+  if (typeof item === 'string') return item.trim()
+  if (!item || typeof item !== 'object') return ''
+  const raw =
+    item.label ??
+    item.value ??
+    item.query ??
+    item.q ??
+    item.term ??
+    item.searchTerm ??
+    item.keyword
+  return raw == null ? '' : String(raw).trim()
+}
+
+function normalizeTrendingSearches(data) {
+  const raw = Array.isArray(data)
+    ? data
+    : (data?.topSearches || data?.searches || data?.trendingSearches || [])
+  const seen = new Set()
+  const out = []
+  for (const item of raw) {
+    const label = trendingLabel(item)
+    if (!label || seen.has(label.toLowerCase())) continue
+    seen.add(label.toLowerCase())
+    out.push({ label })
+  }
+  return out.slice(0, 8)
 }
 
 // Reads the `q` param off the URL only on the browse routes. Anywhere
@@ -151,6 +175,7 @@ function SearchCommand({ className, autoFocus = false }) {
   const [suggestOpen, setSuggestOpen] = useState(false)
   const [highlightIdx, setHighlightIdx] = useState(-1)
   const [suggestQuery, setSuggestQuery] = useState('')
+  const [trendingSearches, setTrendingSearches] = useState([])
 
   // Cmd/Ctrl-K focuses the bar from anywhere on the page.
   useEffect(() => {
@@ -176,6 +201,18 @@ function SearchCommand({ className, autoFocus = false }) {
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
   }, [suggestOpen])
+
+  useEffect(() => {
+    const ctrl = new AbortController()
+    guestTrending({ signal: ctrl.signal })
+      .then((data) => {
+        if (ctrl.signal.aborted) return
+        const next = normalizeTrendingSearches(data)
+        if (next.length > 0) setTrendingSearches(next)
+      })
+      .catch(() => {})
+    return () => ctrl.abort()
+  }, [])
 
   // Debounced fetch as the user types. AbortController guarantees that
   // a stale response from an earlier keystroke can never overwrite a
@@ -216,10 +253,14 @@ function SearchCommand({ className, autoFocus = false }) {
 
   const grouped = useMemo(() => groupSuggestions(suggestions), [suggestions])
   const flatRows = useMemo(() => flattenGroups(grouped), [grouped])
+  const trendingItems = useMemo(
+    () => (trendingSearches.length > 0 ? trendingSearches : TRENDING),
+    [trendingSearches],
+  )
 
-  // Submit always goes to the unified results page. The destination
+  // Submit always goes to the public media feed. The destination
   // resets the type to `all` and drops any prior filters so the user
-  // sees a clean ranked feed for the new query — what they expect
+  // sees a clean media grid for the new query — what they expect
   // when they hit Enter on a search bar.
   const submitWith = (raw) => {
     const trimmed = (raw ?? value ?? '').trim()
@@ -277,7 +318,7 @@ function SearchCommand({ className, autoFocus = false }) {
   const trimmed = (value || '').trim()
   const hasInput = trimmed.length >= SUGGEST_MIN_CHARS
   const showSuggestions = suggestOpen && hasInput
-  const showTrending = suggestOpen && !hasInput && TRENDING.length > 0
+  const showTrending = suggestOpen && !hasInput && trendingItems.length > 0
 
   return (
     <div ref={containerRef} className={cn('relative w-full', className)}>
@@ -365,7 +406,7 @@ function SearchCommand({ className, autoFocus = false }) {
             />
           ) : (
             <TrendingPanel
-              items={TRENDING}
+              items={trendingItems}
               onPick={(label) => submitWith(label)}
             />
           )}

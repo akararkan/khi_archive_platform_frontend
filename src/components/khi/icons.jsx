@@ -55,5 +55,6 @@ export const TYPE_ICON = {
 // eslint-disable-next-line react-refresh/only-export-components
 export const FACET_ICON = {
   category: IconCategory, person: IconPerson, region: IconRegion,
-  language: IconLanguage, dialect: IconLanguage, genre: IconTag,
+  language: IconLanguage, dialect: IconLanguage, subject: IconBook,
+  genre: IconTag, tag: IconTag, keyword: IconTag,
 }

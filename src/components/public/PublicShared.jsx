@@ -194,11 +194,9 @@ function KindIcon({ kind, className }) {
 //   audio/video/text/imageCount   Used by Project covers
 //   year, duration                Used by media covers
 
-// Pretty labels for the `matchedOn` chips returned by the unified
-// /api/guest/results endpoint — the column the search engine actually
-// matched on (title / person / project / tag / keyword). Surfacing this
-// inline on each card explains *why* a row showed up, so the user can
-// trust the ranked feed instead of treating it as a black box.
+// Pretty labels for optional `matchedOn` chips returned by guest search/feed
+// rows. Surfacing this inline explains *why* a row showed up, so the user can
+// trust the media grid instead of treating it as a black box.
 const MATCH_LABELS = {
   title: 'title',
   person: 'person',
@@ -208,10 +206,7 @@ const MATCH_LABELS = {
 
 function MatchedOnPills({ values, className, tone = 'light' }) {
   if (!Array.isArray(values)) return null
-  // Keywords are never surfaced on the public catalogue, so strip them
-  // out here too — otherwise a backend `matchedOn: ["keyword"]` would
-  // leak the term back into the UI.
-  const visible = values.filter((v) => v !== 'keyword')
+  const visible = values.filter(Boolean)
   if (visible.length === 0) return null
   // `dark` is for the editorial overlay variant where the pills sit on
   // top of a dark gradient — primary tones don't show up there, so we

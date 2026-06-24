@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 
 import { HighlightProvider } from '@/components/ui/highlight'
 import { readMediaTypeCount, decodeSelectedFacets } from '@/components/public/public-helpers'
-import { guestFacets } from '@/services/guest'
+import { guestCategories, guestFacets, guestPersons, guestProjects } from '@/services/guest'
 import KhiSidebar from '@/components/khi/KhiSidebar'
 import KhiToolbar from '@/components/khi/KhiToolbar'
 import KhiCard from '@/components/khi/KhiCard'
@@ -12,11 +12,110 @@ import { useDataFacets } from '@/components/khi/use-data-facets'
 import { IconClose } from '@/components/khi/icons'
 import {
   NAV_TYPES, TYPE_MAP, DEFAULT_TYPE, PAGE_SIZE, MEDIA_KINDS, UI, cardFromItem, ENTITY_FILTER_KEYS,
+  TYPE_PAGE_SIZES,
 } from '@/components/khi/khi-data'
 
 // Entity scopes reachable via ?type= (the media kinds are reached by selecting
 // a single media-type checkbox, which drops into that per-entity scope).
 const ENTITY_SCOPES = ['person', 'project', 'category']
+const FEED_SECTION_KEYS = {
+  image: ['image', 'images', 'photo', 'photos'],
+  audio: ['audio', 'audios', 'sound', 'sounds'],
+  video: ['video', 'videos'],
+  text: ['text', 'texts'],
+}
+
+function pageContent(value) {
+  if (Array.isArray(value)) return value
+  if (Array.isArray(value?.content)) return value.content
+  if (Array.isArray(value?.items)) return value.items
+  if (Array.isArray(value?.results)) return value.results
+  return []
+}
+
+function pageTotal(value, fallback = 0) {
+  const n = Number(value?.totalElements ?? value?.totalItems ?? value?.total ?? value?.count)
+  return Number.isFinite(n) ? n : fallback
+}
+
+function pageCount(value, total, size) {
+  const n = Number(value?.totalPages ?? value?.pages)
+  if (Number.isFinite(n)) return n
+  return total > 0 ? Math.ceil(total / Math.max(1, size)) : 0
+}
+
+function isGroupedSection(value) {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    (Array.isArray(value.content) || Array.isArray(value.items) || Array.isArray(value.results)) &&
+    (value.kind || value.type || value.mediaType || value.key || value.name),
+  )
+}
+
+function findFeedSection(feed, kind) {
+  const aliases = FEED_SECTION_KEYS[kind] || [kind]
+  const containers = [feed, feed?.media, feed?.mediaByType, feed?.byType, feed?.sectionsByType]
+  for (const container of containers) {
+    if (!container || typeof container !== 'object' || Array.isArray(container)) continue
+    for (const key of aliases) {
+      if (container[key] != null) return container[key]
+    }
+  }
+
+  const sectionLists = [feed?.sections, feed?.groups, feed?.mediaSections, feed?.content]
+  for (const list of sectionLists) {
+    if (!Array.isArray(list)) continue
+    for (const section of list) {
+      const key = String(section?.kind || section?.type || section?.mediaType || section?.key || section?.name || '').toLowerCase()
+      if (aliases.includes(key)) return section
+    }
+  }
+  return null
+}
+
+function normalizeFeedResponse(res, targetPage, size) {
+  const content = pageContent(res)
+  if (content.length > 0 && !content.every(isGroupedSection)) {
+    const total = pageTotal(res, content.length)
+    return {
+      content,
+      totalElements: total,
+      totalPages: pageCount(res, total, size),
+      number: Number(res?.number ?? targetPage),
+      hasMore: typeof res?.last === 'boolean' ? !res.last : content.length < total,
+    }
+  }
+
+  const sections = MEDIA_KINDS.map((kind) => [kind, findFeedSection(res, kind)])
+  const items = sections.flatMap(([kind, section]) =>
+    pageContent(section).map((item) => ({ ...item, kind: item.kind || kind })),
+  )
+  const sectionTotals = sections.map(([, section]) => pageTotal(section, pageContent(section).length))
+  const sectionTotal = sectionTotals.reduce((sum, total) => sum + total, 0)
+  const topTotal = pageTotal(res, 0)
+  let totalElements = topTotal || sectionTotal || items.length
+  const totalPages = Math.max(
+    pageCount(res, totalElements, size),
+    ...sections.map(([, section], index) => pageCount(section, sectionTotals[index], size)),
+  )
+  const hasMore = Boolean(
+    res?.hasNext ||
+    res?.next ||
+    (typeof res?.last === 'boolean' && !res.last) ||
+    sections.some(([, section]) => section?.hasNext || section?.next || section?.last === false),
+  )
+
+  if (hasMore && totalElements <= items.length) totalElements = items.length + 1
+
+  return {
+    content: items,
+    totalElements,
+    totalPages,
+    number: Number(res?.number ?? res?.page ?? targetPage),
+    hasMore: hasMore || items.length < totalElements,
+  }
+}
 
 // Skeleton placeholder cards shown while a page of results loads.
 function SkeletonGrid() {
@@ -68,6 +167,7 @@ export function KhiBrowsePage() {
     ? typeParam
     : (selectedMediaTypes.length === 1 ? selectedMediaTypes[0] : DEFAULT_TYPE)
   const type = TYPE_MAP[typeKey]
+  const pageSize = TYPE_PAGE_SIZES[typeKey] || PAGE_SIZE
 
   // Shared (server) facets + the scope's entity-specific (data-driven) facets,
   // rendered through one FacetGroup list. Data groups key their options by the
@@ -97,6 +197,7 @@ export function KhiBrowsePage() {
   }, [searchParams, type.textFilters])
 
   const [facets, setFacets] = useState(null)
+  const [entityCounts, setEntityCounts] = useState({})
   // Entity-specific checkbox options, tallied from the live archive for the
   // active media scope (empty for the feed / entity scopes). Merged on top of
   // the server facets so the FacetGroup list renders both from one object.
@@ -155,6 +256,24 @@ export function KhiBrowsePage() {
     return () => ctrl.abort()
   }, [])
 
+  useEffect(() => {
+    const ctrl = new AbortController()
+    const totalOf = (res) => Number(res?.totalElements ?? res?.total ?? res?.count ?? 0) || 0
+    Promise.allSettled([
+      guestPersons({ page: 0, size: 1, signal: ctrl.signal }),
+      guestProjects({ page: 0, size: 1, signal: ctrl.signal }),
+      guestCategories({ page: 0, size: 1, signal: ctrl.signal }),
+    ]).then((results) => {
+      if (ctrl.signal.aborted) return
+      setEntityCounts({
+        person: results[0].status === 'fulfilled' ? totalOf(results[0].value) : undefined,
+        project: results[1].status === 'fulfilled' ? totalOf(results[1].value) : undefined,
+        category: results[2].status === 'fulfilled' ? totalOf(results[2].value) : undefined,
+      })
+    })
+    return () => ctrl.abort()
+  }, [])
+
   // ── Results ─────────────────────────────────────────────────────────────────
   const selectedKey = JSON.stringify(selected)
   const textKey = JSON.stringify(textFilterValues)
@@ -181,7 +300,7 @@ export function KhiBrowsePage() {
     else setLoading(true)
     setError('')
 
-    const params = { page: targetPage, size: PAGE_SIZE, sortBy, sortDirection: sortDir, signal: ctrl.signal }
+    const params = { page: targetPage, size: pageSize, sortBy, sortDirection: sortDir, signal: ctrl.signal }
     if (q) params.q = q
     if (type.showDateRange && dateFrom) params.dateFrom = dateFrom
     if (type.showDateRange && dateTo) params.dateTo = dateTo
@@ -196,19 +315,29 @@ export function KhiBrowsePage() {
     type.api(params)
       .then((res) => {
         if (ctrl.signal.aborted) return
-        const content = res?.content || (Array.isArray(res) ? res : [])
+        const normalized = typeKey === 'all'
+          ? normalizeFeedResponse(res, targetPage, pageSize)
+          : {
+            content: res?.content || (Array.isArray(res) ? res : []),
+            totalElements: pageTotal(res, pageContent(res).length),
+            totalPages: pageCount(res, pageTotal(res, pageContent(res).length), pageSize),
+            number: Number(res?.number ?? targetPage),
+            hasMore: typeof res?.last === 'boolean' ? !res.last : undefined,
+          }
+        const content = normalized.content
         setItems((prev) => (append ? [...prev, ...content] : content))
         setMeta({
-          totalElements: Number(res?.totalElements ?? content.length),
-          totalPages: Number(res?.totalPages ?? (content.length ? 1 : 0)),
-          number: Number(res?.number ?? targetPage),
+          totalElements: normalized.totalElements,
+          totalPages: normalized.totalPages,
+          number: normalized.number,
+          hasMore: normalized.hasMore,
         })
       })
       .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError(UI.loadError) })
       .finally(() => { if (!ctrl.signal.aborted) { setLoading(false); setLoadingMore(false) } })
     return () => ctrl.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryKey, page])
+  }, [queryKey, page, pageSize])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // On a NEW query (not when appending), reset the internal scroll so the user
@@ -219,29 +348,33 @@ export function KhiBrowsePage() {
 
   const cards = useMemo(() => items.map((it) => cardFromItem(it, typeKey)), [items, typeKey])
   const totalElements = meta.totalElements
-  const hasMore = items.length < totalElements
+  const hasMore = typeof meta.hasMore === 'boolean' ? meta.hasMore : items.length < totalElements
 
   // Type-rail counts from global facets.
   const counts = useMemo(() => {
     const c = {}
     if (facets) {
-      c.audio = readMediaTypeCount(facets, 'audio') || 0
-      c.video = readMediaTypeCount(facets, 'video') || 0
-      c.text = readMediaTypeCount(facets, 'text') || 0
-      c.image = readMediaTypeCount(facets, 'image') || 0
+      c.audio = readMediaTypeCount(facets, 'audio')
+      c.video = readMediaTypeCount(facets, 'video')
+      c.text = readMediaTypeCount(facets, 'text')
+      c.image = readMediaTypeCount(facets, 'image')
     }
     // Only the ACTIVE entity scope gets a count, taken from its list total.
     // Facet sums under-count entities with no linked media (a person with 0
     // items isn't in the facet map), which is what made "persons" read 1/3.
+    c.person = Number.isFinite(Number(entityCounts.person)) ? entityCounts.person : undefined
+    c.project = Number.isFinite(Number(entityCounts.project)) ? entityCounts.project : undefined
+    c.category = Number.isFinite(Number(entityCounts.category)) ? entityCounts.category : undefined
     if (['person', 'project', 'category'].includes(typeKey)) c[typeKey] = totalElements
     return c
-  }, [facets, typeKey, totalElements])
+  }, [entityCounts, facets, typeKey, totalElements])
   const mediaTypeCounts = { audio: counts.audio, video: counts.video, text: counts.text, image: counts.image }
 
   // ── Facet / filter handlers ─────────────────────────────────────────────────
-  // Repeatable params (genre + entity list fields) accumulate; single-value
-  // params (category/person/language/… + single entity fields) replace, so the
-  // checkbox group behaves like the backend's one-value contract.
+  // Repeatable params (subject/genre/tag/keyword + entity list fields)
+  // accumulate; single-value params (category/person/language/… + single
+  // entity fields) replace, so the checkbox group behaves like the backend's
+  // one-value contract.
   const onToggleFacet = (paramKey, val) => {
     const group = filterGroups.find((g) => g.paramKey === paramKey)
     const cur = new Set(selected[paramKey] || [])
@@ -412,7 +545,7 @@ export function KhiBrowsePage() {
                       </span>
                     </button>
                   </div>
-                ) : totalElements > PAGE_SIZE ? (
+                ) : totalElements > pageSize ? (
                   <p className="show-more-done">{`${totalElements.toLocaleString()} ${UI.results}`}</p>
                 ) : null}
               </>

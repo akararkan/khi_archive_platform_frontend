@@ -38,7 +38,7 @@ export function useDataFacets(type) {
     let alive = true
 
     type
-      .api({ size: SAMPLE_SIZE, sortBy: 'createdAt', sortDirection: 'desc', signal: ctrl.signal })
+      .api({ size: SAMPLE_SIZE, sortBy: 'date', sortDirection: 'desc', signal: ctrl.signal })
       .then((res) => {
         if (!alive) return
         const items = res?.content || (Array.isArray(res) ? res : [])

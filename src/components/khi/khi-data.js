@@ -21,10 +21,11 @@ import {
   extractPersonFromItem,
 } from '@/components/public/public-helpers'
 
-export const PAGE_SIZE = 24
+export const PAGE_SIZE = 50
+export const TYPE_PAGE_SIZES = { category: 100 }
 // The unified /guest/feed grid is the landing — no "all results" nav button.
 export const DEFAULT_TYPE = 'all'
-export const MEDIA_KINDS = ['audio', 'video', 'text', 'image']
+export const MEDIA_KINDS = ['image', 'audio', 'video', 'text']
 
 export const KIND_TO_RESOURCE = {
   audio: 'audios',
@@ -169,35 +170,47 @@ const SHARED_MEDIA_FACETS = [
   { paramKey: 'personCode', facetKey: 'persons', title: 'کەس', person: true },
   { paramKey: 'language', facetKey: 'languages', title: 'زمان' },
   { paramKey: 'dialect', facetKey: 'dialects', title: 'زاراوە' },
+  { paramKey: 'subject', facetKey: 'subjects', title: DETAIL.subject, multi: true },
   { paramKey: 'genre', facetKey: 'genres', title: 'ژانر', multi: true },
+  { paramKey: 'tag', facetKey: 'tags', title: 'تاگ', multi: true },
+  { paramKey: 'keyword', facetKey: 'keywords', title: 'کلیلەوشەکان', multi: true },
 ]
 const IMAGE_FACETS = SHARED_MEDIA_FACETS.filter((f) => !['language', 'dialect'].includes(f.paramKey))
 const PROJECT_FACETS = [
   { paramKey: 'categoryCode', facetKey: 'categories', title: 'پۆل', defaultOpen: true },
   { paramKey: 'personCode', facetKey: 'persons', title: 'کەس', person: true },
+  { paramKey: 'tag', facetKey: 'tags', title: 'تاگ', multi: true },
+  { paramKey: 'keyword', facetKey: 'keywords', title: 'کلیلەوشەکان', multi: true },
 ]
 const PERSON_FACETS = [{ paramKey: 'region', facetKey: 'regions', title: 'ناوچە', defaultOpen: true }]
-// Facets the unified /guest/feed honours (category/person/genre/region/language/
-// dialect). The media-type narrowing is the checkbox group, not a facet here.
+// Facets the unified /guest/feed honours. The media-type narrowing is the
+// checkbox group, not a facet here.
 const FEED_FACETS = [
   { paramKey: 'categoryCode', facetKey: 'categories', title: 'پۆل', defaultOpen: true },
   { paramKey: 'personCode', facetKey: 'persons', title: 'کەس', person: true },
+  { paramKey: 'subject', facetKey: 'subjects', title: DETAIL.subject, multi: true },
   { paramKey: 'genre', facetKey: 'genres', title: 'ژانر', multi: true },
+  { paramKey: 'tag', facetKey: 'tags', title: 'تاگ', multi: true },
+  { paramKey: 'keyword', facetKey: 'keywords', title: 'کلیلەوشەکان', multi: true },
   { paramKey: 'region', facetKey: 'regions', title: 'ناوچە' },
   { paramKey: 'language', facetKey: 'languages', title: 'زمان' },
   { paramKey: 'dialect', facetKey: 'dialects', title: 'زاراوە' },
 ]
 
 const MEDIA_SORTS = [
-  { key: 'createdAt', dir: 'desc', label: 'نوێترین' },
-  { key: 'createdAt', dir: 'asc', label: 'کۆنترین' },
-  { key: 'titleEnglish', dir: 'asc', label: 'ناونیشان ↑' },
-  { key: 'titleEnglish', dir: 'desc', label: 'ناونیشان ↓' },
+  { key: 'date', dir: 'desc', label: 'نوێترین' },
+  { key: 'date', dir: 'asc', label: 'کۆنترین' },
+  { key: 'datePublished', dir: 'desc', label: 'بڵاوکراوە نوێترین' },
+  { key: 'datePublished', dir: 'asc', label: 'بڵاوکراوە کۆنترین' },
+  { key: 'title', dir: 'asc', label: 'ناونیشان ↑' },
+  { key: 'title', dir: 'desc', label: 'ناونیشان ↓' },
 ]
 const ALL_SORTS = [
   { key: 'relevance', dir: 'desc', label: 'پەیوەندیدار' },
   { key: 'date', dir: 'desc', label: 'نوێترین' },
   { key: 'date', dir: 'asc', label: 'کۆنترین' },
+  { key: 'datePublished', dir: 'desc', label: 'بڵاوکراوە نوێترین' },
+  { key: 'datePublished', dir: 'asc', label: 'بڵاوکراوە کۆنترین' },
   { key: 'title', dir: 'asc', label: 'ناونیشان ↑' },
   { key: 'title', dir: 'desc', label: 'ناونیشان ↓' },
 ]
@@ -278,7 +291,7 @@ export const ENTITY_FILTER_KEYS = [
 
 // ── Type registry ────────────────────────────────────────────────────────────
 export const TYPES = [
-  { key: 'all', label: 'گەنجینەکە', sub: 'هەموو دەنگ، ڤیدیۆ، دەق و وێنە', resource: null, kind: null,
+  { key: 'all', label: 'گەنجینەکە', sub: 'هەموو وێنە، دەنگ، ڤیدیۆ و دەق', resource: null, kind: null,
     api: (p) => guestFeed(p), facetMap: FEED_FACETS, sorts: ALL_SORTS, showMediaTypes: true, showDateRange: true },
   { key: 'audio', label: 'دەنگەکان', sub: 'گۆرانی، دەنگبێژ و گێڕانەوەی زارەکی', resource: 'audios', kind: 'audio',
     api: (p) => guestAudios.list(p), facetMap: SHARED_MEDIA_FACETS, dataFacets: AUDIO_DATA_FACETS, sorts: MEDIA_SORTS, showDateRange: true },
@@ -357,9 +370,27 @@ function tagsOf(item) {
   return []
 }
 
+function trendOf(item) {
+  const rank = item?.trendingRank ?? item?.trendRank ?? null
+  const score = item?.trendingScore ?? item?.trendScore ?? null
+  const rankNumber = Number(rank)
+  const scoreNumber = Number(score)
+  const trending = Boolean(
+    item?.trending ||
+    item?.isTrending ||
+    (Number.isFinite(rankNumber) && rankNumber > 0) ||
+    (Number.isFinite(scoreNumber) && scoreNumber > 0),
+  )
+  return {
+    trending,
+    trendingRank: rank,
+    trendingScore: score,
+  }
+}
+
 // Turn one DTO into the card shape KhiCard renders. `typeKey` is the active
 // browse type; for the unified 'all' feed each row carries its own `kind` —
-// now only the media kinds image|video|audio|text (the feed is media-only).
+// only the media kinds image|audio|video|text (the feed is media-only).
 // The person/project/category branches below are reached only via the dedicated
 // entity scopes (?type=… → guestPersons/guestProjects/guestCategories) and
 // explicit detail-page calls — never the feed.
@@ -433,5 +464,6 @@ export function cardFromItem(item, typeKey) {
     image: kind === 'image' ? (mediaThumbHref(item) || item.fileUrl || null) : null,
     tags: tagsOf(item),
     matchedOn: Array.isArray(item.matchedOn) ? item.matchedOn : null,
+    ...trendOf(item),
   }
 }
