@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 
 import { Highlight } from '@/components/ui/highlight'
 import KhiMediaPreview from './KhiMediaPreview'
-import { TYPE_ICON } from './icons'
+import { IconAll, TYPE_ICON } from './icons'
 import { TYPE_LABELS } from './khi-data'
 
 function Avatar({ person }) {
@@ -39,6 +39,12 @@ export default function KhiCard({ record, index = 0, query = '' }) {
         {/* Internal codes are never shown on public pages. */}
         {TypeIcon ? (
           <span className="type-badge"><TypeIcon /> {TYPE_LABELS[kind] || kind}</span>
+        ) : null}
+        {record.trending ? (
+          <span className="trend-badge">
+            <IconAll />
+            {record.trendingRank ? `#${record.trendingRank}` : 'Trending'}
+          </span>
         ) : null}
         <KhiMediaPreview record={record} />
       </div>

@@ -11,7 +11,7 @@ import {
 } from '@/services/guest'
 import { extractPersonFromItem, personImageSrc } from '@/components/public/public-helpers'
 
-const MEDIA_KINDS = ['audio', 'video', 'text', 'image']
+const MEDIA_KINDS = ['image', 'audio', 'video', 'text']
 const ENTITY_KINDS = ['person', 'project', 'category']
 const FETCH_SIZE = 500
 const MAX_PAGES = 200
@@ -55,8 +55,6 @@ async function fetchAll(fetcher, signal) {
     const res = await fetcher({
       page,
       size: FETCH_SIZE,
-      sortBy: 'createdAt',
-      sortDirection: 'desc',
       signal,
     })
     const content = pageContent(res)
@@ -80,6 +78,17 @@ async function fetchAll(fetcher, signal) {
 function splitValues(raw) {
   if (raw == null) return []
   if (Array.isArray(raw)) return raw.flatMap(splitValues)
+  if (typeof raw === 'object') {
+    return splitValues(
+      raw.value ??
+      raw.label ??
+      raw.name ??
+      raw.subject ??
+      raw.tag ??
+      raw.keyword ??
+      raw.code,
+    )
+  }
   return String(raw)
     .split(/[,،;]/)
     .map((value) => value.trim())
@@ -155,8 +164,10 @@ function emptyFacetMaps() {
     languages: new Map(),
     dialects: new Map(),
     regions: new Map(),
+    subjects: new Map(),
     genres: new Map(),
     tags: new Map(),
+    keywords: new Map(),
   }
 }
 
@@ -179,8 +190,10 @@ function tallyMediaFacets(items) {
     addSimpleList(maps, 'languages', item?.language)
     addSimpleList(maps, 'dialects', item?.dialect)
     addSimpleList(maps, 'regions', item?.region)
-    addSimpleList(maps, 'genres', item?.genre || item?.genres)
-    addSimpleList(maps, 'tags', item?.tags)
+    addSimpleList(maps, 'subjects', [item?.subject, item?.subjects])
+    addSimpleList(maps, 'genres', [item?.genre, item?.genres])
+    addSimpleList(maps, 'tags', [item?.tag, item?.tags])
+    addSimpleList(maps, 'keywords', [item?.keyword, item?.keywords])
   }
   return mapsToFacets(maps)
 }

@@ -15,16 +15,16 @@ function pickFirst(...values) {
 // of the backend's title field names it actually carries. The backend
 // uses different names per kind (audio uses originTitle / alterTitle /
 // fullName, video uses originalTitle / alternativeTitle, text/image
-// follow video, and the unified results endpoint exposes a normalised
-// `title`). Reading them all here means every detail page, card, and
-// breadcrumb gets a consistent best-available title and never falls
+// follow video, and some rows expose a normalised `title`). Reading
+// them all here means every detail page, card, and breadcrumb gets a
+// consistent best-available title and never falls
 // through to the technical code on a record that has titles set under
 // a name we forgot to check.
 function pickMediaTitle(item) {
   if (!item) return null
   return (
     pickFirst(
-      // Already-resolved title (from /results endpoint).
+      // Already-resolved title.
       item.title,
       // Per-kind primary "main" titles.
       item.titleEnglish,
@@ -119,14 +119,13 @@ function formatBool(value) {
 //     regions:    [{ value, count }, …],
 //     genres:     [{ value, count }, …],
 //     tags:       [{ value, count }, …],
+//     subjects:   [{ value, count }, …],
 //     keywords:   [{ value, count }, …],
 //   }
 //
 // Entries are tolerated in a couple of shapes so a small backend rename
 // later doesn't break the UI. We always normalise to `{ value, code, count }`.
 
-// Note: 'keywords' is intentionally absent — keywords are an internal
-// cataloguing concept and aren't exposed on the public surface.
 const FACET_KEYS = [
   'mediaTypes',
   'categories',
@@ -134,8 +133,10 @@ const FACET_KEYS = [
   'languages',
   'dialects',
   'regions',
+  'subjects',
   'genres',
   'tags',
+  'keywords',
 ]
 
 function readFacetEntry(entry) {

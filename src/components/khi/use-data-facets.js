@@ -30,7 +30,7 @@ export function useDataFacets(type) {
   useEffect(() => {
     const defs = type?.dataFacets
     if (!defs || !defs.length || typeof type.api !== 'function') {
-      // Reset when leaving a media scope (feed / entity scopes have no data facets).
+      // Reset when leaving a media scope (mixed grid / entity scopes have no data facets).
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFacets({})
       return undefined
@@ -47,8 +47,6 @@ export function useDataFacets(type) {
         const res = await type.api({
           page,
           size: FETCH_SIZE,
-          sortBy: 'createdAt',
-          sortDirection: 'desc',
           signal: ctrl.signal,
         })
         const content = res?.content || (Array.isArray(res) ? res : [])

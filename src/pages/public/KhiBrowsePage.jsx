@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 
 import { HighlightProvider } from '@/components/ui/highlight'
 import { readMediaTypeCount, decodeSelectedFacets } from '@/components/public/public-helpers'
-import { guestFacets } from '@/services/guest'
+import { guestAudios, guestFacets, guestImages, guestTexts, guestVideos } from '@/services/guest'
 import KhiSidebar from '@/components/khi/KhiSidebar'
 import KhiToolbar from '@/components/khi/KhiToolbar'
 import KhiCard from '@/components/khi/KhiCard'
@@ -12,12 +12,64 @@ import { useDataFacets } from '@/components/khi/use-data-facets'
 import { usePublicFilterCounts } from '@/components/khi/use-public-filter-counts'
 import { IconClose } from '@/components/khi/icons'
 import {
-  NAV_TYPES, TYPE_MAP, DEFAULT_TYPE, PAGE_SIZE, MEDIA_KINDS, UI, cardFromItem, ENTITY_FILTER_KEYS,
+  NAV_TYPES,
+  TYPE_MAP,
+  DEFAULT_TYPE,
+  PAGE_SIZE,
+  MEDIA_KINDS,
+  UI,
+  cardFromItem,
+  ENTITY_FILTER_KEYS,
+  TYPE_PAGE_SIZES,
 } from '@/components/khi/khi-data'
 
 // Entity scopes reachable via ?type= (the media kinds are reached by selecting
 // a single media-type checkbox, which drops into that per-entity scope).
 const ENTITY_SCOPES = ['person', 'project', 'category']
+const MEDIA_APIS = {
+  image: (params) => guestImages.list(params),
+  audio: (params) => guestAudios.list(params),
+  video: (params) => guestVideos.list(params),
+  text: (params) => guestTexts.list(params),
+}
+
+function emptyMediaPage(page, size) {
+  return {
+    content: [],
+    totalElements: 0,
+    totalPages: 0,
+    number: page,
+    size,
+    first: page === 0,
+    last: true,
+    empty: true,
+  }
+}
+
+async function loadPublicMediaSections(params, selectedKinds) {
+  const selected = new Set(selectedKinds.length ? selectedKinds : MEDIA_KINDS)
+  const entries = await Promise.all(
+    MEDIA_KINDS.map(async (kind) => {
+      if (!selected.has(kind)) return [kind, emptyMediaPage(params.page, params.size)]
+      const page = await MEDIA_APIS[kind](params)
+      return [kind, page || emptyMediaPage(params.page, params.size)]
+    }),
+  )
+
+  const items = entries.flatMap(([kind, page]) =>
+    (page?.content || []).map((item) => ({ ...item, kind })),
+  )
+  const totalElements = entries.reduce(
+    (sum, [, page]) => sum + (Number(page?.totalElements) || 0),
+    0,
+  )
+  const totalPages = entries.reduce(
+    (max, [, page]) => Math.max(max, Number(page?.totalPages) || 0),
+    0,
+  )
+
+  return { items, totalElements, totalPages, number: params.page }
+}
 
 // Skeleton placeholder cards shown while a page of results loads.
 function SkeletonGrid() {
@@ -59,16 +111,17 @@ export function KhiBrowsePage() {
     () => (searchParams.get('types') || '').split(',').filter((k) => MEDIA_KINDS.includes(k)),
     [searchParams],
   )
-  // Scope resolution: an explicit ?type= entity (person/project/category) wins;
-  // else selecting exactly ONE media type drops into that media's per-entity
-  // scope — the only place the entity-specific filters work (the feed accepts
-  // just the common block). 0 or 2+ media kinds → the unified feed ('all').
+  // Scope resolution: an explicit ?type= entity (person/project/category) wins.
+  // Else selecting exactly ONE media type drops into that media's per-entity
+  // scope. 0 or 2+ media kinds stay on the public media grid ('all'), which
+  // fans out to /guest/images, /guest/audios, /guest/videos, and /guest/texts.
   const typeParam = searchParams.get('type')
   const isEntityScope = ENTITY_SCOPES.includes(typeParam) && Boolean(TYPE_MAP[typeParam])
   const typeKey = isEntityScope
     ? typeParam
     : (selectedMediaTypes.length === 1 ? selectedMediaTypes[0] : DEFAULT_TYPE)
   const type = TYPE_MAP[typeKey]
+  const pageSize = TYPE_PAGE_SIZES[typeKey] || PAGE_SIZE
 
   // Shared (server) facets + the scope's entity-specific (data-driven) facets,
   // rendered through one FacetGroup list. Data groups key their options by the
@@ -99,8 +152,8 @@ export function KhiBrowsePage() {
 
   const [facets, setFacets] = useState(null)
   // Entity-specific checkbox options, tallied from the live archive for the
-  // active media scope (empty for the feed / entity scopes). Merged on top of
-  // the server facets so the FacetGroup list renders both from one object.
+  // active media scope (empty for the mixed media grid / entity scopes). Merged
+  // on top of the server facets so FacetGroup renders both from one object.
   const dataFacets = useDataFacets(type)
   const publicFilterCounts = usePublicFilterCounts(typeKey, selectedMediaTypes)
   const allFacets = useMemo(
@@ -138,7 +191,7 @@ export function KhiBrowsePage() {
 
   const switchType = (key) => {
     const sp = new URLSearchParams()
-    // 'all' is the default feed — leave it out of the URL for a clean link.
+    // 'all' is the default media grid — leave it out of the URL for a clean link.
     if (key && key !== 'all') sp.set('type', key)
     if (q) sp.set('q', q)
     if (view === 'list') sp.set('layout', 'list')
@@ -186,7 +239,7 @@ export function KhiBrowsePage() {
     else setLoading(true)
     setError('')
 
-    const params = { page: targetPage, size: PAGE_SIZE, sortBy, sortDirection: sortDir, signal: ctrl.signal }
+    const params = { page: targetPage, size: pageSize, sortBy, sortDirection: sortDir, signal: ctrl.signal }
     if (q) params.q = q
     if (type.showDateRange && dateFrom) params.dateFrom = dateFrom
     if (type.showDateRange && dateTo) params.dateTo = dateTo
@@ -196,12 +249,16 @@ export function KhiBrowsePage() {
       // Repeatable params send every selection; single params send one value.
       params[group.paramKey] = group.multi ? list : list[0]
     }
-    if (type.showMediaTypes && selectedMediaTypes.length > 0) params.types = selectedMediaTypes
+    const request = typeKey === 'all'
+      ? loadPublicMediaSections(params, selectedMediaTypes)
+      : type.api(params)
 
-    type.api(params)
+    request
       .then((res) => {
         if (ctrl.signal.aborted) return
-        const content = res?.content || (Array.isArray(res) ? res : [])
+        const content = typeKey === 'all'
+          ? (res?.items || [])
+          : (res?.content || (Array.isArray(res) ? res : []))
         setItems((prev) => (append ? [...prev, ...content] : content))
         setMeta({
           totalElements: Number(res?.totalElements ?? content.length),
@@ -213,7 +270,7 @@ export function KhiBrowsePage() {
       .finally(() => { if (!ctrl.signal.aborted) { setLoading(false); setLoadingMore(false) } })
     return () => ctrl.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryKey, page])
+  }, [queryKey, page, pageSize])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // On a NEW query (not when appending), reset the internal scroll so the user
@@ -248,9 +305,10 @@ export function KhiBrowsePage() {
   const mediaTypeCounts = { audio: counts.audio, video: counts.video, text: counts.text, image: counts.image }
 
   // ── Facet / filter handlers ─────────────────────────────────────────────────
-  // Repeatable params (genre + entity list fields) accumulate; single-value
-  // params (category/person/language/… + single entity fields) replace, so the
-  // checkbox group behaves like the backend's one-value contract.
+  // Repeatable params (subject/genre/tag/keyword + entity list fields)
+  // accumulate; single-value params (category/person/language/… + single
+  // entity fields) replace, so the checkbox group behaves like the backend's
+  // one-value contract.
   const onToggleFacet = (paramKey, val) => {
     const group = filterGroups.find((g) => g.paramKey === paramKey)
     const cur = new Set(selected[paramKey] || [])
@@ -421,7 +479,7 @@ export function KhiBrowsePage() {
                       </span>
                     </button>
                   </div>
-                ) : totalElements > PAGE_SIZE ? (
+                ) : totalElements > pageSize ? (
                   <p className="show-more-done">{`${totalElements.toLocaleString()} ${UI.results}`}</p>
                 ) : null}
               </>

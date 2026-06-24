@@ -16,44 +16,6 @@ export async function guestGlobalSearch({ q, perSection, signal } = {}) {
   return data
 }
 
-// Unified ranked search across audio/video/text/image. One paginated feed
-// where each row carries `kind`, `score`, `matchedOn[]` and the inline
-// payload for that kind, so the frontend can render a card without a
-// second fetch. Repeatable params (types/tag/keyword) MUST be serialized
-// as `?types=audio&types=video` — Spring's @RequestParam List binder
-// expects the repeated form, NOT axios's default `types[]=...` brackets,
-// so we override the serializer for this call.
-export async function guestResults(params = {}) {
-  const { signal, ...rest } = params
-  const { data } = await apiClient.get('/guest/results', {
-    params: rest,
-    paramsSerializer: { indexes: null },
-    signal,
-  })
-  return data
-}
-
-// Unified media FEED — the fast endpoint that powers the public home/browse
-// grid. As of the media-only rewrite it returns ONLY the four media kinds
-// (image|video|audio|text; aliases photo→image, sound→audio). Project/person
-// rows now live at their dedicated endpoints (guestProjects/guestPersons), and
-// any project/person value in `types` is silently ignored. Rows come back
-// DB-grouped by kind as the PRIMARY sort (image→video→audio→text, then your
-// sortBy, then id) — so a page is contiguous per-kind blocks, never interleaved.
-// Same repeatable-param contract as guestResults (types/genre/tag/keyword must
-// serialize as `?types=a&types=b`, not axios's bracket form), plus exact filters
-// (category/person/language/dialect/region) and a date range. Returns a Spring
-// Page of slim card rows, each carrying its own `kind`.
-export async function guestFeed(params = {}) {
-  const { signal, ...rest } = params
-  const { data } = await apiClient.get('/guest/feed', {
-    params: rest,
-    paramsSerializer: { indexes: null },
-    signal,
-  })
-  return data
-}
-
 // Autocomplete suggestions across every entity. Keep `limit` small (~10) for
 // header search dropdowns.
 export async function guestSuggest({ q, limit, signal } = {}) {
@@ -64,9 +26,16 @@ export async function guestSuggest({ q, limit, signal } = {}) {
 }
 
 // Sidebar checkbox counts (media-type, categories, persons, languages,
-// dialects, regions, genres, tags, keywords). Hits the in-memory facet map.
+// dialects, regions, subjects, genres, tags, keywords). Hits the in-memory
+// facet map.
 export async function guestFacets({ signal } = {}) {
   const { data } = await apiClient.get('/guest/facets', { signal })
+  return data
+}
+
+// Public trending data: highlighted media rows plus top search terms.
+export async function guestTrending({ signal } = {}) {
+  const { data } = await apiClient.get('/guest/trending', { signal })
   return data
 }
 
@@ -138,8 +107,7 @@ function makeMediaApi(resource) {
       const { signal, ...query } = params
       // Repeatable filters (genre/subject/tag/keyword + the entity-specific list
       // fields like color/whereUsed/contributor) must serialize as
-      // `?genre=a&genre=b`, not axios's default `genre[]=…` brackets — same
-      // contract the feed/results calls use.
+      // `?genre=a&genre=b`, not axios's default `genre[]=…` brackets.
       const { data } = await apiClient.get(`/guest/${resource}`, {
         params: query,
         paramsSerializer: { indexes: null },

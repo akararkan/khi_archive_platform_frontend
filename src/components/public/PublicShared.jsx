@@ -194,11 +194,10 @@ function KindIcon({ kind, className }) {
 //   audio/video/text/imageCount   Used by Project covers
 //   year, duration                Used by media covers
 
-// Pretty labels for the `matchedOn` chips returned by the unified
-// /api/guest/results endpoint — the column the search engine actually
-// matched on (title / person / project / tag / keyword). Surfacing this
-// inline on each card explains *why* a row showed up, so the user can
-// trust the ranked feed instead of treating it as a black box.
+// Pretty labels for optional `matchedOn` chips — the column the search engine
+// actually matched on (title / person / project / tag / keyword). Surfacing this
+// inline on each card explains *why* a row showed up when a backend provides
+// that metadata.
 const MATCH_LABELS = {
   title: 'title',
   person: 'person',

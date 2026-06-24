@@ -1,10 +1,8 @@
 import { Navigate, useSearchParams } from 'react-router-dom'
 
 // Forwards `/public/search?q=…` (the original cross-section search route)
-// to `/public/browse?type=all&q=…`. The unified `all` scope hits the
-// `/api/guest/results` endpoint, which is the closest match to what the
-// old global-search page promised — one ranked feed across audio, video,
-// text and image.
+// to `/public/browse?type=all&q=…`. The `all` scope now fans out to the
+// four public media get-all endpoints instead of the removed results/feed APIs.
 function PublicSearchRedirect() {
   const [params] = useSearchParams()
   const q = params.get('q') || ''

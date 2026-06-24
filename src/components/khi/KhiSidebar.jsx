@@ -91,8 +91,8 @@ function PersonDot({ entry }) {
   )
 }
 
-// Full public filter rail: type navigation + (for the unified feed) media-type
-// narrowing + per-type facets + creation-date range + per-kind "search within".
+// Full public filter rail: type navigation + media-type narrowing + per-type
+// facets + creation-date range + per-kind "search within".
 export default function KhiSidebar({
   types, activeType, onType, counts = {}, onClose,
   facetGroups = [], facets, selected, onToggleFacet,
@@ -115,8 +115,8 @@ export default function KhiSidebar({
         ) : null}
       </div>
 
-      {/* Media-type checkboxes — the primary way to browse the unified feed,
-          always shown; toggling one jumps to the feed from any scope. */}
+      {/* Media-type checkboxes — the primary way to browse the public media
+          grid, always shown; toggling one jumps to the grid from any scope. */}
       {showMediaTypes ? (
         <div className="facet media-facet">
           <summary style={{ listStyle: 'none' }}>

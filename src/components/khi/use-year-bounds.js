@@ -95,6 +95,7 @@ export function useYearBounds(type, facets) {
   const [settled, setSettled] = useState(false)
 
   const enabled = Boolean(type?.showDateRange)
+  const canProbe = typeof type?.api === 'function'
   const typeKey = type?.key
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -102,7 +103,7 @@ export function useYearBounds(type, facets) {
     // When the active type has no date range, leave state alone — the memo
     // below already returns nulls for disabled types, so stale probe data
     // can't leak into the output.
-    if (!enabled || typeof type?.api !== 'function') return undefined
+    if (!enabled || !canProbe) return undefined
     let cancelled = false
     setProbed(null) // clear a previous type's span so it never flashes
     setSettled(false)
@@ -122,7 +123,7 @@ export function useYearBounds(type, facets) {
       .finally(() => { if (!cancelled) { setLoading(false); setSettled(true) } })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, typeKey])
+  }, [enabled, canProbe, typeKey])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   return useMemo(() => {
@@ -141,9 +142,9 @@ export function useYearBounds(type, facets) {
     if (max - min < 10) max = min + 10
     // Interactive once the probe settles or a facet range is known — never
     // stuck if a type has no dated rows (we fall back to [1900 … now]).
-    const ready = settled || facetRange != null
+    const ready = !canProbe || settled || facetRange != null
     return { min, max, loading, ready }
-  }, [enabled, facets, probed, loading, settled, fallback])
+  }, [enabled, canProbe, facets, probed, loading, settled, fallback])
 }
 
 export default useYearBounds

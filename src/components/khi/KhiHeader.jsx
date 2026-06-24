@@ -8,8 +8,8 @@ import { getAccountArea, getAccountHomePath } from '@/lib/account-role'
 import { IconSearch, IconSignout, IconSignin, IconPerson, IconDashboard } from './icons'
 import { UI } from './khi-data'
 
-// Sticky public header: brand → home, a global search that lands on the unified
-// results feed, and auth actions (workspace/sign-out when logged in, else
+// Sticky public header: brand → home, a global search that lands on the public
+// media grid, and auth actions (workspace/sign-out when logged in, else
 // sign-in/register). Search seeds from the current ?q so it stays in sync.
 export default function KhiHeader() {
   const navigate = useNavigate()

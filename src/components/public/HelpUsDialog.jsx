@@ -349,6 +349,7 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
       onMouseDown={(e) => { if (e.target === e.currentTarget && !submitting) onOpenChange(false) }}
       role="dialog"
       aria-modal="true"
+      aria-labelledby="khi-help-dialog-title"
     >
       <div
         className="khi-help-shell flex w-full max-w-[980px] flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl ring-1 ring-black/10"
@@ -362,7 +363,7 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-heading text-[18px] font-bold text-foreground">{KU.title}</span>
+                <span id="khi-help-dialog-title" className="font-heading text-[18px] font-bold text-foreground">{KU.title}</span>
                 <span className="rounded-md border border-border bg-secondary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-secondary-foreground">{mediaType}</span>
               </div>
               {mediaTitle ? <p className="mt-0.5 truncate text-[12px] font-medium text-muted-foreground" style={{ maxWidth: 560 }}>{mediaTitle}</p> : null}
