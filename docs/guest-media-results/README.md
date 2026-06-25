@@ -6,7 +6,7 @@ card grid, list view, scrolling result panel, and pagination.
 
 ## Extracted files
 
-
+hello
 - `GuestMediaResultsContainer.jsx` — copy-ready React container using the
   project's existing `KhiToolbar` and `KhiCard` components.
 - `guest-media-results.css` — the relevant container, card, media-preview,
