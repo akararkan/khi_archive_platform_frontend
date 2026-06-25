@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { DataPagination } from '@/components/ui/pagination'
+import { SearchClearButton } from '@/components/ui/search-clear-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { ku } from '@/lib/maqam-i18n'
@@ -95,8 +96,11 @@ function TeacherRecentPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={ku.recentSearch}
-          className="pr-9"
+          className="pl-8 pr-9"
         />
+        {search ? (
+          <SearchClearButton className="left-1.5 right-auto" onClick={() => setSearch('')} />
+        ) : null}
       </div>
 
       {error ? (

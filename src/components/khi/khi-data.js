@@ -186,6 +186,8 @@ const IMAGE_FACETS = SHARED_MEDIA_FACETS.filter((f) => !['language', 'dialect'].
 const PROJECT_FACETS = [
   { paramKey: 'categoryCode', facetKey: 'categories', title: 'پۆل', defaultOpen: true },
   { paramKey: 'personCode', facetKey: 'persons', title: 'کەس', person: true },
+  { paramKey: 'tag', facetKey: 'tags', title: 'تاگ', multi: true },
+  { paramKey: 'keyword', facetKey: 'keywords', title: 'کلیلەوشەکان', multi: true },
 ]
 const PERSON_FACETS = [{ paramKey: 'region', facetKey: 'regions', title: 'ناوچە', defaultOpen: true }]
 // Common filters sent to every selected public media endpoint. The media-type

@@ -22,6 +22,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { DataPagination } from '@/components/ui/pagination'
+import { SearchClearButton } from '@/components/ui/search-clear-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePersistentState } from '@/hooks/use-persistent-state'
@@ -624,8 +625,11 @@ function TeacherMaqamListPage() {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder={ku.searchPlaceholder}
-                    className="pe-8"
+                    className="pe-8 ps-8"
                   />
+                  {query ? (
+                    <SearchClearButton className="left-1.5 right-auto" onClick={() => setQuery('')} />
+                  ) : null}
                 </div>
               </div>
 

@@ -23,6 +23,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { DataPagination } from '@/components/ui/pagination'
+import { SearchClearButton } from '@/components/ui/search-clear-button'
 import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -609,8 +610,9 @@ function AdminCorrectionsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search field or correction…"
-              className="pl-8"
+              className="pl-8 pr-8"
             />
+            {search ? <SearchClearButton onClick={() => setSearch('')} /> : null}
           </div>
 
           {/* status chips */}

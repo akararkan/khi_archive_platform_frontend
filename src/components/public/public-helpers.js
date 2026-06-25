@@ -15,9 +15,9 @@ function pickFirst(...values) {
 // of the backend's title field names it actually carries. The backend
 // uses different names per kind (audio uses originTitle / alterTitle /
 // fullName, video uses originalTitle / alternativeTitle, text/image
-// follow video, and some rows expose a normalised `title`). Reading
-// them all here means every detail page, card, and breadcrumb gets a
-// consistent best-available title and never falls
+// follow video, and feed/search rows can expose a normalised `title`).
+// Reading them all here means every detail page, card, and breadcrumb
+// gets a consistent best-available title and never falls
 // through to the technical code on a record that has titles set under
 // a name we forgot to check.
 function pickMediaTitle(item) {
@@ -117,6 +117,7 @@ function formatBool(value) {
 //     languages:  [{ value, count }, …],
 //     dialects:   [{ value, count }, …],
 //     regions:    [{ value, count }, …],
+//     subjects:   [{ value, count }, …],
 //     genres:     [{ value, count }, …],
 //     tags:       [{ value, count }, …],
 //     subjects:   [{ value, count }, …],

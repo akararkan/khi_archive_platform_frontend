@@ -26,6 +26,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Highlight } from '@/components/ui/highlight'
 import { Input } from '@/components/ui/input'
+import { SearchClearButton } from '@/components/ui/search-clear-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -842,8 +843,9 @@ function UsersTab({ users, rawUsers, isLoading, error, onRetry, filterValue, onF
               value={filterValue}
               onChange={(e) => onFilterChange(e.target.value)}
               placeholder="Filter users by name or username…"
-              className="pl-8"
+              className="pl-8 pr-8"
             />
+            {filterValue ? <SearchClearButton onClick={() => onFilterChange('')} /> : null}
           </div>
         </CardContent>
       </Card>

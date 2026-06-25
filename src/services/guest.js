@@ -16,6 +16,19 @@ export async function guestGlobalSearch({ q, perSection, signal } = {}) {
   return data
 }
 
+// Public media feed for the main guest browse/search grid. The backend accepts
+// repeated arrays (`types`, `subject`, `genre`, `tag`, `keyword`) in Spring's
+// `?types=image&types=audio` form, so axios bracket indexes are disabled here.
+export async function guestFeed(params = {}) {
+  const { signal, ...rest } = params
+  const { data } = await apiClient.get('/guest/feed', {
+    params: rest,
+    paramsSerializer: { indexes: null },
+    signal,
+  })
+  return data
+}
+
 // Autocomplete suggestions across every entity. Keep `limit` small (~10) for
 // header search dropdowns.
 export async function guestSuggest({ q, limit, signal } = {}) {
@@ -107,7 +120,8 @@ function makeMediaApi(resource) {
       const { signal, ...query } = params
       // Repeatable filters (genre/subject/tag/keyword + the entity-specific list
       // fields like color/whereUsed/contributor) must serialize as
-      // `?genre=a&genre=b`, not axios's default `genre[]=…` brackets.
+      // `?genre=a&genre=b`, not axios's default `genre[]=…` brackets — same
+      // contract the feed call uses.
       const { data } = await apiClient.get(`/guest/${resource}`, {
         params: query,
         paramsSerializer: { indexes: null },
