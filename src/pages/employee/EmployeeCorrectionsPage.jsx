@@ -19,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { DataPagination } from '@/components/ui/pagination'
+import { SearchClearButton } from '@/components/ui/search-clear-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useToast } from '@/hooks/use-toast'
@@ -369,7 +370,13 @@ function EmployeeCorrectionsPage() {
         <CardContent className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="relative w-full sm:max-w-xs">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search notifications…" className="pl-8" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search notifications…"
+              className="pl-8 pr-8"
+            />
+            {search ? <SearchClearButton onClick={() => setSearch('')} /> : null}
           </div>
           <div className="flex flex-wrap gap-1.5">
             <FilterChip label="All"              isActive={filter === 'all'}         onClick={() => setFilter('all')}         />

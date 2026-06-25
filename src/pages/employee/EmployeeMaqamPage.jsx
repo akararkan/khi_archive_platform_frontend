@@ -8,6 +8,7 @@ import { CodeBadge } from '@/components/ui/code-badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { DataPagination } from '@/components/ui/pagination'
+import { SearchClearButton } from '@/components/ui/search-clear-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -187,8 +188,9 @@ function EmployeeMaqamPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by song, singer, or code…"
-              className="pl-8"
+              className="pl-8 pr-8"
             />
+            {search ? <SearchClearButton onClick={() => setSearch('')} /> : null}
           </div>
         </CardContent>
       </Card>

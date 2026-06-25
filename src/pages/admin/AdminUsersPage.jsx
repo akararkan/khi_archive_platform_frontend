@@ -41,6 +41,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Highlight } from '@/components/ui/highlight'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { SearchClearButton } from '@/components/ui/search-clear-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -461,8 +462,9 @@ function AdminUsersPage() {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filter by name, username, email, or role…"
-              className="pl-8"
+              className="pl-8 pr-8"
             />
+            {filter ? <SearchClearButton onClick={() => setFilter('')} /> : null}
           </div>
         </CardContent>
       </Card>
