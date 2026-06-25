@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { RefreshCw, Search } from 'lucide-react'
+import { RefreshCw, Search, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { SearchClearButton } from '@/components/ui/search-clear-button'
 import { cn } from '@/lib/utils'
 
 /**
@@ -82,10 +81,18 @@ function EntityToolbar({
                 placeholder={searchPlaceholder}
                 className="pl-8 pr-8"
               />
-              {searchValue ? (
-                <SearchClearButton onClick={() => onSearchChange('')} />
-              ) : null}
             </div>
+            {searchValue ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-8 gap-2 shrink-0"
+                onClick={() => onSearchChange('')}
+              >
+                <X className="size-4" />
+                Clear
+              </Button>
+            ) : null}
             {onRefresh ? (
               <Button
                 type="button"

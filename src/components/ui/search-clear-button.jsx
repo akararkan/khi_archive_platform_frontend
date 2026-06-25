@@ -9,7 +9,7 @@ function SearchClearButton({ onClick, className, label = 'Clear search' }) {
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
       className={cn(
-        'absolute right-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+        'absolute right-1 top-1/2 z-10 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-border bg-background text-foreground/70 shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
         className,
       )}
       aria-label={label}
