@@ -363,9 +363,18 @@ function EmployeeProjectPage() {
     async (project, next) => {
       const code = project.projectCode
       setVisSaving((s) => ({ ...s, [code]: true }))
-      setProjects((ps) => ps.map((p) => (p.projectCode === code ? { ...p, isVisibleToPublic: next } : p)))
+      setProjects((ps) =>
+        ps.map((p) =>
+          p.projectCode === code
+            ? { ...p, isVisibleToPublic: next, visibleToPublic: next }
+            : p,
+        ),
+      )
       try {
-        await setProjectVisibility(project, next)
+        const saved = await setProjectVisibility(project, next)
+        if (saved?.projectCode) {
+          setProjects((ps) => ps.map((p) => (p.projectCode === code ? { ...p, ...saved } : p)))
+        }
         toast.success(
           next ? 'Collection is now public' : 'Collection hidden',
           next
@@ -373,7 +382,13 @@ function EmployeeProjectPage() {
             : `${code} — hidden from guests (its media is hidden from them too).`,
         )
       } catch (err) {
-        setProjects((ps) => ps.map((p) => (p.projectCode === code ? { ...p, isVisibleToPublic: !next } : p)))
+        setProjects((ps) =>
+          ps.map((p) =>
+            p.projectCode === code
+              ? { ...p, isVisibleToPublic: !next, visibleToPublic: !next }
+              : p,
+          ),
+        )
         if (isStaleVersionError(err)) {
           toast.apiError(err, 'Reload required')
           await loadProjects()

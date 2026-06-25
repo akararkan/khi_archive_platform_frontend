@@ -1,12 +1,64 @@
 import { apiClient } from '@/lib/api-client'
 
+function readBool(value) {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'true') return true
+    if (normalized === 'false') return false
+  }
+  return undefined
+}
+
+function projectVisibility(project) {
+  const value =
+    readBool(project?.isVisibleToPublic) ??
+    readBool(project?.visibleToPublic) ??
+    readBool(project?.projectVisibleToPublic) ??
+    readBool(project?.publicVisible)
+  return value ?? true
+}
+
+function normalizeProject(project) {
+  if (!project || typeof project !== 'object') return project
+  const isVisibleToPublic = projectVisibility(project)
+  return {
+    ...project,
+    isVisibleToPublic,
+    visibleToPublic: isVisibleToPublic,
+  }
+}
+
+function normalizeProjectPage(data) {
+  if (Array.isArray(data)) return data.map(normalizeProject)
+  if (!data || typeof data !== 'object') return data
+  if (!Array.isArray(data.content)) return data
+  return {
+    ...data,
+    content: data.content.map(normalizeProject),
+  }
+}
+
+function projectPayload(payload = {}) {
+  const next = { ...payload }
+  const visibility = readBool(next.isVisibleToPublic) ?? readBool(next.visibleToPublic)
+  if (visibility !== undefined) {
+    // Spring/Jackson may expose a boolean `isVisibleToPublic` field as
+    // `visibleToPublic`; send both aliases so the DB-backed flag is updated
+    // no matter which DTO shape the backend currently uses.
+    next.isVisibleToPublic = visibility
+    next.visibleToPublic = visibility
+  }
+  return next
+}
+
 // Backward-compatible: returns just the row array (was the old shape) so
 // existing callers (modals, dropdowns, the Project-Detail page's media
 // loaders) keep working. The backend now always returns a Spring Page,
 // so we read `.content`.
 export async function getProjects() {
   const { data } = await apiClient.get('/project')
-  return data?.content ?? data ?? []
+  return normalizeProjectPage(data?.content ?? data ?? [])
 }
 
 // Paginated fetch — returns the full Spring Page<DTO> shape:
@@ -14,22 +66,22 @@ export async function getProjects() {
 // The list views call this so they can render server-side pagination.
 export async function getProjectsPage({ page = 0, size = 100, signal } = {}) {
   const { data } = await apiClient.get('/project', { params: { page, size }, signal })
-  return data
+  return normalizeProjectPage(data)
 }
 
 export async function getProject(code) {
   const { data } = await apiClient.get(`/project/${code}`)
-  return data
+  return normalizeProject(data)
 }
 
 export async function createProject(payload) {
-  const { data } = await apiClient.post('/project', payload)
-  return data
+  const { data } = await apiClient.post('/project', projectPayload(payload))
+  return normalizeProject(data)
 }
 
 export async function updateProject(code, payload) {
-  const { data } = await apiClient.patch(`/project/${code}`, payload)
-  return data
+  const { data } = await apiClient.patch(`/project/${code}`, projectPayload(payload))
+  return normalizeProject(data)
 }
 
 // Flip ONLY a collection's public visibility without opening the edit form.
@@ -43,11 +95,11 @@ export async function updateProject(code, payload) {
 // right default for a quick toggle.
 //   PATCH /api/project/{code}/visibility   { isVisibleToPublic, visibilityCascade }
 export async function setProjectVisibility(project, isVisibleToPublic, { cascade = 'NONE' } = {}) {
-  const { data } = await apiClient.patch(`/project/${project.projectCode}/visibility`, {
+  const { data } = await apiClient.patch(`/project/${project.projectCode}/visibility`, projectPayload({
     isVisibleToPublic,
     visibilityCascade: cascade === 'CASCADE' ? 'CASCADE' : 'NONE',
-  })
-  return data
+  }))
+  return normalizeProject(data)
 }
 
 // Soft-trash (V3 trash model). Important: deleting a project also bulk-
@@ -75,7 +127,7 @@ export async function deleteProject(code) {
 // after restore if needed.
 export async function restoreProject(code) {
   const { data } = await apiClient.post(`/project/${code}/restore`)
-  return data
+  return data?.project ? { ...data, project: normalizeProject(data.project) } : data
 }
 
 // Paginated trash listing (admin-only).
