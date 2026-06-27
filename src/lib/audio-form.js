@@ -317,8 +317,10 @@ export function deriveAudioAutoFieldsFromFile(file) {
   return {
     fileExtension: ext,
     fileSize: formatFileSize(file.size),
-    pathInExternal: path,
-    volumeName,
-    directoryName,
+    // Never overwrite manually entered storage information with empty values
+    // when a standard browser hides the source path.
+    ...(path ? { pathInExternal: path } : {}),
+    ...(volumeName ? { volumeName } : {}),
+    ...(directoryName ? { directoryName } : {}),
   }
 }

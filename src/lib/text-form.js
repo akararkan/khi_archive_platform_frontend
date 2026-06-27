@@ -299,8 +299,8 @@ export function deriveTextAutoFieldsFromFile(file) {
     fileName: name,
     extension: ext,
     fileSize: formatFileSize(file.size),
-    pathInExternalVolume: path,
-    volumeName,
-    directory,
+    ...(path ? { pathInExternalVolume: path } : {}),
+    ...(volumeName ? { volumeName } : {}),
+    ...(directory ? { directory } : {}),
   }
 }
