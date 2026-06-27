@@ -1,3 +1,5 @@
+import { getFileSourcePath } from '@/lib/file-source-path'
+
 // Text-form helpers — mirrors video-form, with text-specific fields
 // (textVersion enum, isbn/edition/series, language/dialect, pageCount, etc.).
 
@@ -105,7 +107,7 @@ export function createInitialTextForm() {
     locationInArchiveRoom: '',
     lccClassification: '',
     note: '',
-    isPublic: true,
+    isPublic: false,
 
     tags: [],
     keywords: [],
@@ -181,7 +183,7 @@ export function buildTextPayload(form, projectCode) {
     locationInArchiveRoom: trimOrNull(form.locationInArchiveRoom),
     lccClassification: trimOrNull(form.lccClassification),
     note: trimOrNull(form.note),
-    isPublic: form.isPublic !== false,
+    isPublic: form.isPublic === true,
 
     tags: toArray(form.tags),
     keywords: toArray(form.keywords),
@@ -257,7 +259,7 @@ export function populateTextFormFromText(text) {
     locationInArchiveRoom: text.locationInArchiveRoom || '',
     lccClassification: text.lccClassification || '',
     note: text.note || '',
-    isPublic: text.isPublic !== false,
+    isPublic: text.isPublic === true,
 
     tags: toArray(text.tags),
     keywords: toArray(text.keywords),
@@ -291,19 +293,7 @@ export function deriveTextAutoFieldsFromFile(file) {
   // See video-form for the reasoning: source-path fields can only be
   // auto-filled when the user picks a folder. Single-file pickers leave
   // them blank by design.
-  const relativePath = file.webkitRelativePath || ''
-
-  let volumeName = ''
-  let directory = ''
-  let path = ''
-  if (relativePath) {
-    const parts = relativePath.split('/').filter(Boolean)
-    if (parts.length >= 2) {
-      volumeName = parts[0]
-      directory = parts[parts.length - 2]
-    }
-    path = relativePath
-  }
+  const { path, volumeName, directory } = getFileSourcePath(file)
 
   return {
     fileName: name,

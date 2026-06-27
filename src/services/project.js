@@ -16,7 +16,7 @@ function projectVisibility(project) {
     readBool(project?.visibleToPublic) ??
     readBool(project?.projectVisibleToPublic) ??
     readBool(project?.publicVisible)
-  return value ?? true
+  return value ?? false
 }
 
 function normalizeProject(project) {

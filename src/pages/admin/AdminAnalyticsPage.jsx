@@ -621,31 +621,33 @@ function OverviewTab({
           "monthly statistic of user work" the admin asked for); daily
           stays available because short ranges read better as one bar
           per day. Toggle is inline so it never feels hidden. */}
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardContent className="space-y-3 px-5 py-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                {isMonthly ? 'Monthly activity' : 'Daily activity'}
-              </p>
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {isMonthly
-                  ? monthlyCount > 0
-                    ? `${monthlyCount} month${monthlyCount === 1 ? '' : 's'}`
-                    : 'No data'
-                  : dailyCount > 0
-                  ? `${dailyCount} day${dailyCount === 1 ? '' : 's'}`
-                  : 'No data'}
-              </p>
+      <Card className="rounded-2xl border-border bg-card shadow-md shadow-black/5">
+        <CardContent className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/70 pb-5">
+            <div className="flex items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary/[0.07] text-primary">
+                <Activity className="size-5" />
+              </span>
+              <div className="space-y-0.5">
+                <p className="font-heading text-base font-semibold text-foreground">
+                  Activity over time
+                </p>
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {isMonthly
+                    ? `${monthlyCount} month${monthlyCount === 1 ? '' : 's'} in the selected range`
+                    : `${dailyCount} day${dailyCount === 1 ? '' : 's'} in the selected range`}
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-card/60 p-0.5 shadow-sm">
+            <div className="flex items-center gap-1 rounded-xl border border-border bg-muted/35 p-1 shadow-inner">
               <button
                 type="button"
                 onClick={() => onChartViewChange('monthly')}
+                aria-pressed={isMonthly}
                 className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                  'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
                   isMonthly
-                    ? 'bg-background text-foreground shadow-sm'
+                    ? 'bg-background text-foreground shadow-sm ring-1 ring-border/60'
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
@@ -655,10 +657,11 @@ function OverviewTab({
               <button
                 type="button"
                 onClick={() => onChartViewChange('daily')}
+                aria-pressed={!isMonthly}
                 className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                  'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
                   !isMonthly
-                    ? 'bg-background text-foreground shadow-sm'
+                    ? 'bg-background text-foreground shadow-sm ring-1 ring-border/60'
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
@@ -669,12 +672,12 @@ function OverviewTab({
           </div>
           {isMonthly ? (
             isMonthlyLoading && monthlyCount === 0 ? (
-              <Skeleton className="h-24 w-full rounded-md" />
+              <Skeleton className="h-[312px] w-full rounded-xl" />
             ) : (
               <MonthlyChart monthly={monthly || []} />
             )
           ) : isLoading ? (
-            <Skeleton className="h-16 w-full rounded-md" />
+            <Skeleton className="h-[312px] w-full rounded-xl" />
           ) : (
             <DailyChart daily={daily} />
           )}

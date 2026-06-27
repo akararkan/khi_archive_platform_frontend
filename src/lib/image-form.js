@@ -1,3 +1,5 @@
+import { getFileSourcePath } from '@/lib/file-source-path'
+
 // Image-form helpers — mirrors video-form, with image-specific fields
 // (imageVersion enum, dpi, manufacturer/model/lens, photostory, etc.).
 
@@ -104,7 +106,7 @@ export function createInitialImageForm() {
     locationInArchiveRoom: '',
     lccClassification: '',
     note: '',
-    isPublic: true,
+    isPublic: false,
 
     tags: [],
     keywords: [],
@@ -178,7 +180,7 @@ export function buildImagePayload(form, projectCode) {
     locationInArchiveRoom: trimOrNull(form.locationInArchiveRoom),
     lccClassification: trimOrNull(form.lccClassification),
     note: trimOrNull(form.note),
-    isPublic: form.isPublic !== false,
+    isPublic: form.isPublic === true,
 
     tags: toArray(form.tags),
     keywords: toArray(form.keywords),
@@ -252,7 +254,7 @@ export function populateImageFormFromImage(image) {
     locationInArchiveRoom: image.locationInArchiveRoom || '',
     lccClassification: image.lccClassification || '',
     note: image.note || '',
-    isPublic: image.isPublic !== false,
+    isPublic: image.isPublic === true,
 
     tags: toArray(image.tags),
     keywords: toArray(image.keywords),
@@ -285,19 +287,7 @@ export function deriveImageAutoFieldsFromFile(file) {
   // See video-form for the full reasoning: source-path fields can only
   // be auto-filled when the user picks a folder. Single-file pickers
   // leave them blank by design — better than misleading defaults.
-  const relativePath = file.webkitRelativePath || ''
-
-  let volumeName = ''
-  let directory = ''
-  let path = ''
-  if (relativePath) {
-    const parts = relativePath.split('/').filter(Boolean)
-    if (parts.length >= 2) {
-      volumeName = parts[0]
-      directory = parts[parts.length - 2]
-    }
-    path = relativePath
-  }
+  const { path, volumeName, directory } = getFileSourcePath(file)
 
   return {
     fileName: name,

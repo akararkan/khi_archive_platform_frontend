@@ -23,11 +23,11 @@ export function TypeBadge({ type, className }) {
 // only when BOTH the project flag and the row's own flag are true. Staff
 // always see everything, so we surface the badges instead of hiding rows.
 //
-//   projectVisibleToPublic === false → "Project hidden"
-//   isPublic === false               → "Hidden"
+// Missing flags are treated as private. Public visibility always requires an
+// explicit `true` from both the project and the item.
 export function VisibilityBadges({ item, className }) {
-  const projectHidden = item?.projectVisibleToPublic === false
-  const itemHidden = item?.isPublic === false
+  const projectHidden = item?.projectVisibleToPublic !== true
+  const itemHidden = item?.isPublic !== true
   if (!projectHidden && !itemHidden) {
     return (
       <span

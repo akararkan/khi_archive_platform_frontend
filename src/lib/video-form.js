@@ -1,3 +1,5 @@
+import { getFileSourcePath } from '@/lib/file-source-path'
+
 // Video-form helpers — kept in a sibling module so the project detail page stays
 // readable. Mirrors the audio-form shape but with video-specific field names
 // (originalTitle vs originTitle, videoCode vs audioCode, extension vs
@@ -111,7 +113,7 @@ export function createInitialVideoForm() {
     locationInArchiveRoom: '',
     lccClassification: '',
     note: '',
-    isPublic: true,
+    isPublic: false,
 
     tags: [],
     keywords: [],
@@ -190,7 +192,7 @@ export function buildVideoPayload(form, projectCode) {
     locationInArchiveRoom: trimOrNull(form.locationInArchiveRoom),
     lccClassification: trimOrNull(form.lccClassification),
     note: trimOrNull(form.note),
-    isPublic: form.isPublic !== false,
+    isPublic: form.isPublic === true,
 
     tags: toArray(form.tags),
     keywords: toArray(form.keywords),
@@ -269,7 +271,7 @@ export function populateVideoFormFromVideo(video) {
     locationInArchiveRoom: video.locationInArchiveRoom || '',
     lccClassification: video.lccClassification || '',
     note: video.note || '',
-    isPublic: video.isPublic !== false,
+    isPublic: video.isPublic === true,
 
     tags: toArray(video.tags),
     keywords: toArray(video.keywords),
@@ -302,21 +304,9 @@ export function deriveVideoAutoFieldsFromFile(file) {
   // See comment in EmployeeProjectDetailPage's deriveAutoFieldsFromFile:
   // these path/volume/directory fields describe the SOURCE folder the
   // file came from. The browser only exposes that when the user picks a
-  // folder via <input webkitdirectory>; for single-file pickers the
-  // absolute path is hidden, so we leave these blank rather than guess.
-  const relativePath = file.webkitRelativePath || ''
-
-  let volumeName = ''
-  let directory = ''
-  let path = ''
-  if (relativePath) {
-    const parts = relativePath.split('/').filter(Boolean)
-    if (parts.length >= 2) {
-      volumeName = parts[0]
-      directory = parts[parts.length - 2]
-    }
-    path = relativePath
-  }
+  // folder via <input webkitdirectory>; the UI then attaches exactly one file.
+  // A normal single-file picker would hide the path, so we do not use one.
+  const { path, volumeName, directory } = getFileSourcePath(file)
 
   return {
     fileName: name,

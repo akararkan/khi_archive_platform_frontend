@@ -686,11 +686,11 @@ function EmployeeItemsPage() {
                   <TableCell className="hidden md:table-cell">
                     <div className="flex flex-col items-start gap-1">
                       <VisibilityToggle
-                        checked={item.isPublic !== false}
+                        checked={item.isPublic === true}
                         pending={Boolean(savingVis[`${item.type}-${item.code}`])}
                         onToggle={(next) => handleToggleItemVisibility(item, next)}
                         title={
-                          item.isPublic !== false
+                          item.isPublic === true
                             ? 'Visible to public — click to hide'
                             : 'Hidden from public — click to show'
                         }

@@ -85,7 +85,7 @@ function AudioFieldLabel({ htmlFor, fieldKey, className, children }) {
 }
 
 export function AudioFormSections({ form, setForm, projectCategories = [] }) {
-  const isPublicAudio = form.isPublic !== false
+  const isPublicAudio = form.isPublic === true
   return (
     <>
       {/* Visibility */}

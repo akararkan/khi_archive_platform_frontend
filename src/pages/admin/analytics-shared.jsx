@@ -3,7 +3,7 @@
 // component-only (Vite's fast-refresh rule).
 
 import { Link } from 'react-router-dom'
-import { Activity, CalendarRange, CornerDownRight, RefreshCw } from 'lucide-react'
+import { Activity, CalendarRange, CornerDownRight, RefreshCw, Sparkles } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -26,52 +26,221 @@ import {
 // after dropping LIST: the CRUDs plus VIEW and SEARCH.
 const DEFAULT_ACTION_CATALOG = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'SEARCH']
 
-// Sparkline — pure SVG, no chart lib. Sorted ascending by date so the
-// rightmost bar is most recent (the eye reads left-to-right, oldest →
-// newest). Single SVG scales cleanly to any container width.
-function DailyChart({ daily, height = 64 }) {
-  const data = Array.isArray(daily) && daily.length > 0
-    ? [...daily]
-        .map((d) => ({ ...d, total: Number(d.total ?? 0) }))
-        .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+function formatPeriodLabel(value, granularity, compact = false) {
+  if (!value) return '—'
+  const raw = String(value)
+  const date = granularity === 'monthly'
+    ? new Date(`${raw.slice(0, 7)}-01T00:00:00`)
+    : new Date(`${raw.slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return raw
+
+  if (granularity === 'monthly') {
+    return new Intl.DateTimeFormat(undefined, {
+      month: compact ? 'short' : 'long',
+      year: 'numeric',
+    }).format(date)
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    month: compact ? 'short' : 'long',
+    day: 'numeric',
+    ...(compact ? {} : { year: 'numeric' }),
+  }).format(date)
+}
+
+function ActivityTimeChart({ items, granularity = 'daily' }) {
+  const keyName = granularity === 'monthly' ? 'label' : 'date'
+  const unit = granularity === 'monthly' ? 'month' : 'day'
+  const data = Array.isArray(items) && items.length > 0
+    ? [...items]
+        .map((item) => ({ ...item, total: Number(item.total ?? 0) }))
+        .sort((a, b) => String(a[keyName]).localeCompare(String(b[keyName])))
     : []
 
   if (data.length === 0) {
     return (
-      <div className="flex h-16 items-center justify-center text-xs text-muted-foreground">
-        No activity in this range.
+      <div className="flex min-h-60 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/15 text-center">
+        <span className="grid size-10 place-items-center rounded-xl bg-muted/60 text-muted-foreground">
+          <Activity className="size-5" />
+        </span>
+        <div>
+          <p className="text-sm font-medium text-foreground">No activity in this range</p>
+          <p className="text-xs text-muted-foreground">Try a wider date range or another action filter.</p>
+        </div>
       </div>
     )
   }
 
-  const max = Math.max(1, ...data.map((d) => d.total))
-  const barWidth = 100 / data.length
+  const total = data.reduce((sum, item) => sum + item.total, 0)
+  const average = total / data.length
+  const peak = data.reduce((best, item) => (item.total > best.total ? item : best), data[0])
+  const max = Math.max(1, peak.total)
+  const averagePosition = Math.min(100, (average / max) * 100)
+  const labelStep =
+    data.length <= 14 ? 1
+      : data.length <= 31 ? 3
+        : data.length <= 60 ? 5
+          : Math.ceil(data.length / 10)
+
   return (
-    <svg
-      role="img"
-      aria-label="Daily activity"
-      viewBox={`0 0 100 ${height}`}
-      preserveAspectRatio="none"
-      className="block h-16 w-full"
-    >
-      {data.map((d, idx) => {
-        const h = (d.total / max) * (height - 4)
-        return (
-          <rect
-            key={d.date || idx}
-            x={idx * barWidth + barWidth * 0.1}
-            y={height - h}
-            width={barWidth * 0.8}
-            height={Math.max(0.5, h)}
-            rx={0.6}
-            className="fill-primary/70"
+    <div className="space-y-5">
+      <div className="grid gap-2 sm:grid-cols-3">
+        <div className="rounded-xl border border-border/80 bg-muted/20 px-3.5 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Period total
+          </p>
+          <p className="mt-0.5 font-heading text-xl font-semibold tabular-nums text-foreground">
+            {formatNumber(total)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-border/80 bg-muted/20 px-3.5 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Average / {unit}
+          </p>
+          <p className="mt-0.5 font-heading text-xl font-semibold tabular-nums text-foreground">
+            {average.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+          </p>
+        </div>
+        <div className="rounded-xl border border-primary/15 bg-primary/[0.045] px-3.5 py-3">
+          <p className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary">
+            <Sparkles className="size-3" />
+            Peak {unit}
+          </p>
+          <div className="mt-0.5 flex items-baseline justify-between gap-2">
+            <p className="font-heading text-xl font-semibold tabular-nums text-foreground">
+              {formatNumber(peak.total)}
+            </p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {formatPeriodLabel(peak[keyName], granularity, true)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3">
+        <div className="flex h-48 flex-col justify-between pb-px text-right text-[10px] tabular-nums text-muted-foreground">
+          <span>{formatNumber(max)}</span>
+          <span>{formatNumber(Math.round(max / 2))}</span>
+          <span>0</span>
+        </div>
+
+        <div className="min-w-0">
+          <div className="relative h-48">
+            {[0, 25, 50, 75, 100].map((position) => (
+              <span
+                key={position}
+                aria-hidden="true"
+                className="absolute inset-x-0 border-t border-border/60"
+                style={{ bottom: `${position}%` }}
+              />
+            ))}
+
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-0 z-10 border-t border-dashed border-primary/45"
+              style={{ bottom: `${averagePosition}%` }}
+            >
+              <span className="absolute right-0 top-0 -translate-y-1/2 rounded-full border border-primary/15 bg-card px-1.5 py-0.5 text-[9px] font-medium tabular-nums text-primary shadow-sm">
+                Avg {average.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+              </span>
+            </div>
+
+            <div
+              className="absolute inset-0 grid items-end gap-1 sm:gap-1.5"
+              style={{ gridTemplateColumns: `repeat(${data.length}, minmax(0, 1fr))` }}
+            >
+              {data.map((item, index) => {
+                const percentage = item.total > 0
+                  ? Math.max(2.5, (item.total / max) * 100)
+                  : 0
+                const isPeak = item === peak
+                const breakdown = [
+                  item.created ? `${formatNumber(item.created)} created` : null,
+                  item.updated ? `${formatNumber(item.updated)} updated` : null,
+                  item.deleted ? `${formatNumber(item.deleted)} deleted` : null,
+                  item.restored ? `${formatNumber(item.restored)} restored` : null,
+                ].filter(Boolean)
+                return (
+                  <div
+                    key={item[keyName] || index}
+                    tabIndex={0}
+                    role="img"
+                    aria-label={`${formatPeriodLabel(item[keyName], granularity)}: ${formatNumber(item.total)} actions`}
+                    className="group relative flex h-full min-w-0 items-end justify-center rounded-t-md outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  >
+                    <span
+                      className={cn(
+                        'pointer-events-none absolute top-2 z-30 hidden min-w-max rounded-lg border border-border bg-popover px-2.5 py-2 text-left shadow-xl group-hover:block group-focus:block',
+                        index === 0
+                          ? 'left-0'
+                          : index === data.length - 1
+                            ? 'right-0'
+                            : 'left-1/2 -translate-x-1/2',
+                      )}
+                    >
+                      <span className="block text-[10px] font-medium text-muted-foreground">
+                        {formatPeriodLabel(item[keyName], granularity)}
+                      </span>
+                      <span className="mt-0.5 block text-sm font-semibold tabular-nums text-foreground">
+                        {formatNumber(item.total)} action{item.total === 1 ? '' : 's'}
+                      </span>
+                      {granularity === 'monthly' && item.activeUsers != null ? (
+                        <span className="block text-[10px] text-muted-foreground">
+                          {formatNumber(item.activeUsers)} active user{item.activeUsers === 1 ? '' : 's'}
+                        </span>
+                      ) : null}
+                      {breakdown.length > 0 ? (
+                        <span className="mt-1 block max-w-52 text-[10px] text-muted-foreground">
+                          {breakdown.join(' · ')}
+                        </span>
+                      ) : null}
+                    </span>
+
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'block w-full max-w-12 rounded-t-md border border-b-0 transition-[height,background-color,opacity] duration-300',
+                        isPeak
+                          ? 'border-primary/35 bg-gradient-to-t from-primary to-primary/65 shadow-lg shadow-primary/20'
+                          : 'border-primary/15 bg-gradient-to-t from-primary/75 to-primary/35 group-hover:from-primary group-hover:to-primary/60',
+                      )}
+                      style={{ height: `${percentage}%` }}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div
+            className="mt-2 grid gap-1"
+            style={{ gridTemplateColumns: `repeat(${data.length}, minmax(0, 1fr))` }}
           >
-            <title>{`${d.date}: ${formatNumber(d.total)} action${d.total === 1 ? '' : 's'}`}</title>
-          </rect>
-        )
-      })}
-    </svg>
+            {data.map((item, index) => {
+              const visible =
+                index === 0 ||
+                index === data.length - 1 ||
+                index % labelStep === 0
+              return (
+                <span
+                  key={item[keyName] || index}
+                  className={cn(
+                    'truncate text-center text-[9px] tabular-nums text-muted-foreground',
+                    !visible && 'opacity-0',
+                  )}
+                >
+                  {formatPeriodLabel(item[keyName], granularity, true)}
+                </span>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
   )
+}
+
+function DailyChart({ daily }) {
+  return <ActivityTimeChart items={daily} granularity="daily" />
 }
 
 // Take `icon` as the raw prop and re-bind to PascalCase inside the body —
@@ -257,69 +426,8 @@ function DateRangeFilter({
   )
 }
 
-// Monthly bar chart — same shape as DailyChart but each bar represents
-// a calendar month and the rightmost is the current month. Sorted
-// ascending so the eye reads left-to-right, oldest → newest. Title on
-// each bar surfaces the label + total on hover.
-function MonthlyChart({ monthly, height = 96 }) {
-  const data = Array.isArray(monthly) && monthly.length > 0
-    ? [...monthly]
-        .map((m) => ({ ...m, total: Number(m.total ?? 0) }))
-        .sort((a, b) => String(a.label).localeCompare(String(b.label)))
-    : []
-
-  if (data.length === 0) {
-    return (
-      <div className="flex h-24 items-center justify-center text-xs text-muted-foreground">
-        No activity in this range.
-      </div>
-    )
-  }
-
-  const max = Math.max(1, ...data.map((m) => m.total))
-  const barWidth = 100 / data.length
-  return (
-    <div className="space-y-1.5">
-      <svg
-        role="img"
-        aria-label="Monthly activity"
-        viewBox={`0 0 100 ${height}`}
-        preserveAspectRatio="none"
-        className="block h-24 w-full"
-      >
-        {data.map((m, idx) => {
-          const h = (m.total / max) * (height - 4)
-          return (
-            <rect
-              key={m.label || idx}
-              x={idx * barWidth + barWidth * 0.15}
-              y={height - h}
-              width={barWidth * 0.7}
-              height={Math.max(0.5, h)}
-              rx={1}
-              className="fill-primary/70 transition-opacity hover:fill-primary"
-            >
-              <title>{`${m.label}: ${formatNumber(m.total)} action${m.total === 1 ? '' : 's'} · ${formatNumber(m.activeUsers || 0)} active user${(m.activeUsers || 0) === 1 ? '' : 's'}`}</title>
-            </rect>
-          )
-        })}
-      </svg>
-      <div className="flex justify-between text-[10px] tabular-nums text-muted-foreground">
-        {data.map((m, idx) => (
-          <span
-            key={m.label || idx}
-            className={cn(
-              'truncate',
-              data.length > 12 && idx % 2 !== 0 && 'opacity-0',
-            )}
-            style={{ width: `${100 / data.length}%`, textAlign: 'center' }}
-          >
-            {String(m.label || '').replace(/^\d{4}-/, '')}
-          </span>
-        ))}
-      </div>
-    </div>
-  )
+function MonthlyChart({ monthly }) {
+  return <ActivityTimeChart items={monthly} granularity="monthly" />
 }
 
 // Action filter — checkbox-style chip row. The admin picks any subset

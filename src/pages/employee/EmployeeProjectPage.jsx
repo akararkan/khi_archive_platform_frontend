@@ -88,7 +88,7 @@ function createInitialForm() {
     description: '',
     tags: [],
     keywords: [],
-    isVisibleToPublic: true,
+    isVisibleToPublic: false,
     visibilityCascade: 'NONE', // CASCADE | NONE — only sent on update when the flag changes
   }
 }
@@ -104,7 +104,7 @@ function populateFormFromProject(project) {
     description: project.description || '',
     tags: toArray(project.tags),
     keywords: toArray(project.keywords),
-    isVisibleToPublic: project.isVisibleToPublic !== false,
+    isVisibleToPublic: project.isVisibleToPublic === true,
     visibilityCascade: 'NONE',
   }
 }
@@ -284,7 +284,7 @@ function EmployeeProjectPage() {
     description: form.description.trim() || null,
     tags: toArray(form.tags),
     keywords: toArray(form.keywords),
-    isVisibleToPublic: form.isVisibleToPublic !== false,
+    isVisibleToPublic: form.isVisibleToPublic === true,
   })
 
   const buildUpdatePayload = () => {
@@ -298,8 +298,8 @@ function EmployeeProjectPage() {
     // Only send the visibility flag when it actually changed; pair it with the
     // cascade choice so the backend either flips all media (CASCADE) or leaves
     // each media's own isPublic untouched (NONE).
-    const orig = currentProject?.isVisibleToPublic !== false
-    const next = form.isVisibleToPublic !== false
+    const orig = currentProject?.isVisibleToPublic === true
+    const next = form.isVisibleToPublic === true
     if (next !== orig) {
       payload.isVisibleToPublic = next
       payload.visibilityCascade = form.visibilityCascade === 'CASCADE' ? 'CASCADE' : 'NONE'
@@ -430,9 +430,9 @@ function EmployeeProjectPage() {
   /* ── form view ──────────────────────────────────────────────── */
   if (view === 'create' || view === 'edit') {
     const isEdit = view === 'edit'
-    const isPublicVisible = form.isVisibleToPublic !== false
+    const isPublicVisible = form.isVisibleToPublic === true
     // The cascade choice only matters when editing AND the flag actually changed.
-    const visibilityDirty = isEdit && isPublicVisible !== (currentProject?.isVisibleToPublic !== false)
+    const visibilityDirty = isEdit && isPublicVisible !== (currentProject?.isVisibleToPublic === true)
     return (
       <EmployeeEntityPage
         eyebrow={isEdit ? 'Editing' : 'New record'}
@@ -885,11 +885,11 @@ function EmployeeProjectPage() {
                       </TableCell>
                       <TableCell>
                         <VisibilityToggle
-                          checked={project.isVisibleToPublic !== false}
+                          checked={project.isVisibleToPublic === true}
                           pending={Boolean(visSaving[project.projectCode])}
                           onToggle={(next) => handleToggleVisibility(project, next)}
                           title={
-                            project.isVisibleToPublic !== false
+                            project.isVisibleToPublic === true
                               ? 'Visible to public — click to hide'
                               : 'Hidden from public — click to show'
                           }

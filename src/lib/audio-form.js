@@ -1,3 +1,5 @@
+import { getFileSourcePath } from '@/lib/file-source-path'
+
 // Audio-form helpers — extracted from EmployeeProjectDetailPage so the audio
 // create/edit form can be reused outside the project-detail page (e.g. the
 // unified "List of Items" edit view). Mirrors the video-form / image-form /
@@ -131,7 +133,7 @@ export function createInitialAudioForm() {
     accrualMethod: '',
     lccClassification: '',
     archiveLocalNote: '',
-    isPublic: true,
+    isPublic: false,
   }
 }
 
@@ -214,7 +216,7 @@ export function buildAudioPayload(form, projectCode) {
     accrualMethod: trimOrNull(form.accrualMethod),
     lccClassification: trimOrNull(form.lccClassification),
     archiveLocalNote: trimOrNull(form.archiveLocalNote),
-    isPublic: form.isPublic !== false,
+    isPublic: form.isPublic === true,
   }
 }
 
@@ -296,33 +298,21 @@ export function populateAudioFormFromAudio(audio) {
     accrualMethod: audio.accrualMethod || '',
     lccClassification: audio.lccClassification || '',
     archiveLocalNote: audio.archiveLocalNote || '',
-    isPublic: audio.isPublic !== false,
+    isPublic: audio.isPublic === true,
   }
 }
 
 // Derive the file-bound technical fields from a freshly picked File. Mirrors
 // the video/image/text deriveAutoFieldsFromFile helpers but with audio field
 // names (fileExtension, pathInExternal, directoryName). Source path / volume /
-// directory can only be read when the user picked a folder (webkitRelativePath);
-// single-file pickers leave them blank by design.
+// directory can only be read when the user begins at a folder
+// (webkitRelativePath); the UI then attaches one file from that tree.
 export function deriveAudioAutoFieldsFromFile(file) {
   if (!file) return null
   const name = file.name || ''
   const dot = name.lastIndexOf('.')
   const ext = dot > -1 ? name.slice(dot + 1).toLowerCase() : ''
-  const relativePath = file.webkitRelativePath || ''
-
-  let volumeName = ''
-  let directoryName = ''
-  let path = ''
-  if (relativePath) {
-    const parts = relativePath.split('/').filter(Boolean)
-    if (parts.length >= 2) {
-      volumeName = parts[0]
-      directoryName = parts[parts.length - 2]
-    }
-    path = relativePath
-  }
+  const { path, volumeName, directory: directoryName } = getFileSourcePath(file)
 
   return {
     fileExtension: ext,

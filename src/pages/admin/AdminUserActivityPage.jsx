@@ -345,7 +345,7 @@ function AdminUserActivityPage() {
             ) : null}
           </div>
           {isLoading && !activity ? (
-            <Skeleton className="h-16 w-full rounded-md" />
+            <Skeleton className="h-[312px] w-full rounded-xl" />
           ) : (
             <DailyChart daily={activity?.daily ?? []} />
           )}

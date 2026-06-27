@@ -37,10 +37,10 @@ function CodeChip({ value }) {
   )
 }
 
-function DetailList({ details }) {
+function DetailList({ details, presentation = 'compact' }) {
   if (!Array.isArray(details) || details.length === 0) return null
-  return (
-    <ul className="space-y-1 pt-0.5">
+  const list = (
+    <ul className={cn(presentation === 'card' ? 'space-y-2' : 'space-y-1 pt-0.5')}>
       {details.map((detail, index) => {
         // Bilingual label when present ({ en, ku }), else a legacy string label.
         const labelEn = typeof detail.label === 'object' ? detail.label?.en : detail.label
@@ -48,15 +48,18 @@ function DetailList({ details }) {
         return (
           <li
             key={`${detail.field || 'detail'}-${index}`}
-            className="flex items-start gap-1.5 text-[11px] leading-5"
+            className={cn(
+              'flex items-start gap-2 text-[11px] leading-5',
+              presentation === 'card' && 'rounded-lg border border-border/70 bg-background px-3 py-2',
+            )}
           >
             <span
               aria-hidden="true"
-              className="mt-[7px] size-1 shrink-0 rounded-full bg-muted-foreground/50"
+              className="mt-[7px] size-1.5 shrink-0 rounded-full bg-destructive/65"
             />
             <span className="min-w-0 break-words">
               {labelEn ? (
-                <span className="font-medium text-foreground/80">
+                <span className="font-semibold text-foreground/85">
                   {labelEn}
                   {labelKu ? (
                     <span dir="rtl" lang="ckb" className="font-normal text-muted-foreground">
@@ -74,14 +77,32 @@ function DetailList({ details }) {
       })}
     </ul>
   )
+
+  if (presentation !== 'card') return list
+
+  return (
+    <div className="space-y-2 rounded-xl border border-border/70 bg-muted/25 p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/55">
+        Information to review
+      </p>
+      {list}
+    </div>
+  )
 }
 
 // Recovery hint — its own calm panel with a two-language header laid out
 // left/right so the scripts never collide.
-function HintBlock({ hint }) {
+function HintBlock({ hint, presentation = 'compact' }) {
   if (!hint || (!hint.en && !hint.ku)) return null
   return (
-    <div className="mt-0.5 rounded-lg border border-border/70 bg-muted/40 px-2.5 py-2">
+    <div
+      className={cn(
+        'mt-0.5 border border-border/70',
+        presentation === 'card'
+          ? 'rounded-xl bg-amber-500/[0.055] px-3 py-2.5'
+          : 'rounded-lg bg-muted/40 px-2.5 py-2',
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-foreground/55">
           <Lightbulb className="size-3 text-amber-500" aria-hidden="true" />
@@ -115,7 +136,7 @@ function TraceRow({ traceId }) {
   )
 }
 
-function LocalizedErrorContent({ error, className }) {
+function LocalizedErrorContent({ error, className, presentation = 'compact' }) {
   if (!error) return null
 
   // Plain string → single neutral line (the container's icon/bar signal error).
@@ -134,7 +155,13 @@ function LocalizedErrorContent({ error, className }) {
     const status = typeof error.status === 'number' ? error.status : null
     const details = Array.isArray(error.details) ? error.details : []
     return (
-      <div className={cn('min-w-0 flex-1 space-y-1.5', className)}>
+      <div
+        className={cn(
+          'min-w-0 flex-1',
+          presentation === 'card' ? 'space-y-2.5' : 'space-y-1.5',
+          className,
+        )}
+      >
         {(title || status) && (
           <div className="flex flex-wrap items-center gap-1.5">
             {title ? (
@@ -146,7 +173,7 @@ function LocalizedErrorContent({ error, className }) {
         {description ? (
           <p className="break-words text-xs leading-5 text-foreground/90">{description}</p>
         ) : null}
-        <DetailList details={details} />
+        <DetailList details={details} presentation={presentation} />
       </div>
     )
   }
@@ -154,7 +181,13 @@ function LocalizedErrorContent({ error, className }) {
   const view = error.i18n
 
   return (
-    <div className={cn('min-w-0 flex-1 space-y-2', className)}>
+    <div
+      className={cn(
+        'min-w-0 flex-1',
+        presentation === 'card' ? 'space-y-3' : 'space-y-2',
+        className,
+      )}
+    >
       {/* Title — English (red accent) + chips, then Kurdish underneath */}
       <div className="space-y-0.5">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -184,10 +217,10 @@ function LocalizedErrorContent({ error, className }) {
       ) : null}
 
       {/* Per-field validation details */}
-      <DetailList details={view.details} />
+      <DetailList details={view.details} presentation={presentation} />
 
       {/* Recovery hint */}
-      <HintBlock hint={view.hint} />
+      <HintBlock hint={view.hint} presentation={presentation} />
 
       {/* Support correlation id (5xx / infrastructure errors) */}
       {view.showTrace ? <TraceRow traceId={view.traceId} /> : null}

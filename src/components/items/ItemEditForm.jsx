@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, FileUp, Loader2, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ArrowLeft, FileUp, Loader2 } from 'lucide-react'
 
 import { EmployeeEntityPage } from '@/components/employee/EmployeeEntityPage'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { FormErrorBox } from '@/components/ui/form-error'
+import { SingleMediaFilePicker } from '@/components/ui/single-media-file-picker'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
-import { cn } from '@/lib/utils'
 import { formatApiError, isStaleVersionError } from '@/lib/get-error-message'
 import { getItemPayload, getTypeMeta } from '@/components/items/item-helpers'
 
@@ -43,6 +43,11 @@ import { getImage, updateImage } from '@/services/image'
 import { getText, updateText } from '@/services/text'
 import { getProject } from '@/services/project'
 
+const AUDIO_FILE_PATTERN = /\.(wav|mp3|flac|ogg|m4a|aac|aiff|aif|wma|opus)$/i
+const VIDEO_FILE_PATTERN = /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg|wmv|flv|3gp|ogv)$/i
+const IMAGE_FILE_PATTERN = /\.(jpe?g|png|gif|tiff?|bmp|webp|heic|heif|raw|cr2|cr3|nef|arw|dng|svg)$/i
+const TEXT_FILE_PATTERN = /\.(pdf|docx?|odt|rtf|txt|md|tex|epub|mobi|xml|html?|csv|tsv)$/i
+
 // One config per media type wires the shared form module + service to the
 // uniform edit flow. Each *update* is multipart (JSON payload + optional file)
 // and the backend forbids changing the project on update, so projectCode is
@@ -56,7 +61,9 @@ const TYPE_CONFIG = {
     derive: deriveAudioAutoFieldsFromFile,
     fetchOne: getAudio,
     update: updateAudio,
-    accept: 'audio/*',
+    acceptedFormats: 'WAV, MP3, FLAC, OGG…',
+    isAcceptedFile: (file) =>
+      Boolean((file.type && file.type.startsWith('audio/')) || AUDIO_FILE_PATTERN.test(file.name)),
   },
   VIDEO: {
     label: 'video',
@@ -66,7 +73,9 @@ const TYPE_CONFIG = {
     derive: deriveVideoAutoFieldsFromFile,
     fetchOne: getVideo,
     update: updateVideo,
-    accept: 'video/*',
+    acceptedFormats: 'MP4, MOV, MKV, WEBM…',
+    isAcceptedFile: (file) =>
+      Boolean((file.type && file.type.startsWith('video/')) || VIDEO_FILE_PATTERN.test(file.name)),
   },
   IMAGE: {
     label: 'image',
@@ -76,7 +85,9 @@ const TYPE_CONFIG = {
     derive: deriveImageAutoFieldsFromFile,
     fetchOne: getImage,
     update: updateImage,
-    accept: 'image/*',
+    acceptedFormats: 'JPG, PNG, TIFF, RAW…',
+    isAcceptedFile: (file) =>
+      Boolean((file.type && file.type.startsWith('image/')) || IMAGE_FILE_PATTERN.test(file.name)),
   },
   TEXT: {
     label: 'text',
@@ -86,7 +97,16 @@ const TYPE_CONFIG = {
     derive: deriveTextAutoFieldsFromFile,
     fetchOne: getText,
     update: updateText,
-    accept: '.pdf,.doc,.docx,.txt,.rtf,.odt,.epub,.md',
+    acceptedFormats: 'PDF, DOCX, TXT, MD, EPUB…',
+    isAcceptedFile: (file) =>
+      Boolean(
+        TEXT_FILE_PATTERN.test(file.name) ||
+          (file.type &&
+            (file.type.startsWith('text/') ||
+              file.type === 'application/pdf' ||
+              file.type.includes('word') ||
+              file.type.includes('opendocument'))),
+      ),
   },
 }
 
@@ -111,7 +131,6 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
   const [isSaving, setIsSaving] = useState(false)
   const [file, setFile] = useState(null)
   const [projectCategories, setProjectCategories] = useState([])
-  const fileInputRef = useRef(null)
 
   // Populate the form with the record's CURRENT field values, then load the
   // parent project's categories for the genre picker.
@@ -164,19 +183,13 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
   const meta = getTypeMeta(item.type)
   const FormSections = cfg.FormSections
 
-  const handlePickFile = (e) => {
-    const picked = e.target.files?.[0] || null
+  const handlePickFile = (picked) => {
     setFile(picked)
     // Replacing the file means the file-bound technical fields should follow it.
     if (picked) {
       const derived = cfg.derive(picked)
       if (derived) setForm((f) => ({ ...f, ...derived }))
     }
-  }
-
-  const clearFile = () => {
-    setFile(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleSubmit = async (e) => {
@@ -252,38 +265,16 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
                     </span>
                   </p>
                 ) : null}
-                <div className="flex flex-wrap items-center gap-2">
-                  <label
-                    className={cn(
-                      'inline-flex cursor-pointer items-center gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-muted',
-                    )}
-                  >
-                    <FileUp className="size-4" />
-                    Choose new file
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept={cfg.accept}
-                      className="hidden"
-                      onChange={handlePickFile}
-                    />
-                  </label>
-                  {file ? (
-                    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-1 text-xs text-foreground">
-                      <span className="max-w-[18rem] truncate">{file.name}</span>
-                      <button
-                        type="button"
-                        onClick={clearFile}
-                        className="text-muted-foreground transition hover:text-foreground"
-                        aria-label="Remove selected file"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">No new file selected</span>
-                  )}
-                </div>
+                <SingleMediaFilePicker
+                  id={`item-${item.type.toLowerCase()}-file`}
+                  file={file}
+                  onFileChange={handlePickFile}
+                  mediaLabel={cfg.label}
+                  acceptedFormats={cfg.acceptedFormats}
+                  isEdit
+                  icon={FileUp}
+                  isAcceptedFile={cfg.isAcceptedFile}
+                />
               </CardContent>
             </Card>
 

@@ -17,7 +17,6 @@ import {
   Pencil,
   Plus,
   Trash2,
-  Upload,
   Video as VideoIcon,
   X,
 } from 'lucide-react'
@@ -117,6 +116,7 @@ import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
 import { KeywordSuggestInput } from '@/components/ui/keyword-suggest-input'
 import { useToast } from '@/hooks/use-toast'
 import { FormErrorBox } from '@/components/ui/form-error'
+import { SingleMediaFilePicker } from '@/components/ui/single-media-file-picker'
 import { formatApiError, getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
 import { cn } from '@/lib/utils'
 import {
@@ -149,6 +149,13 @@ import {
   updateText,
 } from '@/services/text'
 import {
+  AUDIO_VERSIONS,
+  buildAudioPayload,
+  createInitialAudioForm,
+  deriveAudioAutoFieldsFromFile,
+  populateAudioFormFromAudio,
+} from '@/lib/audio-form'
+import {
   VIDEO_VERSIONS,
   buildVideoPayload,
   createInitialVideoForm,
@@ -180,52 +187,26 @@ import {
   videoMetadataToForm,
 } from '@/lib/media-metadata'
 
-const AUDIO_VERSIONS = ['RAW', 'MASTER']
+const AUDIO_FILE_PATTERN = /\.(wav|mp3|flac|ogg|m4a|aac|aiff|aif|wma|opus)$/i
+const VIDEO_FILE_PATTERN = /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg|wmv|flv|3gp|ogv)$/i
+const IMAGE_FILE_PATTERN = /\.(jpe?g|png|gif|tiff?|bmp|webp|heic|heif|raw|cr2|cr3|nef|arw|dng|svg)$/i
+const TEXT_FILE_PATTERN = /\.(pdf|docx?|odt|rtf|txt|md|tex|epub|mobi|xml|html?|csv|tsv)$/i
 
-function toArray(value) {
-  if (Array.isArray(value)) return value.filter(Boolean)
-  if (!value) return []
-  return String(value)
-    .split(/[,،;]/)
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-}
-
-function toDateInputValue(instant) {
-  if (!instant) return ''
-  try {
-    const d = new Date(instant)
-    if (Number.isNaN(d.getTime())) return ''
-    return d.toISOString().slice(0, 10)
-  } catch {
-    return ''
-  }
-}
-
-function fromDateInputValue(value) {
-  if (!value) return null
-  try {
-    const d = new Date(`${value}T00:00:00Z`)
-    if (Number.isNaN(d.getTime())) return null
-    return d.toISOString()
-  } catch {
-    return null
-  }
-}
-
-function trimOrNull(value) {
-  if (value === undefined || value === null) return null
-  const trimmed = String(value).trim()
-  return trimmed === '' ? null : trimmed
-}
-
-function formatFileSize(bytes) {
-  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes < 0) return ''
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(2)} MB`
-  return `${(bytes / 1024 ** 3).toFixed(2)} GB`
-}
+const isAudioFile = (file) =>
+  Boolean((file.type && file.type.startsWith('audio/')) || AUDIO_FILE_PATTERN.test(file.name))
+const isVideoFile = (file) =>
+  Boolean((file.type && file.type.startsWith('video/')) || VIDEO_FILE_PATTERN.test(file.name))
+const isImageFile = (file) =>
+  Boolean((file.type && file.type.startsWith('image/')) || IMAGE_FILE_PATTERN.test(file.name))
+const isTextFile = (file) =>
+  Boolean(
+    TEXT_FILE_PATTERN.test(file.name) ||
+      (file.type &&
+        (file.type.startsWith('text/') ||
+          file.type === 'application/pdf' ||
+          file.type.includes('word') ||
+          file.type.includes('opendocument'))),
+  )
 
 // Merge auto-extracted fields into the form. A field gets overwritten
 // only when (a) the user hasn't typed anything there yet, or (b) the
@@ -251,294 +232,6 @@ function mergeAutoFilled(prev, newAuto, previousAuto) {
     }
   }
   return next
-}
-
-function deriveAutoFieldsFromFile(file) {
-  if (!file) return null
-  const name = file.name || ''
-  const dot = name.lastIndexOf('.')
-  const ext = dot > -1 ? name.slice(dot + 1).toLowerCase() : ''
-  // Volume / Directory / External Path / Auto Path describe the SOURCE
-  // location on disk where this file came from — they're meant to mirror
-  // the folder the archive team uploaded it from. Browsers only expose
-  // that path for security when the user picks a folder via
-  // <input webkitdirectory>; webkitRelativePath then carries the path
-  // relative to the picked root (e.g. "HesenZirek/RAW/song1.mp3"). For
-  // single-file pickers the browser hides the absolute path completely,
-  // so we leave these fields blank rather than fill them with anything
-  // misleading — the user should either use the folder picker (the
-  // "Pick from folder" affordance next to the file picker) or type the
-  // path in manually.
-  const relativePath = file.webkitRelativePath || ''
-
-  let volumeName = ''
-  let directoryName = ''
-  let path = ''
-  if (relativePath) {
-    const parts = relativePath.split('/').filter(Boolean)
-    if (parts.length >= 2) {
-      // First segment = the folder the user picked (the "volume").
-      // Last segment is the filename; second-to-last is the immediate
-      // parent (the "directory").
-      volumeName = parts[0]
-      directoryName = parts[parts.length - 2]
-    }
-    path = relativePath
-  }
-
-  return {
-    fileExtension: ext,
-    fileSize: formatFileSize(file.size),
-    pathInExternal: path,
-    autoPath: path,
-    volumeName,
-    directoryName,
-  }
-}
-
-function createInitialAudioForm() {
-  return {
-    audioVersion: 'RAW',
-    versionNumber: '1',
-    copyNumber: '1',
-
-    fullName: '',
-    originTitle: '',
-    alterTitle: '',
-    centralKurdishTitle: '',
-    romanizedTitle: '',
-
-    abstractText: '',
-    description: '',
-
-    form: '',
-    genre: [],
-    typeOfBasta: '',
-    typeOfMaqam: '',
-    typeOfComposition: '',
-    typeOfPerformance: '',
-    lyrics: '',
-    poet: '',
-
-    speaker: '',
-    producer: '',
-    composer: '',
-    contributors: [],
-
-    language: '',
-    dialect: '',
-
-    recordingVenue: '',
-    city: '',
-    region: '',
-
-    dateCreated: '',
-    datePublished: '',
-    dateModified: '',
-
-    audience: '',
-    tags: [],
-    keywords: [],
-
-    physicalAvailability: false,
-    physicalLabel: '',
-    locationArchive: '',
-    degitizedBy: '',
-    degitizationEquipment: '',
-
-    audioChannel: '',
-    fileExtension: '',
-    fileSize: '',
-    bitRate: '',
-    bitDepth: '',
-    sampleRate: '',
-    audioQualityOutOf10: '',
-
-    volumeName: '',
-    directoryName: '',
-    pathInExternal: '',
-    autoPath: '',
-    audioFileNote: '',
-
-    copyright: '',
-    rightOwner: '',
-    dateCopyrighted: '',
-    availability: '',
-    licenseType: '',
-    usageRights: '',
-    owner: '',
-    publisher: '',
-    provenance: '',
-    accrualMethod: '',
-    lccClassification: '',
-    archiveLocalNote: '',
-    isPublic: true,
-  }
-}
-
-function buildAudioPayload(form, projectCode) {
-  return {
-    projectCode,
-
-    audioVersion: form.audioVersion ? form.audioVersion.toUpperCase() : null,
-    versionNumber: form.versionNumber ? Number(form.versionNumber) : null,
-    copyNumber: form.copyNumber ? Number(form.copyNumber) : null,
-
-    fullName: trimOrNull(form.fullName),
-    originTitle: trimOrNull(form.originTitle),
-    alterTitle: trimOrNull(form.alterTitle),
-    centralKurdishTitle: trimOrNull(form.centralKurdishTitle),
-    romanizedTitle: trimOrNull(form.romanizedTitle),
-
-    abstractText: trimOrNull(form.abstractText),
-    description: trimOrNull(form.description),
-
-    form: trimOrNull(form.form),
-    genre: toArray(form.genre),
-    typeOfBasta: trimOrNull(form.typeOfBasta),
-    typeOfMaqam: trimOrNull(form.typeOfMaqam),
-    typeOfComposition: trimOrNull(form.typeOfComposition),
-    typeOfPerformance: trimOrNull(form.typeOfPerformance),
-    lyrics: trimOrNull(form.lyrics),
-    poet: trimOrNull(form.poet),
-
-    speaker: trimOrNull(form.speaker),
-    producer: trimOrNull(form.producer),
-    composer: trimOrNull(form.composer),
-    contributors: toArray(form.contributors),
-
-    language: trimOrNull(form.language),
-    dialect: trimOrNull(form.dialect),
-
-    recordingVenue: trimOrNull(form.recordingVenue),
-    city: trimOrNull(form.city),
-    region: trimOrNull(form.region),
-
-    dateCreated: fromDateInputValue(form.dateCreated),
-    datePublished: fromDateInputValue(form.datePublished),
-    dateModified: fromDateInputValue(form.dateModified),
-
-    audience: trimOrNull(form.audience),
-    tags: toArray(form.tags),
-    keywords: toArray(form.keywords),
-
-    physicalAvailability: Boolean(form.physicalAvailability),
-    physicalLabel: trimOrNull(form.physicalLabel),
-    locationArchive: trimOrNull(form.locationArchive),
-    degitizedBy: trimOrNull(form.degitizedBy),
-    degitizationEquipment: trimOrNull(form.degitizationEquipment),
-
-    audioChannel: trimOrNull(form.audioChannel),
-    fileExtension: trimOrNull(form.fileExtension),
-    fileSize: trimOrNull(form.fileSize),
-    bitRate: trimOrNull(form.bitRate),
-    bitDepth: trimOrNull(form.bitDepth),
-    sampleRate: trimOrNull(form.sampleRate),
-    audioQualityOutOf10:
-      form.audioQualityOutOf10 === '' ? null : Number(form.audioQualityOutOf10),
-
-    volumeName: trimOrNull(form.volumeName),
-    directoryName: trimOrNull(form.directoryName),
-    pathInExternal: trimOrNull(form.pathInExternal),
-    autoPath: trimOrNull(form.autoPath),
-    audioFileNote: trimOrNull(form.audioFileNote),
-
-    copyright: trimOrNull(form.copyright),
-    rightOwner: trimOrNull(form.rightOwner),
-    dateCopyrighted: fromDateInputValue(form.dateCopyrighted),
-    availability: trimOrNull(form.availability),
-    licenseType: trimOrNull(form.licenseType),
-    usageRights: trimOrNull(form.usageRights),
-    owner: trimOrNull(form.owner),
-    publisher: trimOrNull(form.publisher),
-    provenance: trimOrNull(form.provenance),
-    accrualMethod: trimOrNull(form.accrualMethod),
-    lccClassification: trimOrNull(form.lccClassification),
-    archiveLocalNote: trimOrNull(form.archiveLocalNote),
-    isPublic: form.isPublic !== false,
-  }
-}
-
-function populateAudioFormFromAudio(audio) {
-  return {
-    ...createInitialAudioForm(),
-    audioVersion: audio.audioVersion || 'RAW',
-    versionNumber: audio.versionNumber != null ? String(audio.versionNumber) : '1',
-    copyNumber: audio.copyNumber != null ? String(audio.copyNumber) : '1',
-
-    fullName: audio.fullName || '',
-    originTitle: audio.originTitle || '',
-    alterTitle: audio.alterTitle || '',
-    centralKurdishTitle: audio.centralKurdishTitle || '',
-    romanizedTitle: audio.romanizedTitle || '',
-
-    abstractText: audio.abstractText || '',
-    description: audio.description || '',
-
-    form: audio.form || '',
-    genre: toArray(audio.genre),
-    typeOfBasta: audio.typeOfBasta || '',
-    typeOfMaqam: audio.typeOfMaqam || '',
-    typeOfComposition: audio.typeOfComposition || '',
-    typeOfPerformance: audio.typeOfPerformance || '',
-    lyrics: audio.lyrics || '',
-    poet: audio.poet || '',
-
-    speaker: audio.speaker || '',
-    producer: audio.producer || '',
-    composer: audio.composer || '',
-    contributors: toArray(audio.contributors),
-
-    language: audio.language || '',
-    dialect: audio.dialect || '',
-
-    recordingVenue: audio.recordingVenue || '',
-    city: audio.city || '',
-    region: audio.region || '',
-
-    dateCreated: toDateInputValue(audio.dateCreated),
-    datePublished: toDateInputValue(audio.datePublished),
-    dateModified: toDateInputValue(audio.dateModified),
-
-    audience: audio.audience || '',
-    tags: toArray(audio.tags),
-    keywords: toArray(audio.keywords),
-
-    physicalAvailability: Boolean(audio.physicalAvailability),
-    physicalLabel: audio.physicalLabel || '',
-    locationArchive: audio.locationArchive || '',
-    degitizedBy: audio.degitizedBy || '',
-    degitizationEquipment: audio.degitizationEquipment || '',
-
-    audioChannel: audio.audioChannel || '',
-    fileExtension: audio.fileExtension || '',
-    fileSize: audio.fileSize || '',
-    bitRate: audio.bitRate || '',
-    bitDepth: audio.bitDepth || '',
-    sampleRate: audio.sampleRate || '',
-    audioQualityOutOf10:
-      audio.audioQualityOutOf10 != null ? String(audio.audioQualityOutOf10) : '',
-
-    volumeName: audio.volumeName || '',
-    directoryName: audio.directoryName || '',
-    pathInExternal: audio.pathInExternal || '',
-    autoPath: audio.autoPath || '',
-    audioFileNote: audio.audioFileNote || '',
-
-    copyright: audio.copyright || '',
-    rightOwner: audio.rightOwner || '',
-    dateCopyrighted: toDateInputValue(audio.dateCopyrighted),
-    availability: audio.availability || '',
-    licenseType: audio.licenseType || '',
-    usageRights: audio.usageRights || '',
-    owner: audio.owner || '',
-    publisher: audio.publisher || '',
-    provenance: audio.provenance || '',
-    accrualMethod: audio.accrualMethod || '',
-    lccClassification: audio.lccClassification || '',
-    archiveLocalNote: audio.archiveLocalNote || '',
-    isPublic: audio.isPublic !== false,
-  }
 }
 
 const TEXTAREA_CLASS =
@@ -568,7 +261,6 @@ function EmployeeProjectDetailPage() {
   const [currentAudio, setCurrentAudio] = useState(null)
   const [form, setForm] = useState(createInitialAudioForm)
   const [audioFile, setAudioFile] = useState(null)
-  const [folderCandidates, setFolderCandidates] = useState([])
 
   // ── Video state ────────────────────────────────────────────
   const [videos, setVideos] = useState([])
@@ -576,7 +268,6 @@ function EmployeeProjectDetailPage() {
   const [currentVideo, setCurrentVideo] = useState(null)
   const [videoForm, setVideoForm] = useState(createInitialVideoForm)
   const [videoFile, setVideoFile] = useState(null)
-  const [videoFolderCandidates, setVideoFolderCandidates] = useState([])
 
   // ── Image state ────────────────────────────────────────────
   const [images, setImages] = useState([])
@@ -584,7 +275,6 @@ function EmployeeProjectDetailPage() {
   const [currentImage, setCurrentImage] = useState(null)
   const [imageForm, setImageForm] = useState(createInitialImageForm)
   const [imageFile, setImageFile] = useState(null)
-  const [imageFolderCandidates, setImageFolderCandidates] = useState([])
 
   // ── Text state ─────────────────────────────────────────────
   const [texts, setTexts] = useState([])
@@ -592,7 +282,6 @@ function EmployeeProjectDetailPage() {
   const [currentText, setCurrentText] = useState(null)
   const [textForm, setTextForm] = useState(createInitialTextForm)
   const [textFile, setTextFile] = useState(null)
-  const [textFolderCandidates, setTextFolderCandidates] = useState([])
 
   // ── Shared form-view state ─────────────────────────────────
   // The form is single-instance: only one media-type form is open at a time
@@ -1132,7 +821,6 @@ function EmployeeProjectDetailPage() {
     setCurrentAudio(null)
     setForm(createInitialAudioForm())
     setAudioFile(null)
-    setFolderCandidates([])
     setFormError('')
     setSavedThisSession([])
     submitModeRef.current = 'finish'
@@ -1145,7 +833,6 @@ function EmployeeProjectDetailPage() {
     setCurrentAudio(audio)
     setForm(populateAudioFormFromAudio(audio))
     setAudioFile(null)
-    setFolderCandidates([])
     setFormError('')
     setSavedThisSession([])
     submitModeRef.current = 'finish'
@@ -1158,29 +845,9 @@ function EmployeeProjectDetailPage() {
     setView('list')
     setCurrentAudio(null)
     setAudioFile(null)
-    setFolderCandidates([])
     setFormError('')
     setSavedThisSession([])
     lastAutoFilledRef.current = {}
-  }
-
-  const handleAudioFolderPicked = (fileList) => {
-    const all = Array.from(fileList || [])
-    if (all.length === 0) return
-    // Filter to anything the browser thinks is audio — fall back to extension
-    // sniffing for files where the OS didn't supply a mime type.
-    const audioExt = /\.(wav|mp3|flac|ogg|m4a|aac|aiff|aif|wma|opus)$/i
-    const audios = all.filter((f) => (f.type && f.type.startsWith('audio/')) || audioExt.test(f.name))
-    if (audios.length === 0) {
-      toast.error('No audio in that folder', 'Browse a folder that contains an audio file.')
-      return
-    }
-    if (audios.length === 1) {
-      handleAudioFilePicked(audios[0])
-      setFolderCandidates([])
-      return
-    }
-    setFolderCandidates(audios)
   }
 
   const handleAudioFilePicked = (file) => {
@@ -1206,7 +873,7 @@ function EmployeeProjectDetailPage() {
       return
     }
 
-    const auto = deriveAutoFieldsFromFile(file)
+    const auto = deriveAudioAutoFieldsFromFile(file)
     setAudioFile(file)
     setForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
     lastAutoFilledRef.current = auto
@@ -1280,7 +947,6 @@ function EmployeeProjectDetailPage() {
           submitModeRef.current = 'finish'
           setPendingSubmitMode('finish')
           lastAutoFilledRef.current = {}
-          setFolderCandidates([])
           // stay in 'create' view
           // scroll back to the top so the user can see the success banner
           if (typeof window !== 'undefined') {
@@ -1344,7 +1010,6 @@ function EmployeeProjectDetailPage() {
     setCurrentVideo(null)
     setVideoForm(createInitialVideoForm())
     setVideoFile(null)
-    setVideoFolderCandidates([])
     setFormError('')
     setSavedVideosThisSession([])
     submitModeRef.current = 'finish'
@@ -1357,7 +1022,6 @@ function EmployeeProjectDetailPage() {
     setCurrentVideo(video)
     setVideoForm(populateVideoFormFromVideo(video))
     setVideoFile(null)
-    setVideoFolderCandidates([])
     setFormError('')
     setSavedVideosThisSession([])
     submitModeRef.current = 'finish'
@@ -1370,27 +1034,9 @@ function EmployeeProjectDetailPage() {
     setView('list')
     setCurrentVideo(null)
     setVideoFile(null)
-    setVideoFolderCandidates([])
     setFormError('')
     setSavedVideosThisSession([])
     lastAutoFilledRef.current = {}
-  }
-
-  const handleVideoFolderPicked = (fileList) => {
-    const all = Array.from(fileList || [])
-    if (all.length === 0) return
-    const videoExt = /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg|wmv|flv|3gp|ogv)$/i
-    const vids = all.filter((f) => (f.type && f.type.startsWith('video/')) || videoExt.test(f.name))
-    if (vids.length === 0) {
-      toast.error('No video in that folder', 'Browse a folder that contains a video file.')
-      return
-    }
-    if (vids.length === 1) {
-      handleVideoFilePicked(vids[0])
-      setVideoFolderCandidates([])
-      return
-    }
-    setVideoFolderCandidates(vids)
   }
 
   const handleVideoFilePicked = (file) => {
@@ -1472,7 +1118,6 @@ function EmployeeProjectDetailPage() {
           submitModeRef.current = 'finish'
           setPendingSubmitMode('finish')
           lastAutoFilledRef.current = {}
-          setVideoFolderCandidates([])
           if (typeof window !== 'undefined') {
             window.scrollTo({ top: 0, behavior: 'smooth' })
           }
@@ -1529,7 +1174,6 @@ function EmployeeProjectDetailPage() {
     setCurrentImage(null)
     setImageForm(createInitialImageForm())
     setImageFile(null)
-    setImageFolderCandidates([])
     setFormError('')
     setSavedImagesThisSession([])
     submitModeRef.current = 'finish'
@@ -1542,7 +1186,6 @@ function EmployeeProjectDetailPage() {
     setCurrentImage(image)
     setImageForm(populateImageFormFromImage(image))
     setImageFile(null)
-    setImageFolderCandidates([])
     setFormError('')
     setSavedImagesThisSession([])
     submitModeRef.current = 'finish'
@@ -1555,27 +1198,9 @@ function EmployeeProjectDetailPage() {
     setView('list')
     setCurrentImage(null)
     setImageFile(null)
-    setImageFolderCandidates([])
     setFormError('')
     setSavedImagesThisSession([])
     lastAutoFilledRef.current = {}
-  }
-
-  const handleImageFolderPicked = (fileList) => {
-    const all = Array.from(fileList || [])
-    if (all.length === 0) return
-    const imageExt = /\.(jpe?g|png|gif|tiff?|bmp|webp|heic|heif|raw|cr2|cr3|nef|arw|dng|svg)$/i
-    const imgs = all.filter((f) => (f.type && f.type.startsWith('image/')) || imageExt.test(f.name))
-    if (imgs.length === 0) {
-      toast.error('No image in that folder', 'Browse a folder that contains an image file.')
-      return
-    }
-    if (imgs.length === 1) {
-      handleImageFilePicked(imgs[0])
-      setImageFolderCandidates([])
-      return
-    }
-    setImageFolderCandidates(imgs)
   }
 
   const handleImageFilePicked = (file) => {
@@ -1658,7 +1283,6 @@ function EmployeeProjectDetailPage() {
           submitModeRef.current = 'finish'
           setPendingSubmitMode('finish')
           lastAutoFilledRef.current = {}
-          setImageFolderCandidates([])
           if (typeof window !== 'undefined') {
             window.scrollTo({ top: 0, behavior: 'smooth' })
           }
@@ -1714,7 +1338,6 @@ function EmployeeProjectDetailPage() {
     setCurrentText(null)
     setTextForm(createInitialTextForm())
     setTextFile(null)
-    setTextFolderCandidates([])
     setFormError('')
     setSavedTextsThisSession([])
     submitModeRef.current = 'finish'
@@ -1727,7 +1350,6 @@ function EmployeeProjectDetailPage() {
     setCurrentText(text)
     setTextForm(populateTextFormFromText(text))
     setTextFile(null)
-    setTextFolderCandidates([])
     setFormError('')
     setSavedTextsThisSession([])
     submitModeRef.current = 'finish'
@@ -1740,27 +1362,9 @@ function EmployeeProjectDetailPage() {
     setView('list')
     setCurrentText(null)
     setTextFile(null)
-    setTextFolderCandidates([])
     setFormError('')
     setSavedTextsThisSession([])
     lastAutoFilledRef.current = {}
-  }
-
-  const handleTextFolderPicked = (fileList) => {
-    const all = Array.from(fileList || [])
-    if (all.length === 0) return
-    const textExt = /\.(pdf|docx?|odt|rtf|txt|md|tex|epub|mobi|xml|html?|csv|tsv)$/i
-    const docs = all.filter((f) => textExt.test(f.name) || (f.type && (f.type.startsWith('text/') || f.type === 'application/pdf' || f.type.includes('word') || f.type.includes('opendocument'))))
-    if (docs.length === 0) {
-      toast.error('No text in that folder', 'Browse a folder that contains a text or document file.')
-      return
-    }
-    if (docs.length === 1) {
-      handleTextFilePicked(docs[0])
-      setTextFolderCandidates([])
-      return
-    }
-    setTextFolderCandidates(docs)
   }
 
   const handleTextFilePicked = (file) => {
@@ -1853,7 +1457,6 @@ function EmployeeProjectDetailPage() {
           submitModeRef.current = 'finish'
           setPendingSubmitMode('finish')
           lastAutoFilledRef.current = {}
-          setTextFolderCandidates([])
           if (typeof window !== 'undefined') {
             window.scrollTo({ top: 0, behavior: 'smooth' })
           }
@@ -2050,99 +1653,15 @@ function EmployeeProjectDetailPage() {
                   </div>
                 ) : null}
 
-                {imageFile ? (
-                  <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
-                    <ImageIcon className="size-5 text-muted-foreground" />
-                    <div className="min-w-0 flex-1 space-y-0.5">
-                      <p className="truncate text-sm font-medium">{imageFile.name}</p>
-                      {imageFile.webkitRelativePath ? (
-                        <p className="truncate font-mono text-[11px] text-muted-foreground" title={imageFile.webkitRelativePath}>
-                          {imageFile.webkitRelativePath}
-                        </p>
-                      ) : null}
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(imageFile.size)} · extension, size{' '}
-                        {imageFile.webkitRelativePath ? 'and full folder path ' : 'and path '}
-                        auto-filled below
-                      </p>
-                    </div>
-                    <Button type="button" variant="ghost" size="icon-xs" onClick={() => handleImageFilePicked(null)}>
-                      <X className="size-3.5" />
-                      <span className="sr-only">Remove selected file</span>
-                    </Button>
-                  </div>
-                ) : imageFolderCandidates.length > 0 ? (
-                  <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-foreground">
-                        {imageFolderCandidates.length} image files in that folder — pick one to upload
-                      </p>
-                      <button type="button" onClick={() => setImageFolderCandidates([])} className="text-xs text-muted-foreground hover:text-foreground">
-                        Cancel
-                      </button>
-                    </div>
-                    <ul className="max-h-64 space-y-1 overflow-y-auto pr-1">
-                      {imageFolderCandidates.map((f) => (
-                        <li key={f.webkitRelativePath || f.name}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleImageFilePicked(f)
-                              setImageFolderCandidates([])
-                            }}
-                            className="flex w-full items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-left text-xs transition hover:border-primary/40 hover:bg-muted/40"
-                          >
-                            <ImageIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                            <span className="min-w-0 flex-1 truncate font-mono">
-                              {f.webkitRelativePath || f.name}
-                            </span>
-                            <span className="shrink-0 text-[10px] text-muted-foreground">
-                              {formatFileSize(f.size)}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label htmlFor="imageFile" className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/40">
-                      <Upload className="size-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{isEdit ? 'Replace single file' : 'Browse a single file'}</p>
-                        <p className="text-xs text-muted-foreground">JPG, PNG, TIFF, RAW…</p>
-                      </div>
-                    </label>
-                    <label htmlFor="imageFolder" className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/40">
-                      <FolderOpen className="size-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Browse from folder</p>
-                        <p className="text-xs text-muted-foreground">Captures the directory path</p>
-                      </div>
-                    </label>
-                  </div>
-                )}
-                <input
+                <SingleMediaFilePicker
                   id="imageFile"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    handleImageFilePicked(e.target.files?.[0] || null)
-                    e.target.value = ''
-                  }}
-                  className="sr-only"
-                />
-                <input
-                  id="imageFolder"
-                  type="file"
-                  webkitdirectory=""
-                  directory=""
-                  multiple
-                  onChange={(e) => {
-                    handleImageFolderPicked(e.target.files)
-                    e.target.value = ''
-                  }}
-                  className="sr-only"
+                  file={imageFile}
+                  onFileChange={handleImageFilePicked}
+                  mediaLabel="image"
+                  acceptedFormats="JPG, PNG, TIFF, RAW…"
+                  isEdit={isEdit}
+                  icon={ImageIcon}
+                  isAcceptedFile={isImageFile}
                 />
               </CardContent>
             </Card>
@@ -2349,99 +1868,15 @@ function EmployeeProjectDetailPage() {
                   </div>
                 ) : null}
 
-                {textFile ? (
-                  <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
-                    <FileText className="size-5 text-muted-foreground" />
-                    <div className="min-w-0 flex-1 space-y-0.5">
-                      <p className="truncate text-sm font-medium">{textFile.name}</p>
-                      {textFile.webkitRelativePath ? (
-                        <p className="truncate font-mono text-[11px] text-muted-foreground" title={textFile.webkitRelativePath}>
-                          {textFile.webkitRelativePath}
-                        </p>
-                      ) : null}
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(textFile.size)} · extension, size{' '}
-                        {textFile.webkitRelativePath ? 'and full folder path ' : 'and path '}
-                        auto-filled below
-                      </p>
-                    </div>
-                    <Button type="button" variant="ghost" size="icon-xs" onClick={() => handleTextFilePicked(null)}>
-                      <X className="size-3.5" />
-                      <span className="sr-only">Remove selected file</span>
-                    </Button>
-                  </div>
-                ) : textFolderCandidates.length > 0 ? (
-                  <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-foreground">
-                        {textFolderCandidates.length} text files in that folder — pick one to upload
-                      </p>
-                      <button type="button" onClick={() => setTextFolderCandidates([])} className="text-xs text-muted-foreground hover:text-foreground">
-                        Cancel
-                      </button>
-                    </div>
-                    <ul className="max-h-64 space-y-1 overflow-y-auto pr-1">
-                      {textFolderCandidates.map((f) => (
-                        <li key={f.webkitRelativePath || f.name}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleTextFilePicked(f)
-                              setTextFolderCandidates([])
-                            }}
-                            className="flex w-full items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-left text-xs transition hover:border-primary/40 hover:bg-muted/40"
-                          >
-                            <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-                            <span className="min-w-0 flex-1 truncate font-mono">
-                              {f.webkitRelativePath || f.name}
-                            </span>
-                            <span className="shrink-0 text-[10px] text-muted-foreground">
-                              {formatFileSize(f.size)}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label htmlFor="textFile" className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/40">
-                      <Upload className="size-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{isEdit ? 'Replace single file' : 'Browse a single file'}</p>
-                        <p className="text-xs text-muted-foreground">PDF, DOCX, TXT, MD, EPUB…</p>
-                      </div>
-                    </label>
-                    <label htmlFor="textFolder" className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/40">
-                      <FolderOpen className="size-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Browse from folder</p>
-                        <p className="text-xs text-muted-foreground">Captures the directory path</p>
-                      </div>
-                    </label>
-                  </div>
-                )}
-                <input
+                <SingleMediaFilePicker
                   id="textFile"
-                  type="file"
-                  accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.md,.tex,.epub,.mobi,.xml,.html,.htm,.csv,.tsv,application/pdf,text/*"
-                  onChange={(e) => {
-                    handleTextFilePicked(e.target.files?.[0] || null)
-                    e.target.value = ''
-                  }}
-                  className="sr-only"
-                />
-                <input
-                  id="textFolder"
-                  type="file"
-                  webkitdirectory=""
-                  directory=""
-                  multiple
-                  onChange={(e) => {
-                    handleTextFolderPicked(e.target.files)
-                    e.target.value = ''
-                  }}
-                  className="sr-only"
+                  file={textFile}
+                  onFileChange={handleTextFilePicked}
+                  mediaLabel="document"
+                  acceptedFormats="PDF, DOCX, TXT, MD, EPUB…"
+                  isEdit={isEdit}
+                  icon={FileText}
+                  isAcceptedFile={isTextFile}
                 />
               </CardContent>
             </Card>
@@ -2642,99 +2077,15 @@ function EmployeeProjectDetailPage() {
                   </div>
                 ) : null}
 
-                {videoFile ? (
-                  <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
-                    <FileAudio className="size-5 text-muted-foreground" />
-                    <div className="min-w-0 flex-1 space-y-0.5">
-                      <p className="truncate text-sm font-medium">{videoFile.name}</p>
-                      {videoFile.webkitRelativePath ? (
-                        <p className="truncate font-mono text-[11px] text-muted-foreground" title={videoFile.webkitRelativePath}>
-                          {videoFile.webkitRelativePath}
-                        </p>
-                      ) : null}
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(videoFile.size)} · extension, size{' '}
-                        {videoFile.webkitRelativePath ? 'and full folder path ' : 'and path '}
-                        auto-filled below
-                      </p>
-                    </div>
-                    <Button type="button" variant="ghost" size="icon-xs" onClick={() => handleVideoFilePicked(null)}>
-                      <X className="size-3.5" />
-                      <span className="sr-only">Remove selected file</span>
-                    </Button>
-                  </div>
-                ) : videoFolderCandidates.length > 0 ? (
-                  <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-foreground">
-                        {videoFolderCandidates.length} video files in that folder — pick one to upload
-                      </p>
-                      <button type="button" onClick={() => setVideoFolderCandidates([])} className="text-xs text-muted-foreground hover:text-foreground">
-                        Cancel
-                      </button>
-                    </div>
-                    <ul className="max-h-64 space-y-1 overflow-y-auto pr-1">
-                      {videoFolderCandidates.map((f) => (
-                        <li key={f.webkitRelativePath || f.name}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleVideoFilePicked(f)
-                              setVideoFolderCandidates([])
-                            }}
-                            className="flex w-full items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-left text-xs transition hover:border-primary/40 hover:bg-muted/40"
-                          >
-                            <FileAudio className="size-3.5 shrink-0 text-muted-foreground" />
-                            <span className="min-w-0 flex-1 truncate font-mono">
-                              {f.webkitRelativePath || f.name}
-                            </span>
-                            <span className="shrink-0 text-[10px] text-muted-foreground">
-                              {formatFileSize(f.size)}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label htmlFor="videoFile" className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/40">
-                      <Upload className="size-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{isEdit ? 'Replace single file' : 'Browse a single file'}</p>
-                        <p className="text-xs text-muted-foreground">MP4, MOV, MKV, WEBM…</p>
-                      </div>
-                    </label>
-                    <label htmlFor="videoFolder" className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/40">
-                      <FolderOpen className="size-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Browse from folder</p>
-                        <p className="text-xs text-muted-foreground">Captures the directory path</p>
-                      </div>
-                    </label>
-                  </div>
-                )}
-                <input
+                <SingleMediaFilePicker
                   id="videoFile"
-                  type="file"
-                  accept="video/*"
-                  onChange={(e) => {
-                    handleVideoFilePicked(e.target.files?.[0] || null)
-                    e.target.value = ''
-                  }}
-                  className="sr-only"
-                />
-                <input
-                  id="videoFolder"
-                  type="file"
-                  webkitdirectory=""
-                  directory=""
-                  multiple
-                  onChange={(e) => {
-                    handleVideoFolderPicked(e.target.files)
-                    e.target.value = ''
-                  }}
-                  className="sr-only"
+                  file={videoFile}
+                  onFileChange={handleVideoFilePicked}
+                  mediaLabel="video"
+                  acceptedFormats="MP4, MOV, MKV, WEBM…"
+                  isEdit={isEdit}
+                  icon={VideoIcon}
+                  isAcceptedFile={isVideoFile}
                 />
               </CardContent>
             </Card>
@@ -2962,125 +2313,15 @@ function EmployeeProjectDetailPage() {
                   </div>
                 ) : null}
 
-                {audioFile ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
-                      <FileAudio className="size-5 text-muted-foreground" />
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <p className="truncate text-sm font-medium">{audioFile.name}</p>
-                        {audioFile.webkitRelativePath ? (
-                          <p
-                            className="truncate font-mono text-[11px] text-muted-foreground"
-                            title={audioFile.webkitRelativePath}
-                          >
-                            {audioFile.webkitRelativePath}
-                          </p>
-                        ) : null}
-                        <p className="text-xs text-muted-foreground">
-                          {formatFileSize(audioFile.size)} · extension, size{' '}
-                          {audioFile.webkitRelativePath ? 'and full folder path ' : 'and path '}
-                          auto-filled below
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => handleAudioFilePicked(null)}
-                      >
-                        <X className="size-3.5" />
-                        <span className="sr-only">Remove selected file</span>
-                      </Button>
-                    </div>
-                  </div>
-                ) : folderCandidates.length > 0 ? (
-                  <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-foreground">
-                        {folderCandidates.length} audio files in that folder — pick one to upload
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setFolderCandidates([])}
-                        className="text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                    <ul className="max-h-64 space-y-1 overflow-y-auto pr-1">
-                      {folderCandidates.map((f) => (
-                        <li key={f.webkitRelativePath || f.name}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleAudioFilePicked(f)
-                              setFolderCandidates([])
-                            }}
-                            className="flex w-full items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-left text-xs transition hover:border-primary/40 hover:bg-muted/40"
-                          >
-                            <FileAudio className="size-3.5 shrink-0 text-muted-foreground" />
-                            <span className="min-w-0 flex-1 truncate font-mono">
-                              {f.webkitRelativePath || f.name}
-                            </span>
-                            <span className="shrink-0 text-[10px] text-muted-foreground">
-                              {formatFileSize(f.size)}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label
-                      htmlFor="audioFile"
-                      className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/40"
-                    >
-                      <Upload className="size-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          {isEdit ? 'Replace single file' : 'Browse a single file'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">WAV, MP3, FLAC, OGG…</p>
-                      </div>
-                    </label>
-                    <label
-                      htmlFor="audioFolder"
-                      className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/40"
-                    >
-                      <FolderOpen className="size-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Browse from folder</p>
-                        <p className="text-xs text-muted-foreground">
-                          Captures the directory path
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                )}
-                <input
+                <SingleMediaFilePicker
                   id="audioFile"
-                  type="file"
-                  accept="audio/*"
-                  onChange={(e) => {
-                    handleAudioFilePicked(e.target.files?.[0] || null)
-                    e.target.value = ''
-                  }}
-                  className="sr-only"
-                />
-                <input
-                  id="audioFolder"
-                  type="file"
-                  // The two attribute names cover Chromium-based browsers and older
-                  // Safari/Firefox; both fall back gracefully if unsupported.
-                  webkitdirectory=""
-                  directory=""
-                  multiple
-                  onChange={(e) => {
-                    handleAudioFolderPicked(e.target.files)
-                    e.target.value = ''
-                  }}
-                  className="sr-only"
+                  file={audioFile}
+                  onFileChange={handleAudioFilePicked}
+                  mediaLabel="audio"
+                  acceptedFormats="WAV, MP3, FLAC, OGG…"
+                  isEdit={isEdit}
+                  icon={FileAudio}
+                  isAcceptedFile={isAudioFile}
                 />
               </CardContent>
             </Card>
@@ -4600,7 +3841,7 @@ function AudioFieldLabel({ htmlFor, fieldKey, className, children }) {
 }
 
 function AudioFormSections({ form, setForm, projectCategories = [] }) {
-  const isPublicAudio = form.isPublic !== false
+  const isPublicAudio = form.isPublic === true
   return (
     <>
       {/* Visibility */}

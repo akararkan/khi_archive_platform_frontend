@@ -80,7 +80,7 @@ function GenreChips({ categories, value, onChange }) {
 }
 
 function ImageFormSections({ form, setForm, projectCategories = [] }) {
-  const isPublic = form.isPublic !== false
+  const isPublic = form.isPublic === true
   return (
     <>
       {/* Visibility */}

@@ -90,7 +90,7 @@ function GenreChips({ categories, value, onChange }) {
 }
 
 function TextFormSections({ form, setForm, projectCategories = [] }) {
-  const isPublic = form.isPublic !== false
+  const isPublic = form.isPublic === true
   return (
     <>
       {/* Visibility */}
