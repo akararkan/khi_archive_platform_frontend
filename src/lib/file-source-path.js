@@ -64,8 +64,9 @@ export function getFileSourcePath(file) {
 
   return {
     path: parts.join('/'),
-    volumeName: parts[0],
-    // Keep the complete nested directory tree, not only the immediate parent.
-    directory: parts.slice(1, -1).join('/'),
+    // A browser-relative path starts at the selected folder, not the physical
+    // volume. Treating its first segment as a drive name would corrupt data.
+    volumeName: '',
+    directory: parts[parts.length - 2] || '',
   }
 }
