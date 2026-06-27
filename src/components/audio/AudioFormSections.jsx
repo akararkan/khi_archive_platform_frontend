@@ -394,7 +394,7 @@ export function AudioFormSections({ form, setForm, projectCategories = [] }) {
         <CardHeader className="border-b border-border pb-4">
           <CardTitle className="text-base font-semibold">Storage</CardTitle>
           <CardDescription className="text-xs">
-            Volume, directory, and external path describe the selected source location. Add the cloud/archive Auto Path manually.
+            Volume uses the selected source root; directory and external path locate the file inside it. Add Auto Path manually.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">

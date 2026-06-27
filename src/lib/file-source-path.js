@@ -64,9 +64,10 @@ export function getFileSourcePath(file) {
 
   return {
     path: parts.join('/'),
-    // A browser-relative path starts at the selected folder, not the physical
-    // storage volume. Treating its first segment as a device name would corrupt data.
-    volumeName: '',
+    // The browser exposes the selected source root as the first segment.
+    // Use that available name for Volume; on some devices this is the storage
+    // label, while on others it is the top-level folder selected by the user.
+    volumeName: parts[0],
     directory: parts[parts.length - 2] || '',
   }
 }

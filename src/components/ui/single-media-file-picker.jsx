@@ -193,7 +193,7 @@ export function SingleMediaFilePicker({
         className="sr-only"
       />
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        The browser captures paths inside the selected folder, but may hide the source device or storage name.
+        Volume uses the selected source root name; Directory and External Path come from the chosen file.
         Auto Path remains your manually entered cloud/archive URL.
       </p>
     </div>
