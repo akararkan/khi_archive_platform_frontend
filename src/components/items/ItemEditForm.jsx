@@ -61,6 +61,7 @@ const TYPE_CONFIG = {
     derive: deriveAudioAutoFieldsFromFile,
     fetchOne: getAudio,
     update: updateAudio,
+    accept: 'audio/*,.wav,.mp3,.flac,.ogg,.m4a,.aac,.aiff,.aif,.wma,.opus',
     acceptedFormats: 'WAV, MP3, FLAC, OGG…',
     isAcceptedFile: (file) =>
       Boolean((file.type && file.type.startsWith('audio/')) || AUDIO_FILE_PATTERN.test(file.name)),
@@ -73,6 +74,7 @@ const TYPE_CONFIG = {
     derive: deriveVideoAutoFieldsFromFile,
     fetchOne: getVideo,
     update: updateVideo,
+    accept: 'video/*,.mp4,.mov,.mkv,.webm,.avi,.m4v,.mpg,.mpeg,.wmv,.flv,.3gp,.ogv',
     acceptedFormats: 'MP4, MOV, MKV, WEBM…',
     isAcceptedFile: (file) =>
       Boolean((file.type && file.type.startsWith('video/')) || VIDEO_FILE_PATTERN.test(file.name)),
@@ -85,6 +87,7 @@ const TYPE_CONFIG = {
     derive: deriveImageAutoFieldsFromFile,
     fetchOne: getImage,
     update: updateImage,
+    accept: 'image/*,.tif,.tiff,.heic,.heif,.raw,.cr2,.cr3,.nef,.arw,.dng',
     acceptedFormats: 'JPG, PNG, TIFF, RAW…',
     isAcceptedFile: (file) =>
       Boolean((file.type && file.type.startsWith('image/')) || IMAGE_FILE_PATTERN.test(file.name)),
@@ -97,6 +100,7 @@ const TYPE_CONFIG = {
     derive: deriveTextAutoFieldsFromFile,
     fetchOne: getText,
     update: updateText,
+    accept: '.pdf,.doc,.docx,.odt,.rtf,.txt,.md,.tex,.epub,.mobi,.xml,.html,.htm,.csv,.tsv,application/pdf,text/*',
     acceptedFormats: 'PDF, DOCX, TXT, MD, EPUB…',
     isAcceptedFile: (file) =>
       Boolean(
@@ -270,6 +274,7 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
                   file={file}
                   onFileChange={handlePickFile}
                   mediaLabel={cfg.label}
+                  accept={cfg.accept}
                   acceptedFormats={cfg.acceptedFormats}
                   isEdit
                   icon={FileUp}

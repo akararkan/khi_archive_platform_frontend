@@ -1658,6 +1658,7 @@ function EmployeeProjectDetailPage() {
                   file={imageFile}
                   onFileChange={handleImageFilePicked}
                   mediaLabel="image"
+                  accept="image/*,.tif,.tiff,.heic,.heif,.raw,.cr2,.cr3,.nef,.arw,.dng"
                   acceptedFormats="JPG, PNG, TIFF, RAW…"
                   isEdit={isEdit}
                   icon={ImageIcon}
@@ -1873,6 +1874,7 @@ function EmployeeProjectDetailPage() {
                   file={textFile}
                   onFileChange={handleTextFilePicked}
                   mediaLabel="document"
+                  accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.md,.tex,.epub,.mobi,.xml,.html,.htm,.csv,.tsv,application/pdf,text/*"
                   acceptedFormats="PDF, DOCX, TXT, MD, EPUB…"
                   isEdit={isEdit}
                   icon={FileText}
@@ -2082,6 +2084,7 @@ function EmployeeProjectDetailPage() {
                   file={videoFile}
                   onFileChange={handleVideoFilePicked}
                   mediaLabel="video"
+                  accept="video/*,.mp4,.mov,.mkv,.webm,.avi,.m4v,.mpg,.mpeg,.wmv,.flv,.3gp,.ogv"
                   acceptedFormats="MP4, MOV, MKV, WEBM…"
                   isEdit={isEdit}
                   icon={VideoIcon}
@@ -2318,6 +2321,7 @@ function EmployeeProjectDetailPage() {
                   file={audioFile}
                   onFileChange={handleAudioFilePicked}
                   mediaLabel="audio"
+                  accept="audio/*,.wav,.mp3,.flac,.ogg,.m4a,.aac,.aiff,.aif,.wma,.opus"
                   acceptedFormats="WAV, MP3, FLAC, OGG…"
                   isEdit={isEdit}
                   icon={FileAudio}
