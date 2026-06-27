@@ -193,7 +193,7 @@ export function SingleMediaFilePicker({
         className="sr-only"
       />
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        The browser can capture paths inside the selected folder, but not the physical drive name.
+        The browser captures paths inside the selected folder, but may hide the source device or storage name.
         Auto Path remains your manually entered cloud/archive URL.
       </p>
     </div>

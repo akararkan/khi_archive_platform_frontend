@@ -373,13 +373,13 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         <CardHeader className="border-b border-border pb-4">
           <CardTitle className="text-base font-semibold">Storage</CardTitle>
           <CardDescription className="text-xs">
-            Volume, directory, and external path describe the source drive. Add the cloud/archive Auto Path manually.
+            Volume, directory, and external path describe the selected source location. Add the cloud/archive Auto Path manually.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-volumeName">Volume</TextFieldLabel>
-            <Input id="txt-volumeName" value={form.volumeName} onChange={(e) => setForm({ ...form, volumeName: e.target.value })} placeholder="Source hard drive or volume" />
+            <Input id="txt-volumeName" value={form.volumeName} onChange={(e) => setForm({ ...form, volumeName: e.target.value })} placeholder="Source storage, device, or volume" />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-directory">Directory</TextFieldLabel>
@@ -387,7 +387,7 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-pathInExternalVolume">Path in External Volume</TextFieldLabel>
-            <Input id="txt-pathInExternalVolume" value={form.pathInExternalVolume} onChange={(e) => setForm({ ...form, pathInExternalVolume: e.target.value })} placeholder="Full path on the source drive" />
+            <Input id="txt-pathInExternalVolume" value={form.pathInExternalVolume} onChange={(e) => setForm({ ...form, pathInExternalVolume: e.target.value })} placeholder="Path inside the selected source" />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-autoPath">Auto Path</TextFieldLabel>
