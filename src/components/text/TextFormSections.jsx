@@ -373,25 +373,25 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         <CardHeader className="border-b border-border pb-4">
           <CardTitle className="text-base font-semibold">Storage</CardTitle>
           <CardDescription className="text-xs">
-            Auto Path uses the selected file. Source volume and directory fill only when the device exposes them.
+            Volume, directory, and external path describe the source drive. Add the cloud/archive Auto Path manually.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-volumeName">Volume</TextFieldLabel>
-            <Input id="txt-volumeName" value={form.volumeName} onChange={(e) => setForm({ ...form, volumeName: e.target.value })} placeholder="from device when available" />
+            <Input id="txt-volumeName" value={form.volumeName} onChange={(e) => setForm({ ...form, volumeName: e.target.value })} placeholder="Source hard drive or volume" />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-directory">Directory</TextFieldLabel>
-            <Input id="txt-directory" value={form.directory} onChange={(e) => setForm({ ...form, directory: e.target.value })} placeholder="from device when available" />
+            <Input id="txt-directory" value={form.directory} onChange={(e) => setForm({ ...form, directory: e.target.value })} placeholder="Parent folder" />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-pathInExternalVolume">Path in External Volume</TextFieldLabel>
-            <Input id="txt-pathInExternalVolume" value={form.pathInExternalVolume} onChange={(e) => setForm({ ...form, pathInExternalVolume: e.target.value })} placeholder="auto-filled from file" />
+            <Input id="txt-pathInExternalVolume" value={form.pathInExternalVolume} onChange={(e) => setForm({ ...form, pathInExternalVolume: e.target.value })} placeholder="Full path on the source drive" />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-autoPath">Auto Path</TextFieldLabel>
-            <Input id="txt-autoPath" value={form.autoPath} onChange={(e) => setForm({ ...form, autoPath: e.target.value })} placeholder="auto-filled from file" />
+            <Input id="txt-autoPath" value={form.autoPath} onChange={(e) => setForm({ ...form, autoPath: e.target.value })} placeholder="e.g. https://cloud.khi.org/text/…" />
           </div>
         </CardContent>
       </Card>

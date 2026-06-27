@@ -32,6 +32,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { EntityToolbar } from '@/components/ui/entity-toolbar'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import {
   DateRangeField,
   FilterChips,
@@ -87,6 +88,12 @@ const PERSON_SORT_OPTIONS = [
   { key: 'dateOfDeath-desc', label: 'Died (most recent)',     sortBy: 'dateOfDeath', sortDirection: 'desc' },
 ]
 const DEFAULT_SORT_KEY = 'fullName-asc'
+const GENDER_OPTIONS = [
+  { value: '', label: 'Not specified' },
+  { value: 'MALE', label: 'Male' },
+  { value: 'FEMALE', label: 'Female' },
+  { value: 'UNKNOWN', label: 'Unknown' },
+]
 
 function createInitialFilters() {
   return {
@@ -616,7 +623,7 @@ function EmployeePersonPage() {
       fullName: person.fullName || '',
       nickname: person.nickname || '',
       romanizedName: person.romanizedName || '',
-      gender: person.gender || '',
+      gender: person.gender ? String(person.gender).toUpperCase() : '',
       personType: toArray(person.personType),
       region: person.region || '',
       dateOfBirthYear: person.dateOfBirthYear ?? getDatePart(person.dateOfBirth, 'year'),
@@ -880,12 +887,14 @@ function EmployeePersonPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <FieldLabel htmlFor="gender" fieldKey="gender">Gender (MALE / FEMALE / UNKNOWN)</FieldLabel>
-                    <Input
+                    <FieldLabel htmlFor="gender" fieldKey="gender">Gender</FieldLabel>
+                    <Select
                       id="gender"
                       value={form.gender}
-                      onChange={(event) => setForm({ ...form, gender: event.target.value })}
-                      placeholder="MALE"
+                      onChange={(value) => setForm({ ...form, gender: value })}
+                      options={GENDER_OPTIONS}
+                      placeholder="Choose gender"
+                      className="w-full"
                     />
                   </div>
 

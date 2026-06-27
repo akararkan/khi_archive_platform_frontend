@@ -66,7 +66,7 @@ export function SingleMediaFilePicker({
           ) : null}
           <p className="text-xs text-muted-foreground">
             {source.path
-              ? 'One file selected · available folder information was auto-filled below'
+              ? 'One file selected · available source-drive information was auto-filled below'
               : 'One file selected · your browser protected the parent-folder location'}
           </p>
         </div>
