@@ -208,6 +208,12 @@ const isTextFile = (file) =>
           file.type.includes('opendocument'))),
   )
 
+// Merge auto-extracted fields into the form. A field gets overwritten
+// only when (a) the user hasn't typed anything there yet, or (b) the
+// existing value still matches what the previous auto pass wrote (so
+// we're updating one auto-filled value with another, not stomping on
+// the user's edits). Used both by the sync derive…() helpers and by
+// the async media-metadata extractors.
 function mergeAutoFilled(prev, newAuto, previousAuto) {
   const next = { ...prev }
   for (const [key, newValue] of Object.entries(newAuto)) {
@@ -237,13 +243,17 @@ function EmployeeProjectDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  // Section-aware base path so the "Back to Projects" navigation lands in
+  // /admin/project when the user is in admin and /employee/project when in
+  // employee — rather than always sending them to the employee section.
   const sectionBase = location.pathname.startsWith('/admin') ? '/admin' : '/employee'
 
   const [project, setProject] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [mediaType, setMediaType] = useState('audio')
+  // Which media tab is active. The list/form/modals all switch with this.
+  const [mediaType, setMediaType] = useState('audio') // 'audio' | 'video'
 
   // ── Audio state ────────────────────────────────────────────
   const [audios, setAudios] = useState([])
@@ -274,25 +284,53 @@ function EmployeeProjectDetailPage() {
   const [textFile, setTextFile] = useState(null)
 
   // ── Shared form-view state ─────────────────────────────────
-  const [view, setView] = useState('list')
+  // The form is single-instance: only one media-type form is open at a time
+  // (switching tabs while editing closes the form, see handleSwitchMediaType).
+  const [view, setView] = useState('list') // list | create | edit
   const [isSaving, setIsSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
+  // Audios saved in this create-session (resets when the form closes). Lets us
+  // show "you've added N audios so far" so the user has clear feedback when they
+  // chain "Save & Add Another" several times in a row.
   const [savedThisSession, setSavedThisSession] = useState([])
-  const submitModeRef = useRef('finish')
+  // Differentiates the two submit buttons. The ref is read by the submit handler
+  // (which captures stale closures otherwise); the parallel state is used only
+  // for rendering the spinner on the right button — refs aren't allowed during
+  // render under React 19's strict rules.
+  const submitModeRef = useRef('finish') // 'finish' | 'add-another'
   const [pendingSubmitMode, setPendingSubmitMode] = useState('finish')
 
+  // Tracks the last auto-fill values that handleAudioFilePicked wrote into the
+  // form, so we can replace them when the user picks a different file *without*
+  // clobbering values they manually edited in between.
   const lastAutoFilledRef = useRef({})
+  // Bumped on every file pick (any kind). Async media-metadata extractors
+  // check this against the value they were started with — if a newer
+  // file has been picked while we were probing, the stale result is
+  // discarded so it can't overwrite the new file's auto-filled values.
   const metaSessionRef = useRef(0)
 
   // Audio search/details/remove/delete
   const [searchTerm, setSearchTerm] = useState('')
+  // Backend two-phase fuzzy search results (pg_trgm). `null` = no active
+  // search; render the full project-scoped list. The search call is scoped
+  // to this projectCode server-side so results stay relevant at 30TB.
   const [audioSearchResults, setAudioSearchResults] = useState(null)
   const [isAudioSearching, setIsAudioSearching] = useState(false)
   const [detailsTarget, setDetailsTarget] = useState(null)
+  // V3 trash model: a single "Send to trash" action per row, calling
+  // deleteX (which the backend now treats as soft-trash). Trashed items
+  // disappear from the regular list and are managed from /admin/trash.
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Audio sort + filter. Mirrors AudioFilterParams on the backend
+  // exactly, but applied client-side against the project-scoped
+  // audios array (no extra round-trip — the project's audios are
+  // already in memory). Disabled while a fuzzy search is active
+  // because /audio/search has its own ranking and bypasses the
+  // filter model anyway.
   const [audioSortKey, setAudioSortKey] = useState(DEFAULT_AUDIO_SORT_KEY)
   const [audioFilters, setAudioFilters] = useState(createInitialAudioFilters)
   const [isAudioFilterPanelOpen, setIsAudioFilterPanelOpen] = useState(false)
@@ -306,6 +344,10 @@ function EmployeeProjectDetailPage() {
   const [isVideoDeleting, setIsVideoDeleting] = useState(false)
   const [savedVideosThisSession, setSavedVideosThisSession] = useState([])
 
+  // Video sort + filter. Mirrors VideoFilterParams on the backend
+  // exactly. Disabled while a fuzzy search is active because
+  // /video/search has its own ranking and bypasses the filter model
+  // server-side.
   const [videoSortKey, setVideoSortKey] = useState(DEFAULT_VIDEO_SORT_KEY)
   const [videoFilters, setVideoFilters] = useState(createInitialVideoFilters)
   const [isVideoFilterPanelOpen, setIsVideoFilterPanelOpen] = useState(false)
@@ -319,6 +361,11 @@ function EmployeeProjectDetailPage() {
   const [isImageDeleting, setIsImageDeleting] = useState(false)
   const [savedImagesThisSession, setSavedImagesThisSession] = useState([])
 
+  // Image sort + filter. Mirrors ImageFilterParams on the backend
+  // exactly, but applied client-side against the project-scoped
+  // images array. Disabled while a fuzzy search is active because
+  // /image/search has its own ranking and bypasses the filter model
+  // server-side.
   const [imageSortKey, setImageSortKey] = useState(DEFAULT_IMAGE_SORT_KEY)
   const [imageFilters, setImageFilters] = useState(createInitialImageFilters)
   const [isImageFilterPanelOpen, setIsImageFilterPanelOpen] = useState(false)
@@ -332,6 +379,9 @@ function EmployeeProjectDetailPage() {
   const [isTextDeleting, setIsTextDeleting] = useState(false)
   const [savedTextsThisSession, setSavedTextsThisSession] = useState([])
 
+  // Text sort + filter. Mirrors TextFilterParams on the backend, plus
+  // text-specific bits (isbn / assignmentNumber / printDate /
+  // pageCount). Disabled while a fuzzy search is active.
   const [textSortKey, setTextSortKey] = useState(DEFAULT_TEXT_SORT_KEY)
   const [textFilters, setTextFilters] = useState(createInitialTextFilters)
   const [isTextFilterPanelOpen, setIsTextFilterPanelOpen] = useState(false)
@@ -406,31 +456,58 @@ function EmployeeProjectDetailPage() {
     loadTexts()
   }, [loadProject, loadAudios, loadVideos, loadImages, loadTexts])
 
+  // V3 trash model: backend's GET /<media> returns active records only,
+  // so the frontend's old "show removed" toggle is gone. Trashed items
+  // are listed at /admin/trash. The arrays below are the active set; the
+  // search results stay project-scoped on the client as a defensive belt
+  // (the server already filters by projectCode).
   const visibleAudios = audios
 
-  const audioFiltersActive = useMemo(() => !isAudioFilterEmpty(audioFilters), [audioFilters])
+  const audioFiltersActive = useMemo(
+    () => !isAudioFilterEmpty(audioFilters),
+    [audioFilters],
+  )
   const audioSortActive = audioSortKey !== DEFAULT_AUDIO_SORT_KEY
-  const audioFilterCount = useMemo(() => countAudioFilters(audioFilters), [audioFilters])
+  const audioFilterCount = useMemo(
+    () => countAudioFilters(audioFilters),
+    [audioFilters],
+  )
   const activeAudioSort = useMemo(
-    () => AUDIO_SORT_OPTIONS.find((opt) => opt.key === audioSortKey) ?? AUDIO_SORT_OPTIONS[0],
+    () =>
+      AUDIO_SORT_OPTIONS.find((opt) => opt.key === audioSortKey) ?? AUDIO_SORT_OPTIONS[0],
     [audioSortKey],
   )
 
   const filteredAudios = useMemo(() => {
     const term = searchTerm.trim()
+    // Search bypasses the filter model entirely — /audio/search has
+    // its own pg_trgm ranking that wouldn't compose with client-side
+    // filters anyway.
     if (term) {
-      if (audioSearchResults == null) return []
-      return audioSearchResults.filter((a) => !a.projectCode || a.projectCode === projectCode)
+      if (audioSearchResults == null) return [] // request in flight or pre-debounce
+      return audioSearchResults.filter(
+        (a) => !a.projectCode || a.projectCode === projectCode,
+      )
     }
     const filtered = applyAudioFilters(visibleAudios, audioFilters)
     return applyAudioSort(filtered, audioSortKey)
-  }, [visibleAudios, searchTerm, audioSearchResults, projectCode, audioFilters, audioSortKey])
+  }, [
+    visibleAudios,
+    searchTerm,
+    audioSearchResults,
+    projectCode,
+    audioFilters,
+    audioSortKey,
+  ])
 
   const updateAudioFilter = useCallback(
     (key, value) => setAudioFilters((prev) => ({ ...prev, [key]: value })),
     [],
   )
-  const clearAudioFilters = useCallback(() => setAudioFilters(createInitialAudioFilters()), [])
+  const clearAudioFilters = useCallback(
+    () => setAudioFilters(createInitialAudioFilters()),
+    [],
+  )
   const audioChips = useMemo(
     () =>
       buildAudioChips({
@@ -445,11 +522,18 @@ function EmployeeProjectDetailPage() {
 
   const visibleVideos = videos
 
-  const videoFiltersActive = useMemo(() => !isVideoFilterEmpty(videoFilters), [videoFilters])
+  const videoFiltersActive = useMemo(
+    () => !isVideoFilterEmpty(videoFilters),
+    [videoFilters],
+  )
   const videoSortActive = videoSortKey !== DEFAULT_VIDEO_SORT_KEY
-  const videoFilterCount = useMemo(() => countVideoFilters(videoFilters), [videoFilters])
+  const videoFilterCount = useMemo(
+    () => countVideoFilters(videoFilters),
+    [videoFilters],
+  )
   const activeVideoSort = useMemo(
-    () => VIDEO_SORT_OPTIONS.find((opt) => opt.key === videoSortKey) ?? VIDEO_SORT_OPTIONS[0],
+    () =>
+      VIDEO_SORT_OPTIONS.find((opt) => opt.key === videoSortKey) ?? VIDEO_SORT_OPTIONS[0],
     [videoSortKey],
   )
 
@@ -457,17 +541,29 @@ function EmployeeProjectDetailPage() {
     const term = videoSearchTerm.trim()
     if (term) {
       if (videoSearchResults == null) return []
-      return videoSearchResults.filter((v) => !v.projectCode || v.projectCode === projectCode)
+      return videoSearchResults.filter(
+        (v) => !v.projectCode || v.projectCode === projectCode,
+      )
     }
     const filtered = applyVideoFilters(visibleVideos, videoFilters)
     return applyVideoSort(filtered, videoSortKey)
-  }, [visibleVideos, videoSearchTerm, videoSearchResults, projectCode, videoFilters, videoSortKey])
+  }, [
+    visibleVideos,
+    videoSearchTerm,
+    videoSearchResults,
+    projectCode,
+    videoFilters,
+    videoSortKey,
+  ])
 
   const updateVideoFilter = useCallback(
     (key, value) => setVideoFilters((prev) => ({ ...prev, [key]: value })),
     [],
   )
-  const clearVideoFilters = useCallback(() => setVideoFilters(createInitialVideoFilters()), [])
+  const clearVideoFilters = useCallback(
+    () => setVideoFilters(createInitialVideoFilters()),
+    [],
+  )
   const videoChips = useMemo(
     () =>
       buildVideoChips({
@@ -482,29 +578,51 @@ function EmployeeProjectDetailPage() {
 
   const visibleImages = images
 
-  const imageFiltersActive = useMemo(() => !isImageFilterEmpty(imageFilters), [imageFilters])
+  const imageFiltersActive = useMemo(
+    () => !isImageFilterEmpty(imageFilters),
+    [imageFilters],
+  )
   const imageSortActive = imageSortKey !== DEFAULT_IMAGE_SORT_KEY
-  const imageFilterCount = useMemo(() => countImageFilters(imageFilters), [imageFilters])
+  const imageFilterCount = useMemo(
+    () => countImageFilters(imageFilters),
+    [imageFilters],
+  )
   const activeImageSort = useMemo(
-    () => IMAGE_SORT_OPTIONS.find((opt) => opt.key === imageSortKey) ?? IMAGE_SORT_OPTIONS[0],
+    () =>
+      IMAGE_SORT_OPTIONS.find((opt) => opt.key === imageSortKey) ?? IMAGE_SORT_OPTIONS[0],
     [imageSortKey],
   )
 
   const filteredImages = useMemo(() => {
     const term = imageSearchTerm.trim()
+    // Search bypasses the filter model entirely — /image/search has
+    // its own pg_trgm ranking that wouldn't compose with client-side
+    // filters anyway.
     if (term) {
       if (imageSearchResults == null) return []
-      return imageSearchResults.filter((i) => !i.projectCode || i.projectCode === projectCode)
+      return imageSearchResults.filter(
+        (i) => !i.projectCode || i.projectCode === projectCode,
+      )
     }
     const filtered = applyImageFilters(visibleImages, imageFilters)
     return applyImageSort(filtered, imageSortKey)
-  }, [visibleImages, imageSearchTerm, imageSearchResults, projectCode, imageFilters, imageSortKey])
+  }, [
+    visibleImages,
+    imageSearchTerm,
+    imageSearchResults,
+    projectCode,
+    imageFilters,
+    imageSortKey,
+  ])
 
   const updateImageFilter = useCallback(
     (key, value) => setImageFilters((prev) => ({ ...prev, [key]: value })),
     [],
   )
-  const clearImageFilters = useCallback(() => setImageFilters(createInitialImageFilters()), [])
+  const clearImageFilters = useCallback(
+    () => setImageFilters(createInitialImageFilters()),
+    [],
+  )
   const imageChips = useMemo(
     () =>
       buildImageChips({
@@ -519,11 +637,18 @@ function EmployeeProjectDetailPage() {
 
   const visibleTexts = texts
 
-  const textFiltersActive = useMemo(() => !isTextFilterEmpty(textFilters), [textFilters])
+  const textFiltersActive = useMemo(
+    () => !isTextFilterEmpty(textFilters),
+    [textFilters],
+  )
   const textSortActive = textSortKey !== DEFAULT_TEXT_SORT_KEY
-  const textFilterCount = useMemo(() => countTextFilters(textFilters), [textFilters])
+  const textFilterCount = useMemo(
+    () => countTextFilters(textFilters),
+    [textFilters],
+  )
   const activeTextSort = useMemo(
-    () => TEXT_SORT_OPTIONS.find((opt) => opt.key === textSortKey) ?? TEXT_SORT_OPTIONS[0],
+    () =>
+      TEXT_SORT_OPTIONS.find((opt) => opt.key === textSortKey) ?? TEXT_SORT_OPTIONS[0],
     [textSortKey],
   )
 
@@ -531,17 +656,29 @@ function EmployeeProjectDetailPage() {
     const term = textSearchTerm.trim()
     if (term) {
       if (textSearchResults == null) return []
-      return textSearchResults.filter((t) => !t.projectCode || t.projectCode === projectCode)
+      return textSearchResults.filter(
+        (t) => !t.projectCode || t.projectCode === projectCode,
+      )
     }
     const filtered = applyTextFilters(visibleTexts, textFilters)
     return applyTextSort(filtered, textSortKey)
-  }, [visibleTexts, textSearchTerm, textSearchResults, projectCode, textFilters, textSortKey])
+  }, [
+    visibleTexts,
+    textSearchTerm,
+    textSearchResults,
+    projectCode,
+    textFilters,
+    textSortKey,
+  ])
 
   const updateTextFilter = useCallback(
     (key, value) => setTextFilters((prev) => ({ ...prev, [key]: value })),
     [],
   )
-  const clearTextFilters = useCallback(() => setTextFilters(createInitialTextFilters()), [])
+  const clearTextFilters = useCallback(
+    () => setTextFilters(createInitialTextFilters()),
+    [],
+  )
   const textChips = useMemo(
     () =>
       buildTextChips({
@@ -555,6 +692,11 @@ function EmployeeProjectDetailPage() {
   )
 
   // ── Debounced backend fuzzy-search effects ──
+  // Each section issues a debounced /X/search call scoped by projectCode.
+  // The AbortController cancels in-flight requests when the user keeps
+  // typing or clears the box. A null `*SearchResults` means "no active
+  // search; render the full project list". Errors are silent — empty
+  // results render naturally rather than spamming a toast on every keystroke.
   useEffect(() => {
     const term = searchTerm.trim()
     if (!term) {
@@ -567,7 +709,11 @@ function EmployeeProjectDetailPage() {
     const timer = setTimeout(async () => {
       setIsAudioSearching(true)
       try {
-        const data = await searchAudios(term, { limit: 50, projectCode, signal: controller.signal })
+        const data = await searchAudios(term, {
+          limit: 50,
+          projectCode,
+          signal: controller.signal,
+        })
         if (!controller.signal.aborted) setAudioSearchResults(data || [])
       } catch {
         if (!controller.signal.aborted) setAudioSearchResults([])
@@ -575,7 +721,10 @@ function EmployeeProjectDetailPage() {
         if (!controller.signal.aborted) setIsAudioSearching(false)
       }
     }, 220)
-    return () => { clearTimeout(timer); controller.abort() }
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [searchTerm, projectCode])
 
   useEffect(() => {
@@ -590,7 +739,11 @@ function EmployeeProjectDetailPage() {
     const timer = setTimeout(async () => {
       setIsVideoSearching(true)
       try {
-        const data = await searchVideos(term, { limit: 50, projectCode, signal: controller.signal })
+        const data = await searchVideos(term, {
+          limit: 50,
+          projectCode,
+          signal: controller.signal,
+        })
         if (!controller.signal.aborted) setVideoSearchResults(data || [])
       } catch {
         if (!controller.signal.aborted) setVideoSearchResults([])
@@ -598,7 +751,10 @@ function EmployeeProjectDetailPage() {
         if (!controller.signal.aborted) setIsVideoSearching(false)
       }
     }, 220)
-    return () => { clearTimeout(timer); controller.abort() }
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [videoSearchTerm, projectCode])
 
   useEffect(() => {
@@ -613,7 +769,11 @@ function EmployeeProjectDetailPage() {
     const timer = setTimeout(async () => {
       setIsImageSearching(true)
       try {
-        const data = await searchImages(term, { limit: 50, projectCode, signal: controller.signal })
+        const data = await searchImages(term, {
+          limit: 50,
+          projectCode,
+          signal: controller.signal,
+        })
         if (!controller.signal.aborted) setImageSearchResults(data || [])
       } catch {
         if (!controller.signal.aborted) setImageSearchResults([])
@@ -621,7 +781,10 @@ function EmployeeProjectDetailPage() {
         if (!controller.signal.aborted) setIsImageSearching(false)
       }
     }, 220)
-    return () => { clearTimeout(timer); controller.abort() }
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [imageSearchTerm, projectCode])
 
   useEffect(() => {
@@ -636,7 +799,11 @@ function EmployeeProjectDetailPage() {
     const timer = setTimeout(async () => {
       setIsTextSearching(true)
       try {
-        const data = await searchTexts(term, { limit: 50, projectCode, signal: controller.signal })
+        const data = await searchTexts(term, {
+          limit: 50,
+          projectCode,
+          signal: controller.signal,
+        })
         if (!controller.signal.aborted) setTextSearchResults(data || [])
       } catch {
         if (!controller.signal.aborted) setTextSearchResults([])
@@ -644,7 +811,10 @@ function EmployeeProjectDetailPage() {
         if (!controller.signal.aborted) setIsTextSearching(false)
       }
     }, 220)
-    return () => { clearTimeout(timer); controller.abort() }
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [textSearchTerm, projectCode])
 
   const handleOpenCreateAudio = () => {
@@ -681,8 +851,13 @@ function EmployeeProjectDetailPage() {
   }
 
   const handleAudioFilePicked = (file) => {
+    // Bump the session id immediately — any in-flight async extraction
+    // from a previous file must now ignore its own resolution.
     const sessionId = ++metaSessionRef.current
     if (!file) {
+      // Clearing the file: also clear any technical fields that still match what
+      // we auto-filled, so the user isn't left with stale extension/size/path
+      // values from a removed file.
       const previousAuto = lastAutoFilledRef.current
       setForm((prev) => {
         const next = { ...prev }
@@ -697,10 +872,14 @@ function EmployeeProjectDetailPage() {
       setAudioFile(null)
       return
     }
+
     const auto = deriveAudioAutoFieldsFromFile(file)
     setAudioFile(file)
     setForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
     lastAutoFilledRef.current = auto
+
+    // Async: read embedded ID3 metadata + playback duration. Maps to
+    // originTitle / composer / description / dateCreated / tags / etc.
     extractAudioMetadata(file)
       .then((meta) => {
         if (sessionId !== metaSessionRef.current) return
@@ -739,6 +918,7 @@ function EmployeeProjectDetailPage() {
       setFormError('Audio quality must be a number between 0 and 10.')
       return
     }
+
     if (view === 'create' && !audioFile) {
       setFormError('Please choose an audio file to upload.')
       return
@@ -751,7 +931,10 @@ function EmployeeProjectDetailPage() {
         const saved = await createAudio(payload, audioFile)
         toast.success('Audio created', `${saved.audioCode} has been added to ${projectCode}.`)
         await loadAudios()
+
         if (submitModeRef.current === 'add-another') {
+          // Reset just the variable parts of the form — keep the version/copy
+          // numbers as a hint about where the user was so they can adjust.
           setSavedThisSession((prev) => [...prev, saved.audioCode])
           setForm((prev) => ({
             ...createInitialAudioForm(),
@@ -764,19 +947,31 @@ function EmployeeProjectDetailPage() {
           submitModeRef.current = 'finish'
           setPendingSubmitMode('finish')
           lastAutoFilledRef.current = {}
-          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+          // stay in 'create' view
+          // scroll back to the top so the user can see the success banner
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }
           return
         }
+
         handleCloseAudioForm()
         return
       }
+
       const payload = buildAudioPayload(form, projectCode)
+      // Backend forbids changing the project on update — the audio's project is
+      // already fixed.
       delete payload.projectCode
       const saved = await updateAudio(currentAudio.audioCode, payload, audioFile)
       toast.success('Audio updated', `${saved.audioCode} changes were saved.`)
       await loadAudios()
       handleCloseAudioForm()
     } catch (err) {
+      // Optimistic-locking conflict — another user (or an admin's
+      // cascade trash/restore) bumped this audio's version since we
+      // loaded it. Surface the backend's friendly message and bounce
+      // back to the list so re-opening fetches the latest.
       if (isStaleVersionError(err)) {
         toast.apiError(err, 'Reload required')
         await loadAudios()
@@ -796,7 +991,10 @@ function EmployeeProjectDetailPage() {
     setIsDeleting(true)
     try {
       await deleteAudio(deleteTarget.audioCode)
-      toast.success('Sent to trash', `${deleteTarget.audioCode} can be restored by an admin from Trash.`)
+      toast.success(
+        'Sent to trash',
+        `${deleteTarget.audioCode} can be restored by an admin from Trash.`,
+      )
       setDeleteTarget(null)
       await loadAudios()
     } catch (err) {
@@ -806,7 +1004,7 @@ function EmployeeProjectDetailPage() {
     }
   }
 
-  /* ── Video handlers ───── */
+  /* ── Video handlers (parallel to the audio ones above) ───── */
 
   const handleOpenCreateVideo = () => {
     setCurrentVideo(null)
@@ -858,10 +1056,13 @@ function EmployeeProjectDetailPage() {
       setVideoFile(null)
       return
     }
+
     const auto = deriveVideoAutoFieldsFromFile(file)
     setVideoFile(file)
     setVideoForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
     lastAutoFilledRef.current = auto
+
+    // Async: read duration + dimensions via a hidden <video> element.
     extractVideoMetadata(file)
       .then((meta) => {
         if (sessionId !== metaSessionRef.current) return
@@ -876,6 +1077,7 @@ function EmployeeProjectDetailPage() {
   const handleVideoSubmit = async (event) => {
     event.preventDefault()
     setFormError('')
+
     if (!VIDEO_VERSIONS.includes((videoForm.videoVersion || '').toUpperCase())) {
       setFormError(`Video version must be one of ${VIDEO_VERSIONS.join(', ')}.`)
       return
@@ -894,6 +1096,7 @@ function EmployeeProjectDetailPage() {
       setFormError('Please choose a video file to upload.')
       return
     }
+
     setIsSaving(true)
     try {
       if (view === 'create') {
@@ -901,6 +1104,7 @@ function EmployeeProjectDetailPage() {
         const saved = await createVideo(payload, videoFile)
         toast.success('Video created', `${saved.videoCode} has been added to ${projectCode}.`)
         await loadVideos()
+
         if (submitModeRef.current === 'add-another') {
           setSavedVideosThisSession((prev) => [...prev, saved.videoCode])
           setVideoForm((prev) => ({
@@ -914,13 +1118,18 @@ function EmployeeProjectDetailPage() {
           submitModeRef.current = 'finish'
           setPendingSubmitMode('finish')
           lastAutoFilledRef.current = {}
-          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }
           return
         }
+
         handleCloseVideoForm()
         return
       }
+
       const payload = buildVideoPayload(videoForm, projectCode)
+      // projectCode is immutable on update — backend silently ignores it.
       delete payload.projectCode
       const saved = await updateVideo(currentVideo.videoCode, payload, videoFile)
       toast.success('Video updated', `${saved.videoCode} changes were saved.`)
@@ -946,7 +1155,10 @@ function EmployeeProjectDetailPage() {
     setIsVideoDeleting(true)
     try {
       await deleteVideo(videoDeleteTarget.videoCode)
-      toast.success('Sent to trash', `${videoDeleteTarget.videoCode} can be restored by an admin from Trash.`)
+      toast.success(
+        'Sent to trash',
+        `${videoDeleteTarget.videoCode} can be restored by an admin from Trash.`,
+      )
       setVideoDeleteTarget(null)
       await loadVideos()
     } catch (err) {
@@ -956,7 +1168,7 @@ function EmployeeProjectDetailPage() {
     }
   }
 
-  /* ── Image handlers ─ */
+  /* ── Image handlers (parallel to the audio/video ones above) ─ */
 
   const handleOpenCreateImage = () => {
     setCurrentImage(null)
@@ -1008,10 +1220,14 @@ function EmployeeProjectDetailPage() {
       setImageFile(null)
       return
     }
+
     const auto = deriveImageAutoFieldsFromFile(file)
     setImageFile(file)
     setImageForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
     lastAutoFilledRef.current = auto
+
+    // Async: read natural dimensions via Image() — fills dimension /
+    // resolution / orientation.
     extractImageMetadata(file)
       .then((meta) => {
         if (sessionId !== metaSessionRef.current) return
@@ -1026,6 +1242,7 @@ function EmployeeProjectDetailPage() {
   const handleImageSubmit = async (event) => {
     event.preventDefault()
     setFormError('')
+
     if (!IMAGE_VERSIONS.includes((imageForm.imageVersion || '').toUpperCase())) {
       setFormError(`Image version must be one of ${IMAGE_VERSIONS.join(', ')}.`)
       return
@@ -1044,6 +1261,7 @@ function EmployeeProjectDetailPage() {
       setFormError('Please choose an image file to upload.')
       return
     }
+
     setIsSaving(true)
     try {
       if (view === 'create') {
@@ -1051,6 +1269,7 @@ function EmployeeProjectDetailPage() {
         const saved = await createImage(payload, imageFile)
         toast.success('Image created', `${saved.imageCode} has been added to ${projectCode}.`)
         await loadImages()
+
         if (submitModeRef.current === 'add-another') {
           setSavedImagesThisSession((prev) => [...prev, saved.imageCode])
           setImageForm((prev) => ({
@@ -1064,12 +1283,16 @@ function EmployeeProjectDetailPage() {
           submitModeRef.current = 'finish'
           setPendingSubmitMode('finish')
           lastAutoFilledRef.current = {}
-          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }
           return
         }
+
         handleCloseImageForm()
         return
       }
+
       const payload = buildImagePayload(imageForm, projectCode)
       delete payload.projectCode
       const saved = await updateImage(currentImage.imageCode, payload, imageFile)
@@ -1096,7 +1319,10 @@ function EmployeeProjectDetailPage() {
     setIsImageDeleting(true)
     try {
       await deleteImage(imageDeleteTarget.imageCode)
-      toast.success('Sent to trash', `${imageDeleteTarget.imageCode} can be restored by an admin from Trash.`)
+      toast.success(
+        'Sent to trash',
+        `${imageDeleteTarget.imageCode} can be restored by an admin from Trash.`,
+      )
       setImageDeleteTarget(null)
       await loadImages()
     } catch (err) {
@@ -1106,7 +1332,7 @@ function EmployeeProjectDetailPage() {
     }
   }
 
-  /* ── Text handlers ── */
+  /* ── Text handlers (parallel to the audio/video ones above) ── */
 
   const handleOpenCreateText = () => {
     setCurrentText(null)
@@ -1158,10 +1384,16 @@ function EmployeeProjectDetailPage() {
       setTextFile(null)
       return
     }
+
     const auto = deriveTextAutoFieldsFromFile(file)
     setTextFile(file)
     setTextForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
     lastAutoFilledRef.current = auto
+
+    // Async: text/PDF metadata extractor is currently a stub (PDF
+    // metadata would need pdf.js, ~700KB). Keep the call so the
+    // pattern is uniform across kinds and so backend-side metadata
+    // can populate this hook later.
     extractTextMetadata(file)
       .then((meta) => {
         if (sessionId !== metaSessionRef.current) return
@@ -1176,6 +1408,7 @@ function EmployeeProjectDetailPage() {
   const handleTextSubmit = async (event) => {
     event.preventDefault()
     setFormError('')
+
     if (!TEXT_VERSIONS.includes((textForm.textVersion || '').toUpperCase())) {
       setFormError(`Text version must be one of ${TEXT_VERSIONS.join(', ')}.`)
       return
@@ -1202,6 +1435,7 @@ function EmployeeProjectDetailPage() {
       setFormError('Please choose a text file to upload.')
       return
     }
+
     setIsSaving(true)
     try {
       if (view === 'create') {
@@ -1209,6 +1443,7 @@ function EmployeeProjectDetailPage() {
         const saved = await createText(payload, textFile)
         toast.success('Text created', `${saved.textCode} has been added to ${projectCode}.`)
         await loadTexts()
+
         if (submitModeRef.current === 'add-another') {
           setSavedTextsThisSession((prev) => [...prev, saved.textCode])
           setTextForm((prev) => ({
@@ -1222,12 +1457,16 @@ function EmployeeProjectDetailPage() {
           submitModeRef.current = 'finish'
           setPendingSubmitMode('finish')
           lastAutoFilledRef.current = {}
-          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }
           return
         }
+
         handleCloseTextForm()
         return
       }
+
       const payload = buildTextPayload(textForm, projectCode)
       delete payload.projectCode
       const saved = await updateText(currentText.textCode, payload, textFile)
@@ -1254,7 +1493,10 @@ function EmployeeProjectDetailPage() {
     setIsTextDeleting(true)
     try {
       await deleteText(textDeleteTarget.textCode)
-      toast.success('Sent to trash', `${textDeleteTarget.textCode} can be restored by an admin from Trash.`)
+      toast.success(
+        'Sent to trash',
+        `${textDeleteTarget.textCode} can be restored by an admin from Trash.`,
+      )
       setTextDeleteTarget(null)
       await loadTexts()
     } catch (err) {
@@ -1264,6 +1506,8 @@ function EmployeeProjectDetailPage() {
     }
   }
 
+  // Switch tabs cleanly — close any open form, clear any session counters so
+  // the user doesn't lose orientation.
   const handleSwitchMediaType = (next) => {
     if (next === mediaType) return
     if (view !== 'list') {
@@ -1282,7 +1526,11 @@ function EmployeeProjectDetailPage() {
       <EmployeeEntityPage
         eyebrow={isEdit ? 'Editing' : 'New image'}
         title={isEdit ? 'Edit Image' : 'Add Image to Project'}
-        description={project ? `Inside project "${project.projectName}" (${project.projectCode}).` : 'Inside project.'}
+        description={
+          project
+            ? `Inside project "${project.projectName}" (${project.projectCode}).`
+            : 'Inside project.'
+        }
       >
         <form id="image-form" onSubmit={handleImageSubmit} className="mx-auto block w-full max-w-4xl">
           <div className="space-y-6">
@@ -1294,20 +1542,33 @@ function EmployeeProjectDetailPage() {
                   </div>
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <p className="text-sm font-semibold text-foreground">
-                      {savedImagesThisSession.length === 1 ? '1 image added so far in this session' : `${savedImagesThisSession.length} images added so far in this session`}
+                      {savedImagesThisSession.length === 1
+                        ? '1 image added so far in this session'
+                        : `${savedImagesThisSession.length} images added so far in this session`}
                     </p>
-                    <p className="text-xs text-muted-foreground">Form has been reset for the next one. Version & copy numbers carried over (copy auto-incremented).</p>
+                    <p className="text-xs text-muted-foreground">
+                      Form has been reset for the next one. Version & copy numbers carried over (copy auto-incremented).
+                    </p>
                     <div className="flex flex-wrap gap-1.5 pt-0.5">
                       {savedImagesThisSession.slice(-6).map((c) => (
-                        <span key={c} className="inline-flex items-center rounded-full border border-emerald-500/30 bg-background/60 px-2 py-0.5 font-mono text-[10px] tracking-wide text-foreground/80">{c}</span>
+                        <span key={c} className="inline-flex items-center rounded-full border border-emerald-500/30 bg-background/60 px-2 py-0.5 font-mono text-[10px] tracking-wide text-foreground/80">
+                          {c}
+                        </span>
                       ))}
-                      {savedImagesThisSession.length > 6 ? <span className="text-[10px] font-medium text-muted-foreground">+{savedImagesThisSession.length - 6} earlier</span> : null}
+                      {savedImagesThisSession.length > 6 ? (
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                          +{savedImagesThisSession.length - 6} earlier
+                        </span>
+                      ) : null}
                     </div>
                   </div>
-                  <button type="button" onClick={handleCloseImageForm} className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300">Finish & view list</button>
+                  <button type="button" onClick={handleCloseImageForm} className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300">
+                    Finish & view list
+                  </button>
                 </div>
               </div>
             ) : null}
+
             <Card className="border-border bg-card shadow-sm shadow-black/5">
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="text-base font-semibold">Identity</CardTitle>
@@ -1317,60 +1578,147 @@ function EmployeeProjectDetailPage() {
                 <div className="grid gap-5 sm:grid-cols-3">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <Label htmlFor="imageVersion">Version <span className="text-destructive">*</span></Label>
+                      <Label htmlFor="imageVersion">
+                        Version <span className="text-destructive">*</span>
+                      </Label>
                       <FieldHelpButton metadata={getImageFieldMetadata('imageVersion')} />
                     </div>
-                    <Select id="imageVersion" value={imageForm.imageVersion} onChange={(v) => setImageForm({ ...imageForm, imageVersion: v })} required className="w-full" options={IMAGE_VERSIONS.map((v) => ({ value: v, label: v }))} />
+                    <Select
+                      id="imageVersion"
+                      value={imageForm.imageVersion}
+                      onChange={(v) => setImageForm({ ...imageForm, imageVersion: v })}
+                      required
+                      className="w-full"
+                      options={IMAGE_VERSIONS.map((v) => ({ value: v, label: v }))}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <Label htmlFor="imageVersionNumber">Version # <span className="text-destructive">*</span></Label>
+                      <Label htmlFor="imageVersionNumber">
+                        Version # <span className="text-destructive">*</span>
+                      </Label>
                       <FieldHelpButton metadata={getImageFieldMetadata('versionNumber')} />
                     </div>
                     <Input id="imageVersionNumber" type="number" min="1" step="1" value={imageForm.versionNumber} onChange={(e) => setImageForm({ ...imageForm, versionNumber: e.target.value })} required />
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <Label htmlFor="imageCopyNumber">Copy # <span className="text-destructive">*</span></Label>
+                      <Label htmlFor="imageCopyNumber">
+                        Copy # <span className="text-destructive">*</span>
+                      </Label>
                       <FieldHelpButton metadata={getImageFieldMetadata('copyNumber')} />
                     </div>
                     <Input id="imageCopyNumber" type="number" min="1" step="1" value={imageForm.copyNumber} onChange={(e) => setImageForm({ ...imageForm, copyNumber: e.target.value })} required />
                   </div>
                 </div>
+
                 {isEdit && currentImage?.imageCode ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground"><span>Code:</span><CodeBadge code={currentImage.imageCode} variant="subtle" /></div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Code:</span>
+                    <CodeBadge code={currentImage.imageCode} variant="subtle" />
+                  </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Auto-generated as <span className="font-mono font-semibold text-foreground">{project?.personCode ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_IMG_${imageForm.imageVersion || 'RAW'}_V${imageForm.versionNumber || '1'}_Copy(${imageForm.copyNumber || '1'})_000001` : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_IMG_${imageForm.imageVersion || 'RAW'}_V${imageForm.versionNumber || '1'}_Copy(${imageForm.copyNumber || '1'})_000001`}</span></p>
+                  <p className="text-xs text-muted-foreground">
+                    Auto-generated as{' '}
+                    <span className="font-mono font-semibold text-foreground">
+                      {project?.personCode
+                        ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_IMG_${imageForm.imageVersion || 'RAW'}_V${imageForm.versionNumber || '1'}_Copy(${imageForm.copyNumber || '1'})_000001`
+                        : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_IMG_${imageForm.imageVersion || 'RAW'}_V${imageForm.versionNumber || '1'}_Copy(${imageForm.copyNumber || '1'})_000001`}
+                    </span>
+                  </p>
                 )}
               </CardContent>
             </Card>
+
             <Card className="border-border bg-card shadow-sm shadow-black/5">
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="text-base font-semibold">Image File</CardTitle>
-                <CardDescription className="text-xs">{isEdit ? 'Upload a replacement file to overwrite the current image. Leave empty to keep it.' : 'A single image file is required.'}</CardDescription>
+                <CardDescription className="text-xs">
+                  {isEdit
+                    ? 'Upload a replacement file to overwrite the current image. Leave empty to keep it.'
+                    : 'A single image file is required.'}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pt-5">
                 {isEdit && currentImage?.imageFileUrl ? (
                   <div className="space-y-2">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current file</p>
-                    <div className="overflow-hidden rounded-lg border bg-muted/20"><img src={currentImage.imageFileUrl} alt={currentImage.originalTitle || currentImage.imageCode} className="block max-h-72 w-auto max-w-full object-contain" /></div>
+                    <div className="overflow-hidden rounded-lg border bg-muted/20">
+                      <img
+                        src={currentImage.imageFileUrl}
+                        alt={currentImage.originalTitle || currentImage.imageCode}
+                        className="block max-h-72 w-auto max-w-full object-contain"
+                      />
+                    </div>
                   </div>
                 ) : null}
-                <SingleMediaFilePicker id="imageFile" file={imageFile} onFileChange={handleImageFilePicked} mediaLabel="image" accept="image/*,.tif,.tiff,.heic,.heif,.raw,.cr2,.cr3,.nef,.arw,.dng" acceptedFormats="JPG, PNG, TIFF, RAW…" isEdit={isEdit} icon={ImageIcon} isAcceptedFile={isImageFile} />
+
+                <SingleMediaFilePicker
+                  id="imageFile"
+                  file={imageFile}
+                  onFileChange={handleImageFilePicked}
+                  mediaLabel="image"
+                  accept="image/*,.tif,.tiff,.heic,.heif,.raw,.cr2,.cr3,.nef,.arw,.dng"
+                  acceptedFormats="JPG, PNG, TIFF, RAW…"
+                  isEdit={isEdit}
+                  icon={ImageIcon}
+                  isAcceptedFile={isImageFile}
+                />
               </CardContent>
             </Card>
-            <ImageFormSections form={imageForm} setForm={setImageForm} projectCategories={project?.categories || []} />
+
+            <ImageFormSections
+              form={imageForm}
+              setForm={setImageForm}
+              projectCategories={project?.categories || []}
+            />
+
             <FormErrorBox error={formError} />
+
             <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-muted-foreground">{isEdit ? 'Update this image entry.' : savedImagesThisSession.length > 0 ? `${savedImagesThisSession.length} added in this session — keep going or finish.` : 'Pick an image, fill the metadata, then save.'}</p>
+              <p className="text-xs text-muted-foreground">
+                {isEdit
+                  ? 'Update this image entry.'
+                  : savedImagesThisSession.length > 0
+                  ? `${savedImagesThisSession.length} added in this session — keep going or finish.`
+                  : 'Pick an image, fill the metadata, then save.'}
+              </p>
               <div className="flex items-center justify-end gap-2">
-                <Button type="button" variant="outline" onClick={handleCloseImageForm} disabled={isSaving}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={handleCloseImageForm} disabled={isSaving}>
+                  Cancel
+                </Button>
                 {isEdit ? (
-                  <Button type="submit" disabled={isSaving} className="gap-2">{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}{isSaving ? 'Saving…' : 'Save Changes'}</Button>
+                  <Button type="submit" disabled={isSaving} className="gap-2">
+                    {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+                    {isSaving ? 'Saving…' : 'Save Changes'}
+                  </Button>
                 ) : (
                   <>
-                    <Button type="submit" variant="outline" disabled={isSaving} className="gap-2" onClick={() => { submitModeRef.current = 'add-another'; setPendingSubmitMode('add-another') }}>{isSaving && pendingSubmitMode === 'add-another' ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}Save &amp; Add Another</Button>
-                    <Button type="submit" disabled={isSaving} className="gap-2" onClick={() => { submitModeRef.current = 'finish'; setPendingSubmitMode('finish') }}>{isSaving && pendingSubmitMode === 'finish' ? <Loader2 className="size-4 animate-spin" /> : null}Save &amp; Finish</Button>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'add-another'
+                        setPendingSubmitMode('add-another')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'add-another' ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                      Save &amp; Add Another
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'finish'
+                        setPendingSubmitMode('finish')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'finish' ? <Loader2 className="size-4 animate-spin" /> : null}
+                      Save &amp; Finish
+                    </Button>
                   </>
                 )}
               </div>
@@ -1388,26 +1736,49 @@ function EmployeeProjectDetailPage() {
       <EmployeeEntityPage
         eyebrow={isEdit ? 'Editing' : 'New text'}
         title={isEdit ? 'Edit Text' : 'Add Text to Project'}
-        description={project ? `Inside project "${project.projectName}" (${project.projectCode}).` : 'Inside project.'}
+        description={
+          project
+            ? `Inside project "${project.projectName}" (${project.projectCode}).`
+            : 'Inside project.'
+        }
       >
         <form id="text-form" onSubmit={handleTextSubmit} className="mx-auto block w-full max-w-4xl">
           <div className="space-y-6">
             {!isEdit && savedTextsThisSession.length > 0 ? (
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 shadow-sm dark:bg-emerald-500/10">
                 <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"><CheckCircle2 className="size-4" /></div>
+                  <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+                    <CheckCircle2 className="size-4" />
+                  </div>
                   <div className="min-w-0 flex-1 space-y-1.5">
-                    <p className="text-sm font-semibold text-foreground">{savedTextsThisSession.length === 1 ? '1 text added so far in this session' : `${savedTextsThisSession.length} texts added so far in this session`}</p>
-                    <p className="text-xs text-muted-foreground">Form has been reset for the next one. Version & copy numbers carried over (copy auto-incremented).</p>
+                    <p className="text-sm font-semibold text-foreground">
+                      {savedTextsThisSession.length === 1
+                        ? '1 text added so far in this session'
+                        : `${savedTextsThisSession.length} texts added so far in this session`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Form has been reset for the next one. Version & copy numbers carried over (copy auto-incremented).
+                    </p>
                     <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {savedTextsThisSession.slice(-6).map((c) => (<span key={c} className="inline-flex items-center rounded-full border border-emerald-500/30 bg-background/60 px-2 py-0.5 font-mono text-[10px] tracking-wide text-foreground/80">{c}</span>))}
-                      {savedTextsThisSession.length > 6 ? <span className="text-[10px] font-medium text-muted-foreground">+{savedTextsThisSession.length - 6} earlier</span> : null}
+                      {savedTextsThisSession.slice(-6).map((c) => (
+                        <span key={c} className="inline-flex items-center rounded-full border border-emerald-500/30 bg-background/60 px-2 py-0.5 font-mono text-[10px] tracking-wide text-foreground/80">
+                          {c}
+                        </span>
+                      ))}
+                      {savedTextsThisSession.length > 6 ? (
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                          +{savedTextsThisSession.length - 6} earlier
+                        </span>
+                      ) : null}
                     </div>
                   </div>
-                  <button type="button" onClick={handleCloseTextForm} className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300">Finish & view list</button>
+                  <button type="button" onClick={handleCloseTextForm} className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300">
+                    Finish & view list
+                  </button>
                 </div>
               </div>
             ) : null}
+
             <Card className="border-border bg-card shadow-sm shadow-black/5">
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="text-base font-semibold">Identity</CardTitle>
@@ -1416,29 +1787,67 @@ function EmployeeProjectDetailPage() {
               <CardContent className="space-y-5 pt-5">
                 <div className="grid gap-5 sm:grid-cols-3">
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2"><Label htmlFor="textVersion">Version <span className="text-destructive">*</span></Label><FieldHelpButton metadata={getTextFieldMetadata('textVersion')} /></div>
-                    <Select id="textVersion" value={textForm.textVersion} onChange={(v) => setTextForm({ ...textForm, textVersion: v })} required className="w-full" options={TEXT_VERSIONS.map((v) => ({ value: v, label: v }))} />
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="textVersion">
+                        Version <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getTextFieldMetadata('textVersion')} />
+                    </div>
+                    <Select
+                      id="textVersion"
+                      value={textForm.textVersion}
+                      onChange={(v) => setTextForm({ ...textForm, textVersion: v })}
+                      required
+                      className="w-full"
+                      options={TEXT_VERSIONS.map((v) => ({ value: v, label: v }))}
+                    />
                   </div>
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2"><Label htmlFor="textVersionNumber">Version # <span className="text-destructive">*</span></Label><FieldHelpButton metadata={getTextFieldMetadata('versionNumber')} /></div>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="textVersionNumber">
+                        Version # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getTextFieldMetadata('versionNumber')} />
+                    </div>
                     <Input id="textVersionNumber" type="number" min="1" step="1" value={textForm.versionNumber} onChange={(e) => setTextForm({ ...textForm, versionNumber: e.target.value })} required />
                   </div>
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2"><Label htmlFor="textCopyNumber">Copy # <span className="text-destructive">*</span></Label><FieldHelpButton metadata={getTextFieldMetadata('copyNumber')} /></div>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="textCopyNumber">
+                        Copy # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getTextFieldMetadata('copyNumber')} />
+                    </div>
                     <Input id="textCopyNumber" type="number" min="1" step="1" value={textForm.copyNumber} onChange={(e) => setTextForm({ ...textForm, copyNumber: e.target.value })} required />
                   </div>
                 </div>
+
                 {isEdit && currentText?.textCode ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground"><span>Code:</span><CodeBadge code={currentText.textCode} variant="subtle" /></div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Code:</span>
+                    <CodeBadge code={currentText.textCode} variant="subtle" />
+                  </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Auto-generated as <span className="font-mono font-semibold text-foreground">{project?.personCode ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_TXT_${textForm.textVersion || 'RAW'}_V${textForm.versionNumber || '1'}_Copy(${textForm.copyNumber || '1'})_000001` : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_TXT_${textForm.textVersion || 'RAW'}_V${textForm.versionNumber || '1'}_Copy(${textForm.copyNumber || '1'})_000001`}</span></p>
+                  <p className="text-xs text-muted-foreground">
+                    Auto-generated as{' '}
+                    <span className="font-mono font-semibold text-foreground">
+                      {project?.personCode
+                        ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_TXT_${textForm.textVersion || 'RAW'}_V${textForm.versionNumber || '1'}_Copy(${textForm.copyNumber || '1'})_000001`
+                        : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_TXT_${textForm.textVersion || 'RAW'}_V${textForm.versionNumber || '1'}_Copy(${textForm.copyNumber || '1'})_000001`}
+                    </span>
+                  </p>
                 )}
               </CardContent>
             </Card>
+
             <Card className="border-border bg-card shadow-sm shadow-black/5">
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="text-base font-semibold">Text File</CardTitle>
-                <CardDescription className="text-xs">{isEdit ? 'Upload a replacement file to overwrite the current document. Leave empty to keep it.' : 'A single document file is required.'}</CardDescription>
+                <CardDescription className="text-xs">
+                  {isEdit
+                    ? 'Upload a replacement file to overwrite the current document. Leave empty to keep it.'
+                    : 'A single document file is required.'}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pt-5">
                 {isEdit && currentText?.textFileUrl ? (
@@ -1446,117 +1855,86 @@ function EmployeeProjectDetailPage() {
                     <FileText className="size-5 text-muted-foreground" />
                     <div className="min-w-0 flex-1 space-y-0.5">
                       <p className="truncate text-sm font-medium">{currentText.fileName || currentText.textCode}</p>
-                      <p className="text-xs text-muted-foreground">Current file. Pick a new one below to replace it.</p>
+                      <p className="text-xs text-muted-foreground">
+                        Current file. Pick a new one below to replace it.
+                      </p>
                     </div>
-                    <a href={currentText.textFileUrl} download className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:bg-muted">Download</a>
+                    <a
+                      href={currentText.textFileUrl}
+                      download
+                      className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:bg-muted"
+                    >
+                      Download
+                    </a>
                   </div>
                 ) : null}
-                <SingleMediaFilePicker id="textFile" file={textFile} onFileChange={handleTextFilePicked} mediaLabel="document" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.md,.tex,.epub,.mobi,.xml,.html,.htm,.csv,.tsv,application/pdf,text/*" acceptedFormats="PDF, DOCX, TXT, MD, EPUB…" isEdit={isEdit} icon={FileText} isAcceptedFile={isTextFile} />
-              </CardContent>
-            </Card>
-            <TextFormSections form={textForm} setForm={setTextForm} projectCategories={project?.categories || []} />
-            <FormErrorBox error={formError} />
-            <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-muted-foreground">{isEdit ? 'Update this text entry.' : savedTextsThisSession.length > 0 ? `${savedTextsThisSession.length} added in this session — keep going or finish.` : 'Pick a document, fill the metadata, then save.'}</p>
-              <div className="flex items-center justify-end gap-2">
-                <Button type="button" variant="outline" onClick={handleCloseTextForm} disabled={isSaving}>Cancel</Button>
-                {isEdit ? (
-                  <Button type="submit" disabled={isSaving} className="gap-2">{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}{isSaving ? 'Saving…' : 'Save Changes'}</Button>
-                ) : (
-                  <>
-                    <Button type="submit" variant="outline" disabled={isSaving} className="gap-2" onClick={() => { submitModeRef.current = 'add-another'; setPendingSubmitMode('add-another') }}>{isSaving && pendingSubmitMode === 'add-another' ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}Save &amp; Add Another</Button>
-                    <Button type="submit" disabled={isSaving} className="gap-2" onClick={() => { submitModeRef.current = 'finish'; setPendingSubmitMode('finish') }}>{isSaving && pendingSubmitMode === 'finish' ? <Loader2 className="size-4 animate-spin" /> : null}Save &amp; Finish</Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </form>
-      </EmployeeEntityPage>
-    )
-  }
 
-  /* ── video form view ────────────────────────────────────────── */
-  if ((view === 'create' || view === 'edit') && mediaType === 'video') {
-    const isEdit = view === 'edit'
-    return (
-      <EmployeeEntityPage
-        eyebrow={isEdit ? 'Editing' : 'New video'}
-        title={isEdit ? 'Edit Video' : 'Add Video to Project'}
-        description={project ? `Inside project "${project.projectName}" (${project.projectCode}).` : 'Inside project.'}
-      >
-        <form id="video-form" onSubmit={handleVideoSubmit} className="mx-auto block w-full max-w-4xl">
-          <div className="space-y-6">
-            {!isEdit && savedVideosThisSession.length > 0 ? (
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 shadow-sm dark:bg-emerald-500/10">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"><CheckCircle2 className="size-4" /></div>
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <p className="text-sm font-semibold text-foreground">{savedVideosThisSession.length === 1 ? '1 video added so far in this session' : `${savedVideosThisSession.length} videos added so far in this session`}</p>
-                    <p className="text-xs text-muted-foreground">Form has been reset for the next one. Version & copy numbers carried over (copy auto-incremented).</p>
-                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {savedVideosThisSession.slice(-6).map((c) => (<span key={c} className="inline-flex items-center rounded-full border border-emerald-500/30 bg-background/60 px-2 py-0.5 font-mono text-[10px] tracking-wide text-foreground/80">{c}</span>))}
-                      {savedVideosThisSession.length > 6 ? <span className="text-[10px] font-medium text-muted-foreground">+{savedVideosThisSession.length - 6} earlier</span> : null}
-                    </div>
-                  </div>
-                  <button type="button" onClick={handleCloseVideoForm} className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300">Finish & view list</button>
-                </div>
-              </div>
-            ) : null}
-            <Card className="border-border bg-card shadow-sm shadow-black/5">
-              <CardHeader className="border-b border-border pb-4">
-                <CardTitle className="text-base font-semibold">Identity</CardTitle>
-                <CardDescription className="text-xs">Version, copy and the auto-generated video code.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5 pt-5">
-                <div className="grid gap-5 sm:grid-cols-3">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2"><Label htmlFor="videoVersion">Version <span className="text-destructive">*</span></Label><FieldHelpButton metadata={getVideoFieldMetadata('videoVersion')} /></div>
-                    <Select id="videoVersion" value={videoForm.videoVersion} onChange={(v) => setVideoForm({ ...videoForm, videoVersion: v })} required className="w-full" options={VIDEO_VERSIONS.map((v) => ({ value: v, label: v }))} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2"><Label htmlFor="videoVersionNumber">Version # <span className="text-destructive">*</span></Label><FieldHelpButton metadata={getVideoFieldMetadata('versionNumber')} /></div>
-                    <Input id="videoVersionNumber" type="number" min="1" step="1" value={videoForm.versionNumber} onChange={(e) => setVideoForm({ ...videoForm, versionNumber: e.target.value })} required />
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2"><Label htmlFor="videoCopyNumber">Copy # <span className="text-destructive">*</span></Label><FieldHelpButton metadata={getVideoFieldMetadata('copyNumber')} /></div>
-                    <Input id="videoCopyNumber" type="number" min="1" step="1" value={videoForm.copyNumber} onChange={(e) => setVideoForm({ ...videoForm, copyNumber: e.target.value })} required />
-                  </div>
-                </div>
-                {isEdit && currentVideo?.videoCode ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground"><span>Code:</span><CodeBadge code={currentVideo.videoCode} variant="subtle" /></div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Auto-generated as <span className="font-mono font-semibold text-foreground">{project?.personCode ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_VID_${videoForm.videoVersion || 'RAW'}_V${videoForm.versionNumber || '1'}_Copy(${videoForm.copyNumber || '1'})_000001` : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_VID_${videoForm.videoVersion || 'RAW'}_V${videoForm.versionNumber || '1'}_Copy(${videoForm.copyNumber || '1'})_000001`}</span></p>
-                )}
+                <SingleMediaFilePicker
+                  id="textFile"
+                  file={textFile}
+                  onFileChange={handleTextFilePicked}
+                  mediaLabel="document"
+                  accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.md,.tex,.epub,.mobi,.xml,.html,.htm,.csv,.tsv,application/pdf,text/*"
+                  acceptedFormats="PDF, DOCX, TXT, MD, EPUB…"
+                  isEdit={isEdit}
+                  icon={FileText}
+                  isAcceptedFile={isTextFile}
+                />
               </CardContent>
             </Card>
-            <Card className="border-border bg-card shadow-sm shadow-black/5">
-              <CardHeader className="border-b border-border pb-4">
-                <CardTitle className="text-base font-semibold">Video File</CardTitle>
-                <CardDescription className="text-xs">{isEdit ? 'Upload a replacement file to overwrite the current video. Leave empty to keep it.' : 'A single video file is required.'}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-5">
-                {isEdit && currentVideo?.videoFileUrl ? (
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current file</p>
-                    <VideoPlayer src={currentVideo.videoFileUrl} title={currentVideo.originalTitle || currentVideo.videoCode} subtitle={[currentVideo.videoVersion, currentVideo.extension, currentVideo.resolution].filter(Boolean).join(' • ')} />
-                  </div>
-                ) : null}
-                <SingleMediaFilePicker id="videoFile" file={videoFile} onFileChange={handleVideoFilePicked} mediaLabel="video" accept="video/*,.mp4,.mov,.mkv,.webm,.avi,.m4v,.mpg,.mpeg,.wmv,.flv,.3gp,.ogv" acceptedFormats="MP4, MOV, MKV, WEBM…" isEdit={isEdit} icon={VideoIcon} isAcceptedFile={isVideoFile} />
-              </CardContent>
-            </Card>
-            <VideoFormSections form={videoForm} setForm={setVideoForm} projectCategories={project?.categories || []} />
+
+            <TextFormSections
+              form={textForm}
+              setForm={setTextForm}
+              projectCategories={project?.categories || []}
+            />
+
             <FormErrorBox error={formError} />
+
             <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-muted-foreground">{isEdit ? 'Update this video entry.' : savedVideosThisSession.length > 0 ? `${savedVideosThisSession.length} added in this session — keep going or finish.` : 'Pick a video, fill the metadata, then save.'}</p>
+              <p className="text-xs text-muted-foreground">
+                {isEdit
+                  ? 'Update this text entry.'
+                  : savedTextsThisSession.length > 0
+                  ? `${savedTextsThisSession.length} added in this session — keep going or finish.`
+                  : 'Pick a document, fill the metadata, then save.'}
+              </p>
               <div className="flex items-center justify-end gap-2">
-                <Button type="button" variant="outline" onClick={handleCloseVideoForm} disabled={isSaving}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={handleCloseTextForm} disabled={isSaving}>
+                  Cancel
+                </Button>
                 {isEdit ? (
-                  <Button type="submit" disabled={isSaving} className="gap-2">{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}{isSaving ? 'Saving…' : 'Save Changes'}</Button>
+                  <Button type="submit" disabled={isSaving} className="gap-2">
+                    {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+                    {isSaving ? 'Saving…' : 'Save Changes'}
+                  </Button>
                 ) : (
                   <>
-                    <Button type="submit" variant="outline" disabled={isSaving} className="gap-2" onClick={() => { submitModeRef.current = 'add-another'; setPendingSubmitMode('add-another') }}>{isSaving && pendingSubmitMode === 'add-another' ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}Save &amp; Add Another</Button>
-                    <Button type="submit" disabled={isSaving} className="gap-2" onClick={() => { submitModeRef.current = 'finish'; setPendingSubmitMode('finish') }}>{isSaving && pendingSubmitMode === 'finish' ? <Loader2 className="size-4 animate-spin" /> : null}Save &amp; Finish</Button>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'add-another'
+                        setPendingSubmitMode('add-another')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'add-another' ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                      Save &amp; Add Another
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'finish'
+                        setPendingSubmitMode('finish')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'finish' ? <Loader2 className="size-4 animate-spin" /> : null}
+                      Save &amp; Finish
+                    </Button>
                   </>
                 )}
               </div>
@@ -1568,86 +1946,205 @@ function EmployeeProjectDetailPage() {
   }
 
   /* ── audio form view ────────────────────────────────────────── */
-  if (view === 'create' || view === 'edit') {
+  if ((view === 'create' || view === 'edit') && mediaType === 'video') {
     const isEdit = view === 'edit'
     return (
       <EmployeeEntityPage
-        eyebrow={isEdit ? 'Editing' : 'New audio'}
-        title={isEdit ? 'Edit Audio' : 'Add Audio to Project'}
-        description={project ? `Inside project "${project.projectName}" (${project.projectCode}).` : 'Inside project.'}
+        eyebrow={isEdit ? 'Editing' : 'New video'}
+        title={isEdit ? 'Edit Video' : 'Add Video to Project'}
+        description={
+          project
+            ? `Inside project "${project.projectName}" (${project.projectCode}).`
+            : 'Inside project.'
+        }
       >
-        <form id="audio-form" onSubmit={handleAudioSubmit} className="mx-auto block w-full max-w-4xl">
+        <form id="video-form" onSubmit={handleVideoSubmit} className="mx-auto block w-full max-w-4xl">
           <div className="space-y-6">
-            {!isEdit && savedThisSession.length > 0 ? (
+            {!isEdit && savedVideosThisSession.length > 0 ? (
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 shadow-sm dark:bg-emerald-500/10">
                 <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"><CheckCircle2 className="size-4" /></div>
+                  <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+                    <CheckCircle2 className="size-4" />
+                  </div>
                   <div className="min-w-0 flex-1 space-y-1.5">
-                    <p className="text-sm font-semibold text-foreground">{savedThisSession.length === 1 ? '1 audio added so far in this session' : `${savedThisSession.length} audios added so far in this session`}</p>
-                    <p className="text-xs text-muted-foreground">Form has been reset for the next one. Version & copy numbers carried over (copy auto-incremented).</p>
+                    <p className="text-sm font-semibold text-foreground">
+                      {savedVideosThisSession.length === 1
+                        ? '1 video added so far in this session'
+                        : `${savedVideosThisSession.length} videos added so far in this session`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Form has been reset for the next one. Version & copy numbers carried over (copy auto-incremented).
+                    </p>
                     <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {savedThisSession.slice(-6).map((c) => (<span key={c} className="inline-flex items-center rounded-full border border-emerald-500/30 bg-background/60 px-2 py-0.5 font-mono text-[10px] tracking-wide text-foreground/80">{c}</span>))}
-                      {savedThisSession.length > 6 ? <span className="text-[10px] font-medium text-muted-foreground">+{savedThisSession.length - 6} earlier</span> : null}
+                      {savedVideosThisSession.slice(-6).map((c) => (
+                        <span key={c} className="inline-flex items-center rounded-full border border-emerald-500/30 bg-background/60 px-2 py-0.5 font-mono text-[10px] tracking-wide text-foreground/80">
+                          {c}
+                        </span>
+                      ))}
+                      {savedVideosThisSession.length > 6 ? (
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                          +{savedVideosThisSession.length - 6} earlier
+                        </span>
+                      ) : null}
                     </div>
                   </div>
-                  <button type="button" onClick={handleCloseAudioForm} className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300">Finish & view list</button>
+                  <button type="button" onClick={handleCloseVideoForm} className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300">
+                    Finish & view list
+                  </button>
                 </div>
               </div>
             ) : null}
+
             <Card className="border-border bg-card shadow-sm shadow-black/5">
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="text-base font-semibold">Identity</CardTitle>
-                <CardDescription className="text-xs">Version, copy and the auto-generated audio code.</CardDescription>
+                <CardDescription className="text-xs">Version, copy and the auto-generated video code.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5 pt-5">
                 <div className="grid gap-5 sm:grid-cols-3">
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2"><Label htmlFor="audioVersion">Version <span className="text-destructive">*</span></Label><FieldHelpButton metadata={getAudioFieldMetadata('audioVersion')} /></div>
-                    <Select id="audioVersion" value={form.audioVersion} onChange={(v) => setForm({ ...form, audioVersion: v })} required className="w-full" options={AUDIO_VERSIONS.map((v) => ({ value: v, label: v }))} />
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="videoVersion">
+                        Version <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getVideoFieldMetadata('videoVersion')} />
+                    </div>
+                    <Select
+                      id="videoVersion"
+                      value={videoForm.videoVersion}
+                      onChange={(v) => setVideoForm({ ...videoForm, videoVersion: v })}
+                      required
+                      className="w-full"
+                      options={VIDEO_VERSIONS.map((v) => ({ value: v, label: v }))}
+                    />
                   </div>
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2"><Label htmlFor="versionNumber">Version # <span className="text-destructive">*</span></Label><FieldHelpButton metadata={getAudioFieldMetadata('versionNumber')} /></div>
-                    <Input id="versionNumber" type="number" min="1" step="1" value={form.versionNumber} onChange={(e) => setForm({ ...form, versionNumber: e.target.value })} required />
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="videoVersionNumber">
+                        Version # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getVideoFieldMetadata('versionNumber')} />
+                    </div>
+                    <Input id="videoVersionNumber" type="number" min="1" step="1" value={videoForm.versionNumber} onChange={(e) => setVideoForm({ ...videoForm, versionNumber: e.target.value })} required />
                   </div>
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2"><Label htmlFor="copyNumber">Copy # <span className="text-destructive">*</span></Label><FieldHelpButton metadata={getAudioFieldMetadata('copyNumber')} /></div>
-                    <Input id="copyNumber" type="number" min="1" step="1" value={form.copyNumber} onChange={(e) => setForm({ ...form, copyNumber: e.target.value })} required />
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="videoCopyNumber">
+                        Copy # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getVideoFieldMetadata('copyNumber')} />
+                    </div>
+                    <Input id="videoCopyNumber" type="number" min="1" step="1" value={videoForm.copyNumber} onChange={(e) => setVideoForm({ ...videoForm, copyNumber: e.target.value })} required />
                   </div>
                 </div>
-                {isEdit && currentAudio?.audioCode ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground"><span>Code:</span><CodeBadge code={currentAudio.audioCode} variant="subtle" /></div>
+
+                {isEdit && currentVideo?.videoCode ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Code:</span>
+                    <CodeBadge code={currentVideo.videoCode} variant="subtle" />
+                  </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Auto-generated as <span className="font-mono font-semibold text-foreground">{project?.personCode ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_AUD_${form.audioVersion || 'RAW'}_V${form.versionNumber || '1'}_Copy(${form.copyNumber || '1'})_000001` : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_AUD_${form.audioVersion || 'RAW'}_V${form.versionNumber || '1'}_Copy(${form.copyNumber || '1'})_000001`}</span></p>
+                  <p className="text-xs text-muted-foreground">
+                    Auto-generated as{' '}
+                    <span className="font-mono font-semibold text-foreground">
+                      {project?.personCode
+                        ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_VID_${videoForm.videoVersion || 'RAW'}_V${videoForm.versionNumber || '1'}_Copy(${videoForm.copyNumber || '1'})_000001`
+                        : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_VID_${videoForm.videoVersion || 'RAW'}_V${videoForm.versionNumber || '1'}_Copy(${videoForm.copyNumber || '1'})_000001`}
+                    </span>
+                  </p>
                 )}
               </CardContent>
             </Card>
+
             <Card className="border-border bg-card shadow-sm shadow-black/5">
               <CardHeader className="border-b border-border pb-4">
-                <CardTitle className="text-base font-semibold">Audio File</CardTitle>
-                <CardDescription className="text-xs">{isEdit ? 'Upload a replacement file to overwrite the current recording. Leave empty to keep it.' : 'A single audio file is required.'}</CardDescription>
+                <CardTitle className="text-base font-semibold">Video File</CardTitle>
+                <CardDescription className="text-xs">
+                  {isEdit
+                    ? 'Upload a replacement file to overwrite the current video. Leave empty to keep it.'
+                    : 'A single video file is required.'}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pt-5">
-                {isEdit && currentAudio?.audioFileUrl ? (
+                {isEdit && currentVideo?.videoFileUrl ? (
                   <div className="space-y-2">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current file</p>
-                    <AudioPlayer src={currentAudio.audioFileUrl} title={currentAudio.originTitle || currentAudio.audioCode} subtitle={[currentAudio.audioVersion, currentAudio.fileExtension, currentAudio.bitRate].filter(Boolean).join(' • ')} />
+                    <VideoPlayer
+                      src={currentVideo.videoFileUrl}
+                      title={currentVideo.originalTitle || currentVideo.videoCode}
+                      subtitle={[currentVideo.videoVersion, currentVideo.extension, currentVideo.resolution]
+                        .filter(Boolean)
+                        .join(' • ')}
+                    />
                   </div>
                 ) : null}
-                <SingleMediaFilePicker id="audioFile" file={audioFile} onFileChange={handleAudioFilePicked} mediaLabel="audio" accept="audio/*,.wav,.mp3,.flac,.ogg,.m4a,.aac,.aiff,.aif,.wma,.opus" acceptedFormats="WAV, MP3, FLAC, OGG…" isEdit={isEdit} icon={FileAudio} isAcceptedFile={isAudioFile} />
+
+                <SingleMediaFilePicker
+                  id="videoFile"
+                  file={videoFile}
+                  onFileChange={handleVideoFilePicked}
+                  mediaLabel="video"
+                  accept="video/*,.mp4,.mov,.mkv,.webm,.avi,.m4v,.mpg,.mpeg,.wmv,.flv,.3gp,.ogv"
+                  acceptedFormats="MP4, MOV, MKV, WEBM…"
+                  isEdit={isEdit}
+                  icon={VideoIcon}
+                  isAcceptedFile={isVideoFile}
+                />
               </CardContent>
             </Card>
-            <AudioFormSections form={form} setForm={setForm} projectCategories={project?.categories || []} />
+
+            <VideoFormSections
+              form={videoForm}
+              setForm={setVideoForm}
+              projectCategories={project?.categories || []}
+            />
+
             <FormErrorBox error={formError} />
+
             <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-muted-foreground">{isEdit ? 'Update this audio entry.' : savedThisSession.length > 0 ? `${savedThisSession.length} added in this session — keep going or finish.` : 'Pick a recording, fill the metadata, then save.'}</p>
+              <p className="text-xs text-muted-foreground">
+                {isEdit
+                  ? 'Update this video entry.'
+                  : savedVideosThisSession.length > 0
+                  ? `${savedVideosThisSession.length} added in this session — keep going or finish.`
+                  : 'Pick a video, fill the metadata, then save.'}
+              </p>
               <div className="flex items-center justify-end gap-2">
-                <Button type="button" variant="outline" onClick={handleCloseAudioForm} disabled={isSaving}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={handleCloseVideoForm} disabled={isSaving}>
+                  Cancel
+                </Button>
                 {isEdit ? (
-                  <Button type="submit" disabled={isSaving} className="gap-2">{isSaving ? <Loader2 className="size-4 animate-spin" /> : null}{isSaving ? 'Saving…' : 'Save Changes'}</Button>
+                  <Button type="submit" disabled={isSaving} className="gap-2">
+                    {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+                    {isSaving ? 'Saving…' : 'Save Changes'}
+                  </Button>
                 ) : (
                   <>
-                    <Button type="submit" variant="outline" disabled={isSaving} className="gap-2" onClick={() => { submitModeRef.current = 'add-another'; setPendingSubmitMode('add-another') }}>{isSaving && pendingSubmitMode === 'add-another' ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}Save &amp; Add Another</Button>
-                    <Button type="submit" disabled={isSaving} className="gap-2" onClick={() => { submitModeRef.current = 'finish'; setPendingSubmitMode('finish') }}>{isSaving && pendingSubmitMode === 'finish' ? <Loader2 className="size-4 animate-spin" /> : null}Save &amp; Finish</Button>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'add-another'
+                        setPendingSubmitMode('add-another')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'add-another' ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                      Save &amp; Add Another
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'finish'
+                        setPendingSubmitMode('finish')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'finish' ? <Loader2 className="size-4 animate-spin" /> : null}
+                      Save &amp; Finish
+                    </Button>
                   </>
                 )}
               </div>
@@ -1658,7 +2155,250 @@ function EmployeeProjectDetailPage() {
     )
   }
 
-  /* ── list / detail view ─────────────────────────────────────── */
+  if (view === 'create' || view === 'edit') {
+    const isEdit = view === 'edit'
+
+    return (
+      <EmployeeEntityPage
+        eyebrow={isEdit ? 'Editing' : 'New audio'}
+        title={isEdit ? 'Edit Audio' : 'Add Audio to Project'}
+        description={
+          project
+            ? `Inside project "${project.projectName}" (${project.projectCode}).`
+            : 'Inside project.'
+        }
+      >
+        <form id="audio-form" onSubmit={handleAudioSubmit} className="mx-auto block w-full max-w-4xl">
+          <div className="space-y-6">
+            {!isEdit && savedThisSession.length > 0 ? (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 shadow-sm dark:bg-emerald-500/10">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+                    <CheckCircle2 className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <p className="text-sm font-semibold text-foreground">
+                      {savedThisSession.length === 1
+                        ? '1 audio added so far in this session'
+                        : `${savedThisSession.length} audios added so far in this session`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Form has been reset for the next one. Version & copy numbers carried over (copy auto-incremented).
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {savedThisSession.slice(-6).map((c) => (
+                        <span
+                          key={c}
+                          className="inline-flex items-center rounded-full border border-emerald-500/30 bg-background/60 px-2 py-0.5 font-mono text-[10px] tracking-wide text-foreground/80"
+                        >
+                          {c}
+                        </span>
+                      ))}
+                      {savedThisSession.length > 6 ? (
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                          +{savedThisSession.length - 6} earlier
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCloseAudioForm}
+                    className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
+                  >
+                    Finish & view list
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            <Card className="border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-base font-semibold">Identity</CardTitle>
+                <CardDescription className="text-xs">
+                  Version, copy and the auto-generated audio code.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5 pt-5">
+                <div className="grid gap-5 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="audioVersion">
+                        Version <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getAudioFieldMetadata('audioVersion')} />
+                    </div>
+                    <Select
+                      id="audioVersion"
+                      value={form.audioVersion}
+                      onChange={(v) => setForm({ ...form, audioVersion: v })}
+                      required
+                      className="w-full"
+                      options={AUDIO_VERSIONS.map((v) => ({ value: v, label: v }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="versionNumber">
+                        Version # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getAudioFieldMetadata('versionNumber')} />
+                    </div>
+                    <Input
+                      id="versionNumber"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={form.versionNumber}
+                      onChange={(e) => setForm({ ...form, versionNumber: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="copyNumber">
+                        Copy # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getAudioFieldMetadata('copyNumber')} />
+                    </div>
+                    <Input
+                      id="copyNumber"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={form.copyNumber}
+                      onChange={(e) => setForm({ ...form, copyNumber: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {isEdit && currentAudio?.audioCode ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Code:</span>
+                    <CodeBadge code={currentAudio.audioCode} variant="subtle" />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Auto-generated as{' '}
+                    <span className="font-mono font-semibold text-foreground">
+                      {project?.personCode
+                        ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_AUD_${form.audioVersion || 'RAW'}_V${form.versionNumber || '1'}_Copy(${form.copyNumber || '1'})_000001`
+                        : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_AUD_${form.audioVersion || 'RAW'}_V${form.versionNumber || '1'}_Copy(${form.copyNumber || '1'})_000001`}
+                    </span>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-base font-semibold">Audio File</CardTitle>
+                <CardDescription className="text-xs">
+                  {isEdit
+                    ? 'Upload a replacement file to overwrite the current recording. Leave empty to keep it.'
+                    : 'A single audio file is required.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-5">
+                {isEdit && currentAudio?.audioFileUrl ? (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      Current file
+                    </p>
+                    <AudioPlayer
+                      src={currentAudio.audioFileUrl}
+                      title={currentAudio.originTitle || currentAudio.audioCode}
+                      subtitle={[currentAudio.audioVersion, currentAudio.fileExtension, currentAudio.bitRate]
+                        .filter(Boolean)
+                        .join(' • ')}
+                    />
+                  </div>
+                ) : null}
+
+                <SingleMediaFilePicker
+                  id="audioFile"
+                  file={audioFile}
+                  onFileChange={handleAudioFilePicked}
+                  mediaLabel="audio"
+                  accept="audio/*,.wav,.mp3,.flac,.ogg,.m4a,.aac,.aiff,.aif,.wma,.opus"
+                  acceptedFormats="WAV, MP3, FLAC, OGG…"
+                  isEdit={isEdit}
+                  icon={FileAudio}
+                  isAcceptedFile={isAudioFile}
+                />
+              </CardContent>
+            </Card>
+
+            <AudioFormSections
+              form={form}
+              setForm={setForm}
+              projectCategories={project?.categories || []}
+            />
+
+            <FormErrorBox error={formError} />
+
+            <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                {isEdit
+                  ? 'Update this audio entry.'
+                  : savedThisSession.length > 0
+                  ? `${savedThisSession.length} added in this session — keep going or finish.`
+                  : 'Pick a recording, fill the metadata, then save.'}
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <Button type="button" variant="outline" onClick={handleCloseAudioForm} disabled={isSaving}>
+                  Cancel
+                </Button>
+                {isEdit ? (
+                  <Button type="submit" disabled={isSaving} className="gap-2">
+                    {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+                    {isSaving ? 'Saving…' : 'Save Changes'}
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'add-another'
+                        setPendingSubmitMode('add-another')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'add-another' ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Plus className="size-4" />
+                      )}
+                      Save &amp; Add Another
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'finish'
+                        setPendingSubmitMode('finish')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'finish' ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : null}
+                      Save &amp; Finish
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </form>
+      </EmployeeEntityPage>
+    )
+  }
+
+  /* ── detail / list view ─────────────────────────────────────── */
 
   if (isLoading) {
     return (
@@ -1690,175 +2430,698 @@ function EmployeeProjectDetailPage() {
 
   return (
     <div className="space-y-4">
-      <Button type="button" variant="outline" size="lg" className="group h-10 gap-2.5 px-4 text-sm font-medium" onClick={() => navigate(`${sectionBase}/project`)}>
+      <Button
+        type="button"
+        variant="outline"
+        size="lg"
+        className="group h-10 gap-2.5 px-4 text-sm font-medium"
+        onClick={() => navigate(`${sectionBase}/project`)}
+      >
         <ArrowLeft className="size-5 transition-transform group-hover:-translate-x-0.5" />
         Back to projects
       </Button>
 
-      <EmployeeEntityPage
-        title={project.projectName}
-        badge={project.removedAt ? 'Removed' : undefined}
-        description={project.description || undefined}
-        action={
-          <div className="flex items-center gap-2 shrink-0">
-            {mediaType === 'audio' ? (
-              <Button onClick={handleOpenCreateAudio} className="gap-2"><Plus className="size-4" />Add Audio</Button>
-            ) : mediaType === 'video' ? (
-              <Button onClick={handleOpenCreateVideo} className="gap-2"><Plus className="size-4" />Add Video</Button>
-            ) : mediaType === 'image' ? (
-              <Button onClick={handleOpenCreateImage} className="gap-2"><Plus className="size-4" />Add Image</Button>
-            ) : (
-              <Button onClick={handleOpenCreateText} className="gap-2"><Plus className="size-4" />Add Text</Button>
+    <EmployeeEntityPage
+      title={project.projectName}
+      badge={project.removedAt ? 'Removed' : undefined}
+      description={project.description || undefined}
+      action={
+        <div className="flex items-center gap-2 shrink-0">
+          {mediaType === 'audio' ? (
+            <Button onClick={handleOpenCreateAudio} className="gap-2">
+              <Plus className="size-4" />
+              Add Audio
+            </Button>
+          ) : mediaType === 'video' ? (
+            <Button onClick={handleOpenCreateVideo} className="gap-2">
+              <Plus className="size-4" />
+              Add Video
+            </Button>
+          ) : mediaType === 'image' ? (
+            <Button onClick={handleOpenCreateImage} className="gap-2">
+              <Plus className="size-4" />
+              Add Image
+            </Button>
+          ) : (
+            <Button onClick={handleOpenCreateText} className="gap-2">
+              <Plus className="size-4" />
+              Add Text
+            </Button>
+          )}
+        </div>
+      }
+    >
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardContent className="grid gap-6 px-6 py-5 sm:grid-cols-[auto_1fr_auto]">
+          <div className="flex size-12 items-center justify-center rounded-xl border bg-background text-muted-foreground">
+            <FolderOpen className="size-5" />
+          </div>
+          <div className="space-y-2 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <CodeBadge code={project.projectCode} />
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                  project.personCode ? 'bg-muted/40 text-foreground' : 'bg-muted/20 italic text-muted-foreground',
+                )}
+              >
+                {project.personCode ? (
+                  <>
+                    {project.personName || project.personCode}
+                    <span className="font-mono text-[10px] text-muted-foreground">{project.personCode}</span>
+                  </>
+                ) : (
+                  'Untitled (no person)'
+                )}
+              </span>
+            </div>
+
+            {(project.categories?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {project.categories.map((cat) => (
+                  <span
+                    key={cat.categoryCode || cat.id}
+                    className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] text-foreground/80"
+                  >
+                    {cat.categoryName || cat.name || cat.categoryCode}
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {cat.categoryCode}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {((project.tags?.length ?? 0) > 0 || (project.keywords?.length ?? 0) > 0) && (
+              <div className="flex flex-wrap gap-1 text-[11px] text-muted-foreground">
+                {(project.tags || []).map((t) => (
+                  <span key={`t-${t}`} className="inline-flex items-center rounded-full bg-muted/40 px-2 py-0.5">
+                    #{t}
+                  </span>
+                ))}
+                {(project.keywords || []).map((k) => (
+                  <span key={`k-${k}`} className="inline-flex items-center rounded-full bg-muted/20 px-2 py-0.5">
+                    {k}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
-        }
-      >
+          <div className="flex flex-col items-end gap-1 self-center text-[11px] text-muted-foreground">
+            <p>
+              {audios.length} audio · {videos.length} video · {images.length} image · {texts.length} text
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <MediaTypeTabs
+        mediaType={mediaType}
+        onChange={handleSwitchMediaType}
+        audioCount={visibleAudios.length}
+        videoCount={visibleVideos.length}
+        imageCount={visibleImages.length}
+        textCount={visibleTexts.length}
+      />
+
+      {mediaType === 'audio' ? (
+        <EntityToolbar
+          filteredCount={filteredAudios.length}
+          totalCount={visibleAudios.length}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search audios — code, title, lyrics, genre, contributors, tags…"
+          onRefresh={() => loadAudios()}
+          isRefreshing={isLoadingAudios || isAudioSearching}
+          trailing={
+            // Sort + filter live in the trailing slot so they sit
+            // alongside the refresh button. Both are disabled while
+            // a fuzzy search is active because /audio/search has its
+            // own ranking and bypasses the filter model server-side.
+            <div className="flex flex-wrap items-center gap-2">
+              <SortSelect
+                value={audioSortKey}
+                onChange={setAudioSortKey}
+                options={AUDIO_SORT_OPTIONS}
+                ascIcon={ArrowUpAZ}
+                descIcon={ArrowDownAZ}
+                disabled={Boolean(searchTerm.trim())}
+                title="Sort audios"
+                width="sm:w-[16rem]"
+              />
+              <FilterTriggerButton
+                active={audioFiltersActive}
+                count={audioFilterCount}
+                open={isAudioFilterPanelOpen}
+                onClick={() => setIsAudioFilterPanelOpen((v) => !v)}
+                disabled={Boolean(searchTerm.trim())}
+                disabledReason="Clear search to use filters"
+              />
+            </div>
+          }
+        />
+      ) : mediaType === 'video' ? (
+        <EntityToolbar
+          filteredCount={filteredVideos.length}
+          totalCount={visibleVideos.length}
+          searchValue={videoSearchTerm}
+          onSearchChange={setVideoSearchTerm}
+          searchPlaceholder="Search videos — code, title, location, subjects, tags…"
+          onRefresh={() => loadVideos()}
+          isRefreshing={isLoadingVideos || isVideoSearching}
+          trailing={
+            <div className="flex flex-wrap items-center gap-2">
+              <SortSelect
+                value={videoSortKey}
+                onChange={setVideoSortKey}
+                options={VIDEO_SORT_OPTIONS}
+                ascIcon={ArrowUpAZ}
+                descIcon={ArrowDownAZ}
+                disabled={Boolean(videoSearchTerm.trim())}
+                title="Sort videos"
+                width="sm:w-[16rem]"
+              />
+              <FilterTriggerButton
+                active={videoFiltersActive}
+                count={videoFilterCount}
+                open={isVideoFilterPanelOpen}
+                onClick={() => setIsVideoFilterPanelOpen((v) => !v)}
+                disabled={Boolean(videoSearchTerm.trim())}
+                disabledReason="Clear search to use filters"
+              />
+            </div>
+          }
+        />
+      ) : mediaType === 'image' ? (
+        <EntityToolbar
+          filteredCount={filteredImages.length}
+          totalCount={visibleImages.length}
+          searchValue={imageSearchTerm}
+          onSearchChange={setImageSearchTerm}
+          searchPlaceholder="Search images — code, title, creator, location, subjects, tags…"
+          onRefresh={() => loadImages()}
+          isRefreshing={isLoadingImages || isImageSearching}
+          trailing={
+            <div className="flex flex-wrap items-center gap-2">
+              <SortSelect
+                value={imageSortKey}
+                onChange={setImageSortKey}
+                options={IMAGE_SORT_OPTIONS}
+                ascIcon={ArrowUpAZ}
+                descIcon={ArrowDownAZ}
+                disabled={Boolean(imageSearchTerm.trim())}
+                title="Sort images"
+                width="sm:w-[16rem]"
+              />
+              <FilterTriggerButton
+                active={imageFiltersActive}
+                count={imageFilterCount}
+                open={isImageFilterPanelOpen}
+                onClick={() => setIsImageFilterPanelOpen((v) => !v)}
+                disabled={Boolean(imageSearchTerm.trim())}
+                disabledReason="Clear search to use filters"
+              />
+            </div>
+          }
+        />
+      ) : (
+        <EntityToolbar
+          filteredCount={filteredTexts.length}
+          totalCount={visibleTexts.length}
+          searchValue={textSearchTerm}
+          onSearchChange={setTextSearchTerm}
+          searchPlaceholder="Search texts — code, title, author, ISBN, transcription, tags…"
+          onRefresh={() => loadTexts()}
+          isRefreshing={isLoadingTexts || isTextSearching}
+          trailing={
+            <div className="flex flex-wrap items-center gap-2">
+              <SortSelect
+                value={textSortKey}
+                onChange={setTextSortKey}
+                options={TEXT_SORT_OPTIONS}
+                ascIcon={ArrowUpAZ}
+                descIcon={ArrowDownAZ}
+                disabled={Boolean(textSearchTerm.trim())}
+                title="Sort texts"
+                width="sm:w-[16rem]"
+              />
+              <FilterTriggerButton
+                active={textFiltersActive}
+                count={textFilterCount}
+                open={isTextFilterPanelOpen}
+                onClick={() => setIsTextFilterPanelOpen((v) => !v)}
+                disabled={Boolean(textSearchTerm.trim())}
+                disabledReason="Clear search to use filters"
+              />
+            </div>
+          }
+        />
+      )}
+
+      {mediaType === 'audio' && !searchTerm.trim() ? (
+        <AudioFilterPanel
+          open={isAudioFilterPanelOpen}
+          filters={audioFilters}
+          onChange={updateAudioFilter}
+          onClear={clearAudioFilters}
+          onClose={() => setIsAudioFilterPanelOpen(false)}
+          isAnyActive={audioFiltersActive}
+          activeCount={audioFilterCount}
+        />
+      ) : null}
+
+      {mediaType === 'audio' && audioChips.length > 0 ? (
+        <FilterChips
+          chips={audioChips}
+          onClearAll={
+            audioFiltersActive || audioSortActive
+              ? () => {
+                  clearAudioFilters()
+                  setAudioSortKey(DEFAULT_AUDIO_SORT_KEY)
+                }
+              : null
+          }
+        />
+      ) : null}
+
+      {mediaType === 'image' && !imageSearchTerm.trim() ? (
+        <ImageFilterPanel
+          open={isImageFilterPanelOpen}
+          filters={imageFilters}
+          onChange={updateImageFilter}
+          onClear={clearImageFilters}
+          onClose={() => setIsImageFilterPanelOpen(false)}
+          isAnyActive={imageFiltersActive}
+          activeCount={imageFilterCount}
+        />
+      ) : null}
+
+      {mediaType === 'image' && imageChips.length > 0 ? (
+        <FilterChips
+          chips={imageChips}
+          onClearAll={
+            imageFiltersActive || imageSortActive
+              ? () => {
+                  clearImageFilters()
+                  setImageSortKey(DEFAULT_IMAGE_SORT_KEY)
+                }
+              : null
+          }
+        />
+      ) : null}
+
+      {mediaType === 'video' && !videoSearchTerm.trim() ? (
+        <VideoFilterPanel
+          open={isVideoFilterPanelOpen}
+          filters={videoFilters}
+          onChange={updateVideoFilter}
+          onClear={clearVideoFilters}
+          onClose={() => setIsVideoFilterPanelOpen(false)}
+          isAnyActive={videoFiltersActive}
+          activeCount={videoFilterCount}
+        />
+      ) : null}
+
+      {mediaType === 'video' && videoChips.length > 0 ? (
+        <FilterChips
+          chips={videoChips}
+          onClearAll={
+            videoFiltersActive || videoSortActive
+              ? () => {
+                  clearVideoFilters()
+                  setVideoSortKey(DEFAULT_VIDEO_SORT_KEY)
+                }
+              : null
+          }
+        />
+      ) : null}
+
+      {mediaType === 'text' && !textSearchTerm.trim() ? (
+        <TextFilterPanel
+          open={isTextFilterPanelOpen}
+          filters={textFilters}
+          onChange={updateTextFilter}
+          onClear={clearTextFilters}
+          onClose={() => setIsTextFilterPanelOpen(false)}
+          isAnyActive={textFiltersActive}
+          activeCount={textFilterCount}
+        />
+      ) : null}
+
+      {mediaType === 'text' && textChips.length > 0 ? (
+        <FilterChips
+          chips={textChips}
+          onClearAll={
+            textFiltersActive || textSortActive
+              ? () => {
+                  clearTextFilters()
+                  setTextSortKey(DEFAULT_TEXT_SORT_KEY)
+                }
+              : null
+          }
+        />
+      ) : null}
+
+      {mediaType === 'audio' ? (
+      <>{isLoadingAudios ? (
         <Card className="border-border bg-card shadow-sm shadow-black/5">
-          <CardContent className="grid gap-6 px-6 py-5 sm:grid-cols-[auto_1fr_auto]">
-            <div className="flex size-12 items-center justify-center rounded-xl border bg-background text-muted-foreground"><FolderOpen className="size-5" /></div>
-            <div className="space-y-2 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <CodeBadge code={project.projectCode} />
-                <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium', project.personCode ? 'bg-muted/40 text-foreground' : 'bg-muted/20 italic text-muted-foreground')}>
-                  {project.personCode ? (<>{project.personName || project.personCode}<span className="font-mono text-[10px] text-muted-foreground">{project.personCode}</span></>) : 'Untitled (no person)'}
-                </span>
+          <div className="divide-y divide-border">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3">
+                <Skeleton className="h-4 w-6" />
+                <Skeleton className="h-6 w-52 rounded-md" />
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-5 w-24 rounded-full" />
+                <Skeleton className="ml-auto h-7 w-20" />
               </div>
-              {(project.categories?.length ?? 0) > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {project.categories.map((cat) => (
-                    <span key={cat.categoryCode || cat.id} className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] text-foreground/80">
-                      {cat.categoryName || cat.name || cat.categoryCode}
-                      <span className="font-mono text-[10px] text-muted-foreground">{cat.categoryCode}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-              {((project.tags?.length ?? 0) > 0 || (project.keywords?.length ?? 0) > 0) && (
-                <div className="flex flex-wrap gap-1 text-[11px] text-muted-foreground">
-                  {(project.tags || []).map((t) => (<span key={`t-${t}`} className="inline-flex items-center rounded-full bg-muted/40 px-2 py-0.5">#{t}</span>))}
-                  {(project.keywords || []).map((k) => (<span key={`k-${k}`} className="inline-flex items-center rounded-full bg-muted/20 px-2 py-0.5">{k}</span>))}
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col items-end gap-1 self-center text-[11px] text-muted-foreground">
-              <p>{audios.length} audio · {videos.length} video · {images.length} image · {texts.length} text</p>
-            </div>
-          </CardContent>
+            ))}
+          </div>
         </Card>
-
-        <MediaTypeTabs mediaType={mediaType} onChange={handleSwitchMediaType} audioCount={visibleAudios.length} videoCount={visibleVideos.length} imageCount={visibleImages.length} textCount={visibleTexts.length} />
-
-        {mediaType === 'audio' ? (
-          <EntityToolbar filteredCount={filteredAudios.length} totalCount={visibleAudios.length} searchValue={searchTerm} onSearchChange={setSearchTerm} searchPlaceholder="Search audios — code, title, lyrics, genre, contributors, tags…" onRefresh={() => loadAudios()} isRefreshing={isLoadingAudios || isAudioSearching}
-            trailing={<div className="flex flex-wrap items-center gap-2"><SortSelect value={audioSortKey} onChange={setAudioSortKey} options={AUDIO_SORT_OPTIONS} ascIcon={ArrowUpAZ} descIcon={ArrowDownAZ} disabled={Boolean(searchTerm.trim())} title="Sort audios" width="sm:w-[16rem]" /><FilterTriggerButton active={audioFiltersActive} count={audioFilterCount} open={isAudioFilterPanelOpen} onClick={() => setIsAudioFilterPanelOpen((v) => !v)} disabled={Boolean(searchTerm.trim())} disabledReason="Clear search to use filters" /></div>}
-          />
-        ) : mediaType === 'video' ? (
-          <EntityToolbar filteredCount={filteredVideos.length} totalCount={visibleVideos.length} searchValue={videoSearchTerm} onSearchChange={setVideoSearchTerm} searchPlaceholder="Search videos — code, title, location, subjects, tags…" onRefresh={() => loadVideos()} isRefreshing={isLoadingVideos || isVideoSearching}
-            trailing={<div className="flex flex-wrap items-center gap-2"><SortSelect value={videoSortKey} onChange={setVideoSortKey} options={VIDEO_SORT_OPTIONS} ascIcon={ArrowUpAZ} descIcon={ArrowDownAZ} disabled={Boolean(videoSearchTerm.trim())} title="Sort videos" width="sm:w-[16rem]" /><FilterTriggerButton active={videoFiltersActive} count={videoFilterCount} open={isVideoFilterPanelOpen} onClick={() => setIsVideoFilterPanelOpen((v) => !v)} disabled={Boolean(videoSearchTerm.trim())} disabledReason="Clear search to use filters" /></div>}
-          />
-        ) : mediaType === 'image' ? (
-          <EntityToolbar filteredCount={filteredImages.length} totalCount={visibleImages.length} searchValue={imageSearchTerm} onSearchChange={setImageSearchTerm} searchPlaceholder="Search images — code, title, creator, location, subjects, tags…" onRefresh={() => loadImages()} isRefreshing={isLoadingImages || isImageSearching}
-            trailing={<div className="flex flex-wrap items-center gap-2"><SortSelect value={imageSortKey} onChange={setImageSortKey} options={IMAGE_SORT_OPTIONS} ascIcon={ArrowUpAZ} descIcon={ArrowDownAZ} disabled={Boolean(imageSearchTerm.trim())} title="Sort images" width="sm:w-[16rem]" /><FilterTriggerButton active={imageFiltersActive} count={imageFilterCount} open={isImageFilterPanelOpen} onClick={() => setIsImageFilterPanelOpen((v) => !v)} disabled={Boolean(imageSearchTerm.trim())} disabledReason="Clear search to use filters" /></div>}
-          />
-        ) : (
-          <EntityToolbar filteredCount={filteredTexts.length} totalCount={visibleTexts.length} searchValue={textSearchTerm} onSearchChange={setTextSearchTerm} searchPlaceholder="Search texts — code, title, author, ISBN, transcription, tags…" onRefresh={() => loadTexts()} isRefreshing={isLoadingTexts || isTextSearching}
-            trailing={<div className="flex flex-wrap items-center gap-2"><SortSelect value={textSortKey} onChange={setTextSortKey} options={TEXT_SORT_OPTIONS} ascIcon={ArrowUpAZ} descIcon={ArrowDownAZ} disabled={Boolean(textSearchTerm.trim())} title="Sort texts" width="sm:w-[16rem]" /><FilterTriggerButton active={textFiltersActive} count={textFilterCount} open={isTextFilterPanelOpen} onClick={() => setIsTextFilterPanelOpen((v) => !v)} disabled={Boolean(textSearchTerm.trim())} disabledReason="Clear search to use filters" /></div>}
-          />
-        )}
-
-        {mediaType === 'audio' && !searchTerm.trim() ? <AudioFilterPanel open={isAudioFilterPanelOpen} filters={audioFilters} onChange={updateAudioFilter} onClear={clearAudioFilters} onClose={() => setIsAudioFilterPanelOpen(false)} isAnyActive={audioFiltersActive} activeCount={audioFilterCount} /> : null}
-        {mediaType === 'audio' && audioChips.length > 0 ? <FilterChips chips={audioChips} onClearAll={audioFiltersActive || audioSortActive ? () => { clearAudioFilters(); setAudioSortKey(DEFAULT_AUDIO_SORT_KEY) } : null} /> : null}
-        {mediaType === 'image' && !imageSearchTerm.trim() ? <ImageFilterPanel open={isImageFilterPanelOpen} filters={imageFilters} onChange={updateImageFilter} onClear={clearImageFilters} onClose={() => setIsImageFilterPanelOpen(false)} isAnyActive={imageFiltersActive} activeCount={imageFilterCount} /> : null}
-        {mediaType === 'image' && imageChips.length > 0 ? <FilterChips chips={imageChips} onClearAll={imageFiltersActive || imageSortActive ? () => { clearImageFilters(); setImageSortKey(DEFAULT_IMAGE_SORT_KEY) } : null} /> : null}
-        {mediaType === 'video' && !videoSearchTerm.trim() ? <VideoFilterPanel open={isVideoFilterPanelOpen} filters={videoFilters} onChange={updateVideoFilter} onClear={clearVideoFilters} onClose={() => setIsVideoFilterPanelOpen(false)} isAnyActive={videoFiltersActive} activeCount={videoFilterCount} /> : null}
-        {mediaType === 'video' && videoChips.length > 0 ? <FilterChips chips={videoChips} onClearAll={videoFiltersActive || videoSortActive ? () => { clearVideoFilters(); setVideoSortKey(DEFAULT_VIDEO_SORT_KEY) } : null} /> : null}
-        {mediaType === 'text' && !textSearchTerm.trim() ? <TextFilterPanel open={isTextFilterPanelOpen} filters={textFilters} onChange={updateTextFilter} onClear={clearTextFilters} onClose={() => setIsTextFilterPanelOpen(false)} isAnyActive={textFiltersActive} activeCount={textFilterCount} /> : null}
-        {mediaType === 'text' && textChips.length > 0 ? <FilterChips chips={textChips} onClearAll={textFiltersActive || textSortActive ? () => { clearTextFilters(); setTextSortKey(DEFAULT_TEXT_SORT_KEY) } : null} /> : null}
-
-        {mediaType === 'audio' ? (
-          <>
-            {isLoadingAudios ? (
-              <Card className="border-border bg-card shadow-sm shadow-black/5">
-                <div className="divide-y divide-border">{[1, 2, 3].map((i) => (<div key={i} className="flex items-center gap-4 px-4 py-3"><Skeleton className="h-4 w-6" /><Skeleton className="h-6 w-52 rounded-md" /><Skeleton className="h-4 w-40" /><Skeleton className="h-5 w-24 rounded-full" /><Skeleton className="ml-auto h-7 w-20" /></div>))}</div>
-              </Card>
-            ) : audios.length === 0 ? (
-              <EmptyState icon={AudioLines} title="No audios in this project yet" description="Upload field recordings, interviews, or performances and they will be coded under this project." action={<Button onClick={handleOpenCreateAudio} className="gap-2"><Plus className="size-4" />Add Audio</Button>} />
-            ) : (
-              <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm shadow-black/5">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead className="w-[52px] text-center">#</TableHead>
-                      <TableHead className="w-[280px]">Code</TableHead>
-                      <TableHead className="w-[280px]">Title</TableHead>
-                      <TableHead className="w-[120px]">Version</TableHead>
-                      <TableHead>Genre</TableHead>
-                      <TableHead className="w-[180px] text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAudios.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">{audioFiltersActive || audioSortActive ? (<span className="inline-flex items-center gap-2">No audios match the current filters.<Button type="button" variant="ghost" size="sm" onClick={() => { clearAudioFilters(); setAudioSortKey(DEFAULT_AUDIO_SORT_KEY) }} className="h-7 gap-1 px-2 text-xs"><X className="size-3" />Clear filters</Button></span>) : 'No matching audios.'}</TableCell></TableRow>
+      ) : audios.length === 0 ? (
+        <EmptyState
+          icon={AudioLines}
+          title="No audios in this project yet"
+          description="Upload field recordings, interviews, or performances and they will be coded under this project."
+          action={
+            <Button onClick={handleOpenCreateAudio} className="gap-2">
+              <Plus className="size-4" />
+              Add Audio
+            </Button>
+          }
+        />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm shadow-black/5">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead className="w-[52px] text-center">#</TableHead>
+                <TableHead className="w-[280px]">Code</TableHead>
+                <TableHead className="w-[280px]">Title</TableHead>
+                <TableHead className="w-[120px]">Version</TableHead>
+                <TableHead>Genre</TableHead>
+                <TableHead className="w-[180px] text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAudios.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    {audioFiltersActive || audioSortActive ? (
+                      <span className="inline-flex items-center gap-2">
+                        No audios match the current filters.
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            clearAudioFilters()
+                            setAudioSortKey(DEFAULT_AUDIO_SORT_KEY)
+                          }}
+                          className="h-7 gap-1 px-2 text-xs"
+                        >
+                          <X className="size-3" />
+                          Clear filters
+                        </Button>
+                      </span>
                     ) : (
-                      filteredAudios.map((audio, index) => {
-                        const title = audio.originTitle || audio.alterTitle || audio.romanizedTitle || audio.fullName || audio.audioCode
-                        return (
-                          <TableRow key={audio.audioCode} className={`group transition-colors ${audio.removedAt ? 'opacity-60' : ''}`}>
-                            <TableCell className="text-center text-xs tabular-nums text-muted-foreground">{index + 1}</TableCell>
-                            <TableCell><CodeBadge code={audio.audioCode} variant="subtle" highlightQuery={searchTerm} /></TableCell>
-                            <TableCell>
-                              <button type="button" onClick={() => setDetailsTarget(audio)} className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline" title={title}><Highlight text={title} query={searchTerm} /></button>
-                              {audio.removedAt && (<span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">Removed</span>)}
-                            </TableCell>
-                            <TableCell>
-                              <span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium">
-                                {audio.audioVersion ? <Highlight text={audio.audioVersion} query={searchTerm} /> : '—'}
-                                {audio.versionNumber != null ? <span className="text-muted-foreground">v{audio.versionNumber}</span> : null}
-                                {audio.copyNumber != null ? <span className="text-muted-foreground">c{audio.copyNumber}</span> : null}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              {(() => {
-                                const genres = Array.isArray(audio.genre) ? audio.genre : audio.genre ? [audio.genre] : []
-                                if (genres.length === 0) return <span className="text-sm text-muted-foreground">—</span>
-                                const visible = genres.slice(0, 2)
-                                const extra = genres.length - visible.length
-                                return (<div className="flex flex-wrap gap-1">{visible.map((g) => (<span key={g} className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80"><Highlight text={g} query={searchTerm} /></span>))}{extra > 0 ? <span className="text-[11px] font-medium text-muted-foreground">+{extra}</span> : null}</div>)
-                              })()}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button type="button" variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => setDetailsTarget(audio)}><Eye className="size-3.5" />Details</Button>
-                                <Button variant="ghost" size="icon-xs" className="text-muted-foreground hover:text-foreground" onClick={() => handleOpenEditAudio(audio)} title="Edit audio"><Pencil className="size-3.5" /><span className="sr-only">Edit</span></Button>
-                                <Button variant="ghost" size="icon-xs" className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive" onClick={() => setDeleteTarget(audio)} title="Send to trash"><Trash2 className="size-3.5" /><span className="sr-only">Send to trash</span></Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })
+                      'No matching audios.'
                     )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </>
-        ) : mediaType === 'video' ? (
-          <VideoListSection isLoading={isLoadingVideos} videos={videos} filteredVideos={filteredVideos} searchQuery={videoSearchTerm} filtersOrSortActive={videoFiltersActive || videoSortActive} onClearFiltersAndSort={() => { clearVideoFilters(); setVideoSortKey(DEFAULT_VIDEO_SORT_KEY) }} onAdd={handleOpenCreateVideo} onEdit={handleOpenEditVideo} onDetails={(v) => setVideoDetailsTarget(v)} onDelete={(v) => setVideoDeleteTarget(v)} />
-        ) : mediaType === 'image' ? (
-          <ImageListSection isLoading={isLoadingImages} images={images} filteredImages={filteredImages} searchQuery={imageSearchTerm} filtersOrSortActive={imageFiltersActive || imageSortActive} onClearFiltersAndSort={() => { clearImageFilters(); setImageSortKey(DEFAULT_IMAGE_SORT_KEY) }} onAdd={handleOpenCreateImage} onEdit={handleOpenEditImage} onDetails={(i) => setImageDetailsTarget(i)} onDelete={(i) => setImageDeleteTarget(i)} />
-        ) : (
-          <TextListSection isLoading={isLoadingTexts} texts={texts} filteredTexts={filteredTexts} searchQuery={textSearchTerm} filtersOrSortActive={textFiltersActive || textSortActive} onClearFiltersAndSort={() => { clearTextFilters(); setTextSortKey(DEFAULT_TEXT_SORT_KEY) }} onAdd={handleOpenCreateText} onEdit={handleOpenEditText} onDetails={(t) => setTextDetailsTarget(t)} onDelete={(t) => setTextDeleteTarget(t)} />
-        )}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredAudios.map((audio, index) => {
+                  const title =
+                    audio.originTitle ||
+                    audio.alterTitle ||
+                    audio.romanizedTitle ||
+                    audio.fullName ||
+                    audio.audioCode
+                  return (
+                    <TableRow
+                      key={audio.audioCode}
+                      className={`group transition-colors ${audio.removedAt ? 'opacity-60' : ''}`}
+                    >
+                      <TableCell className="text-center text-xs tabular-nums text-muted-foreground">
+                        {index + 1}
+                      </TableCell>
+                      <TableCell>
+                        <CodeBadge code={audio.audioCode} variant="subtle" highlightQuery={searchTerm} />
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          type="button"
+                          onClick={() => setDetailsTarget(audio)}
+                          className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline"
+                          title={title}
+                        >
+                          <Highlight text={title} query={searchTerm} />
+                        </button>
+                        {audio.removedAt && (
+                          <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                            Removed
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium">
+                          {audio.audioVersion ? (
+                            <Highlight text={audio.audioVersion} query={searchTerm} />
+                          ) : (
+                            '—'
+                          )}
+                          {audio.versionNumber != null ? (
+                            <span className="text-muted-foreground">v{audio.versionNumber}</span>
+                          ) : null}
+                          {audio.copyNumber != null ? (
+                            <span className="text-muted-foreground">c{audio.copyNumber}</span>
+                          ) : null}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const genres = Array.isArray(audio.genre)
+                            ? audio.genre
+                            : audio.genre
+                            ? [audio.genre]
+                            : []
+                          if (genres.length === 0) {
+                            return <span className="text-sm text-muted-foreground">—</span>
+                          }
+                          const visible = genres.slice(0, 2)
+                          const extra = genres.length - visible.length
+                          return (
+                            <div className="flex flex-wrap gap-1">
+                              {visible.map((g) => (
+                                <span
+                                  key={g}
+                                  className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80"
+                                >
+                                  <Highlight text={g} query={searchTerm} />
+                                </span>
+                              ))}
+                              {extra > 0 ? (
+                                <span className="text-[11px] font-medium text-muted-foreground">
+                                  +{extra}
+                                </span>
+                              ) : null}
+                            </div>
+                          )
+                        })()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 gap-1 px-2 text-xs"
+                            onClick={() => setDetailsTarget(audio)}
+                          >
+                            <Eye className="size-3.5" />
+                            Details
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-muted-foreground hover:text-foreground"
+                            onClick={() => handleOpenEditAudio(audio)}
+                            title="Edit audio"
+                          >
+                            <Pencil className="size-3.5" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => setDeleteTarget(audio)}
+                            title="Send to trash"
+                          >
+                            <Trash2 className="size-3.5" />
+                            <span className="sr-only">Send to trash</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
-        <TypedConfirmDialog open={Boolean(deleteTarget)} title="Send audio to trash" description="The audio file will be moved to trash. An admin can restore it from the Trash page." codeToConfirm={deleteTarget?.audioCode} promptLabel="To confirm, type the audio code" confirmLabel="Send to Trash" cancelLabel="Cancel" confirmVariant="destructive" isProcessing={isDeleting} onConfirm={handleDeleteAudio} onOpenChange={(nextOpen) => { if (!nextOpen) setDeleteTarget(null) }} />
-        <TypedConfirmDialog open={Boolean(videoDeleteTarget)} title="Send video to trash" description="The video file will be moved to trash. An admin can restore it from the Trash page." codeToConfirm={videoDeleteTarget?.videoCode} promptLabel="To confirm, type the video code" confirmLabel="Send to Trash" cancelLabel="Cancel" confirmVariant="destructive" isProcessing={isVideoDeleting} onConfirm={handleDeleteVideo} onOpenChange={(nextOpen) => { if (!nextOpen) setVideoDeleteTarget(null) }} />
-        <AudioDetailsModal open={Boolean(detailsTarget)} audio={detailsTarget} searchQuery={searchTerm} onOpenChange={(nextOpen) => { if (!nextOpen) setDetailsTarget(null) }} />
-        <VideoDetailsModal open={Boolean(videoDetailsTarget)} video={videoDetailsTarget} searchQuery={videoSearchTerm} onOpenChange={(nextOpen) => { if (!nextOpen) setVideoDetailsTarget(null) }} />
-        <TypedConfirmDialog open={Boolean(imageDeleteTarget)} title="Send image to trash" description="The image file will be moved to trash. An admin can restore it from the Trash page." codeToConfirm={imageDeleteTarget?.imageCode} promptLabel="To confirm, type the image code" confirmLabel="Send to Trash" cancelLabel="Cancel" confirmVariant="destructive" isProcessing={isImageDeleting} onConfirm={handleDeleteImage} onOpenChange={(nextOpen) => { if (!nextOpen) setImageDeleteTarget(null) }} />
-        <ImageDetailsModal open={Boolean(imageDetailsTarget)} image={imageDetailsTarget} searchQuery={imageSearchTerm} onOpenChange={(nextOpen) => { if (!nextOpen) setImageDetailsTarget(null) }} />
-        <TypedConfirmDialog open={Boolean(textDeleteTarget)} title="Send text to trash" description="The text record will be moved to trash. An admin can restore it from the Trash page." codeToConfirm={textDeleteTarget?.textCode} promptLabel="To confirm, type the text code" confirmLabel="Send to Trash" cancelLabel="Cancel" confirmVariant="destructive" isProcessing={isTextDeleting} onConfirm={handleDeleteText} onOpenChange={(nextOpen) => { if (!nextOpen) setTextDeleteTarget(null) }} />
-        <TextDetailsModal open={Boolean(textDetailsTarget)} text={textDetailsTarget} searchQuery={textSearchTerm} onOpenChange={(nextOpen) => { if (!nextOpen) setTextDetailsTarget(null) }} />
-      </EmployeeEntityPage>
+      </>
+      ) : mediaType === 'video' ? (
+        <VideoListSection
+          isLoading={isLoadingVideos}
+          videos={videos}
+          filteredVideos={filteredVideos}
+          searchQuery={videoSearchTerm}
+          filtersOrSortActive={videoFiltersActive || videoSortActive}
+          onClearFiltersAndSort={() => {
+            clearVideoFilters()
+            setVideoSortKey(DEFAULT_VIDEO_SORT_KEY)
+          }}
+          onAdd={handleOpenCreateVideo}
+          onEdit={handleOpenEditVideo}
+          onDetails={(v) => setVideoDetailsTarget(v)}
+          onDelete={(v) => setVideoDeleteTarget(v)}
+        />
+      ) : mediaType === 'image' ? (
+        <ImageListSection
+          isLoading={isLoadingImages}
+          images={images}
+          filteredImages={filteredImages}
+          searchQuery={imageSearchTerm}
+          filtersOrSortActive={imageFiltersActive || imageSortActive}
+          onClearFiltersAndSort={() => {
+            clearImageFilters()
+            setImageSortKey(DEFAULT_IMAGE_SORT_KEY)
+          }}
+          onAdd={handleOpenCreateImage}
+          onEdit={handleOpenEditImage}
+          onDetails={(i) => setImageDetailsTarget(i)}
+          onDelete={(i) => setImageDeleteTarget(i)}
+        />
+      ) : (
+        <TextListSection
+          isLoading={isLoadingTexts}
+          texts={texts}
+          filteredTexts={filteredTexts}
+          searchQuery={textSearchTerm}
+          filtersOrSortActive={textFiltersActive || textSortActive}
+          onClearFiltersAndSort={() => {
+            clearTextFilters()
+            setTextSortKey(DEFAULT_TEXT_SORT_KEY)
+          }}
+          onAdd={handleOpenCreateText}
+          onEdit={handleOpenEditText}
+          onDetails={(t) => setTextDetailsTarget(t)}
+          onDelete={(t) => setTextDeleteTarget(t)}
+        />
+      )}
+
+      <TypedConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Send audio to trash"
+        description="The audio file will be moved to trash. An admin can restore it from the Trash page."
+        codeToConfirm={deleteTarget?.audioCode}
+        promptLabel="To confirm, type the audio code"
+        confirmLabel="Send to Trash"
+        cancelLabel="Cancel"
+        confirmVariant="destructive"
+        isProcessing={isDeleting}
+        onConfirm={handleDeleteAudio}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setDeleteTarget(null)
+        }}
+      />
+
+      <TypedConfirmDialog
+        open={Boolean(videoDeleteTarget)}
+        title="Send video to trash"
+        description="The video file will be moved to trash. An admin can restore it from the Trash page."
+        codeToConfirm={videoDeleteTarget?.videoCode}
+        promptLabel="To confirm, type the video code"
+        confirmLabel="Send to Trash"
+        cancelLabel="Cancel"
+        confirmVariant="destructive"
+        isProcessing={isVideoDeleting}
+        onConfirm={handleDeleteVideo}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setVideoDeleteTarget(null)
+        }}
+      />
+
+      <AudioDetailsModal
+        open={Boolean(detailsTarget)}
+        audio={detailsTarget}
+        searchQuery={searchTerm}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setDetailsTarget(null)
+        }}
+      />
+
+      <VideoDetailsModal
+        open={Boolean(videoDetailsTarget)}
+        video={videoDetailsTarget}
+        searchQuery={videoSearchTerm}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setVideoDetailsTarget(null)
+        }}
+      />
+
+      <TypedConfirmDialog
+        open={Boolean(imageDeleteTarget)}
+        title="Send image to trash"
+        description="The image file will be moved to trash. An admin can restore it from the Trash page."
+        codeToConfirm={imageDeleteTarget?.imageCode}
+        promptLabel="To confirm, type the image code"
+        confirmLabel="Send to Trash"
+        cancelLabel="Cancel"
+        confirmVariant="destructive"
+        isProcessing={isImageDeleting}
+        onConfirm={handleDeleteImage}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setImageDeleteTarget(null)
+        }}
+      />
+
+      <ImageDetailsModal
+        open={Boolean(imageDetailsTarget)}
+        image={imageDetailsTarget}
+        searchQuery={imageSearchTerm}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setImageDetailsTarget(null)
+        }}
+      />
+
+      <TypedConfirmDialog
+        open={Boolean(textDeleteTarget)}
+        title="Send text to trash"
+        description="The text record will be moved to trash. An admin can restore it from the Trash page."
+        codeToConfirm={textDeleteTarget?.textCode}
+        promptLabel="To confirm, type the text code"
+        confirmLabel="Send to Trash"
+        cancelLabel="Cancel"
+        confirmVariant="destructive"
+        isProcessing={isTextDeleting}
+        onConfirm={handleDeleteText}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setTextDeleteTarget(null)
+        }}
+      />
+
+      <TextDetailsModal
+        open={Boolean(textDetailsTarget)}
+        text={textDetailsTarget}
+        searchQuery={textSearchTerm}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setTextDetailsTarget(null)
+        }}
+      />
+    </EmployeeEntityPage>
     </div>
   )
 }
@@ -1877,16 +3140,46 @@ function MediaTypeTabs({ mediaType, onChange, audioCount, videoCount, imageCount
         const isActive = t.enabled && mediaType === t.key
         if (!t.enabled) {
           return (
-            <button key={t.key} type="button" disabled title={`${t.label} support coming soon`} className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-muted-foreground/60">
-              <Icon className="size-4" />{t.label}
-              <span className="inline-flex items-center rounded-full border border-dashed border-border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/70">soon</span>
+            <button
+              key={t.key}
+              type="button"
+              disabled
+              title={`${t.label} support coming soon`}
+              className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-muted-foreground/60"
+            >
+              <Icon className="size-4" />
+              {t.label}
+              <span className="inline-flex items-center rounded-full border border-dashed border-border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                soon
+              </span>
             </button>
           )
         }
         return (
-          <button key={t.key} type="button" onClick={() => onChange(t.key)} aria-pressed={isActive} className={cn('inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors', isActive ? 'bg-primary/10 font-semibold text-primary' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground')}>
-            <Icon className="size-4" />{t.label}
-            {typeof t.count === 'number' ? (<span className={cn('inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums', isActive ? 'bg-primary/20' : 'bg-muted text-muted-foreground')}>{t.count}</span>) : null}
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => onChange(t.key)}
+            aria-pressed={isActive}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-primary/10 font-semibold text-primary'
+                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+            )}
+          >
+            <Icon className="size-4" />
+            {t.label}
+            {typeof t.count === 'number' ? (
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums',
+                  isActive ? 'bg-primary/20' : 'bg-muted text-muted-foreground',
+                )}
+              >
+                {t.count}
+              </span>
+            ) : null}
           </button>
         )
       })}
@@ -1895,33 +3188,186 @@ function MediaTypeTabs({ mediaType, onChange, audioCount, videoCount, imageCount
 }
 
 function VideoListSection({ isLoading, videos, filteredVideos, searchQuery, filtersOrSortActive, onClearFiltersAndSort, onAdd, onEdit, onDetails, onDelete }) {
-  if (isLoading) return (<Card className="border-border bg-card shadow-sm shadow-black/5"><div className="divide-y divide-border">{[1, 2, 3].map((i) => (<div key={i} className="flex items-center gap-4 px-4 py-3"><Skeleton className="h-4 w-6" /><Skeleton className="h-6 w-52 rounded-md" /><Skeleton className="h-4 w-40" /><Skeleton className="h-5 w-24 rounded-full" /><Skeleton className="ml-auto h-7 w-20" /></div>))}</div></Card>)
-  if (videos.length === 0) return (<EmptyState icon={VideoIcon} title="No videos in this project yet" description="Upload films, footage, or interviews and they will be coded under this project." action={<Button onClick={onAdd} className="gap-2"><Plus className="size-4" />Add Video</Button>} />)
+  if (isLoading) {
+    return (
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <div className="divide-y divide-border">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3">
+              <Skeleton className="h-4 w-6" />
+              <Skeleton className="h-6 w-52 rounded-md" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-5 w-24 rounded-full" />
+              <Skeleton className="ml-auto h-7 w-20" />
+            </div>
+          ))}
+        </div>
+      </Card>
+    )
+  }
+  if (videos.length === 0) {
+    return (
+      <EmptyState
+        icon={VideoIcon}
+        title="No videos in this project yet"
+        description="Upload films, footage, or interviews and they will be coded under this project."
+        action={
+          <Button onClick={onAdd} className="gap-2">
+            <Plus className="size-4" />
+            Add Video
+          </Button>
+        }
+      />
+    )
+  }
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm shadow-black/5">
       <Table>
-        <TableHeader><TableRow className="bg-muted/40 hover:bg-muted/40"><TableHead className="w-[52px] text-center">#</TableHead><TableHead className="w-[260px]">Code</TableHead><TableHead className="w-[280px]">Title</TableHead><TableHead className="w-[140px]">Version</TableHead><TableHead className="w-[140px]">Resolution</TableHead><TableHead>Genre</TableHead><TableHead className="w-[180px] text-right">Actions</TableHead></TableRow></TableHeader>
+        <TableHeader>
+          <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableHead className="w-[52px] text-center">#</TableHead>
+            <TableHead className="w-[260px]">Code</TableHead>
+            <TableHead className="w-[280px]">Title</TableHead>
+            <TableHead className="w-[140px]">Version</TableHead>
+            <TableHead className="w-[140px]">Resolution</TableHead>
+            <TableHead>Genre</TableHead>
+            <TableHead className="w-[180px] text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
         <TableBody>
           {filteredVideos.length === 0 ? (
-            <TableRow><TableCell colSpan={7} className="h-24 text-center text-muted-foreground">{filtersOrSortActive ? (<span className="inline-flex items-center gap-2">No videos match the current filters.<Button type="button" variant="ghost" size="sm" onClick={onClearFiltersAndSort} className="h-7 gap-1 px-2 text-xs"><X className="size-3" />Clear filters</Button></span>) : 'No matching videos.'}</TableCell></TableRow>
+            <TableRow>
+              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                {filtersOrSortActive ? (
+                  <span className="inline-flex items-center gap-2">
+                    No videos match the current filters.
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onClearFiltersAndSort}
+                      className="h-7 gap-1 px-2 text-xs"
+                    >
+                      <X className="size-3" />
+                      Clear filters
+                    </Button>
+                  </span>
+                ) : (
+                  'No matching videos.'
+                )}
+              </TableCell>
+            </TableRow>
           ) : (
             filteredVideos.map((video, index) => {
-              const title = video.originalTitle || video.alternativeTitle || video.romanizedTitle || video.fileName || video.videoCode
+              const title =
+                video.originalTitle ||
+                video.alternativeTitle ||
+                video.romanizedTitle ||
+                video.fileName ||
+                video.videoCode
               const genres = Array.isArray(video.genre) ? video.genre : video.genre ? [video.genre] : []
               const visibleGenres = genres.slice(0, 2)
               const extraGenres = genres.length - visibleGenres.length
               return (
-                <TableRow key={video.videoCode} className={`group transition-colors ${video.removedAt ? 'opacity-60' : ''}`}>
-                  <TableCell className="text-center text-xs tabular-nums text-muted-foreground">{index + 1}</TableCell>
-                  <TableCell><CodeBadge code={video.videoCode} variant="subtle" highlightQuery={searchQuery} /></TableCell>
-                  <TableCell>
-                    <button type="button" onClick={() => onDetails(video)} className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline" title={title}><Highlight text={title} query={searchQuery} /></button>
-                    {video.removedAt && (<span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">Removed</span>)}
+                <TableRow
+                  key={video.videoCode}
+                  className={`group transition-colors ${video.removedAt ? 'opacity-60' : ''}`}
+                >
+                  <TableCell className="text-center text-xs tabular-nums text-muted-foreground">
+                    {index + 1}
                   </TableCell>
-                  <TableCell><span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium">{video.videoVersion ? <Highlight text={video.videoVersion} query={searchQuery} /> : '—'}{video.versionNumber != null ? <span className="text-muted-foreground">v{video.versionNumber}</span> : null}{video.copyNumber != null ? <span className="text-muted-foreground">c{video.copyNumber}</span> : null}</span></TableCell>
-                  <TableCell><span className="text-sm text-muted-foreground">{video.resolution || video.dimension ? <Highlight text={video.resolution || video.dimension} query={searchQuery} /> : '—'}</span></TableCell>
-                  <TableCell>{genres.length === 0 ? <span className="text-sm text-muted-foreground">—</span> : (<div className="flex flex-wrap gap-1">{visibleGenres.map((g) => (<span key={g} className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80"><Highlight text={g} query={searchQuery} /></span>))}{extraGenres > 0 ? <span className="text-[11px] font-medium text-muted-foreground">+{extraGenres}</span> : null}</div>)}</TableCell>
-                  <TableCell className="text-right"><div className="flex items-center justify-end gap-1"><Button type="button" variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => onDetails(video)}><Eye className="size-3.5" />Details</Button><Button variant="ghost" size="icon-xs" className="text-muted-foreground hover:text-foreground" onClick={() => onEdit(video)} title="Edit video"><Pencil className="size-3.5" /><span className="sr-only">Edit</span></Button><Button variant="ghost" size="icon-xs" className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive" onClick={() => onDelete(video)} title="Send to trash"><Trash2 className="size-3.5" /><span className="sr-only">Send to trash</span></Button></div></TableCell>
+                  <TableCell>
+                    <CodeBadge code={video.videoCode} variant="subtle" highlightQuery={searchQuery} />
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => onDetails(video)}
+                      className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline"
+                      title={title}
+                    >
+                      <Highlight text={title} query={searchQuery} />
+                    </button>
+                    {video.removedAt && (
+                      <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                        Removed
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium">
+                      {video.videoVersion ? (
+                        <Highlight text={video.videoVersion} query={searchQuery} />
+                      ) : (
+                        '—'
+                      )}
+                      {video.versionNumber != null ? (
+                        <span className="text-muted-foreground">v{video.versionNumber}</span>
+                      ) : null}
+                      {video.copyNumber != null ? (
+                        <span className="text-muted-foreground">c{video.copyNumber}</span>
+                      ) : null}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-muted-foreground">
+                      {video.resolution || video.dimension ? (
+                        <Highlight text={video.resolution || video.dimension} query={searchQuery} />
+                      ) : (
+                        '—'
+                      )}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {genres.length === 0 ? (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {visibleGenres.map((g) => (
+                          <span key={g} className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80">
+                            <Highlight text={g} query={searchQuery} />
+                          </span>
+                        ))}
+                        {extraGenres > 0 ? (
+                          <span className="text-[11px] font-medium text-muted-foreground">+{extraGenres}</span>
+                        ) : null}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-xs"
+                        onClick={() => onDetails(video)}
+                      >
+                        <Eye className="size-3.5" />
+                        Details
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => onEdit(video)}
+                        title="Edit video"
+                      >
+                        <Pencil className="size-3.5" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => onDelete(video)}
+                        title="Send to trash"
+                      >
+                        <Trash2 className="size-3.5" />
+                        <span className="sr-only">Send to trash</span>
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               )
             })
@@ -1933,34 +3379,204 @@ function VideoListSection({ isLoading, videos, filteredVideos, searchQuery, filt
 }
 
 function ImageListSection({ isLoading, images, filteredImages, searchQuery, filtersOrSortActive, onClearFiltersAndSort, onAdd, onEdit, onDetails, onDelete }) {
-  if (isLoading) return (<Card className="border-border bg-card shadow-sm shadow-black/5"><div className="divide-y divide-border">{[1, 2, 3].map((i) => (<div key={i} className="flex items-center gap-4 px-4 py-3"><Skeleton className="h-4 w-6" /><Skeleton className="size-12 rounded-md" /><Skeleton className="h-6 w-52 rounded-md" /><Skeleton className="h-4 w-40" /><Skeleton className="ml-auto h-7 w-20" /></div>))}</div></Card>)
-  if (images.length === 0) return (<EmptyState icon={ImageIcon} title="No images in this project yet" description="Upload photos, scans, or artwork and they will be coded under this project." action={<Button onClick={onAdd} className="gap-2"><Plus className="size-4" />Add Image</Button>} />)
+  if (isLoading) {
+    return (
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <div className="divide-y divide-border">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3">
+              <Skeleton className="h-4 w-6" />
+              <Skeleton className="size-12 rounded-md" />
+              <Skeleton className="h-6 w-52 rounded-md" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="ml-auto h-7 w-20" />
+            </div>
+          ))}
+        </div>
+      </Card>
+    )
+  }
+  if (images.length === 0) {
+    return (
+      <EmptyState
+        icon={ImageIcon}
+        title="No images in this project yet"
+        description="Upload photos, scans, or artwork and they will be coded under this project."
+        action={
+          <Button onClick={onAdd} className="gap-2">
+            <Plus className="size-4" />
+            Add Image
+          </Button>
+        }
+      />
+    )
+  }
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm shadow-black/5">
       <Table>
-        <TableHeader><TableRow className="bg-muted/40 hover:bg-muted/40"><TableHead className="w-[52px] text-center">#</TableHead><TableHead className="w-[80px]">Preview</TableHead><TableHead className="w-[260px]">Code</TableHead><TableHead className="w-[280px]">Title</TableHead><TableHead className="w-[140px]">Version</TableHead><TableHead className="w-[140px]">Dimension</TableHead><TableHead>Genre</TableHead><TableHead className="w-[180px] text-right">Actions</TableHead></TableRow></TableHeader>
+        <TableHeader>
+          <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableHead className="w-[52px] text-center">#</TableHead>
+            <TableHead className="w-[80px]">Preview</TableHead>
+            <TableHead className="w-[260px]">Code</TableHead>
+            <TableHead className="w-[280px]">Title</TableHead>
+            <TableHead className="w-[140px]">Version</TableHead>
+            <TableHead className="w-[140px]">Dimension</TableHead>
+            <TableHead>Genre</TableHead>
+            <TableHead className="w-[180px] text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
         <TableBody>
           {filteredImages.length === 0 ? (
-            <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">{filtersOrSortActive ? (<span className="inline-flex items-center gap-2">No images match the current filters.<Button type="button" variant="ghost" size="sm" onClick={onClearFiltersAndSort} className="h-7 gap-1 px-2 text-xs"><X className="size-3" />Clear filters</Button></span>) : 'No matching images.'}</TableCell></TableRow>
+            <TableRow>
+              <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                {filtersOrSortActive ? (
+                  <span className="inline-flex items-center gap-2">
+                    No images match the current filters.
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onClearFiltersAndSort}
+                      className="h-7 gap-1 px-2 text-xs"
+                    >
+                      <X className="size-3" />
+                      Clear filters
+                    </Button>
+                  </span>
+                ) : (
+                  'No matching images.'
+                )}
+              </TableCell>
+            </TableRow>
           ) : (
             filteredImages.map((image, index) => {
-              const title = image.originalTitle || image.alternativeTitle || image.romanizedTitle || image.fileName || image.imageCode
+              const title =
+                image.originalTitle ||
+                image.alternativeTitle ||
+                image.romanizedTitle ||
+                image.fileName ||
+                image.imageCode
               const genres = Array.isArray(image.genre) ? image.genre : image.genre ? [image.genre] : []
               const visibleGenres = genres.slice(0, 2)
               const extraGenres = genres.length - visibleGenres.length
               return (
-                <TableRow key={image.imageCode} className={`group transition-colors ${image.removedAt ? 'opacity-60' : ''}`}>
-                  <TableCell className="text-center text-xs tabular-nums text-muted-foreground">{index + 1}</TableCell>
-                  <TableCell>{image.imageFileUrl ? (<button type="button" onClick={() => onDetails(image)} className="block size-12 overflow-hidden rounded-md border bg-muted/40 transition hover:ring-2 hover:ring-primary/30" title="Open preview"><img src={image.imageFileUrl} alt={title} className="h-full w-full object-cover" loading="lazy" /></button>) : (<div className="flex size-12 items-center justify-center rounded-md border bg-muted/40 text-muted-foreground"><ImageIcon className="size-4" /></div>)}</TableCell>
-                  <TableCell><CodeBadge code={image.imageCode} variant="subtle" highlightQuery={searchQuery} /></TableCell>
-                  <TableCell>
-                    <button type="button" onClick={() => onDetails(image)} className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline" title={title}><Highlight text={title} query={searchQuery} /></button>
-                    {image.removedAt && (<span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">Removed</span>)}
+                <TableRow
+                  key={image.imageCode}
+                  className={`group transition-colors ${image.removedAt ? 'opacity-60' : ''}`}
+                >
+                  <TableCell className="text-center text-xs tabular-nums text-muted-foreground">
+                    {index + 1}
                   </TableCell>
-                  <TableCell><span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium">{image.imageVersion ? <Highlight text={image.imageVersion} query={searchQuery} /> : '—'}{image.versionNumber != null ? <span className="text-muted-foreground">v{image.versionNumber}</span> : null}{image.copyNumber != null ? <span className="text-muted-foreground">c{image.copyNumber}</span> : null}</span></TableCell>
-                  <TableCell><span className="text-sm text-muted-foreground">{image.dimension ? <Highlight text={image.dimension} query={searchQuery} /> : '—'}</span></TableCell>
-                  <TableCell>{genres.length === 0 ? <span className="text-sm text-muted-foreground">—</span> : (<div className="flex flex-wrap gap-1">{visibleGenres.map((g) => (<span key={g} className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80"><Highlight text={g} query={searchQuery} /></span>))}{extraGenres > 0 ? <span className="text-[11px] font-medium text-muted-foreground">+{extraGenres}</span> : null}</div>)}</TableCell>
-                  <TableCell className="text-right"><div className="flex items-center justify-end gap-1"><Button type="button" variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => onDetails(image)}><Eye className="size-3.5" />Details</Button><Button variant="ghost" size="icon-xs" className="text-muted-foreground hover:text-foreground" onClick={() => onEdit(image)} title="Edit image"><Pencil className="size-3.5" /><span className="sr-only">Edit</span></Button><Button variant="ghost" size="icon-xs" className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive" onClick={() => onDelete(image)} title="Send to trash"><Trash2 className="size-3.5" /><span className="sr-only">Send to trash</span></Button></div></TableCell>
+                  <TableCell>
+                    {image.imageFileUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => onDetails(image)}
+                        className="block size-12 overflow-hidden rounded-md border bg-muted/40 transition hover:ring-2 hover:ring-primary/30"
+                        title="Open preview"
+                      >
+                        <img
+                          src={image.imageFileUrl}
+                          alt={title}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      </button>
+                    ) : (
+                      <div className="flex size-12 items-center justify-center rounded-md border bg-muted/40 text-muted-foreground">
+                        <ImageIcon className="size-4" />
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <CodeBadge code={image.imageCode} variant="subtle" highlightQuery={searchQuery} />
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => onDetails(image)}
+                      className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline"
+                      title={title}
+                    >
+                      <Highlight text={title} query={searchQuery} />
+                    </button>
+                    {image.removedAt && (
+                      <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                        Removed
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium">
+                      {image.imageVersion ? (
+                        <Highlight text={image.imageVersion} query={searchQuery} />
+                      ) : (
+                        '—'
+                      )}
+                      {image.versionNumber != null ? (
+                        <span className="text-muted-foreground">v{image.versionNumber}</span>
+                      ) : null}
+                      {image.copyNumber != null ? (
+                        <span className="text-muted-foreground">c{image.copyNumber}</span>
+                      ) : null}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-muted-foreground">
+                      {image.dimension ? <Highlight text={image.dimension} query={searchQuery} /> : '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {genres.length === 0 ? (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {visibleGenres.map((g) => (
+                          <span key={g} className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80">
+                            <Highlight text={g} query={searchQuery} />
+                          </span>
+                        ))}
+                        {extraGenres > 0 ? (
+                          <span className="text-[11px] font-medium text-muted-foreground">+{extraGenres}</span>
+                        ) : null}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-xs"
+                        onClick={() => onDetails(image)}
+                      >
+                        <Eye className="size-3.5" />
+                        Details
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => onEdit(image)}
+                        title="Edit image"
+                      >
+                        <Pencil className="size-3.5" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => onDelete(image)}
+                        title="Send to trash"
+                      >
+                        <Trash2 className="size-3.5" />
+                        <span className="sr-only">Send to trash</span>
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               )
             })
@@ -1972,34 +3588,186 @@ function ImageListSection({ isLoading, images, filteredImages, searchQuery, filt
 }
 
 function TextListSection({ isLoading, texts, filteredTexts, searchQuery, filtersOrSortActive, onClearFiltersAndSort, onAdd, onEdit, onDetails, onDelete }) {
-  if (isLoading) return (<Card className="border-border bg-card shadow-sm shadow-black/5"><div className="divide-y divide-border">{[1, 2, 3].map((i) => (<div key={i} className="flex items-center gap-4 px-4 py-3"><Skeleton className="h-4 w-6" /><Skeleton className="h-6 w-52 rounded-md" /><Skeleton className="h-4 w-40" /><Skeleton className="h-5 w-24 rounded-full" /><Skeleton className="ml-auto h-7 w-20" /></div>))}</div></Card>)
-  if (texts.length === 0) return (<EmptyState icon={FileText} title="No texts in this project yet" description="Upload books, manuscripts, or documents and they will be coded under this project." action={<Button onClick={onAdd} className="gap-2"><Plus className="size-4" />Add Text</Button>} />)
+  if (isLoading) {
+    return (
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <div className="divide-y divide-border">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3">
+              <Skeleton className="h-4 w-6" />
+              <Skeleton className="h-6 w-52 rounded-md" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-5 w-24 rounded-full" />
+              <Skeleton className="ml-auto h-7 w-20" />
+            </div>
+          ))}
+        </div>
+      </Card>
+    )
+  }
+  if (texts.length === 0) {
+    return (
+      <EmptyState
+        icon={FileText}
+        title="No texts in this project yet"
+        description="Upload books, manuscripts, or documents and they will be coded under this project."
+        action={
+          <Button onClick={onAdd} className="gap-2">
+            <Plus className="size-4" />
+            Add Text
+          </Button>
+        }
+      />
+    )
+  }
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm shadow-black/5">
       <Table>
-        <TableHeader><TableRow className="bg-muted/40 hover:bg-muted/40"><TableHead className="w-[52px] text-center">#</TableHead><TableHead className="w-[260px]">Code</TableHead><TableHead className="w-[280px]">Title</TableHead><TableHead className="w-[140px]">Version</TableHead><TableHead className="w-[160px]">Author</TableHead><TableHead className="w-[100px] text-right">Pages</TableHead><TableHead>Genre</TableHead><TableHead className="w-[180px] text-right">Actions</TableHead></TableRow></TableHeader>
+        <TableHeader>
+          <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableHead className="w-[52px] text-center">#</TableHead>
+            <TableHead className="w-[260px]">Code</TableHead>
+            <TableHead className="w-[280px]">Title</TableHead>
+            <TableHead className="w-[140px]">Version</TableHead>
+            <TableHead className="w-[160px]">Author</TableHead>
+            <TableHead className="w-[100px] text-right">Pages</TableHead>
+            <TableHead>Genre</TableHead>
+            <TableHead className="w-[180px] text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
         <TableBody>
           {filteredTexts.length === 0 ? (
-            <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">{filtersOrSortActive ? (<span className="inline-flex items-center gap-2">No texts match the current filters.<Button type="button" variant="ghost" size="sm" onClick={onClearFiltersAndSort} className="h-7 gap-1 px-2 text-xs"><X className="size-3" />Clear filters</Button></span>) : 'No matching texts.'}</TableCell></TableRow>
+            <TableRow>
+              <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                {filtersOrSortActive ? (
+                  <span className="inline-flex items-center gap-2">
+                    No texts match the current filters.
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onClearFiltersAndSort}
+                      className="h-7 gap-1 px-2 text-xs"
+                    >
+                      <X className="size-3" />
+                      Clear filters
+                    </Button>
+                  </span>
+                ) : (
+                  'No matching texts.'
+                )}
+              </TableCell>
+            </TableRow>
           ) : (
             filteredTexts.map((text, index) => {
-              const title = text.originalTitle || text.alternativeTitle || text.romanizedTitle || text.fileName || text.textCode
+              const title =
+                text.originalTitle ||
+                text.alternativeTitle ||
+                text.romanizedTitle ||
+                text.fileName ||
+                text.textCode
               const genres = Array.isArray(text.genre) ? text.genre : text.genre ? [text.genre] : []
               const visibleGenres = genres.slice(0, 2)
               const extraGenres = genres.length - visibleGenres.length
               return (
-                <TableRow key={text.textCode} className={`group transition-colors ${text.removedAt ? 'opacity-60' : ''}`}>
-                  <TableCell className="text-center text-xs tabular-nums text-muted-foreground">{index + 1}</TableCell>
-                  <TableCell><CodeBadge code={text.textCode} variant="subtle" highlightQuery={searchQuery} /></TableCell>
-                  <TableCell>
-                    <button type="button" onClick={() => onDetails(text)} className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline" title={title}><Highlight text={title} query={searchQuery} /></button>
-                    {text.removedAt && (<span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">Removed</span>)}
+                <TableRow
+                  key={text.textCode}
+                  className={`group transition-colors ${text.removedAt ? 'opacity-60' : ''}`}
+                >
+                  <TableCell className="text-center text-xs tabular-nums text-muted-foreground">
+                    {index + 1}
                   </TableCell>
-                  <TableCell><span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium">{text.textVersion ? <Highlight text={text.textVersion} query={searchQuery} /> : '—'}{text.versionNumber != null ? <span className="text-muted-foreground">v{text.versionNumber}</span> : null}{text.copyNumber != null ? <span className="text-muted-foreground">c{text.copyNumber}</span> : null}</span></TableCell>
-                  <TableCell><span className="block max-w-[160px] truncate text-sm text-muted-foreground" title={text.author || ''}>{text.author ? <Highlight text={text.author} query={searchQuery} /> : '—'}</span></TableCell>
-                  <TableCell className="text-right tabular-nums text-sm text-muted-foreground">{text.pageCount != null ? text.pageCount : '—'}</TableCell>
-                  <TableCell>{genres.length === 0 ? <span className="text-sm text-muted-foreground">—</span> : (<div className="flex flex-wrap gap-1">{visibleGenres.map((g) => (<span key={g} className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80"><Highlight text={g} query={searchQuery} /></span>))}{extraGenres > 0 ? <span className="text-[11px] font-medium text-muted-foreground">+{extraGenres}</span> : null}</div>)}</TableCell>
-                  <TableCell className="text-right"><div className="flex items-center justify-end gap-1"><Button type="button" variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => onDetails(text)}><Eye className="size-3.5" />Details</Button><Button variant="ghost" size="icon-xs" className="text-muted-foreground hover:text-foreground" onClick={() => onEdit(text)} title="Edit text"><Pencil className="size-3.5" /><span className="sr-only">Edit</span></Button><Button variant="ghost" size="icon-xs" className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive" onClick={() => onDelete(text)} title="Send to trash"><Trash2 className="size-3.5" /><span className="sr-only">Send to trash</span></Button></div></TableCell>
+                  <TableCell>
+                    <CodeBadge code={text.textCode} variant="subtle" highlightQuery={searchQuery} />
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => onDetails(text)}
+                      className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline"
+                      title={title}
+                    >
+                      <Highlight text={title} query={searchQuery} />
+                    </button>
+                    {text.removedAt && (
+                      <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                        Removed
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium">
+                      {text.textVersion ? (
+                        <Highlight text={text.textVersion} query={searchQuery} />
+                      ) : (
+                        '—'
+                      )}
+                      {text.versionNumber != null ? (
+                        <span className="text-muted-foreground">v{text.versionNumber}</span>
+                      ) : null}
+                      {text.copyNumber != null ? (
+                        <span className="text-muted-foreground">c{text.copyNumber}</span>
+                      ) : null}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="block max-w-[160px] truncate text-sm text-muted-foreground" title={text.author || ''}>
+                      {text.author ? <Highlight text={text.author} query={searchQuery} /> : '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
+                    {text.pageCount != null ? text.pageCount : '—'}
+                  </TableCell>
+                  <TableCell>
+                    {genres.length === 0 ? (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {visibleGenres.map((g) => (
+                          <span key={g} className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80">
+                            <Highlight text={g} query={searchQuery} />
+                          </span>
+                        ))}
+                        {extraGenres > 0 ? (
+                          <span className="text-[11px] font-medium text-muted-foreground">+{extraGenres}</span>
+                        ) : null}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-xs"
+                        onClick={() => onDetails(text)}
+                      >
+                        <Eye className="size-3.5" />
+                        Details
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => onEdit(text)}
+                        title="Edit text"
+                      >
+                        <Pencil className="size-3.5" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => onDelete(text)}
+                        title="Send to trash"
+                      >
+                        <Trash2 className="size-3.5" />
+                        <span className="sr-only">Send to trash</span>
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               )
             })
@@ -2013,33 +3781,64 @@ function TextListSection({ isLoading, texts, filteredTexts, searchQuery, filters
 function GenreChips({ categories, value, onChange }) {
   const selected = Array.isArray(value) ? value : []
   const selectedLower = new Set(selected.map((s) => s.toLowerCase()))
-  const categoryNames = (categories || []).map((c) => c.categoryName || c.name || c.categoryCode).filter(Boolean)
+
+  const categoryNames = (categories || [])
+    .map((c) => c.categoryName || c.name || c.categoryCode)
+    .filter(Boolean)
   const suggestions = categoryNames.filter((name) => !selectedLower.has(name.toLowerCase()))
+
   const addOne = (name) => {
     if (!name || selectedLower.has(name.toLowerCase())) return
     onChange([...selected, name])
   }
+
   return (
     <div className="space-y-2">
-      <TagsInput value={selected} onChange={onChange} placeholder="Type a genre and press Enter, or pick a suggestion below" />
+      <TagsInput
+        value={selected}
+        onChange={onChange}
+        placeholder="Type a genre and press Enter, or pick a suggestion below"
+      />
       {categoryNames.length === 0 ? (
-        <p className="text-[11px] text-muted-foreground">Tip: add categories to this project to get one-click genre suggestions here.</p>
+        <p className="text-[11px] text-muted-foreground">
+          Tip: add categories to this project to get one-click genre suggestions here.
+        </p>
       ) : suggestions.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">From categories:</p>
-          {suggestions.map((name) => (<button type="button" key={name} onClick={() => addOne(name)} className="inline-flex items-center gap-1 rounded-full border border-dashed border-border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"><Plus className="size-3" />{name}</button>))}
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            From categories:
+          </p>
+          {suggestions.map((name) => (
+            <button
+              type="button"
+              key={name}
+              onClick={() => addOne(name)}
+              className="inline-flex items-center gap-1 rounded-full border border-dashed border-border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+            >
+              <Plus className="size-3" />
+              {name}
+            </button>
+          ))}
         </div>
       ) : (
-        <p className="text-[11px] text-muted-foreground">All of this project's categories are already used as genres.</p>
+        <p className="text-[11px] text-muted-foreground">
+          All of this project's categories are already used as genres.
+        </p>
       )}
     </div>
   )
 }
 
+// Wraps a Label + help button row, looking up the description from the
+// audio metadata. `fieldKey` defaults to `htmlFor` since most audio
+// labels share the same name; pass an explicit fieldKey for the
+// handful that differ (audioTags → tags, audioKeywords → keywords).
 function AudioFieldLabel({ htmlFor, fieldKey, className, children }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <Label htmlFor={htmlFor} className={className}>{children}</Label>
+      <Label htmlFor={htmlFor} className={className}>
+        {children}
+      </Label>
       <FieldHelpButton metadata={getAudioFieldMetadata(fieldKey || htmlFor)} />
     </div>
   )
@@ -2050,229 +3849,391 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
   return (
     <>
       {/* Visibility */}
-      <div className={cn('flex items-center justify-between rounded-2xl border px-5 py-4', isPublicAudio ? 'border-green-200 bg-green-50/40 dark:border-green-900/30 dark:bg-green-950/10' : 'border-amber-200 bg-amber-50/40 dark:border-amber-900/30 dark:bg-amber-950/10')}>
+      <div className={cn(
+        'flex items-center justify-between rounded-2xl border px-5 py-4',
+        isPublicAudio
+          ? 'border-green-200 bg-green-50/40 dark:border-green-900/30 dark:bg-green-950/10'
+          : 'border-amber-200 bg-amber-50/40 dark:border-amber-900/30 dark:bg-amber-950/10',
+      )}>
         <div className="flex items-center gap-3">
-          <span className={cn('grid size-9 shrink-0 place-items-center rounded-xl', isPublicAudio ? 'bg-green-500/15 text-green-600' : 'bg-amber-500/15 text-amber-600')}>{isPublicAudio ? <Globe className="size-4.5" /> : <EyeOff className="size-4.5" />}</span>
+          <span className={cn(
+            'grid size-9 shrink-0 place-items-center rounded-xl',
+            isPublicAudio ? 'bg-green-500/15 text-green-600' : 'bg-amber-500/15 text-amber-600',
+          )}>
+            {isPublicAudio ? <Globe className="size-4.5" /> : <EyeOff className="size-4.5" />}
+          </span>
           <div>
-            <p className="text-sm font-semibold text-foreground">{isPublicAudio ? 'Public — visible in the catalogue' : 'Private — hidden from guests'}</p>
-            <p className="text-xs text-muted-foreground">{isPublicAudio ? 'This audio is visible to all public visitors and can be searched.' : 'Only archive staff can access this record. Guests cannot find or view it.'}</p>
+            <p className="text-sm font-semibold text-foreground">
+              {isPublicAudio ? 'Public — visible in the catalogue' : 'Private — hidden from guests'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isPublicAudio
+                ? 'This audio is visible to all public visitors and can be searched.'
+                : 'Only archive staff can access this record. Guests cannot find or view it.'}
+            </p>
           </div>
         </div>
         <label className="relative cursor-pointer select-none">
-          <input type="checkbox" className="sr-only peer" checked={isPublicAudio} onChange={(e) => setForm({ ...form, isPublic: e.target.checked })} />
-          <div className={cn('flex h-6 w-11 items-center rounded-full px-0.5 transition-colors', isPublicAudio ? 'bg-green-500' : 'bg-input')}><div className={cn('size-5 rounded-full bg-white shadow-sm transition-transform', isPublicAudio ? 'translate-x-5' : 'translate-x-0')} /></div>
+          <input
+            type="checkbox"
+            className="sr-only peer"
+            checked={isPublicAudio}
+            onChange={(e) => setForm({ ...form, isPublic: e.target.checked })}
+          />
+          <div className={cn(
+            'flex h-6 w-11 items-center rounded-full px-0.5 transition-colors',
+            isPublicAudio ? 'bg-green-500' : 'bg-input',
+          )}>
+            <div className={cn(
+              'size-5 rounded-full bg-white shadow-sm transition-transform',
+              isPublicAudio ? 'translate-x-5' : 'translate-x-0',
+            )} />
+          </div>
         </label>
       </div>
 
       <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Titles</CardTitle></CardHeader>
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Titles</CardTitle>
+        </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          <div className="space-y-1.5 sm:col-span-2"><AudioFieldLabel htmlFor="fullName">Full Name</AudioFieldLabel><Input id="fullName" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="originTitle">Origin Title</AudioFieldLabel><Input id="originTitle" value={form.originTitle} onChange={(e) => setForm({ ...form, originTitle: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="alterTitle">Alternate Title</AudioFieldLabel><Input id="alterTitle" value={form.alterTitle} onChange={(e) => setForm({ ...form, alterTitle: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="centralKurdishTitle">Central Kurdish Title</AudioFieldLabel><Input id="centralKurdishTitle" value={form.centralKurdishTitle} onChange={(e) => setForm({ ...form, centralKurdishTitle: e.target.value })} dir="rtl" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="romanizedTitle">Romanized Title</AudioFieldLabel><Input id="romanizedTitle" value={form.romanizedTitle} onChange={(e) => setForm({ ...form, romanizedTitle: e.target.value })} /></div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Description</CardTitle><CardDescription className="text-xs">Abstract and full description.</CardDescription></CardHeader>
-        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="abstractText">Abstract</AudioFieldLabel><textarea id="abstractText" className={TEXTAREA_CLASS} value={form.abstractText} onChange={(e) => setForm({ ...form, abstractText: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="description">Description</AudioFieldLabel><textarea id="description" className={TEXTAREA_CLASS} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Music & Form</CardTitle></CardHeader>
-        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="form">Form</AudioFieldLabel><Input id="form" value={form.form} onChange={(e) => setForm({ ...form, form: e.target.value })} /></div>
           <div className="space-y-1.5 sm:col-span-2">
-            <div className="flex items-center justify-between gap-2"><Label>Genres <span className="font-normal text-muted-foreground">(pick from this project's categories)</span></Label><FieldHelpButton metadata={getAudioFieldMetadata('genre')} /></div>
-            <GenreChips categories={projectCategories} value={form.genre} onChange={(next) => setForm({ ...form, genre: next })} />
+            <AudioFieldLabel htmlFor="fullName">Full Name</AudioFieldLabel>
+            <Input id="fullName" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
           </div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="typeOfBasta">Type of Basta</AudioFieldLabel><Input id="typeOfBasta" value={form.typeOfBasta} onChange={(e) => setForm({ ...form, typeOfBasta: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="typeOfMaqam">Type of Maqam</AudioFieldLabel><Input id="typeOfMaqam" value={form.typeOfMaqam} onChange={(e) => setForm({ ...form, typeOfMaqam: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="typeOfComposition">Type of Composition</AudioFieldLabel><Input id="typeOfComposition" value={form.typeOfComposition} onChange={(e) => setForm({ ...form, typeOfComposition: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="typeOfPerformance">Type of Performance</AudioFieldLabel><Input id="typeOfPerformance" value={form.typeOfPerformance} onChange={(e) => setForm({ ...form, typeOfPerformance: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="poet">Poet</AudioFieldLabel><Input id="poet" value={form.poet} onChange={(e) => setForm({ ...form, poet: e.target.value })} /></div>
-          <div className="space-y-1.5 sm:col-span-2"><AudioFieldLabel htmlFor="lyrics">Lyrics</AudioFieldLabel><textarea id="lyrics" className={TEXTAREA_CLASS} value={form.lyrics} onChange={(e) => setForm({ ...form, lyrics: e.target.value })} /></div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="originTitle">Origin Title</AudioFieldLabel>
+            <Input id="originTitle" value={form.originTitle} onChange={(e) => setForm({ ...form, originTitle: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="alterTitle">Alternate Title</AudioFieldLabel>
+            <Input id="alterTitle" value={form.alterTitle} onChange={(e) => setForm({ ...form, alterTitle: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="centralKurdishTitle">Central Kurdish Title</AudioFieldLabel>
+            <Input id="centralKurdishTitle" value={form.centralKurdishTitle} onChange={(e) => setForm({ ...form, centralKurdishTitle: e.target.value })} dir="rtl" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="romanizedTitle">Romanized Title</AudioFieldLabel>
+            <Input id="romanizedTitle" value={form.romanizedTitle} onChange={(e) => setForm({ ...form, romanizedTitle: e.target.value })} />
+          </div>
         </CardContent>
       </Card>
 
       <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Credits</CardTitle></CardHeader>
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Description</CardTitle>
+          <CardDescription className="text-xs">Abstract and full description.</CardDescription>
+        </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="speaker">Speaker</AudioFieldLabel><Input id="speaker" value={form.speaker} onChange={(e) => setForm({ ...form, speaker: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="producer">Producer</AudioFieldLabel><Input id="producer" value={form.producer} onChange={(e) => setForm({ ...form, producer: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="composer">Composer</AudioFieldLabel><Input id="composer" value={form.composer} onChange={(e) => setForm({ ...form, composer: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="contributors">Contributors</AudioFieldLabel><TagsInput id="contributors" value={form.contributors} onChange={(next) => setForm({ ...form, contributors: next })} placeholder="Name, role…" /></div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="abstractText">Abstract</AudioFieldLabel>
+            <textarea id="abstractText" className={TEXTAREA_CLASS} value={form.abstractText} onChange={(e) => setForm({ ...form, abstractText: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="description">Description</AudioFieldLabel>
+            <textarea id="description" className={TEXTAREA_CLASS} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </div>
         </CardContent>
       </Card>
 
       <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Context</CardTitle><CardDescription className="text-xs">Language, recording location, and dates.</CardDescription></CardHeader>
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Music & Form</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="form">Form</AudioFieldLabel>
+            <Input id="form" value={form.form} onChange={(e) => setForm({ ...form, form: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label>
+                Genres{' '}
+                <span className="font-normal text-muted-foreground">
+                  (pick from this project's categories)
+                </span>
+              </Label>
+              <FieldHelpButton metadata={getAudioFieldMetadata('genre')} />
+            </div>
+            <GenreChips
+              categories={projectCategories}
+              value={form.genre}
+              onChange={(next) => setForm({ ...form, genre: next })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="typeOfBasta">Type of Basta</AudioFieldLabel>
+            <Input id="typeOfBasta" value={form.typeOfBasta} onChange={(e) => setForm({ ...form, typeOfBasta: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="typeOfMaqam">Type of Maqam</AudioFieldLabel>
+            <Input id="typeOfMaqam" value={form.typeOfMaqam} onChange={(e) => setForm({ ...form, typeOfMaqam: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="typeOfComposition">Type of Composition</AudioFieldLabel>
+            <Input id="typeOfComposition" value={form.typeOfComposition} onChange={(e) => setForm({ ...form, typeOfComposition: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="typeOfPerformance">Type of Performance</AudioFieldLabel>
+            <Input id="typeOfPerformance" value={form.typeOfPerformance} onChange={(e) => setForm({ ...form, typeOfPerformance: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="poet">Poet</AudioFieldLabel>
+            <Input id="poet" value={form.poet} onChange={(e) => setForm({ ...form, poet: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <AudioFieldLabel htmlFor="lyrics">Lyrics</AudioFieldLabel>
+            <textarea id="lyrics" className={TEXTAREA_CLASS} value={form.lyrics} onChange={(e) => setForm({ ...form, lyrics: e.target.value })} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Credits</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="speaker">Speaker</AudioFieldLabel>
+            <Input id="speaker" value={form.speaker} onChange={(e) => setForm({ ...form, speaker: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="producer">Producer</AudioFieldLabel>
+            <Input id="producer" value={form.producer} onChange={(e) => setForm({ ...form, producer: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="composer">Composer</AudioFieldLabel>
+            <Input id="composer" value={form.composer} onChange={(e) => setForm({ ...form, composer: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="contributors">Contributors</AudioFieldLabel>
+            <TagsInput id="contributors" value={form.contributors} onChange={(next) => setForm({ ...form, contributors: next })} placeholder="Name, role…" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Context</CardTitle>
+          <CardDescription className="text-xs">Language, recording location, and dates.</CardDescription>
+        </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="language">Language</AudioFieldLabel><Input id="language" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="dialect">Dialect</AudioFieldLabel><Input id="dialect" value={form.dialect} onChange={(e) => setForm({ ...form, dialect: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="audience">Audience</AudioFieldLabel><Input id="audience" value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="recordingVenue">Recording Venue</AudioFieldLabel><Input id="recordingVenue" value={form.recordingVenue} onChange={(e) => setForm({ ...form, recordingVenue: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="city">City</AudioFieldLabel><Input id="city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="region">Region</AudioFieldLabel><Input id="region" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="dateCreated">Date Created</AudioFieldLabel><Input id="dateCreated" type="date" value={form.dateCreated} onChange={(e) => setForm({ ...form, dateCreated: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="datePublished">Date Published</AudioFieldLabel><Input id="datePublished" type="date" value={form.datePublished} onChange={(e) => setForm({ ...form, datePublished: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="dateModified">Date Modified</AudioFieldLabel><Input id="dateModified" type="date" value={form.dateModified} onChange={(e) => setForm({ ...form, dateModified: e.target.value })} /></div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="language">Language</AudioFieldLabel>
+            <Input id="language" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="dialect">Dialect</AudioFieldLabel>
+            <Input id="dialect" value={form.dialect} onChange={(e) => setForm({ ...form, dialect: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="audience">Audience</AudioFieldLabel>
+            <Input id="audience" value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="recordingVenue">Recording Venue</AudioFieldLabel>
+            <Input id="recordingVenue" value={form.recordingVenue} onChange={(e) => setForm({ ...form, recordingVenue: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="city">City</AudioFieldLabel>
+            <Input id="city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="region">Region</AudioFieldLabel>
+            <Input id="region" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="dateCreated">Date Created</AudioFieldLabel>
+            <Input id="dateCreated" type="date" value={form.dateCreated} onChange={(e) => setForm({ ...form, dateCreated: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="datePublished">Date Published</AudioFieldLabel>
+            <Input id="datePublished" type="date" value={form.datePublished} onChange={(e) => setForm({ ...form, datePublished: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="dateModified">Date Modified</AudioFieldLabel>
+            <Input id="dateModified" type="date" value={form.dateModified} onChange={(e) => setForm({ ...form, dateModified: e.target.value })} />
+          </div>
         </CardContent>
       </Card>
 
       <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Tags & Keywords</CardTitle><CardDescription className="text-xs">Discovery tags and keywords for researchers.</CardDescription></CardHeader>
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Tags & Keywords</CardTitle>
+          <CardDescription className="text-xs">Discovery tags and keywords for researchers.</CardDescription>
+        </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="audioTags" fieldKey="tags">Tags</AudioFieldLabel><TagSuggestInput id="audioTags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="audioKeywords" fieldKey="keywords">Keywords</AudioFieldLabel><KeywordSuggestInput id="audioKeywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} /></div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="audioTags" fieldKey="tags">Tags</AudioFieldLabel>
+            <TagSuggestInput id="audioTags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="audioKeywords" fieldKey="keywords">Keywords</AudioFieldLabel>
+            <KeywordSuggestInput id="audioKeywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} />
+          </div>
         </CardContent>
       </Card>
 
       <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Archival</CardTitle><CardDescription className="text-xs">Physical copy availability, archive location, and digitization details.</CardDescription></CardHeader>
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Archival</CardTitle>
+          <CardDescription className="text-xs">Physical copy availability, archive location, and digitization details.</CardDescription>
+        </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="flex items-center gap-2 sm:col-span-2">
-            <input id="physicalAvailability" type="checkbox" checked={Boolean(form.physicalAvailability)} onChange={(e) => setForm({ ...form, physicalAvailability: e.target.checked })} className="size-4 rounded border-input" />
-            <Label htmlFor="physicalAvailability" className="cursor-pointer">A physical copy is available</Label>
+            <input
+              id="physicalAvailability"
+              type="checkbox"
+              checked={Boolean(form.physicalAvailability)}
+              onChange={(e) => setForm({ ...form, physicalAvailability: e.target.checked })}
+              className="size-4 rounded border-input"
+            />
+            <Label htmlFor="physicalAvailability" className="cursor-pointer">
+              A physical copy is available
+            </Label>
             <FieldHelpButton metadata={getAudioFieldMetadata('physicalAvailability')} />
           </div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="physicalLabel">Physical Label</AudioFieldLabel><Input id="physicalLabel" value={form.physicalLabel} onChange={(e) => setForm({ ...form, physicalLabel: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="locationArchive">Archive Location</AudioFieldLabel><Input id="locationArchive" value={form.locationArchive} onChange={(e) => setForm({ ...form, locationArchive: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="degitizedBy">Digitized By</AudioFieldLabel><Input id="degitizedBy" value={form.degitizedBy} onChange={(e) => setForm({ ...form, degitizedBy: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="degitizationEquipment">Digitization Equipment</AudioFieldLabel><Input id="degitizationEquipment" value={form.degitizationEquipment} onChange={(e) => setForm({ ...form, degitizationEquipment: e.target.value })} /></div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="physicalLabel">Physical Label</AudioFieldLabel>
+            <Input id="physicalLabel" value={form.physicalLabel} onChange={(e) => setForm({ ...form, physicalLabel: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="locationArchive">Archive Location</AudioFieldLabel>
+            <Input id="locationArchive" value={form.locationArchive} onChange={(e) => setForm({ ...form, locationArchive: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="degitizedBy">Digitized By</AudioFieldLabel>
+            <Input id="degitizedBy" value={form.degitizedBy} onChange={(e) => setForm({ ...form, degitizedBy: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="degitizationEquipment">Digitization Equipment</AudioFieldLabel>
+            <Input id="degitizationEquipment" value={form.degitizationEquipment} onChange={(e) => setForm({ ...form, degitizationEquipment: e.target.value })} />
+          </div>
         </CardContent>
       </Card>
 
       <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Technical</CardTitle><CardDescription className="text-xs">Channel, bit-rate, sample-rate, etc. — extension and file size auto-fill from the picked file.</CardDescription></CardHeader>
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Technical</CardTitle>
+          <CardDescription className="text-xs">Channel, bit-rate, sample-rate, etc. — extension and file size auto-fill from the picked file.</CardDescription>
+        </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="audioChannel">Channel</AudioFieldLabel><Input id="audioChannel" value={form.audioChannel} onChange={(e) => setForm({ ...form, audioChannel: e.target.value })} placeholder="Mono, Stereo…" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="fileExtension">File Extension</AudioFieldLabel><Input id="fileExtension" value={form.fileExtension} onChange={(e) => setForm({ ...form, fileExtension: e.target.value })} placeholder="auto-filled from file (wav, mp3…)" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="fileSize">File Size</AudioFieldLabel><Input id="fileSize" value={form.fileSize} onChange={(e) => setForm({ ...form, fileSize: e.target.value })} placeholder="auto-filled from file (e.g. 45.2 MB)" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="bitRate">Bit Rate</AudioFieldLabel><Input id="bitRate" value={form.bitRate} onChange={(e) => setForm({ ...form, bitRate: e.target.value })} placeholder="e.g. 320 kbps" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="bitDepth">Bit Depth</AudioFieldLabel><Input id="bitDepth" value={form.bitDepth} onChange={(e) => setForm({ ...form, bitDepth: e.target.value })} placeholder="e.g. 24-bit" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="sampleRate">Sample Rate</AudioFieldLabel><Input id="sampleRate" value={form.sampleRate} onChange={(e) => setForm({ ...form, sampleRate: e.target.value })} placeholder="e.g. 48 kHz" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="audioQualityOutOf10">Quality (0–10)</AudioFieldLabel><Input id="audioQualityOutOf10" type="number" min="0" max="10" step="1" value={form.audioQualityOutOf10} onChange={(e) => setForm({ ...form, audioQualityOutOf10: e.target.value })} /></div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="audioChannel">Channel</AudioFieldLabel>
+            <Input id="audioChannel" value={form.audioChannel} onChange={(e) => setForm({ ...form, audioChannel: e.target.value })} placeholder="Mono, Stereo…" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="fileExtension">File Extension</AudioFieldLabel>
+            <Input id="fileExtension" value={form.fileExtension} onChange={(e) => setForm({ ...form, fileExtension: e.target.value })} placeholder="auto-filled from file (wav, mp3…)" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="fileSize">File Size</AudioFieldLabel>
+            <Input id="fileSize" value={form.fileSize} onChange={(e) => setForm({ ...form, fileSize: e.target.value })} placeholder="auto-filled from file (e.g. 45.2 MB)" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="bitRate">Bit Rate</AudioFieldLabel>
+            <Input id="bitRate" value={form.bitRate} onChange={(e) => setForm({ ...form, bitRate: e.target.value })} placeholder="e.g. 320 kbps" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="bitDepth">Bit Depth</AudioFieldLabel>
+            <Input id="bitDepth" value={form.bitDepth} onChange={(e) => setForm({ ...form, bitDepth: e.target.value })} placeholder="e.g. 24-bit" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="sampleRate">Sample Rate</AudioFieldLabel>
+            <Input id="sampleRate" value={form.sampleRate} onChange={(e) => setForm({ ...form, sampleRate: e.target.value })} placeholder="e.g. 48 kHz" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="audioQualityOutOf10">Quality (0–10)</AudioFieldLabel>
+            <Input id="audioQualityOutOf10" type="number" min="0" max="10" step="1" value={form.audioQualityOutOf10} onChange={(e) => setForm({ ...form, audioQualityOutOf10: e.target.value })} />
+          </div>
         </CardContent>
       </Card>
 
-      {/* ── Storage ── */}
       <Card className="border-border bg-card shadow-sm shadow-black/5">
         <CardHeader className="border-b border-border pb-4">
           <CardTitle className="text-base font-semibold">Storage</CardTitle>
           <CardDescription className="text-xs">
-            Enter the External Path — Directory and Auto Path populate automatically from it.
-            Volume Name is the physical device label (e.g. "My Passport", "KINGSTON USB") — type it manually.
+            File metadata fills automatically. Enter source Volume, Directory, External Path, and cloud/archive Auto Path when required.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          {/* Volume Name — manual, browser can't read device labels */}
           <div className="space-y-1.5">
-            <AudioFieldLabel htmlFor="volumeName">Volume Name</AudioFieldLabel>
-            <Input
-              id="volumeName"
-              value={form.volumeName}
-              onChange={(e) => setForm({ ...form, volumeName: e.target.value })}
-              placeholder="Device name, e.g. My Passport, KINGSTON USB, PC-Studio"
-            />
+            <AudioFieldLabel htmlFor="volumeName">Volume</AudioFieldLabel>
+            <Input id="volumeName" value={form.volumeName} onChange={(e) => setForm({ ...form, volumeName: e.target.value })} placeholder="Source storage, device, or volume" />
           </div>
-
-          {/* Directory — auto-fills from External Path parent folder, still editable */}
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="directoryName">Directory</AudioFieldLabel>
-            <Input
-              id="directoryName"
-              value={form.directoryName}
-              onChange={(e) => setForm({ ...form, directoryName: e.target.value })}
-              placeholder="Auto-filled from External Path parent folder"
-            />
+            <Input id="directoryName" value={form.directoryName} onChange={(e) => setForm({ ...form, directoryName: e.target.value })} placeholder="Parent folder, e.g. Hassan_Zirak" />
           </div>
-
-          {/* External Path — the key field; drives Directory + Auto Path */}
-          <div className="space-y-1.5 sm:col-span-2">
+          <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="pathInExternal">External Path</AudioFieldLabel>
-            <Input
-              id="pathInExternal"
-              value={form.pathInExternal}
-              onChange={(e) => {
-                const raw = e.target.value
-
-                // Strip Windows drive letter (F:\, C:/) or leading Unix slash,
-                // then normalise all backslashes to forward slashes.
-                const withoutDisk = raw
-                  .replace(/^[A-Za-z]:[\\\/]+/, '') // F:\ → ''
-                  .replace(/^\/+/, '')               // leading / → ''
-                  .replace(/\\/g, '/')               // \ → /
-
-                // Parent folder = second-to-last segment of the normalised path
-                const segs = withoutDisk.split('/').filter(Boolean)
-                const parentDir = segs.length >= 2 ? segs[segs.length - 2] : ''
-
-                setForm((prev) => ({
-                  ...prev,
-                  pathInExternal: raw,
-                  // Auto Path always kept in sync with External Path minus the disk name
-                  autoPath: withoutDisk,
-                  // Directory only auto-fills when the field is still blank
-                  ...(parentDir && !prev.directoryName ? { directoryName: parentDir } : {}),
-                }))
-              }}
-              placeholder="e.g. F:\KHI_Audio\Hassan_Zirak\track.wav"
-            />
+            <Input id="pathInExternal" value={form.pathInExternal} onChange={(e) => setForm({ ...form, pathInExternal: e.target.value })} placeholder="e.g. F:\\KHI_Audio\\Hassan_Zirak\\track.wav" />
           </div>
-
-          {/* Auto Path — derived from External Path, still manually editable */}
-          <div className="space-y-1.5 sm:col-span-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="autoPath" className="flex items-center gap-1.5">
-                Auto Path
-                <span className="rounded-full border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
-                  auto-derived · editable
-                </span>
-              </Label>
-              <FieldHelpButton metadata={getAudioFieldMetadata('autoPath')} />
-            </div>
-            <Input
-              id="autoPath"
-              value={form.autoPath}
-              onChange={(e) => setForm({ ...form, autoPath: e.target.value })}
-              placeholder="Derived from External Path without disk name (e.g. KHI_Audio/Hassan_Zirak/track.wav)"
-              className="font-mono text-xs"
-            />
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="autoPath">Auto Path</AudioFieldLabel>
+            <Input id="autoPath" value={form.autoPath} onChange={(e) => setForm({ ...form, autoPath: e.target.value })} placeholder="e.g. https://cloud.khi.org/audio/…" />
           </div>
-
           <div className="space-y-1.5 sm:col-span-2">
             <AudioFieldLabel htmlFor="audioFileNote">File Note</AudioFieldLabel>
-            <textarea
-              id="audioFileNote"
-              className={TEXTAREA_CLASS}
-              value={form.audioFileNote}
-              onChange={(e) => setForm({ ...form, audioFileNote: e.target.value })}
-            />
+            <textarea id="audioFileNote" className={TEXTAREA_CLASS} value={form.audioFileNote} onChange={(e) => setForm({ ...form, audioFileNote: e.target.value })} />
           </div>
         </CardContent>
       </Card>
 
       <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Rights & Provenance</CardTitle></CardHeader>
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Rights & Provenance</CardTitle>
+        </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="copyright">Copyright</AudioFieldLabel><Input id="copyright" value={form.copyright} onChange={(e) => setForm({ ...form, copyright: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="rightOwner">Right Owner</AudioFieldLabel><Input id="rightOwner" value={form.rightOwner} onChange={(e) => setForm({ ...form, rightOwner: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="dateCopyrighted">Date Copyrighted</AudioFieldLabel><Input id="dateCopyrighted" type="date" value={form.dateCopyrighted} onChange={(e) => setForm({ ...form, dateCopyrighted: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="availability">Availability</AudioFieldLabel><Input id="availability" value={form.availability} onChange={(e) => setForm({ ...form, availability: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="licenseType">License Type</AudioFieldLabel><Input id="licenseType" value={form.licenseType} onChange={(e) => setForm({ ...form, licenseType: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="usageRights">Usage Rights</AudioFieldLabel><Input id="usageRights" value={form.usageRights} onChange={(e) => setForm({ ...form, usageRights: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="owner">Owner</AudioFieldLabel><Input id="owner" value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="publisher">Publisher</AudioFieldLabel><Input id="publisher" value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="provenance">Provenance</AudioFieldLabel><Input id="provenance" value={form.provenance} onChange={(e) => setForm({ ...form, provenance: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="accrualMethod">Accrual Method</AudioFieldLabel><Input id="accrualMethod" value={form.accrualMethod} onChange={(e) => setForm({ ...form, accrualMethod: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="lccClassification">LCC Classification</AudioFieldLabel><Input id="lccClassification" value={form.lccClassification} onChange={(e) => setForm({ ...form, lccClassification: e.target.value })} /></div>
-          <div className="space-y-1.5 sm:col-span-2"><AudioFieldLabel htmlFor="archiveLocalNote">Archive Local Note</AudioFieldLabel><textarea id="archiveLocalNote" className={TEXTAREA_CLASS} value={form.archiveLocalNote} onChange={(e) => setForm({ ...form, archiveLocalNote: e.target.value })} /></div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="copyright">Copyright</AudioFieldLabel>
+            <Input id="copyright" value={form.copyright} onChange={(e) => setForm({ ...form, copyright: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="rightOwner">Right Owner</AudioFieldLabel>
+            <Input id="rightOwner" value={form.rightOwner} onChange={(e) => setForm({ ...form, rightOwner: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="dateCopyrighted">Date Copyrighted</AudioFieldLabel>
+            <Input id="dateCopyrighted" type="date" value={form.dateCopyrighted} onChange={(e) => setForm({ ...form, dateCopyrighted: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="availability">Availability</AudioFieldLabel>
+            <Input id="availability" value={form.availability} onChange={(e) => setForm({ ...form, availability: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="licenseType">License Type</AudioFieldLabel>
+            <Input id="licenseType" value={form.licenseType} onChange={(e) => setForm({ ...form, licenseType: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="usageRights">Usage Rights</AudioFieldLabel>
+            <Input id="usageRights" value={form.usageRights} onChange={(e) => setForm({ ...form, usageRights: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="owner">Owner</AudioFieldLabel>
+            <Input id="owner" value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="publisher">Publisher</AudioFieldLabel>
+            <Input id="publisher" value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="provenance">Provenance</AudioFieldLabel>
+            <Input id="provenance" value={form.provenance} onChange={(e) => setForm({ ...form, provenance: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="accrualMethod">Accrual Method</AudioFieldLabel>
+            <Input id="accrualMethod" value={form.accrualMethod} onChange={(e) => setForm({ ...form, accrualMethod: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="lccClassification">LCC Classification</AudioFieldLabel>
+            <Input id="lccClassification" value={form.lccClassification} onChange={(e) => setForm({ ...form, lccClassification: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <AudioFieldLabel htmlFor="archiveLocalNote">Archive Local Note</AudioFieldLabel>
+            <textarea id="archiveLocalNote" className={TEXTAREA_CLASS} value={form.archiveLocalNote} onChange={(e) => setForm({ ...form, archiveLocalNote: e.target.value })} />
+          </div>
         </CardContent>
       </Card>
     </>

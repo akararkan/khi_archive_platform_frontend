@@ -394,7 +394,7 @@ export function AudioFormSections({ form, setForm, projectCategories = [] }) {
         <CardHeader className="border-b border-border pb-4">
           <CardTitle className="text-base font-semibold">Storage</CardTitle>
           <CardDescription className="text-xs">
-            Directory and external path come from the selected folder. Enter Volume and cloud/archive Auto Path manually when needed.
+            File metadata fills automatically. Enter source Volume, Directory, External Path, and cloud/archive Auto Path when required.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
