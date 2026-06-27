@@ -193,7 +193,7 @@ export function SingleMediaFilePicker({
         className="sr-only"
       />
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Volume uses the selected source root name; Directory and External Path come from the chosen file.
+        Directory and External Path come from the chosen file. Enter Volume manually when the browser hides the source-device name.
         Auto Path remains your manually entered cloud/archive URL.
       </p>
     </div>

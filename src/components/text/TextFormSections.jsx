@@ -373,7 +373,7 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         <CardHeader className="border-b border-border pb-4">
           <CardTitle className="text-base font-semibold">Storage</CardTitle>
           <CardDescription className="text-xs">
-            Volume uses the selected source root; directory and external path locate the file inside it. Add Auto Path manually.
+            Directory and external path come from the selected folder. Enter Volume and cloud/archive Auto Path manually when needed.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
