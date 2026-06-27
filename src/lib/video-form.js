@@ -313,7 +313,7 @@ export function deriveVideoAutoFieldsFromFile(file) {
     extension: ext,
     fileSize: formatFileSize(file.size),
     pathInExternalVolume: path,
-    autoPath: path,
+    autoPath: path || name,
     volumeName,
     directory,
   }

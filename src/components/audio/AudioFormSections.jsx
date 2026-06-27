@@ -393,7 +393,9 @@ export function AudioFormSections({ form, setForm, projectCategories = [] }) {
       <Card className="border-border bg-card shadow-sm shadow-black/5">
         <CardHeader className="border-b border-border pb-4">
           <CardTitle className="text-base font-semibold">Storage</CardTitle>
-          <CardDescription className="text-xs">Volume, directory, and file paths.</CardDescription>
+          <CardDescription className="text-xs">
+            Auto Path uses the selected file. Source volume and directory fill only when the device exposes them.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">

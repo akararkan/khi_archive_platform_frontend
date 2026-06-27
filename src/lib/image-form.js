@@ -294,7 +294,7 @@ export function deriveImageAutoFieldsFromFile(file) {
     extension: ext,
     fileSize: formatFileSize(file.size),
     pathInExternalVolume: path,
-    autoPath: path,
+    autoPath: path || name,
     volumeName,
     directory,
   }

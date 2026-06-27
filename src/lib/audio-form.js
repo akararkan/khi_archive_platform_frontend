@@ -318,7 +318,9 @@ export function deriveAudioAutoFieldsFromFile(file) {
     fileExtension: ext,
     fileSize: formatFileSize(file.size),
     pathInExternal: path,
-    autoPath: path,
+    // Standard browsers hide the parent path, but Auto Path should never look
+    // broken: fall back to the exact selected filename.
+    autoPath: path || name,
     volumeName,
     directoryName,
   }
