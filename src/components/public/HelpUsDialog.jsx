@@ -520,7 +520,6 @@ function HelpUsDialog({ open, onOpenChange, mediaType, mediaCode, mediaTitle, me
                       key={selectedKey}
                       value={correctionVal}
                       onChange={(e) => setFieldValue(selectedKey, e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); doSubmit() } }}
                       placeholder={KU.enterCorrect(selectedDef.label)}
                       rows={isLong ? 6 : 4}
                       className={['khi-help-textarea w-full flex-1 resize-none rounded-lg border-2 bg-background px-4 py-3 text-sm leading-7 text-foreground shadow-inner outline-none transition-colors placeholder:text-muted-foreground/40', correctionVal.trim() ? 'border-green-400 focus:border-green-500' : 'border-border focus:border-primary'].join(' ')}
