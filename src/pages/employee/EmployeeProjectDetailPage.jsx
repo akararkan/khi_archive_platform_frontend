@@ -40,6 +40,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -54,7 +55,6 @@ import {
   SortSelect,
 } from '@/components/ui/list-filters'
 import { Select } from '@/components/ui/select'
-import { FolderSourcePicker } from '@/components/ui/folder-source-picker'
 import {
   AUDIO_SORT_OPTIONS,
   DEFAULT_AUDIO_SORT_KEY,
@@ -102,6 +102,7 @@ import { getAudioFieldMetadata } from '@/lib/audio-fields-metadata'
 import { getVideoFieldMetadata } from '@/lib/video-fields-metadata'
 import { getImageFieldMetadata } from '@/lib/image-fields-metadata'
 import { getTextFieldMetadata } from '@/lib/text-fields-metadata'
+import { getVolumeNameFromPath } from '@/lib/file-source-path'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -119,102 +120,101 @@ import { FormErrorBox } from '@/components/ui/form-error'
 import { SingleMediaFilePicker } from '@/components/ui/single-media-file-picker'
 import { formatApiError, getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
 import { cn } from '@/lib/utils'
-import { parseFileSourcePath, isElectronRuntime } from '@/lib/file-source-path'
 import {
-  createAudio, deleteAudio, getAudios, searchAudios, updateAudio,
+  createAudio,
+  deleteAudio,
+  getAudios,
+  searchAudios,
+  updateAudio,
 } from '@/services/audio'
 import { getProject } from '@/services/project'
 import {
-  createVideo, deleteVideo, getVideos, searchVideos, updateVideo,
+  createVideo,
+  deleteVideo,
+  getVideos,
+  searchVideos,
+  updateVideo,
 } from '@/services/video'
 import {
-  createImage, deleteImage, getImages, searchImages, updateImage,
+  createImage,
+  deleteImage,
+  getImages,
+  searchImages,
+  updateImage,
 } from '@/services/image'
 import {
-  createText, deleteText, getTexts, searchTexts, updateText,
+  createText,
+  deleteText,
+  getTexts,
+  searchTexts,
+  updateText,
 } from '@/services/text'
 import {
-  AUDIO_VERSIONS, buildAudioPayload, createInitialAudioForm,
-  deriveAudioAutoFieldsFromFile, populateAudioFormFromAudio,
+  AUDIO_VERSIONS,
+  buildAudioPayload,
+  createInitialAudioForm,
+  deriveAudioAutoFieldsFromFile,
+  populateAudioFormFromAudio,
 } from '@/lib/audio-form'
 import {
-  VIDEO_VERSIONS, buildVideoPayload, createInitialVideoForm,
-  deriveVideoAutoFieldsFromFile, populateVideoFormFromVideo,
+  VIDEO_VERSIONS,
+  buildVideoPayload,
+  createInitialVideoForm,
+  deriveVideoAutoFieldsFromFile,
+  populateVideoFormFromVideo,
 } from '@/lib/video-form'
 import {
-  IMAGE_VERSIONS, buildImagePayload, createInitialImageForm,
-  deriveImageAutoFieldsFromFile, populateImageFormFromImage,
+  IMAGE_VERSIONS,
+  buildImagePayload,
+  createInitialImageForm,
+  deriveImageAutoFieldsFromFile,
+  populateImageFormFromImage,
 } from '@/lib/image-form'
 import {
-  TEXT_VERSIONS, buildTextPayload, createInitialTextForm,
-  deriveTextAutoFieldsFromFile, populateTextFormFromText,
+  TEXT_VERSIONS,
+  buildTextPayload,
+  createInitialTextForm,
+  deriveTextAutoFieldsFromFile,
+  populateTextFormFromText,
 } from '@/lib/text-form'
 import {
-  audioMetadataToForm, extractAudioMetadata,
-  extractImageMetadata, extractTextMetadata, extractVideoMetadata,
-  imageMetadataToForm, textMetadataToForm, videoMetadataToForm,
+  audioMetadataToForm,
+  extractAudioMetadata,
+  extractImageMetadata,
+  extractTextMetadata,
+  extractVideoMetadata,
+  imageMetadataToForm,
+  textMetadataToForm,
+  videoMetadataToForm,
 } from '@/lib/media-metadata'
-
-// ── File type guards ──────────────────────────────────────────────────────────
 
 const AUDIO_FILE_PATTERN = /\.(wav|mp3|flac|ogg|m4a|aac|aiff|aif|wma|opus)$/i
 const VIDEO_FILE_PATTERN = /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg|wmv|flv|3gp|ogv)$/i
 const IMAGE_FILE_PATTERN = /\.(jpe?g|png|gif|tiff?|bmp|webp|heic|heif|raw|cr2|cr3|nef|arw|dng|svg)$/i
-const TEXT_FILE_PATTERN  = /\.(pdf|docx?|odt|rtf|txt|md|tex|epub|mobi|xml|html?|csv|tsv)$/i
+const TEXT_FILE_PATTERN = /\.(pdf|docx?|odt|rtf|txt|md|tex|epub|mobi|xml|html?|csv|tsv)$/i
 
-const isAudioFile = (f) => Boolean((f.type && f.type.startsWith('audio/')) || AUDIO_FILE_PATTERN.test(f.name))
-const isVideoFile = (f) => Boolean((f.type && f.type.startsWith('video/')) || VIDEO_FILE_PATTERN.test(f.name))
-const isImageFile = (f) => Boolean((f.type && f.type.startsWith('image/')) || IMAGE_FILE_PATTERN.test(f.name))
-const isTextFile  = (f) => Boolean(
-  TEXT_FILE_PATTERN.test(f.name) ||
-  (f.type && (f.type.startsWith('text/') || f.type === 'application/pdf' || f.type.includes('word') || f.type.includes('opendocument'))),
-)
+const isAudioFile = (file) =>
+  Boolean((file.type && file.type.startsWith('audio/')) || AUDIO_FILE_PATTERN.test(file.name))
+const isVideoFile = (file) =>
+  Boolean((file.type && file.type.startsWith('video/')) || VIDEO_FILE_PATTERN.test(file.name))
+const isImageFile = (file) =>
+  Boolean((file.type && file.type.startsWith('image/')) || IMAGE_FILE_PATTERN.test(file.name))
+const isTextFile = (file) =>
+  Boolean(
+    TEXT_FILE_PATTERN.test(file.name) ||
+      (file.type &&
+        (file.type.startsWith('text/') ||
+          file.type === 'application/pdf' ||
+          file.type.includes('word') ||
+          file.type.includes('opendocument'))),
+  )
 
-// ── Path auto-fill helper ─────────────────────────────────────────────────────
-
-/**
- * Extract storage metadata fields from a File object.
- *
- * Returns a partial form object that can be merged via mergeAutoFilled().
- * Fields are only set when the runtime actually provides the information:
- *   • Electron:            volumeName + directoryName + pathInExternal + autoPath
- *   • Browser folder pick: directoryName + pathInExternal + autoPath  (no volume)
- *   • Browser file pick:   {}  (nothing — browser hides the path)
- *
- * @param {File} file
- * @param {string} [existingDir] – if already set in the form, used to build
- *   externalPath in plain-browser mode when webkitRelativePath is absent.
- * @returns {Record<string, string>}
- */
-function buildPathAutoFields(file, existingDir = '') {
-  const { volumeName, directoryName, externalPath, autoPath } = parseFileSourcePath(file)
-
-  const fields = {}
-
-  if (volumeName)    fields.volumeName     = volumeName
-  if (directoryName) fields.directoryName  = directoryName
-
-  if (externalPath) {
-    // Electron or webkitdirectory: full relative/absolute path known.
-    fields.pathInExternal = externalPath
-    fields.autoPath       = autoPath
-  } else if (!externalPath && existingDir && file.name) {
-    // Plain browser picker: the user already selected the source folder earlier
-    // (via FolderSourcePicker) so we can construct the path from it.
-    const constructed = `${existingDir}/${file.name}`
-    fields.pathInExternal = constructed
-    fields.autoPath       = constructed
-  }
-
-  return fields
-}
-
-// ── Form merge helper ─────────────────────────────────────────────────────────
-
-/**
- * Only overwrite a field when it is still blank OR its value matches what
- * a previous auto-fill pass wrote — preserving any manual edits.
- */
+// Merge auto-extracted fields into the form. A field gets overwritten
+// only when (a) the user hasn't typed anything there yet, or (b) the
+// existing value still matches what the previous auto pass wrote (so
+// we're updating one auto-filled value with another, not stomping on
+// the user's edits). Used both by the sync derive…() helpers and by
+// the async media-metadata extractors.
 function mergeAutoFilled(prev, newAuto, previousAuto) {
   const next = { ...prev }
   for (const [key, newValue] of Object.entries(newAuto)) {
@@ -238,767 +238,2168 @@ function mergeAutoFilled(prev, newAuto, previousAuto) {
 const TEXTAREA_CLASS =
   'min-h-[96px] w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Page component
-// ─────────────────────────────────────────────────────────────────────────────
-
 function EmployeeProjectDetailPage() {
   const { code: projectCode } = useParams()
-  const toast   = useToast()
+  const toast = useToast()
   const navigate = useNavigate()
   const location = useLocation()
 
+  // Section-aware base path so the "Back to Projects" navigation lands in
+  // /admin/project when the user is in admin and /employee/project when in
+  // employee — rather than always sending them to the employee section.
   const sectionBase = location.pathname.startsWith('/admin') ? '/admin' : '/employee'
 
-  const [project,   setProject]   = useState(null)
+  const [project, setProject] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [error,     setError]     = useState('')
+  const [error, setError] = useState('')
 
-  const [mediaType, setMediaType] = useState('audio')
+  // Which media tab is active. The list/form/modals all switch with this.
+  const [mediaType, setMediaType] = useState('audio') // 'audio' | 'video'
 
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  const [audios,          setAudios]          = useState([])
+  // ── Audio state ────────────────────────────────────────────
+  const [audios, setAudios] = useState([])
   const [isLoadingAudios, setIsLoadingAudios] = useState(false)
-  const [currentAudio,    setCurrentAudio]    = useState(null)
-  const [form,            setForm]            = useState(createInitialAudioForm)
-  const [audioFile,       setAudioFile]       = useState(null)
+  const [currentAudio, setCurrentAudio] = useState(null)
+  const [form, setForm] = useState(createInitialAudioForm)
+  const [audioFile, setAudioFile] = useState(null)
 
-  // ── Video ──────────────────────────────────────────────────────────────────
-  const [videos,          setVideos]          = useState([])
+  // ── Video state ────────────────────────────────────────────
+  const [videos, setVideos] = useState([])
   const [isLoadingVideos, setIsLoadingVideos] = useState(false)
-  const [currentVideo,    setCurrentVideo]    = useState(null)
-  const [videoForm,       setVideoForm]       = useState(createInitialVideoForm)
-  const [videoFile,       setVideoFile]       = useState(null)
+  const [currentVideo, setCurrentVideo] = useState(null)
+  const [videoForm, setVideoForm] = useState(createInitialVideoForm)
+  const [videoFile, setVideoFile] = useState(null)
 
-  // ── Image ──────────────────────────────────────────────────────────────────
-  const [images,          setImages]          = useState([])
+  // ── Image state ────────────────────────────────────────────
+  const [images, setImages] = useState([])
   const [isLoadingImages, setIsLoadingImages] = useState(false)
-  const [currentImage,    setCurrentImage]    = useState(null)
-  const [imageForm,       setImageForm]       = useState(createInitialImageForm)
-  const [imageFile,       setImageFile]       = useState(null)
+  const [currentImage, setCurrentImage] = useState(null)
+  const [imageForm, setImageForm] = useState(createInitialImageForm)
+  const [imageFile, setImageFile] = useState(null)
 
-  // ── Text ───────────────────────────────────────────────────────────────────
-  const [texts,          setTexts]          = useState([])
+  // ── Text state ─────────────────────────────────────────────
+  const [texts, setTexts] = useState([])
   const [isLoadingTexts, setIsLoadingTexts] = useState(false)
-  const [currentText,    setCurrentText]    = useState(null)
-  const [textForm,       setTextForm]       = useState(createInitialTextForm)
-  const [textFile,       setTextFile]       = useState(null)
+  const [currentText, setCurrentText] = useState(null)
+  const [textForm, setTextForm] = useState(createInitialTextForm)
+  const [textFile, setTextFile] = useState(null)
 
-  // ── Shared form state ──────────────────────────────────────────────────────
-  const [view,             setView]             = useState('list')
-  const [isSaving,         setIsSaving]         = useState(false)
-  const [formError,        setFormError]        = useState('')
+  // ── Shared form-view state ─────────────────────────────────
+  // The form is single-instance: only one media-type form is open at a time
+  // (switching tabs while editing closes the form, see handleSwitchMediaType).
+  const [view, setView] = useState('list') // list | create | edit
+  const [isSaving, setIsSaving] = useState(false)
+  const [formError, setFormError] = useState('')
+
+  // Audios saved in this create-session (resets when the form closes). Lets us
+  // show "you've added N audios so far" so the user has clear feedback when they
+  // chain "Save & Add Another" several times in a row.
   const [savedThisSession, setSavedThisSession] = useState([])
-  const submitModeRef    = useRef('finish')
+  // Differentiates the two submit buttons. The ref is read by the submit handler
+  // (which captures stale closures otherwise); the parallel state is used only
+  // for rendering the spinner on the right button — refs aren't allowed during
+  // render under React 19's strict rules.
+  const submitModeRef = useRef('finish') // 'finish' | 'add-another'
   const [pendingSubmitMode, setPendingSubmitMode] = useState('finish')
-  const lastAutoFilledRef  = useRef({})
-  const metaSessionRef     = useRef(0)
 
-  // ── Audio search/filter/sort ───────────────────────────────────────────────
-  const [searchTerm,         setSearchTerm]         = useState('')
+  // Tracks the last auto-fill values that handleAudioFilePicked wrote into the
+  // form, so we can replace them when the user picks a different file *without*
+  // clobbering values they manually edited in between.
+  const lastAutoFilledRef = useRef({})
+  // Bumped on every file pick (any kind). Async media-metadata extractors
+  // check this against the value they were started with — if a newer
+  // file has been picked while we were probing, the stale result is
+  // discarded so it can't overwrite the new file's auto-filled values.
+  const metaSessionRef = useRef(0)
+
+  // Audio search/details/remove/delete
+  const [searchTerm, setSearchTerm] = useState('')
+  // Backend two-phase fuzzy search results (pg_trgm). `null` = no active
+  // search; render the full project-scoped list. The search call is scoped
+  // to this projectCode server-side so results stay relevant at 30TB.
   const [audioSearchResults, setAudioSearchResults] = useState(null)
-  const [isAudioSearching,   setIsAudioSearching]   = useState(false)
-  const [detailsTarget,      setDetailsTarget]      = useState(null)
-  const [deleteTarget,       setDeleteTarget]       = useState(null)
-  const [isDeleting,         setIsDeleting]         = useState(false)
-  const [audioSortKey,       setAudioSortKey]       = useState(DEFAULT_AUDIO_SORT_KEY)
-  const [audioFilters,       setAudioFilters]       = useState(createInitialAudioFilters)
+  const [isAudioSearching, setIsAudioSearching] = useState(false)
+  const [detailsTarget, setDetailsTarget] = useState(null)
+  // V3 trash model: a single "Send to trash" action per row, calling
+  // deleteX (which the backend now treats as soft-trash). Trashed items
+  // disappear from the regular list and are managed from /admin/trash.
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Audio sort + filter. Mirrors AudioFilterParams on the backend
+  // exactly, but applied client-side against the project-scoped
+  // audios array (no extra round-trip — the project's audios are
+  // already in memory). Disabled while a fuzzy search is active
+  // because /audio/search has its own ranking and bypasses the
+  // filter model anyway.
+  const [audioSortKey, setAudioSortKey] = useState(DEFAULT_AUDIO_SORT_KEY)
+  const [audioFilters, setAudioFilters] = useState(createInitialAudioFilters)
   const [isAudioFilterPanelOpen, setIsAudioFilterPanelOpen] = useState(false)
 
-  // ── Video search/filter/sort ───────────────────────────────────────────────
-  const [videoSearchTerm,         setVideoSearchTerm]         = useState('')
-  const [videoSearchResults,      setVideoSearchResults]      = useState(null)
-  const [isVideoSearching,        setIsVideoSearching]        = useState(false)
-  const [videoDetailsTarget,      setVideoDetailsTarget]      = useState(null)
-  const [videoDeleteTarget,       setVideoDeleteTarget]       = useState(null)
-  const [isVideoDeleting,         setIsVideoDeleting]         = useState(false)
-  const [savedVideosThisSession,  setSavedVideosThisSession]  = useState([])
-  const [videoSortKey,            setVideoSortKey]            = useState(DEFAULT_VIDEO_SORT_KEY)
-  const [videoFilters,            setVideoFilters]            = useState(createInitialVideoFilters)
-  const [isVideoFilterPanelOpen,  setIsVideoFilterPanelOpen]  = useState(false)
+  // Video search/details/delete
+  const [videoSearchTerm, setVideoSearchTerm] = useState('')
+  const [videoSearchResults, setVideoSearchResults] = useState(null)
+  const [isVideoSearching, setIsVideoSearching] = useState(false)
+  const [videoDetailsTarget, setVideoDetailsTarget] = useState(null)
+  const [videoDeleteTarget, setVideoDeleteTarget] = useState(null)
+  const [isVideoDeleting, setIsVideoDeleting] = useState(false)
+  const [savedVideosThisSession, setSavedVideosThisSession] = useState([])
 
-  // ── Image search/filter/sort ───────────────────────────────────────────────
-  const [imageSearchTerm,         setImageSearchTerm]         = useState('')
-  const [imageSearchResults,      setImageSearchResults]      = useState(null)
-  const [isImageSearching,        setIsImageSearching]        = useState(false)
-  const [imageDetailsTarget,      setImageDetailsTarget]      = useState(null)
-  const [imageDeleteTarget,       setImageDeleteTarget]       = useState(null)
-  const [isImageDeleting,         setIsImageDeleting]         = useState(false)
-  const [savedImagesThisSession,  setSavedImagesThisSession]  = useState([])
-  const [imageSortKey,            setImageSortKey]            = useState(DEFAULT_IMAGE_SORT_KEY)
-  const [imageFilters,            setImageFilters]            = useState(createInitialImageFilters)
-  const [isImageFilterPanelOpen,  setIsImageFilterPanelOpen]  = useState(false)
+  // Video sort + filter. Mirrors VideoFilterParams on the backend
+  // exactly. Disabled while a fuzzy search is active because
+  // /video/search has its own ranking and bypasses the filter model
+  // server-side.
+  const [videoSortKey, setVideoSortKey] = useState(DEFAULT_VIDEO_SORT_KEY)
+  const [videoFilters, setVideoFilters] = useState(createInitialVideoFilters)
+  const [isVideoFilterPanelOpen, setIsVideoFilterPanelOpen] = useState(false)
 
-  // ── Text search/filter/sort ────────────────────────────────────────────────
-  const [textSearchTerm,         setTextSearchTerm]         = useState('')
-  const [textSearchResults,      setTextSearchResults]      = useState(null)
-  const [isTextSearching,        setIsTextSearching]        = useState(false)
-  const [textDetailsTarget,      setTextDetailsTarget]      = useState(null)
-  const [textDeleteTarget,       setTextDeleteTarget]       = useState(null)
-  const [isTextDeleting,         setIsTextDeleting]         = useState(false)
-  const [savedTextsThisSession,  setSavedTextsThisSession]  = useState([])
-  const [textSortKey,            setTextSortKey]            = useState(DEFAULT_TEXT_SORT_KEY)
-  const [textFilters,            setTextFilters]            = useState(createInitialTextFilters)
-  const [isTextFilterPanelOpen,  setIsTextFilterPanelOpen]  = useState(false)
+  // Image search/details/delete
+  const [imageSearchTerm, setImageSearchTerm] = useState('')
+  const [imageSearchResults, setImageSearchResults] = useState(null)
+  const [isImageSearching, setIsImageSearching] = useState(false)
+  const [imageDetailsTarget, setImageDetailsTarget] = useState(null)
+  const [imageDeleteTarget, setImageDeleteTarget] = useState(null)
+  const [isImageDeleting, setIsImageDeleting] = useState(false)
+  const [savedImagesThisSession, setSavedImagesThisSession] = useState([])
 
-  // ── Data loaders ───────────────────────────────────────────────────────────
+  // Image sort + filter. Mirrors ImageFilterParams on the backend
+  // exactly, but applied client-side against the project-scoped
+  // images array. Disabled while a fuzzy search is active because
+  // /image/search has its own ranking and bypasses the filter model
+  // server-side.
+  const [imageSortKey, setImageSortKey] = useState(DEFAULT_IMAGE_SORT_KEY)
+  const [imageFilters, setImageFilters] = useState(createInitialImageFilters)
+  const [isImageFilterPanelOpen, setIsImageFilterPanelOpen] = useState(false)
+
+  // Text search/details/delete
+  const [textSearchTerm, setTextSearchTerm] = useState('')
+  const [textSearchResults, setTextSearchResults] = useState(null)
+  const [isTextSearching, setIsTextSearching] = useState(false)
+  const [textDetailsTarget, setTextDetailsTarget] = useState(null)
+  const [textDeleteTarget, setTextDeleteTarget] = useState(null)
+  const [isTextDeleting, setIsTextDeleting] = useState(false)
+  const [savedTextsThisSession, setSavedTextsThisSession] = useState([])
+
+  // Text sort + filter. Mirrors TextFilterParams on the backend, plus
+  // text-specific bits (isbn / assignmentNumber / printDate /
+  // pageCount). Disabled while a fuzzy search is active.
+  const [textSortKey, setTextSortKey] = useState(DEFAULT_TEXT_SORT_KEY)
+  const [textFilters, setTextFilters] = useState(createInitialTextFilters)
+  const [isTextFilterPanelOpen, setIsTextFilterPanelOpen] = useState(false)
 
   const loadProject = useCallback(async () => {
-    setIsLoading(true); setError('')
-    try { setProject(await getProject(projectCode)) }
-    catch (err) { setError(getErrorMessage(err, 'Failed to load project.')) }
-    finally { setIsLoading(false) }
+    setIsLoading(true)
+    setError('')
+    try {
+      const data = await getProject(projectCode)
+      setProject(data)
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to load project. Please try again.'))
+    } finally {
+      setIsLoading(false)
+    }
   }, [projectCode])
 
   const loadAudios = useCallback(async () => {
     setIsLoadingAudios(true)
-    try { const all = await getAudios(); setAudios((all || []).filter((a) => a.projectCode === projectCode)) }
-    catch (err) { toast.apiError(err, 'Could not load audios') }
-    finally { setIsLoadingAudios(false) }
+    try {
+      const all = await getAudios()
+      setAudios((all || []).filter((a) => a.projectCode === projectCode))
+    } catch (err) {
+      toast.apiError(err, 'Could not load audios')
+    } finally {
+      setIsLoadingAudios(false)
+    }
   }, [projectCode, toast])
 
   const loadVideos = useCallback(async () => {
     setIsLoadingVideos(true)
-    try { const all = await getVideos(); setVideos((all || []).filter((v) => v.projectCode === projectCode)) }
-    catch (err) { toast.apiError(err, 'Could not load videos') }
-    finally { setIsLoadingVideos(false) }
+    try {
+      const all = await getVideos()
+      setVideos((all || []).filter((v) => v.projectCode === projectCode))
+    } catch (err) {
+      toast.apiError(err, 'Could not load videos')
+    } finally {
+      setIsLoadingVideos(false)
+    }
   }, [projectCode, toast])
 
   const loadImages = useCallback(async () => {
     setIsLoadingImages(true)
-    try { const all = await getImages(); setImages((all || []).filter((i) => i.projectCode === projectCode)) }
-    catch (err) { toast.apiError(err, 'Could not load images') }
-    finally { setIsLoadingImages(false) }
+    try {
+      const all = await getImages()
+      setImages((all || []).filter((i) => i.projectCode === projectCode))
+    } catch (err) {
+      toast.apiError(err, 'Could not load images')
+    } finally {
+      setIsLoadingImages(false)
+    }
   }, [projectCode, toast])
 
   const loadTexts = useCallback(async () => {
     setIsLoadingTexts(true)
-    try { const all = await getTexts(); setTexts((all || []).filter((t) => t.projectCode === projectCode)) }
-    catch (err) { toast.apiError(err, 'Could not load texts') }
-    finally { setIsLoadingTexts(false) }
+    try {
+      const all = await getTexts()
+      setTexts((all || []).filter((t) => t.projectCode === projectCode))
+    } catch (err) {
+      toast.apiError(err, 'Could not load texts')
+    } finally {
+      setIsLoadingTexts(false)
+    }
   }, [projectCode, toast])
 
   useEffect(() => {
-    loadProject(); loadAudios(); loadVideos(); loadImages(); loadTexts()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadProject()
+    loadAudios()
+    loadVideos()
+    loadImages()
+    loadTexts()
   }, [loadProject, loadAudios, loadVideos, loadImages, loadTexts])
 
-  // ── Derived lists ──────────────────────────────────────────────────────────
-
+  // V3 trash model: backend's GET /<media> returns active records only,
+  // so the frontend's old "show removed" toggle is gone. Trashed items
+  // are listed at /admin/trash. The arrays below are the active set; the
+  // search results stay project-scoped on the client as a defensive belt
+  // (the server already filters by projectCode).
   const visibleAudios = audios
-  const audioFiltersActive = useMemo(() => !isAudioFilterEmpty(audioFilters), [audioFilters])
-  const audioSortActive    = audioSortKey !== DEFAULT_AUDIO_SORT_KEY
-  const audioFilterCount   = useMemo(() => countAudioFilters(audioFilters), [audioFilters])
-  const activeAudioSort    = useMemo(() => AUDIO_SORT_OPTIONS.find((o) => o.key === audioSortKey) ?? AUDIO_SORT_OPTIONS[0], [audioSortKey])
-  const filteredAudios     = useMemo(() => {
+
+  const audioFiltersActive = useMemo(
+    () => !isAudioFilterEmpty(audioFilters),
+    [audioFilters],
+  )
+  const audioSortActive = audioSortKey !== DEFAULT_AUDIO_SORT_KEY
+  const audioFilterCount = useMemo(
+    () => countAudioFilters(audioFilters),
+    [audioFilters],
+  )
+  const activeAudioSort = useMemo(
+    () =>
+      AUDIO_SORT_OPTIONS.find((opt) => opt.key === audioSortKey) ?? AUDIO_SORT_OPTIONS[0],
+    [audioSortKey],
+  )
+
+  const filteredAudios = useMemo(() => {
     const term = searchTerm.trim()
-    if (term) { if (!audioSearchResults) return []; return audioSearchResults.filter((a) => !a.projectCode || a.projectCode === projectCode) }
-    return applyAudioSort(applyAudioFilters(visibleAudios, audioFilters), audioSortKey)
-  }, [visibleAudios, searchTerm, audioSearchResults, projectCode, audioFilters, audioSortKey])
+    // Search bypasses the filter model entirely — /audio/search has
+    // its own pg_trgm ranking that wouldn't compose with client-side
+    // filters anyway.
+    if (term) {
+      if (audioSearchResults == null) return [] // request in flight or pre-debounce
+      return audioSearchResults.filter(
+        (a) => !a.projectCode || a.projectCode === projectCode,
+      )
+    }
+    const filtered = applyAudioFilters(visibleAudios, audioFilters)
+    return applyAudioSort(filtered, audioSortKey)
+  }, [
+    visibleAudios,
+    searchTerm,
+    audioSearchResults,
+    projectCode,
+    audioFilters,
+    audioSortKey,
+  ])
 
-  const updateAudioFilter = useCallback((k, v) => setAudioFilters((p) => ({ ...p, [k]: v })), [])
-  const clearAudioFilters = useCallback(() => setAudioFilters(createInitialAudioFilters()), [])
-  const audioChips = useMemo(() => buildAudioChips({ filters: audioFilters, sortKey: audioSortKey, sortLabel: audioSortActive ? activeAudioSort.label : null, onClearSort: () => setAudioSortKey(DEFAULT_AUDIO_SORT_KEY), updateFilter: updateAudioFilter }), [audioFilters, audioSortKey, audioSortActive, activeAudioSort, updateAudioFilter])
+  const updateAudioFilter = useCallback(
+    (key, value) => setAudioFilters((prev) => ({ ...prev, [key]: value })),
+    [],
+  )
+  const clearAudioFilters = useCallback(
+    () => setAudioFilters(createInitialAudioFilters()),
+    [],
+  )
+  const audioChips = useMemo(
+    () =>
+      buildAudioChips({
+        filters: audioFilters,
+        sortKey: audioSortKey,
+        sortLabel: audioSortActive ? activeAudioSort.label : null,
+        onClearSort: () => setAudioSortKey(DEFAULT_AUDIO_SORT_KEY),
+        updateFilter: updateAudioFilter,
+      }),
+    [audioFilters, audioSortKey, audioSortActive, activeAudioSort, updateAudioFilter],
+  )
 
-  const visibleVideos   = videos
-  const videoFiltersActive = useMemo(() => !isVideoFilterEmpty(videoFilters), [videoFilters])
-  const videoSortActive    = videoSortKey !== DEFAULT_VIDEO_SORT_KEY
-  const videoFilterCount   = useMemo(() => countVideoFilters(videoFilters), [videoFilters])
-  const activeVideoSort    = useMemo(() => VIDEO_SORT_OPTIONS.find((o) => o.key === videoSortKey) ?? VIDEO_SORT_OPTIONS[0], [videoSortKey])
-  const filteredVideos     = useMemo(() => {
+  const visibleVideos = videos
+
+  const videoFiltersActive = useMemo(
+    () => !isVideoFilterEmpty(videoFilters),
+    [videoFilters],
+  )
+  const videoSortActive = videoSortKey !== DEFAULT_VIDEO_SORT_KEY
+  const videoFilterCount = useMemo(
+    () => countVideoFilters(videoFilters),
+    [videoFilters],
+  )
+  const activeVideoSort = useMemo(
+    () =>
+      VIDEO_SORT_OPTIONS.find((opt) => opt.key === videoSortKey) ?? VIDEO_SORT_OPTIONS[0],
+    [videoSortKey],
+  )
+
+  const filteredVideos = useMemo(() => {
     const term = videoSearchTerm.trim()
-    if (term) { if (!videoSearchResults) return []; return videoSearchResults.filter((v) => !v.projectCode || v.projectCode === projectCode) }
-    return applyVideoSort(applyVideoFilters(visibleVideos, videoFilters), videoSortKey)
-  }, [visibleVideos, videoSearchTerm, videoSearchResults, projectCode, videoFilters, videoSortKey])
+    if (term) {
+      if (videoSearchResults == null) return []
+      return videoSearchResults.filter(
+        (v) => !v.projectCode || v.projectCode === projectCode,
+      )
+    }
+    const filtered = applyVideoFilters(visibleVideos, videoFilters)
+    return applyVideoSort(filtered, videoSortKey)
+  }, [
+    visibleVideos,
+    videoSearchTerm,
+    videoSearchResults,
+    projectCode,
+    videoFilters,
+    videoSortKey,
+  ])
 
-  const updateVideoFilter = useCallback((k, v) => setVideoFilters((p) => ({ ...p, [k]: v })), [])
-  const clearVideoFilters = useCallback(() => setVideoFilters(createInitialVideoFilters()), [])
-  const videoChips = useMemo(() => buildVideoChips({ filters: videoFilters, sortKey: videoSortKey, sortLabel: videoSortActive ? activeVideoSort.label : null, onClearSort: () => setVideoSortKey(DEFAULT_VIDEO_SORT_KEY), updateFilter: updateVideoFilter }), [videoFilters, videoSortKey, videoSortActive, activeVideoSort, updateVideoFilter])
+  const updateVideoFilter = useCallback(
+    (key, value) => setVideoFilters((prev) => ({ ...prev, [key]: value })),
+    [],
+  )
+  const clearVideoFilters = useCallback(
+    () => setVideoFilters(createInitialVideoFilters()),
+    [],
+  )
+  const videoChips = useMemo(
+    () =>
+      buildVideoChips({
+        filters: videoFilters,
+        sortKey: videoSortKey,
+        sortLabel: videoSortActive ? activeVideoSort.label : null,
+        onClearSort: () => setVideoSortKey(DEFAULT_VIDEO_SORT_KEY),
+        updateFilter: updateVideoFilter,
+      }),
+    [videoFilters, videoSortKey, videoSortActive, activeVideoSort, updateVideoFilter],
+  )
 
-  const visibleImages   = images
-  const imageFiltersActive = useMemo(() => !isImageFilterEmpty(imageFilters), [imageFilters])
-  const imageSortActive    = imageSortKey !== DEFAULT_IMAGE_SORT_KEY
-  const imageFilterCount   = useMemo(() => countImageFilters(imageFilters), [imageFilters])
-  const activeImageSort    = useMemo(() => IMAGE_SORT_OPTIONS.find((o) => o.key === imageSortKey) ?? IMAGE_SORT_OPTIONS[0], [imageSortKey])
-  const filteredImages     = useMemo(() => {
+  const visibleImages = images
+
+  const imageFiltersActive = useMemo(
+    () => !isImageFilterEmpty(imageFilters),
+    [imageFilters],
+  )
+  const imageSortActive = imageSortKey !== DEFAULT_IMAGE_SORT_KEY
+  const imageFilterCount = useMemo(
+    () => countImageFilters(imageFilters),
+    [imageFilters],
+  )
+  const activeImageSort = useMemo(
+    () =>
+      IMAGE_SORT_OPTIONS.find((opt) => opt.key === imageSortKey) ?? IMAGE_SORT_OPTIONS[0],
+    [imageSortKey],
+  )
+
+  const filteredImages = useMemo(() => {
     const term = imageSearchTerm.trim()
-    if (term) { if (!imageSearchResults) return []; return imageSearchResults.filter((i) => !i.projectCode || i.projectCode === projectCode) }
-    return applyImageSort(applyImageFilters(visibleImages, imageFilters), imageSortKey)
-  }, [visibleImages, imageSearchTerm, imageSearchResults, projectCode, imageFilters, imageSortKey])
+    // Search bypasses the filter model entirely — /image/search has
+    // its own pg_trgm ranking that wouldn't compose with client-side
+    // filters anyway.
+    if (term) {
+      if (imageSearchResults == null) return []
+      return imageSearchResults.filter(
+        (i) => !i.projectCode || i.projectCode === projectCode,
+      )
+    }
+    const filtered = applyImageFilters(visibleImages, imageFilters)
+    return applyImageSort(filtered, imageSortKey)
+  }, [
+    visibleImages,
+    imageSearchTerm,
+    imageSearchResults,
+    projectCode,
+    imageFilters,
+    imageSortKey,
+  ])
 
-  const updateImageFilter = useCallback((k, v) => setImageFilters((p) => ({ ...p, [k]: v })), [])
-  const clearImageFilters = useCallback(() => setImageFilters(createInitialImageFilters()), [])
-  const imageChips = useMemo(() => buildImageChips({ filters: imageFilters, sortKey: imageSortKey, sortLabel: imageSortActive ? activeImageSort.label : null, onClearSort: () => setImageSortKey(DEFAULT_IMAGE_SORT_KEY), updateFilter: updateImageFilter }), [imageFilters, imageSortKey, imageSortActive, activeImageSort, updateImageFilter])
+  const updateImageFilter = useCallback(
+    (key, value) => setImageFilters((prev) => ({ ...prev, [key]: value })),
+    [],
+  )
+  const clearImageFilters = useCallback(
+    () => setImageFilters(createInitialImageFilters()),
+    [],
+  )
+  const imageChips = useMemo(
+    () =>
+      buildImageChips({
+        filters: imageFilters,
+        sortKey: imageSortKey,
+        sortLabel: imageSortActive ? activeImageSort.label : null,
+        onClearSort: () => setImageSortKey(DEFAULT_IMAGE_SORT_KEY),
+        updateFilter: updateImageFilter,
+      }),
+    [imageFilters, imageSortKey, imageSortActive, activeImageSort, updateImageFilter],
+  )
 
-  const visibleTexts    = texts
-  const textFiltersActive = useMemo(() => !isTextFilterEmpty(textFilters), [textFilters])
-  const textSortActive    = textSortKey !== DEFAULT_TEXT_SORT_KEY
-  const textFilterCount   = useMemo(() => countTextFilters(textFilters), [textFilters])
-  const activeTextSort    = useMemo(() => TEXT_SORT_OPTIONS.find((o) => o.key === textSortKey) ?? TEXT_SORT_OPTIONS[0], [textSortKey])
-  const filteredTexts     = useMemo(() => {
+  const visibleTexts = texts
+
+  const textFiltersActive = useMemo(
+    () => !isTextFilterEmpty(textFilters),
+    [textFilters],
+  )
+  const textSortActive = textSortKey !== DEFAULT_TEXT_SORT_KEY
+  const textFilterCount = useMemo(
+    () => countTextFilters(textFilters),
+    [textFilters],
+  )
+  const activeTextSort = useMemo(
+    () =>
+      TEXT_SORT_OPTIONS.find((opt) => opt.key === textSortKey) ?? TEXT_SORT_OPTIONS[0],
+    [textSortKey],
+  )
+
+  const filteredTexts = useMemo(() => {
     const term = textSearchTerm.trim()
-    if (term) { if (!textSearchResults) return []; return textSearchResults.filter((t) => !t.projectCode || t.projectCode === projectCode) }
-    return applyTextSort(applyTextFilters(visibleTexts, textFilters), textSortKey)
-  }, [visibleTexts, textSearchTerm, textSearchResults, projectCode, textFilters, textSortKey])
+    if (term) {
+      if (textSearchResults == null) return []
+      return textSearchResults.filter(
+        (t) => !t.projectCode || t.projectCode === projectCode,
+      )
+    }
+    const filtered = applyTextFilters(visibleTexts, textFilters)
+    return applyTextSort(filtered, textSortKey)
+  }, [
+    visibleTexts,
+    textSearchTerm,
+    textSearchResults,
+    projectCode,
+    textFilters,
+    textSortKey,
+  ])
 
-  const updateTextFilter = useCallback((k, v) => setTextFilters((p) => ({ ...p, [k]: v })), [])
-  const clearTextFilters = useCallback(() => setTextFilters(createInitialTextFilters()), [])
-  const textChips = useMemo(() => buildTextChips({ filters: textFilters, sortKey: textSortKey, sortLabel: textSortActive ? activeTextSort.label : null, onClearSort: () => setTextSortKey(DEFAULT_TEXT_SORT_KEY), updateFilter: updateTextFilter }), [textFilters, textSortKey, textSortActive, activeTextSort, updateTextFilter])
+  const updateTextFilter = useCallback(
+    (key, value) => setTextFilters((prev) => ({ ...prev, [key]: value })),
+    [],
+  )
+  const clearTextFilters = useCallback(
+    () => setTextFilters(createInitialTextFilters()),
+    [],
+  )
+  const textChips = useMemo(
+    () =>
+      buildTextChips({
+        filters: textFilters,
+        sortKey: textSortKey,
+        sortLabel: textSortActive ? activeTextSort.label : null,
+        onClearSort: () => setTextSortKey(DEFAULT_TEXT_SORT_KEY),
+        updateFilter: updateTextFilter,
+      }),
+    [textFilters, textSortKey, textSortActive, activeTextSort, updateTextFilter],
+  )
 
-  // ── Debounced search effects ───────────────────────────────────────────────
-
+  // ── Debounced backend fuzzy-search effects ──
+  // Each section issues a debounced /X/search call scoped by projectCode.
+  // The AbortController cancels in-flight requests when the user keeps
+  // typing or clears the box. A null `*SearchResults` means "no active
+  // search; render the full project list". Errors are silent — empty
+  // results render naturally rather than spamming a toast on every keystroke.
   useEffect(() => {
     const term = searchTerm.trim()
-    if (!term) { setAudioSearchResults(null); setIsAudioSearching(false); return }
-    const ctrl = new AbortController()
-    const t = setTimeout(async () => {
+    if (!term) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAudioSearchResults(null)
+      setIsAudioSearching(false)
+      return undefined
+    }
+    const controller = new AbortController()
+    const timer = setTimeout(async () => {
       setIsAudioSearching(true)
-      try { const d = await searchAudios(term, { limit: 50, projectCode, signal: ctrl.signal }); if (!ctrl.signal.aborted) setAudioSearchResults(d || []) }
-      catch { if (!ctrl.signal.aborted) setAudioSearchResults([]) }
-      finally { if (!ctrl.signal.aborted) setIsAudioSearching(false) }
+      try {
+        const data = await searchAudios(term, {
+          limit: 50,
+          projectCode,
+          signal: controller.signal,
+        })
+        if (!controller.signal.aborted) setAudioSearchResults(data || [])
+      } catch {
+        if (!controller.signal.aborted) setAudioSearchResults([])
+      } finally {
+        if (!controller.signal.aborted) setIsAudioSearching(false)
+      }
     }, 220)
-    return () => { clearTimeout(t); ctrl.abort() }
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [searchTerm, projectCode])
 
   useEffect(() => {
     const term = videoSearchTerm.trim()
-    if (!term) { setVideoSearchResults(null); setIsVideoSearching(false); return }
-    const ctrl = new AbortController()
-    const t = setTimeout(async () => {
+    if (!term) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setVideoSearchResults(null)
+      setIsVideoSearching(false)
+      return undefined
+    }
+    const controller = new AbortController()
+    const timer = setTimeout(async () => {
       setIsVideoSearching(true)
-      try { const d = await searchVideos(term, { limit: 50, projectCode, signal: ctrl.signal }); if (!ctrl.signal.aborted) setVideoSearchResults(d || []) }
-      catch { if (!ctrl.signal.aborted) setVideoSearchResults([]) }
-      finally { if (!ctrl.signal.aborted) setIsVideoSearching(false) }
+      try {
+        const data = await searchVideos(term, {
+          limit: 50,
+          projectCode,
+          signal: controller.signal,
+        })
+        if (!controller.signal.aborted) setVideoSearchResults(data || [])
+      } catch {
+        if (!controller.signal.aborted) setVideoSearchResults([])
+      } finally {
+        if (!controller.signal.aborted) setIsVideoSearching(false)
+      }
     }, 220)
-    return () => { clearTimeout(t); ctrl.abort() }
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [videoSearchTerm, projectCode])
 
   useEffect(() => {
     const term = imageSearchTerm.trim()
-    if (!term) { setImageSearchResults(null); setIsImageSearching(false); return }
-    const ctrl = new AbortController()
-    const t = setTimeout(async () => {
+    if (!term) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setImageSearchResults(null)
+      setIsImageSearching(false)
+      return undefined
+    }
+    const controller = new AbortController()
+    const timer = setTimeout(async () => {
       setIsImageSearching(true)
-      try { const d = await searchImages(term, { limit: 50, projectCode, signal: ctrl.signal }); if (!ctrl.signal.aborted) setImageSearchResults(d || []) }
-      catch { if (!ctrl.signal.aborted) setImageSearchResults([]) }
-      finally { if (!ctrl.signal.aborted) setIsImageSearching(false) }
+      try {
+        const data = await searchImages(term, {
+          limit: 50,
+          projectCode,
+          signal: controller.signal,
+        })
+        if (!controller.signal.aborted) setImageSearchResults(data || [])
+      } catch {
+        if (!controller.signal.aborted) setImageSearchResults([])
+      } finally {
+        if (!controller.signal.aborted) setIsImageSearching(false)
+      }
     }, 220)
-    return () => { clearTimeout(t); ctrl.abort() }
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [imageSearchTerm, projectCode])
 
   useEffect(() => {
     const term = textSearchTerm.trim()
-    if (!term) { setTextSearchResults(null); setIsTextSearching(false); return }
-    const ctrl = new AbortController()
-    const t = setTimeout(async () => {
+    if (!term) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTextSearchResults(null)
+      setIsTextSearching(false)
+      return undefined
+    }
+    const controller = new AbortController()
+    const timer = setTimeout(async () => {
       setIsTextSearching(true)
-      try { const d = await searchTexts(term, { limit: 50, projectCode, signal: ctrl.signal }); if (!ctrl.signal.aborted) setTextSearchResults(d || []) }
-      catch { if (!ctrl.signal.aborted) setTextSearchResults([]) }
-      finally { if (!ctrl.signal.aborted) setIsTextSearching(false) }
+      try {
+        const data = await searchTexts(term, {
+          limit: 50,
+          projectCode,
+          signal: controller.signal,
+        })
+        if (!controller.signal.aborted) setTextSearchResults(data || [])
+      } catch {
+        if (!controller.signal.aborted) setTextSearchResults([])
+      } finally {
+        if (!controller.signal.aborted) setIsTextSearching(false)
+      }
     }, 220)
-    return () => { clearTimeout(t); ctrl.abort() }
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [textSearchTerm, projectCode])
 
-  // ── Audio handlers ─────────────────────────────────────────────────────────
-
   const handleOpenCreateAudio = () => {
-    setCurrentAudio(null); setForm(createInitialAudioForm()); setAudioFile(null)
-    setFormError(''); setSavedThisSession([])
-    submitModeRef.current = 'finish'; setPendingSubmitMode('finish')
-    lastAutoFilledRef.current = {}; setView('create')
+    setCurrentAudio(null)
+    setForm(createInitialAudioForm())
+    setAudioFile(null)
+    setFormError('')
+    setSavedThisSession([])
+    submitModeRef.current = 'finish'
+    setPendingSubmitMode('finish')
+    lastAutoFilledRef.current = {}
+    setView('create')
   }
 
   const handleOpenEditAudio = (audio) => {
-    setCurrentAudio(audio); setForm(populateAudioFormFromAudio(audio)); setAudioFile(null)
-    setFormError(''); setSavedThisSession([])
-    submitModeRef.current = 'finish'; setPendingSubmitMode('finish')
-    lastAutoFilledRef.current = {}; setView('edit')
+    setCurrentAudio(audio)
+    setForm(populateAudioFormFromAudio(audio))
+    setAudioFile(null)
+    setFormError('')
+    setSavedThisSession([])
+    submitModeRef.current = 'finish'
+    setPendingSubmitMode('finish')
+    lastAutoFilledRef.current = {}
+    setView('edit')
   }
 
   const handleCloseAudioForm = () => {
-    setView('list'); setCurrentAudio(null); setAudioFile(null)
-    setFormError(''); setSavedThisSession([]); lastAutoFilledRef.current = {}
+    setView('list')
+    setCurrentAudio(null)
+    setAudioFile(null)
+    setFormError('')
+    setSavedThisSession([])
+    lastAutoFilledRef.current = {}
   }
 
   const handleAudioFilePicked = (file) => {
+    // Bump the session id immediately — any in-flight async extraction
+    // from a previous file must now ignore its own resolution.
     const sessionId = ++metaSessionRef.current
     if (!file) {
-      const prev = lastAutoFilledRef.current
-      setForm((p) => {
-        const n = { ...p }
-        for (const [k, v] of Object.entries(prev)) {
-          if (v && JSON.stringify(p[k]) === JSON.stringify(v)) n[k] = Array.isArray(v) ? [] : ''
+      // Clearing the file: also clear any technical fields that still match what
+      // we auto-filled, so the user isn't left with stale extension/size/path
+      // values from a removed file.
+      const previousAuto = lastAutoFilledRef.current
+      setForm((prev) => {
+        const next = { ...prev }
+        for (const [key, value] of Object.entries(previousAuto)) {
+          if (value && JSON.stringify(prev[key]) === JSON.stringify(value)) {
+            next[key] = Array.isArray(value) ? [] : ''
+          }
         }
-        return n
+        return next
       })
-      lastAutoFilledRef.current = {}; setAudioFile(null); return
+      lastAutoFilledRef.current = {}
+      setAudioFile(null)
+      return
     }
 
-    // Derive file-intrinsic fields (extension, size, etc.)
     const auto = deriveAudioAutoFieldsFromFile(file)
-
-    // ── PATH AUTO-DETECTION ───────────────────────────────────────────────────
-    // In Electron: file.path → volume + directory + external path all filled.
-    // In browser with webkitdirectory: webkitRelativePath → directory + path.
-    // In plain browser: nothing — fields stay blank.
-    //
-    // buildPathAutoFields also handles the hybrid case: if the user already
-    // selected the source folder via FolderSourcePicker (directoryName set),
-    // external path is constructed as "<dir>/<filename>" automatically.
-    setForm((prevForm) => {
-      const pathFields = buildPathAutoFields(file, prevForm.directoryName)
-      const combined   = { ...auto, ...pathFields }
-      const next       = mergeAutoFilled(prevForm, combined, lastAutoFilledRef.current)
-      lastAutoFilledRef.current = combined
-      return next
-    })
     setAudioFile(file)
+    setForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
+    lastAutoFilledRef.current = auto
 
-    // Async: read embedded ID3 metadata + playback duration.
+    // Async: read embedded ID3 metadata + playback duration. Maps to
+    // originTitle / composer / description / dateCreated / tags / etc.
     extractAudioMetadata(file)
       .then((meta) => {
         if (sessionId !== metaSessionRef.current) return
         const extra = audioMetadataToForm(meta)
-        if (!Object.keys(extra).length) return
-        setForm((p) => {
-          const next = mergeAutoFilled(p, extra, lastAutoFilledRef.current)
-          lastAutoFilledRef.current = { ...lastAutoFilledRef.current, ...extra }
-          return next
-        })
+        if (Object.keys(extra).length === 0) return
+        setForm((prev) => mergeAutoFilled(prev, extra, lastAutoFilledRef.current))
+        lastAutoFilledRef.current = { ...lastAutoFilledRef.current, ...extra }
       })
       .catch(() => {})
   }
 
   const handleAudioSubmit = async (event) => {
-    event.preventDefault(); setFormError('')
-    if (!AUDIO_VERSIONS.includes((form.audioVersion || '').toUpperCase())) { setFormError('Audio version must be RAW or MASTER.'); return }
-    const vn = Number(form.versionNumber)
-    if (!Number.isInteger(vn) || vn < 1) { setFormError('Version number must be an integer ≥ 1.'); return }
-    const cn = Number(form.copyNumber)
-    if (!Number.isInteger(cn) || cn < 1) { setFormError('Copy number must be an integer ≥ 1.'); return }
-    if (form.audioQualityOutOf10 !== '' && (Number.isNaN(Number(form.audioQualityOutOf10)) || Number(form.audioQualityOutOf10) < 0 || Number(form.audioQualityOutOf10) > 10)) { setFormError('Audio quality must be 0–10.'); return }
-    if (view === 'create' && !audioFile) { setFormError('Please choose an audio file to upload.'); return }
+    event.preventDefault()
+    setFormError('')
+
+    if (!AUDIO_VERSIONS.includes((form.audioVersion || '').toUpperCase())) {
+      setFormError('Audio version must be RAW or MASTER.')
+      return
+    }
+    const versionNumber = Number(form.versionNumber)
+    if (!Number.isInteger(versionNumber) || versionNumber < 1) {
+      setFormError('Version number must be an integer ≥ 1.')
+      return
+    }
+    const copyNumber = Number(form.copyNumber)
+    if (!Number.isInteger(copyNumber) || copyNumber < 1) {
+      setFormError('Copy number must be an integer ≥ 1.')
+      return
+    }
+    if (
+      form.audioQualityOutOf10 !== '' &&
+      (Number.isNaN(Number(form.audioQualityOutOf10)) ||
+        Number(form.audioQualityOutOf10) < 0 ||
+        Number(form.audioQualityOutOf10) > 10)
+    ) {
+      setFormError('Audio quality must be a number between 0 and 10.')
+      return
+    }
+
+    if (view === 'create' && !audioFile) {
+      setFormError('Please choose an audio file to upload.')
+      return
+    }
+
     setIsSaving(true)
     try {
       if (view === 'create') {
-        const saved = await createAudio(buildAudioPayload(form, projectCode), audioFile)
-        toast.success('Audio created', `${saved.audioCode} added to ${projectCode}.`)
+        const payload = buildAudioPayload(form, projectCode)
+        const saved = await createAudio(payload, audioFile)
+        toast.success('Audio created', `${saved.audioCode} has been added to ${projectCode}.`)
         await loadAudios()
+
         if (submitModeRef.current === 'add-another') {
-          setSavedThisSession((p) => [...p, saved.audioCode])
-          setForm((p) => ({ ...createInitialAudioForm(), audioVersion: p.audioVersion, versionNumber: p.versionNumber, copyNumber: String((Number(p.copyNumber) || 1) + 1) }))
-          setAudioFile(null); setFormError(''); submitModeRef.current = 'finish'; setPendingSubmitMode('finish'); lastAutoFilledRef.current = {}
-          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); return
+          // Reset just the variable parts of the form — keep the version/copy
+          // numbers as a hint about where the user was so they can adjust.
+          setSavedThisSession((prev) => [...prev, saved.audioCode])
+          setForm((prev) => ({
+            ...createInitialAudioForm(),
+            audioVersion: prev.audioVersion,
+            versionNumber: prev.versionNumber,
+            copyNumber: String((Number(prev.copyNumber) || 1) + 1),
+          }))
+          setAudioFile(null)
+          setFormError('')
+          submitModeRef.current = 'finish'
+          setPendingSubmitMode('finish')
+          lastAutoFilledRef.current = {}
+          // stay in 'create' view
+          // scroll back to the top so the user can see the success banner
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }
+          return
         }
-        handleCloseAudioForm(); return
+
+        handleCloseAudioForm()
+        return
       }
-      const payload = buildAudioPayload(form, projectCode); delete payload.projectCode
+
+      const payload = buildAudioPayload(form, projectCode)
+      // Backend forbids changing the project on update — the audio's project is
+      // already fixed.
+      delete payload.projectCode
       const saved = await updateAudio(currentAudio.audioCode, payload, audioFile)
-      toast.success('Audio updated', `${saved.audioCode} saved.`)
-      await loadAudios(); handleCloseAudioForm()
+      toast.success('Audio updated', `${saved.audioCode} changes were saved.`)
+      await loadAudios()
+      handleCloseAudioForm()
     } catch (err) {
-      if (isStaleVersionError(err)) { toast.apiError(err, 'Reload required'); await loadAudios(); handleCloseAudioForm(); return }
-      setFormError(formatApiError(err, 'Failed to save audio')); toast.apiError(err, 'Unable to save audio')
-    } finally { setIsSaving(false) }
+      // Optimistic-locking conflict — another user (or an admin's
+      // cascade trash/restore) bumped this audio's version since we
+      // loaded it. Surface the backend's friendly message and bounce
+      // back to the list so re-opening fetches the latest.
+      if (isStaleVersionError(err)) {
+        toast.apiError(err, 'Reload required')
+        await loadAudios()
+        handleCloseAudioForm()
+        return
+      }
+      const formatted = formatApiError(err, 'Failed to save audio')
+      setFormError(formatted)
+      toast.apiError(err, 'Unable to save audio')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleDeleteAudio = async () => {
-    if (!deleteTarget) return; setIsDeleting(true)
-    try { await deleteAudio(deleteTarget.audioCode); toast.success('Sent to trash', `${deleteTarget.audioCode} can be restored from Trash.`); setDeleteTarget(null); await loadAudios() }
-    catch (err) { toast.apiError(err, 'Unable to send audio to trash') }
-    finally { setIsDeleting(false) }
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    try {
+      await deleteAudio(deleteTarget.audioCode)
+      toast.success(
+        'Sent to trash',
+        `${deleteTarget.audioCode} can be restored by an admin from Trash.`,
+      )
+      setDeleteTarget(null)
+      await loadAudios()
+    } catch (err) {
+      toast.apiError(err, 'Unable to send audio to trash')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
-  // ── Video handlers ─────────────────────────────────────────────────────────
+  /* ── Video handlers (parallel to the audio ones above) ───── */
 
   const handleOpenCreateVideo = () => {
-    setCurrentVideo(null); setVideoForm(createInitialVideoForm()); setVideoFile(null)
-    setFormError(''); setSavedVideosThisSession([])
-    submitModeRef.current = 'finish'; setPendingSubmitMode('finish'); lastAutoFilledRef.current = {}; setView('create')
+    setCurrentVideo(null)
+    setVideoForm(createInitialVideoForm())
+    setVideoFile(null)
+    setFormError('')
+    setSavedVideosThisSession([])
+    submitModeRef.current = 'finish'
+    setPendingSubmitMode('finish')
+    lastAutoFilledRef.current = {}
+    setView('create')
   }
 
   const handleOpenEditVideo = (video) => {
-    setCurrentVideo(video); setVideoForm(populateVideoFormFromVideo(video)); setVideoFile(null)
-    setFormError(''); setSavedVideosThisSession([])
-    submitModeRef.current = 'finish'; setPendingSubmitMode('finish'); lastAutoFilledRef.current = {}; setView('edit')
+    setCurrentVideo(video)
+    setVideoForm(populateVideoFormFromVideo(video))
+    setVideoFile(null)
+    setFormError('')
+    setSavedVideosThisSession([])
+    submitModeRef.current = 'finish'
+    setPendingSubmitMode('finish')
+    lastAutoFilledRef.current = {}
+    setView('edit')
   }
 
   const handleCloseVideoForm = () => {
-    setView('list'); setCurrentVideo(null); setVideoFile(null); setFormError(''); setSavedVideosThisSession([]); lastAutoFilledRef.current = {}
+    setView('list')
+    setCurrentVideo(null)
+    setVideoFile(null)
+    setFormError('')
+    setSavedVideosThisSession([])
+    lastAutoFilledRef.current = {}
   }
 
   const handleVideoFilePicked = (file) => {
     const sessionId = ++metaSessionRef.current
     if (!file) {
-      const prev = lastAutoFilledRef.current
-      setVideoForm((p) => { const n = { ...p }; for (const [k, v] of Object.entries(prev)) { if (v && JSON.stringify(p[k]) === JSON.stringify(v)) n[k] = Array.isArray(v) ? [] : '' }; return n })
-      lastAutoFilledRef.current = {}; setVideoFile(null); return
+      const previousAuto = lastAutoFilledRef.current
+      setVideoForm((prev) => {
+        const next = { ...prev }
+        for (const [key, value] of Object.entries(previousAuto)) {
+          if (value && JSON.stringify(prev[key]) === JSON.stringify(value)) {
+            next[key] = Array.isArray(value) ? [] : ''
+          }
+        }
+        return next
+      })
+      lastAutoFilledRef.current = {}
+      setVideoFile(null)
+      return
     }
+
     const auto = deriveVideoAutoFieldsFromFile(file)
-    setVideoForm((prevForm) => {
-      const pathFields = buildPathAutoFields(file, prevForm.directoryName)
-      const combined   = { ...auto, ...pathFields }
-      const next       = mergeAutoFilled(prevForm, combined, lastAutoFilledRef.current)
-      lastAutoFilledRef.current = combined; return next
-    })
     setVideoFile(file)
+    setVideoForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
+    lastAutoFilledRef.current = auto
+
+    // Async: read duration + dimensions via a hidden <video> element.
     extractVideoMetadata(file)
       .then((meta) => {
         if (sessionId !== metaSessionRef.current) return
-        const extra = videoMetadataToForm(meta); if (!Object.keys(extra).length) return
-        setVideoForm((p) => { const next = mergeAutoFilled(p, extra, lastAutoFilledRef.current); lastAutoFilledRef.current = { ...lastAutoFilledRef.current, ...extra }; return next })
-      }).catch(() => {})
+        const extra = videoMetadataToForm(meta)
+        if (Object.keys(extra).length === 0) return
+        setVideoForm((prev) => mergeAutoFilled(prev, extra, lastAutoFilledRef.current))
+        lastAutoFilledRef.current = { ...lastAutoFilledRef.current, ...extra }
+      })
+      .catch(() => {})
   }
 
   const handleVideoSubmit = async (event) => {
-    event.preventDefault(); setFormError('')
-    if (!VIDEO_VERSIONS.includes((videoForm.videoVersion || '').toUpperCase())) { setFormError(`Video version must be one of ${VIDEO_VERSIONS.join(', ')}.`); return }
-    const vn = Number(videoForm.versionNumber); if (!Number.isInteger(vn) || vn < 1) { setFormError('Version number must be an integer ≥ 1.'); return }
-    const cn = Number(videoForm.copyNumber);    if (!Number.isInteger(cn) || cn < 1) { setFormError('Copy number must be an integer ≥ 1.'); return }
-    if (view === 'create' && !videoFile) { setFormError('Please choose a video file.'); return }
+    event.preventDefault()
+    setFormError('')
+
+    if (!VIDEO_VERSIONS.includes((videoForm.videoVersion || '').toUpperCase())) {
+      setFormError(`Video version must be one of ${VIDEO_VERSIONS.join(', ')}.`)
+      return
+    }
+    const versionNumber = Number(videoForm.versionNumber)
+    if (!Number.isInteger(versionNumber) || versionNumber < 1) {
+      setFormError('Version number must be an integer ≥ 1.')
+      return
+    }
+    const copyNumber = Number(videoForm.copyNumber)
+    if (!Number.isInteger(copyNumber) || copyNumber < 1) {
+      setFormError('Copy number must be an integer ≥ 1.')
+      return
+    }
+    if (view === 'create' && !videoFile) {
+      setFormError('Please choose a video file to upload.')
+      return
+    }
+
     setIsSaving(true)
     try {
       if (view === 'create') {
-        const saved = await createVideo(buildVideoPayload(videoForm, projectCode), videoFile)
-        toast.success('Video created', `${saved.videoCode} added to ${projectCode}.`)
+        const payload = buildVideoPayload(videoForm, projectCode)
+        const saved = await createVideo(payload, videoFile)
+        toast.success('Video created', `${saved.videoCode} has been added to ${projectCode}.`)
         await loadVideos()
+
         if (submitModeRef.current === 'add-another') {
-          setSavedVideosThisSession((p) => [...p, saved.videoCode])
-          setVideoForm((p) => ({ ...createInitialVideoForm(), videoVersion: p.videoVersion, versionNumber: p.versionNumber, copyNumber: String((Number(p.copyNumber) || 1) + 1) }))
-          setVideoFile(null); setFormError(''); submitModeRef.current = 'finish'; setPendingSubmitMode('finish'); lastAutoFilledRef.current = {}
-          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); return
+          setSavedVideosThisSession((prev) => [...prev, saved.videoCode])
+          setVideoForm((prev) => ({
+            ...createInitialVideoForm(),
+            videoVersion: prev.videoVersion,
+            versionNumber: prev.versionNumber,
+            copyNumber: String((Number(prev.copyNumber) || 1) + 1),
+          }))
+          setVideoFile(null)
+          setFormError('')
+          submitModeRef.current = 'finish'
+          setPendingSubmitMode('finish')
+          lastAutoFilledRef.current = {}
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }
+          return
         }
-        handleCloseVideoForm(); return
+
+        handleCloseVideoForm()
+        return
       }
-      const payload = buildVideoPayload(videoForm, projectCode); delete payload.projectCode
+
+      const payload = buildVideoPayload(videoForm, projectCode)
+      // projectCode is immutable on update — backend silently ignores it.
+      delete payload.projectCode
       const saved = await updateVideo(currentVideo.videoCode, payload, videoFile)
-      toast.success('Video updated', `${saved.videoCode} saved.`)
-      await loadVideos(); handleCloseVideoForm()
+      toast.success('Video updated', `${saved.videoCode} changes were saved.`)
+      await loadVideos()
+      handleCloseVideoForm()
     } catch (err) {
-      if (isStaleVersionError(err)) { toast.apiError(err, 'Reload required'); await loadVideos(); handleCloseVideoForm(); return }
-      setFormError(formatApiError(err, 'Failed to save video')); toast.apiError(err, 'Unable to save video')
-    } finally { setIsSaving(false) }
+      if (isStaleVersionError(err)) {
+        toast.apiError(err, 'Reload required')
+        await loadVideos()
+        handleCloseVideoForm()
+        return
+      }
+      const formatted = formatApiError(err, 'Failed to save video')
+      setFormError(formatted)
+      toast.apiError(err, 'Unable to save video')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleDeleteVideo = async () => {
-    if (!videoDeleteTarget) return; setIsVideoDeleting(true)
-    try { await deleteVideo(videoDeleteTarget.videoCode); toast.success('Sent to trash', `${videoDeleteTarget.videoCode} can be restored.`); setVideoDeleteTarget(null); await loadVideos() }
-    catch (err) { toast.apiError(err, 'Unable to send video to trash') }
-    finally { setIsVideoDeleting(false) }
+    if (!videoDeleteTarget) return
+    setIsVideoDeleting(true)
+    try {
+      await deleteVideo(videoDeleteTarget.videoCode)
+      toast.success(
+        'Sent to trash',
+        `${videoDeleteTarget.videoCode} can be restored by an admin from Trash.`,
+      )
+      setVideoDeleteTarget(null)
+      await loadVideos()
+    } catch (err) {
+      toast.apiError(err, 'Unable to send video to trash')
+    } finally {
+      setIsVideoDeleting(false)
+    }
   }
 
-  // ── Image handlers ─────────────────────────────────────────────────────────
+  /* ── Image handlers (parallel to the audio/video ones above) ─ */
 
   const handleOpenCreateImage = () => {
-    setCurrentImage(null); setImageForm(createInitialImageForm()); setImageFile(null)
-    setFormError(''); setSavedImagesThisSession([])
-    submitModeRef.current = 'finish'; setPendingSubmitMode('finish'); lastAutoFilledRef.current = {}; setView('create')
+    setCurrentImage(null)
+    setImageForm(createInitialImageForm())
+    setImageFile(null)
+    setFormError('')
+    setSavedImagesThisSession([])
+    submitModeRef.current = 'finish'
+    setPendingSubmitMode('finish')
+    lastAutoFilledRef.current = {}
+    setView('create')
   }
 
   const handleOpenEditImage = (image) => {
-    setCurrentImage(image); setImageForm(populateImageFormFromImage(image)); setImageFile(null)
-    setFormError(''); setSavedImagesThisSession([])
-    submitModeRef.current = 'finish'; setPendingSubmitMode('finish'); lastAutoFilledRef.current = {}; setView('edit')
+    setCurrentImage(image)
+    setImageForm(populateImageFormFromImage(image))
+    setImageFile(null)
+    setFormError('')
+    setSavedImagesThisSession([])
+    submitModeRef.current = 'finish'
+    setPendingSubmitMode('finish')
+    lastAutoFilledRef.current = {}
+    setView('edit')
   }
 
   const handleCloseImageForm = () => {
-    setView('list'); setCurrentImage(null); setImageFile(null); setFormError(''); setSavedImagesThisSession([]); lastAutoFilledRef.current = {}
+    setView('list')
+    setCurrentImage(null)
+    setImageFile(null)
+    setFormError('')
+    setSavedImagesThisSession([])
+    lastAutoFilledRef.current = {}
   }
 
   const handleImageFilePicked = (file) => {
     const sessionId = ++metaSessionRef.current
     if (!file) {
-      const prev = lastAutoFilledRef.current
-      setImageForm((p) => { const n = { ...p }; for (const [k, v] of Object.entries(prev)) { if (v && JSON.stringify(p[k]) === JSON.stringify(v)) n[k] = Array.isArray(v) ? [] : '' }; return n })
-      lastAutoFilledRef.current = {}; setImageFile(null); return
+      const previousAuto = lastAutoFilledRef.current
+      setImageForm((prev) => {
+        const next = { ...prev }
+        for (const [key, value] of Object.entries(previousAuto)) {
+          if (value && JSON.stringify(prev[key]) === JSON.stringify(value)) {
+            next[key] = Array.isArray(value) ? [] : ''
+          }
+        }
+        return next
+      })
+      lastAutoFilledRef.current = {}
+      setImageFile(null)
+      return
     }
+
     const auto = deriveImageAutoFieldsFromFile(file)
-    setImageForm((prevForm) => {
-      const pathFields = buildPathAutoFields(file, prevForm.directoryName)
-      const combined   = { ...auto, ...pathFields }
-      const next       = mergeAutoFilled(prevForm, combined, lastAutoFilledRef.current)
-      lastAutoFilledRef.current = combined; return next
-    })
     setImageFile(file)
+    setImageForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
+    lastAutoFilledRef.current = auto
+
+    // Async: read natural dimensions via Image() — fills dimension /
+    // resolution / orientation.
     extractImageMetadata(file)
       .then((meta) => {
         if (sessionId !== metaSessionRef.current) return
-        const extra = imageMetadataToForm(meta); if (!Object.keys(extra).length) return
-        setImageForm((p) => { const next = mergeAutoFilled(p, extra, lastAutoFilledRef.current); lastAutoFilledRef.current = { ...lastAutoFilledRef.current, ...extra }; return next })
-      }).catch(() => {})
+        const extra = imageMetadataToForm(meta)
+        if (Object.keys(extra).length === 0) return
+        setImageForm((prev) => mergeAutoFilled(prev, extra, lastAutoFilledRef.current))
+        lastAutoFilledRef.current = { ...lastAutoFilledRef.current, ...extra }
+      })
+      .catch(() => {})
   }
 
   const handleImageSubmit = async (event) => {
-    event.preventDefault(); setFormError('')
-    if (!IMAGE_VERSIONS.includes((imageForm.imageVersion || '').toUpperCase())) { setFormError(`Image version must be one of ${IMAGE_VERSIONS.join(', ')}.`); return }
-    const vn = Number(imageForm.versionNumber); if (!Number.isInteger(vn) || vn < 1) { setFormError('Version number must be an integer ≥ 1.'); return }
-    const cn = Number(imageForm.copyNumber);    if (!Number.isInteger(cn) || cn < 1) { setFormError('Copy number must be an integer ≥ 1.'); return }
-    if (view === 'create' && !imageFile) { setFormError('Please choose an image file.'); return }
+    event.preventDefault()
+    setFormError('')
+
+    if (!IMAGE_VERSIONS.includes((imageForm.imageVersion || '').toUpperCase())) {
+      setFormError(`Image version must be one of ${IMAGE_VERSIONS.join(', ')}.`)
+      return
+    }
+    const versionNumber = Number(imageForm.versionNumber)
+    if (!Number.isInteger(versionNumber) || versionNumber < 1) {
+      setFormError('Version number must be an integer ≥ 1.')
+      return
+    }
+    const copyNumber = Number(imageForm.copyNumber)
+    if (!Number.isInteger(copyNumber) || copyNumber < 1) {
+      setFormError('Copy number must be an integer ≥ 1.')
+      return
+    }
+    if (view === 'create' && !imageFile) {
+      setFormError('Please choose an image file to upload.')
+      return
+    }
+
     setIsSaving(true)
     try {
       if (view === 'create') {
-        const saved = await createImage(buildImagePayload(imageForm, projectCode), imageFile)
-        toast.success('Image created', `${saved.imageCode} added to ${projectCode}.`)
+        const payload = buildImagePayload(imageForm, projectCode)
+        const saved = await createImage(payload, imageFile)
+        toast.success('Image created', `${saved.imageCode} has been added to ${projectCode}.`)
         await loadImages()
+
         if (submitModeRef.current === 'add-another') {
-          setSavedImagesThisSession((p) => [...p, saved.imageCode])
-          setImageForm((p) => ({ ...createInitialImageForm(), imageVersion: p.imageVersion, versionNumber: p.versionNumber, copyNumber: String((Number(p.copyNumber) || 1) + 1) }))
-          setImageFile(null); setFormError(''); submitModeRef.current = 'finish'; setPendingSubmitMode('finish'); lastAutoFilledRef.current = {}
-          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); return
+          setSavedImagesThisSession((prev) => [...prev, saved.imageCode])
+          setImageForm((prev) => ({
+            ...createInitialImageForm(),
+            imageVersion: prev.imageVersion,
+            versionNumber: prev.versionNumber,
+            copyNumber: String((Number(prev.copyNumber) || 1) + 1),
+          }))
+          setImageFile(null)
+          setFormError('')
+          submitModeRef.current = 'finish'
+          setPendingSubmitMode('finish')
+          lastAutoFilledRef.current = {}
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }
+          return
         }
-        handleCloseImageForm(); return
+
+        handleCloseImageForm()
+        return
       }
-      const payload = buildImagePayload(imageForm, projectCode); delete payload.projectCode
+
+      const payload = buildImagePayload(imageForm, projectCode)
+      delete payload.projectCode
       const saved = await updateImage(currentImage.imageCode, payload, imageFile)
-      toast.success('Image updated', `${saved.imageCode} saved.`)
-      await loadImages(); handleCloseImageForm()
+      toast.success('Image updated', `${saved.imageCode} changes were saved.`)
+      await loadImages()
+      handleCloseImageForm()
     } catch (err) {
-      if (isStaleVersionError(err)) { toast.apiError(err, 'Reload required'); await loadImages(); handleCloseImageForm(); return }
-      setFormError(formatApiError(err, 'Failed to save image')); toast.apiError(err, 'Unable to save image')
-    } finally { setIsSaving(false) }
+      if (isStaleVersionError(err)) {
+        toast.apiError(err, 'Reload required')
+        await loadImages()
+        handleCloseImageForm()
+        return
+      }
+      const formatted = formatApiError(err, 'Failed to save image')
+      setFormError(formatted)
+      toast.apiError(err, 'Unable to save image')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleDeleteImage = async () => {
-    if (!imageDeleteTarget) return; setIsImageDeleting(true)
-    try { await deleteImage(imageDeleteTarget.imageCode); toast.success('Sent to trash', `${imageDeleteTarget.imageCode} can be restored.`); setImageDeleteTarget(null); await loadImages() }
-    catch (err) { toast.apiError(err, 'Unable to send image to trash') }
-    finally { setIsImageDeleting(false) }
+    if (!imageDeleteTarget) return
+    setIsImageDeleting(true)
+    try {
+      await deleteImage(imageDeleteTarget.imageCode)
+      toast.success(
+        'Sent to trash',
+        `${imageDeleteTarget.imageCode} can be restored by an admin from Trash.`,
+      )
+      setImageDeleteTarget(null)
+      await loadImages()
+    } catch (err) {
+      toast.apiError(err, 'Unable to send image to trash')
+    } finally {
+      setIsImageDeleting(false)
+    }
   }
 
-  // ── Text handlers ──────────────────────────────────────────────────────────
+  /* ── Text handlers (parallel to the audio/video ones above) ── */
 
   const handleOpenCreateText = () => {
-    setCurrentText(null); setTextForm(createInitialTextForm()); setTextFile(null)
-    setFormError(''); setSavedTextsThisSession([])
-    submitModeRef.current = 'finish'; setPendingSubmitMode('finish'); lastAutoFilledRef.current = {}; setView('create')
+    setCurrentText(null)
+    setTextForm(createInitialTextForm())
+    setTextFile(null)
+    setFormError('')
+    setSavedTextsThisSession([])
+    submitModeRef.current = 'finish'
+    setPendingSubmitMode('finish')
+    lastAutoFilledRef.current = {}
+    setView('create')
   }
 
   const handleOpenEditText = (text) => {
-    setCurrentText(text); setTextForm(populateTextFormFromText(text)); setTextFile(null)
-    setFormError(''); setSavedTextsThisSession([])
-    submitModeRef.current = 'finish'; setPendingSubmitMode('finish'); lastAutoFilledRef.current = {}; setView('edit')
+    setCurrentText(text)
+    setTextForm(populateTextFormFromText(text))
+    setTextFile(null)
+    setFormError('')
+    setSavedTextsThisSession([])
+    submitModeRef.current = 'finish'
+    setPendingSubmitMode('finish')
+    lastAutoFilledRef.current = {}
+    setView('edit')
   }
 
   const handleCloseTextForm = () => {
-    setView('list'); setCurrentText(null); setTextFile(null); setFormError(''); setSavedTextsThisSession([]); lastAutoFilledRef.current = {}
+    setView('list')
+    setCurrentText(null)
+    setTextFile(null)
+    setFormError('')
+    setSavedTextsThisSession([])
+    lastAutoFilledRef.current = {}
   }
 
   const handleTextFilePicked = (file) => {
     const sessionId = ++metaSessionRef.current
     if (!file) {
-      const prev = lastAutoFilledRef.current
-      setTextForm((p) => { const n = { ...p }; for (const [k, v] of Object.entries(prev)) { if (v && JSON.stringify(p[k]) === JSON.stringify(v)) n[k] = Array.isArray(v) ? [] : '' }; return n })
-      lastAutoFilledRef.current = {}; setTextFile(null); return
+      const previousAuto = lastAutoFilledRef.current
+      setTextForm((prev) => {
+        const next = { ...prev }
+        for (const [key, value] of Object.entries(previousAuto)) {
+          if (value && JSON.stringify(prev[key]) === JSON.stringify(value)) {
+            next[key] = Array.isArray(value) ? [] : ''
+          }
+        }
+        return next
+      })
+      lastAutoFilledRef.current = {}
+      setTextFile(null)
+      return
     }
+
     const auto = deriveTextAutoFieldsFromFile(file)
-    setTextForm((prevForm) => {
-      const pathFields = buildPathAutoFields(file, prevForm.directoryName)
-      const combined   = { ...auto, ...pathFields }
-      const next       = mergeAutoFilled(prevForm, combined, lastAutoFilledRef.current)
-      lastAutoFilledRef.current = combined; return next
-    })
     setTextFile(file)
+    setTextForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
+    lastAutoFilledRef.current = auto
+
+    // Async: text/PDF metadata extractor is currently a stub (PDF
+    // metadata would need pdf.js, ~700KB). Keep the call so the
+    // pattern is uniform across kinds and so backend-side metadata
+    // can populate this hook later.
     extractTextMetadata(file)
       .then((meta) => {
         if (sessionId !== metaSessionRef.current) return
-        const extra = textMetadataToForm(meta); if (!Object.keys(extra).length) return
-        setTextForm((p) => { const next = mergeAutoFilled(p, extra, lastAutoFilledRef.current); lastAutoFilledRef.current = { ...lastAutoFilledRef.current, ...extra }; return next })
-      }).catch(() => {})
+        const extra = textMetadataToForm(meta)
+        if (Object.keys(extra).length === 0) return
+        setTextForm((prev) => mergeAutoFilled(prev, extra, lastAutoFilledRef.current))
+        lastAutoFilledRef.current = { ...lastAutoFilledRef.current, ...extra }
+      })
+      .catch(() => {})
   }
 
   const handleTextSubmit = async (event) => {
-    event.preventDefault(); setFormError('')
-    if (!TEXT_VERSIONS.includes((textForm.textVersion || '').toUpperCase())) { setFormError(`Text version must be one of ${TEXT_VERSIONS.join(', ')}.`); return }
-    const vn = Number(textForm.versionNumber); if (!Number.isInteger(vn) || vn < 1) { setFormError('Version number must be an integer ≥ 1.'); return }
-    const cn = Number(textForm.copyNumber);    if (!Number.isInteger(cn) || cn < 1) { setFormError('Copy number must be an integer ≥ 1.'); return }
-    if (textForm.pageCount !== '' && textForm.pageCount != null && (Number.isNaN(Number(textForm.pageCount)) || Number(textForm.pageCount) < 0)) { setFormError('Page count must be a non-negative integer.'); return }
-    if (view === 'create' && !textFile) { setFormError('Please choose a text file.'); return }
+    event.preventDefault()
+    setFormError('')
+
+    if (!TEXT_VERSIONS.includes((textForm.textVersion || '').toUpperCase())) {
+      setFormError(`Text version must be one of ${TEXT_VERSIONS.join(', ')}.`)
+      return
+    }
+    const versionNumber = Number(textForm.versionNumber)
+    if (!Number.isInteger(versionNumber) || versionNumber < 1) {
+      setFormError('Version number must be an integer ≥ 1.')
+      return
+    }
+    const copyNumber = Number(textForm.copyNumber)
+    if (!Number.isInteger(copyNumber) || copyNumber < 1) {
+      setFormError('Copy number must be an integer ≥ 1.')
+      return
+    }
+    if (
+      textForm.pageCount !== '' &&
+      textForm.pageCount != null &&
+      (Number.isNaN(Number(textForm.pageCount)) || Number(textForm.pageCount) < 0)
+    ) {
+      setFormError('Page count must be a non-negative integer.')
+      return
+    }
+    if (view === 'create' && !textFile) {
+      setFormError('Please choose a text file to upload.')
+      return
+    }
+
     setIsSaving(true)
     try {
       if (view === 'create') {
-        const saved = await createText(buildTextPayload(textForm, projectCode), textFile)
-        toast.success('Text created', `${saved.textCode} added to ${projectCode}.`)
+        const payload = buildTextPayload(textForm, projectCode)
+        const saved = await createText(payload, textFile)
+        toast.success('Text created', `${saved.textCode} has been added to ${projectCode}.`)
         await loadTexts()
+
         if (submitModeRef.current === 'add-another') {
-          setSavedTextsThisSession((p) => [...p, saved.textCode])
-          setTextForm((p) => ({ ...createInitialTextForm(), textVersion: p.textVersion, versionNumber: p.versionNumber, copyNumber: String((Number(p.copyNumber) || 1) + 1) }))
-          setTextFile(null); setFormError(''); submitModeRef.current = 'finish'; setPendingSubmitMode('finish'); lastAutoFilledRef.current = {}
-          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); return
+          setSavedTextsThisSession((prev) => [...prev, saved.textCode])
+          setTextForm((prev) => ({
+            ...createInitialTextForm(),
+            textVersion: prev.textVersion,
+            versionNumber: prev.versionNumber,
+            copyNumber: String((Number(prev.copyNumber) || 1) + 1),
+          }))
+          setTextFile(null)
+          setFormError('')
+          submitModeRef.current = 'finish'
+          setPendingSubmitMode('finish')
+          lastAutoFilledRef.current = {}
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }
+          return
         }
-        handleCloseTextForm(); return
+
+        handleCloseTextForm()
+        return
       }
-      const payload = buildTextPayload(textForm, projectCode); delete payload.projectCode
+
+      const payload = buildTextPayload(textForm, projectCode)
+      delete payload.projectCode
       const saved = await updateText(currentText.textCode, payload, textFile)
-      toast.success('Text updated', `${saved.textCode} saved.`)
-      await loadTexts(); handleCloseTextForm()
+      toast.success('Text updated', `${saved.textCode} changes were saved.`)
+      await loadTexts()
+      handleCloseTextForm()
     } catch (err) {
-      if (isStaleVersionError(err)) { toast.apiError(err, 'Reload required'); await loadTexts(); handleCloseTextForm(); return }
-      setFormError(formatApiError(err, 'Failed to save text')); toast.apiError(err, 'Unable to save text')
-    } finally { setIsSaving(false) }
+      if (isStaleVersionError(err)) {
+        toast.apiError(err, 'Reload required')
+        await loadTexts()
+        handleCloseTextForm()
+        return
+      }
+      const formatted = formatApiError(err, 'Failed to save text')
+      setFormError(formatted)
+      toast.apiError(err, 'Unable to save text')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleDeleteText = async () => {
-    if (!textDeleteTarget) return; setIsTextDeleting(true)
-    try { await deleteText(textDeleteTarget.textCode); toast.success('Sent to trash', `${textDeleteTarget.textCode} can be restored.`); setTextDeleteTarget(null); await loadTexts() }
-    catch (err) { toast.apiError(err, 'Unable to send text to trash') }
-    finally { setIsTextDeleting(false) }
+    if (!textDeleteTarget) return
+    setIsTextDeleting(true)
+    try {
+      await deleteText(textDeleteTarget.textCode)
+      toast.success(
+        'Sent to trash',
+        `${textDeleteTarget.textCode} can be restored by an admin from Trash.`,
+      )
+      setTextDeleteTarget(null)
+      await loadTexts()
+    } catch (err) {
+      toast.apiError(err, 'Unable to send text to trash')
+    } finally {
+      setIsTextDeleting(false)
+    }
   }
 
-  // ── Tab switch ─────────────────────────────────────────────────────────────
-
+  // Switch tabs cleanly — close any open form, clear any session counters so
+  // the user doesn't lose orientation.
   const handleSwitchMediaType = (next) => {
     if (next === mediaType) return
     if (view !== 'list') {
-      if      (mediaType === 'audio') handleCloseAudioForm()
+      if (mediaType === 'audio') handleCloseAudioForm()
       else if (mediaType === 'video') handleCloseVideoForm()
       else if (mediaType === 'image') handleCloseImageForm()
-      else if (mediaType === 'text')  handleCloseTextForm()
+      else if (mediaType === 'text') handleCloseTextForm()
     }
     setMediaType(next)
   }
 
-  // ── Session banner (shared) ────────────────────────────────────────────────
-
-  function SessionBanner({ codes, onFinish }) {
-    if (!codes.length) return null
-    return (
-      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 shadow-sm dark:bg-emerald-500/10">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
-            <CheckCircle2 className="size-4" />
-          </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <p className="text-sm font-semibold text-foreground">
-              {codes.length === 1 ? `1 item added` : `${codes.length} items added`} in this session
-            </p>
-            <p className="text-xs text-muted-foreground">Form reset. Version & copy numbers carried over (copy auto-incremented).</p>
-            <div className="flex flex-wrap gap-1.5 pt-0.5">
-              {codes.slice(-6).map((c) => (
-                <span key={c} className="inline-flex items-center rounded-full border border-emerald-500/30 bg-background/60 px-2 py-0.5 font-mono text-[10px] tracking-wide text-foreground/80">{c}</span>
-              ))}
-              {codes.length > 6 && <span className="text-[10px] font-medium text-muted-foreground">+{codes.length - 6} earlier</span>}
-            </div>
-          </div>
-          <button type="button" onClick={onFinish} className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300">
-            Finish & view list
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Sticky form footer (shared) ────────────────────────────────────────────
-
-  function FormFooter({ isEdit, sessionCount, label, onCancel }) {
-    return (
-      <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-muted-foreground">
-          {isEdit ? `Update this ${label}.` : sessionCount > 0 ? `${sessionCount} added — keep going or finish.` : `Pick a file, fill metadata, then save.`}
-        </p>
-        <div className="flex items-center justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>Cancel</Button>
-          {isEdit ? (
-            <Button type="submit" disabled={isSaving} className="gap-2">
-              {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
-              {isSaving ? 'Saving…' : 'Save Changes'}
-            </Button>
-          ) : (
-            <>
-              <Button type="submit" variant="outline" disabled={isSaving} className="gap-2" onClick={() => { submitModeRef.current = 'add-another'; setPendingSubmitMode('add-another') }}>
-                {isSaving && pendingSubmitMode === 'add-another' ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-                Save &amp; Add Another
-              </Button>
-              <Button type="submit" disabled={isSaving} className="gap-2" onClick={() => { submitModeRef.current = 'finish'; setPendingSubmitMode('finish') }}>
-                {isSaving && pendingSubmitMode === 'finish' ? <Loader2 className="size-4 animate-spin" /> : null}
-                Save &amp; Finish
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // ── Image form ─────────────────────────────────────────────────────────────
-
+  /* ── image form view ────────────────────────────────────────── */
   if ((view === 'create' || view === 'edit') && mediaType === 'image') {
     const isEdit = view === 'edit'
     return (
-      <EmployeeEntityPage eyebrow={isEdit ? 'Editing' : 'New image'} title={isEdit ? 'Edit Image' : 'Add Image to Project'} description={project ? `Inside "${project.projectName}" (${project.projectCode}).` : undefined}>
+      <EmployeeEntityPage
+        eyebrow={isEdit ? 'Editing' : 'New image'}
+        title={isEdit ? 'Edit Image' : 'Add Image to Project'}
+        description={
+          project
+            ? `Inside project "${project.projectName}" (${project.projectCode}).`
+            : 'Inside project.'
+        }
+      >
         <form id="image-form" onSubmit={handleImageSubmit} className="mx-auto block w-full max-w-4xl">
           <div className="space-y-6">
-            <SessionBanner codes={savedImagesThisSession} onFinish={handleCloseImageForm} />
-            <IdentityCard mediaLabel="image" versionKey="imageVersion" versions={IMAGE_VERSIONS} form={imageForm} setForm={setImageForm} currentCode={isEdit ? currentImage?.imageCode : null} project={project} isEdit={isEdit} getFieldMetadata={getImageFieldMetadata} />
-            <MediaFileCard isEdit={isEdit} currentFileUrl={isEdit ? currentImage?.imageFileUrl : null} currentCode={isEdit ? currentImage?.imageCode : null} currentTitle={isEdit ? (currentImage?.originalTitle || currentImage?.imageCode) : null} mediaType="image" file={imageFile} onFileChange={handleImageFilePicked} isAcceptedFile={isImageFile} />
-            <ImageFormSections form={imageForm} setForm={setImageForm} projectCategories={project?.categories || []} currentFile={imageFile} />
+            {!isEdit && savedImagesThisSession.length > 0 ? (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 shadow-sm dark:bg-emerald-500/10">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+                    <CheckCircle2 className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <p className="text-sm font-semibold text-foreground">
+                      {savedImagesThisSession.length === 1
+                        ? '1 image added so far in this session'
+                        : `${savedImagesThisSession.length} images added so far in this session`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Form has been reset for the next one. Version & copy numbers carried over (copy auto-incremented).
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {savedImagesThisSession.slice(-6).map((c) => (
+                        <span key={c} className="inline-flex items-center rounded-full border border-emerald-500/30 bg-background/60 px-2 py-0.5 font-mono text-[10px] tracking-wide text-foreground/80">
+                          {c}
+                        </span>
+                      ))}
+                      {savedImagesThisSession.length > 6 ? (
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                          +{savedImagesThisSession.length - 6} earlier
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <button type="button" onClick={handleCloseImageForm} className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300">
+                    Finish & view list
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            <Card className="border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-base font-semibold">Identity</CardTitle>
+                <CardDescription className="text-xs">Version, copy and the auto-generated image code.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5 pt-5">
+                <div className="grid gap-5 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="imageVersion">
+                        Version <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getImageFieldMetadata('imageVersion')} />
+                    </div>
+                    <Select
+                      id="imageVersion"
+                      value={imageForm.imageVersion}
+                      onChange={(v) => setImageForm({ ...imageForm, imageVersion: v })}
+                      required
+                      className="w-full"
+                      options={IMAGE_VERSIONS.map((v) => ({ value: v, label: v }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="imageVersionNumber">
+                        Version # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getImageFieldMetadata('versionNumber')} />
+                    </div>
+                    <Input id="imageVersionNumber" type="number" min="1" step="1" value={imageForm.versionNumber} onChange={(e) => setImageForm({ ...imageForm, versionNumber: e.target.value })} required />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="imageCopyNumber">
+                        Copy # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getImageFieldMetadata('copyNumber')} />
+                    </div>
+                    <Input id="imageCopyNumber" type="number" min="1" step="1" value={imageForm.copyNumber} onChange={(e) => setImageForm({ ...imageForm, copyNumber: e.target.value })} required />
+                  </div>
+                </div>
+
+                {isEdit && currentImage?.imageCode ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Code:</span>
+                    <CodeBadge code={currentImage.imageCode} variant="subtle" />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Auto-generated as{' '}
+                    <span className="font-mono font-semibold text-foreground">
+                      {project?.personCode
+                        ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_IMG_${imageForm.imageVersion || 'RAW'}_V${imageForm.versionNumber || '1'}_Copy(${imageForm.copyNumber || '1'})_000001`
+                        : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_IMG_${imageForm.imageVersion || 'RAW'}_V${imageForm.versionNumber || '1'}_Copy(${imageForm.copyNumber || '1'})_000001`}
+                    </span>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-base font-semibold">Image File</CardTitle>
+                <CardDescription className="text-xs">
+                  {isEdit
+                    ? 'Upload a replacement file to overwrite the current image. Leave empty to keep it.'
+                    : 'A single image file is required.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-5">
+                {isEdit && currentImage?.imageFileUrl ? (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current file</p>
+                    <div className="overflow-hidden rounded-lg border bg-muted/20">
+                      <img
+                        src={currentImage.imageFileUrl}
+                        alt={currentImage.originalTitle || currentImage.imageCode}
+                        className="block max-h-72 w-auto max-w-full object-contain"
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                <SingleMediaFilePicker
+                  id="imageFile"
+                  file={imageFile}
+                  onFileChange={handleImageFilePicked}
+                  mediaLabel="image"
+                  accept="image/*,.tif,.tiff,.heic,.heif,.raw,.cr2,.cr3,.nef,.arw,.dng"
+                  acceptedFormats="JPG, PNG, TIFF, RAW…"
+                  isEdit={isEdit}
+                  icon={ImageIcon}
+                  isAcceptedFile={isImageFile}
+                />
+              </CardContent>
+            </Card>
+
+            <ImageFormSections
+              form={imageForm}
+              setForm={setImageForm}
+              projectCategories={project?.categories || []}
+            />
+
             <FormErrorBox error={formError} />
-            <FormFooter isEdit={isEdit} sessionCount={savedImagesThisSession.length} label="image" onCancel={handleCloseImageForm} />
+
+            <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                {isEdit
+                  ? 'Update this image entry.'
+                  : savedImagesThisSession.length > 0
+                  ? `${savedImagesThisSession.length} added in this session — keep going or finish.`
+                  : 'Pick an image, fill the metadata, then save.'}
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <Button type="button" variant="outline" onClick={handleCloseImageForm} disabled={isSaving}>
+                  Cancel
+                </Button>
+                {isEdit ? (
+                  <Button type="submit" disabled={isSaving} className="gap-2">
+                    {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+                    {isSaving ? 'Saving…' : 'Save Changes'}
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'add-another'
+                        setPendingSubmitMode('add-another')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'add-another' ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                      Save &amp; Add Another
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'finish'
+                        setPendingSubmitMode('finish')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'finish' ? <Loader2 className="size-4 animate-spin" /> : null}
+                      Save &amp; Finish
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </form>
       </EmployeeEntityPage>
     )
   }
 
-  // ── Text form ──────────────────────────────────────────────────────────────
-
+  /* ── text form view ─────────────────────────────────────────── */
   if ((view === 'create' || view === 'edit') && mediaType === 'text') {
     const isEdit = view === 'edit'
     return (
-      <EmployeeEntityPage eyebrow={isEdit ? 'Editing' : 'New text'} title={isEdit ? 'Edit Text' : 'Add Text to Project'} description={project ? `Inside "${project.projectName}" (${project.projectCode}).` : undefined}>
+      <EmployeeEntityPage
+        eyebrow={isEdit ? 'Editing' : 'New text'}
+        title={isEdit ? 'Edit Text' : 'Add Text to Project'}
+        description={
+          project
+            ? `Inside project "${project.projectName}" (${project.projectCode}).`
+            : 'Inside project.'
+        }
+      >
         <form id="text-form" onSubmit={handleTextSubmit} className="mx-auto block w-full max-w-4xl">
           <div className="space-y-6">
-            <SessionBanner codes={savedTextsThisSession} onFinish={handleCloseTextForm} />
-            <IdentityCard mediaLabel="text" versionKey="textVersion" versions={TEXT_VERSIONS} form={textForm} setForm={setTextForm} currentCode={isEdit ? currentText?.textCode : null} project={project} isEdit={isEdit} getFieldMetadata={getTextFieldMetadata} />
-            <MediaFileCard isEdit={isEdit} currentFileUrl={isEdit ? currentText?.textFileUrl : null} currentCode={isEdit ? currentText?.textCode : null} currentTitle={isEdit ? (currentText?.fileName || currentText?.textCode) : null} mediaType="text" file={textFile} onFileChange={handleTextFilePicked} isAcceptedFile={isTextFile} />
-            <TextFormSections form={textForm} setForm={setTextForm} projectCategories={project?.categories || []} currentFile={textFile} />
+            {!isEdit && savedTextsThisSession.length > 0 ? (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 shadow-sm dark:bg-emerald-500/10">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+                    <CheckCircle2 className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <p className="text-sm font-semibold text-foreground">
+                      {savedTextsThisSession.length === 1
+                        ? '1 text added so far in this session'
+                        : `${savedTextsThisSession.length} texts added so far in this session`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Form has been reset for the next one. Version & copy numbers carried over (copy auto-incremented).
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {savedTextsThisSession.slice(-6).map((c) => (
+                        <span key={c} className="inline-flex items-center rounded-full border border-emerald-500/30 bg-background/60 px-2 py-0.5 font-mono text-[10px] tracking-wide text-foreground/80">
+                          {c}
+                        </span>
+                      ))}
+                      {savedTextsThisSession.length > 6 ? (
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                          +{savedTextsThisSession.length - 6} earlier
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <button type="button" onClick={handleCloseTextForm} className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300">
+                    Finish & view list
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            <Card className="border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-base font-semibold">Identity</CardTitle>
+                <CardDescription className="text-xs">Version, copy and the auto-generated text code.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5 pt-5">
+                <div className="grid gap-5 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="textVersion">
+                        Version <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getTextFieldMetadata('textVersion')} />
+                    </div>
+                    <Select
+                      id="textVersion"
+                      value={textForm.textVersion}
+                      onChange={(v) => setTextForm({ ...textForm, textVersion: v })}
+                      required
+                      className="w-full"
+                      options={TEXT_VERSIONS.map((v) => ({ value: v, label: v }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="textVersionNumber">
+                        Version # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getTextFieldMetadata('versionNumber')} />
+                    </div>
+                    <Input id="textVersionNumber" type="number" min="1" step="1" value={textForm.versionNumber} onChange={(e) => setTextForm({ ...textForm, versionNumber: e.target.value })} required />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="textCopyNumber">
+                        Copy # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getTextFieldMetadata('copyNumber')} />
+                    </div>
+                    <Input id="textCopyNumber" type="number" min="1" step="1" value={textForm.copyNumber} onChange={(e) => setTextForm({ ...textForm, copyNumber: e.target.value })} required />
+                  </div>
+                </div>
+
+                {isEdit && currentText?.textCode ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Code:</span>
+                    <CodeBadge code={currentText.textCode} variant="subtle" />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Auto-generated as{' '}
+                    <span className="font-mono font-semibold text-foreground">
+                      {project?.personCode
+                        ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_TXT_${textForm.textVersion || 'RAW'}_V${textForm.versionNumber || '1'}_Copy(${textForm.copyNumber || '1'})_000001`
+                        : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_TXT_${textForm.textVersion || 'RAW'}_V${textForm.versionNumber || '1'}_Copy(${textForm.copyNumber || '1'})_000001`}
+                    </span>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-base font-semibold">Text File</CardTitle>
+                <CardDescription className="text-xs">
+                  {isEdit
+                    ? 'Upload a replacement file to overwrite the current document. Leave empty to keep it.'
+                    : 'A single document file is required.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-5">
+                {isEdit && currentText?.textFileUrl ? (
+                  <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
+                    <FileText className="size-5 text-muted-foreground" />
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <p className="truncate text-sm font-medium">{currentText.fileName || currentText.textCode}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Current file. Pick a new one below to replace it.
+                      </p>
+                    </div>
+                    <a
+                      href={currentText.textFileUrl}
+                      download
+                      className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:bg-muted"
+                    >
+                      Download
+                    </a>
+                  </div>
+                ) : null}
+
+                <SingleMediaFilePicker
+                  id="textFile"
+                  file={textFile}
+                  onFileChange={handleTextFilePicked}
+                  mediaLabel="document"
+                  accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.md,.tex,.epub,.mobi,.xml,.html,.htm,.csv,.tsv,application/pdf,text/*"
+                  acceptedFormats="PDF, DOCX, TXT, MD, EPUB…"
+                  isEdit={isEdit}
+                  icon={FileText}
+                  isAcceptedFile={isTextFile}
+                />
+              </CardContent>
+            </Card>
+
+            <TextFormSections
+              form={textForm}
+              setForm={setTextForm}
+              projectCategories={project?.categories || []}
+            />
+
             <FormErrorBox error={formError} />
-            <FormFooter isEdit={isEdit} sessionCount={savedTextsThisSession.length} label="text" onCancel={handleCloseTextForm} />
+
+            <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                {isEdit
+                  ? 'Update this text entry.'
+                  : savedTextsThisSession.length > 0
+                  ? `${savedTextsThisSession.length} added in this session — keep going or finish.`
+                  : 'Pick a document, fill the metadata, then save.'}
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <Button type="button" variant="outline" onClick={handleCloseTextForm} disabled={isSaving}>
+                  Cancel
+                </Button>
+                {isEdit ? (
+                  <Button type="submit" disabled={isSaving} className="gap-2">
+                    {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+                    {isSaving ? 'Saving…' : 'Save Changes'}
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'add-another'
+                        setPendingSubmitMode('add-another')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'add-another' ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                      Save &amp; Add Another
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'finish'
+                        setPendingSubmitMode('finish')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'finish' ? <Loader2 className="size-4 animate-spin" /> : null}
+                      Save &amp; Finish
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </form>
       </EmployeeEntityPage>
     )
   }
 
-  // ── Video form ─────────────────────────────────────────────────────────────
-
+  /* ── audio form view ────────────────────────────────────────── */
   if ((view === 'create' || view === 'edit') && mediaType === 'video') {
     const isEdit = view === 'edit'
     return (
-      <EmployeeEntityPage eyebrow={isEdit ? 'Editing' : 'New video'} title={isEdit ? 'Edit Video' : 'Add Video to Project'} description={project ? `Inside "${project.projectName}" (${project.projectCode}).` : undefined}>
+      <EmployeeEntityPage
+        eyebrow={isEdit ? 'Editing' : 'New video'}
+        title={isEdit ? 'Edit Video' : 'Add Video to Project'}
+        description={
+          project
+            ? `Inside project "${project.projectName}" (${project.projectCode}).`
+            : 'Inside project.'
+        }
+      >
         <form id="video-form" onSubmit={handleVideoSubmit} className="mx-auto block w-full max-w-4xl">
           <div className="space-y-6">
-            <SessionBanner codes={savedVideosThisSession} onFinish={handleCloseVideoForm} />
-            <IdentityCard mediaLabel="video" versionKey="videoVersion" versions={VIDEO_VERSIONS} form={videoForm} setForm={setVideoForm} currentCode={isEdit ? currentVideo?.videoCode : null} project={project} isEdit={isEdit} getFieldMetadata={getVideoFieldMetadata} />
-            <MediaFileCard isEdit={isEdit} currentFileUrl={isEdit ? currentVideo?.videoFileUrl : null} currentCode={isEdit ? currentVideo?.videoCode : null} currentTitle={isEdit ? (currentVideo?.originalTitle || currentVideo?.videoCode) : null} mediaType="video" file={videoFile} onFileChange={handleVideoFilePicked} isAcceptedFile={isVideoFile} />
-            <VideoFormSections form={videoForm} setForm={setVideoForm} projectCategories={project?.categories || []} currentFile={videoFile} />
+            {!isEdit && savedVideosThisSession.length > 0 ? (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 shadow-sm dark:bg-emerald-500/10">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+                    <CheckCircle2 className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <p className="text-sm font-semibold text-foreground">
+                      {savedVideosThisSession.length === 1
+                        ? '1 video added so far in this session'
+                        : `${savedVideosThisSession.length} videos added so far in this session`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Form has been reset for the next one. Version & copy numbers carried over (copy auto-incremented).
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {savedVideosThisSession.slice(-6).map((c) => (
+                        <span key={c} className="inline-flex items-center rounded-full border border-emerald-500/30 bg-background/60 px-2 py-0.5 font-mono text-[10px] tracking-wide text-foreground/80">
+                          {c}
+                        </span>
+                      ))}
+                      {savedVideosThisSession.length > 6 ? (
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                          +{savedVideosThisSession.length - 6} earlier
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <button type="button" onClick={handleCloseVideoForm} className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300">
+                    Finish & view list
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            <Card className="border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-base font-semibold">Identity</CardTitle>
+                <CardDescription className="text-xs">Version, copy and the auto-generated video code.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5 pt-5">
+                <div className="grid gap-5 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="videoVersion">
+                        Version <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getVideoFieldMetadata('videoVersion')} />
+                    </div>
+                    <Select
+                      id="videoVersion"
+                      value={videoForm.videoVersion}
+                      onChange={(v) => setVideoForm({ ...videoForm, videoVersion: v })}
+                      required
+                      className="w-full"
+                      options={VIDEO_VERSIONS.map((v) => ({ value: v, label: v }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="videoVersionNumber">
+                        Version # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getVideoFieldMetadata('versionNumber')} />
+                    </div>
+                    <Input id="videoVersionNumber" type="number" min="1" step="1" value={videoForm.versionNumber} onChange={(e) => setVideoForm({ ...videoForm, versionNumber: e.target.value })} required />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="videoCopyNumber">
+                        Copy # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getVideoFieldMetadata('copyNumber')} />
+                    </div>
+                    <Input id="videoCopyNumber" type="number" min="1" step="1" value={videoForm.copyNumber} onChange={(e) => setVideoForm({ ...videoForm, copyNumber: e.target.value })} required />
+                  </div>
+                </div>
+
+                {isEdit && currentVideo?.videoCode ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Code:</span>
+                    <CodeBadge code={currentVideo.videoCode} variant="subtle" />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Auto-generated as{' '}
+                    <span className="font-mono font-semibold text-foreground">
+                      {project?.personCode
+                        ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_VID_${videoForm.videoVersion || 'RAW'}_V${videoForm.versionNumber || '1'}_Copy(${videoForm.copyNumber || '1'})_000001`
+                        : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_VID_${videoForm.videoVersion || 'RAW'}_V${videoForm.versionNumber || '1'}_Copy(${videoForm.copyNumber || '1'})_000001`}
+                    </span>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-base font-semibold">Video File</CardTitle>
+                <CardDescription className="text-xs">
+                  {isEdit
+                    ? 'Upload a replacement file to overwrite the current video. Leave empty to keep it.'
+                    : 'A single video file is required.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-5">
+                {isEdit && currentVideo?.videoFileUrl ? (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current file</p>
+                    <VideoPlayer
+                      src={currentVideo.videoFileUrl}
+                      title={currentVideo.originalTitle || currentVideo.videoCode}
+                      subtitle={[currentVideo.videoVersion, currentVideo.extension, currentVideo.resolution]
+                        .filter(Boolean)
+                        .join(' • ')}
+                    />
+                  </div>
+                ) : null}
+
+                <SingleMediaFilePicker
+                  id="videoFile"
+                  file={videoFile}
+                  onFileChange={handleVideoFilePicked}
+                  mediaLabel="video"
+                  accept="video/*,.mp4,.mov,.mkv,.webm,.avi,.m4v,.mpg,.mpeg,.wmv,.flv,.3gp,.ogv"
+                  acceptedFormats="MP4, MOV, MKV, WEBM…"
+                  isEdit={isEdit}
+                  icon={VideoIcon}
+                  isAcceptedFile={isVideoFile}
+                />
+              </CardContent>
+            </Card>
+
+            <VideoFormSections
+              form={videoForm}
+              setForm={setVideoForm}
+              projectCategories={project?.categories || []}
+            />
+
             <FormErrorBox error={formError} />
-            <FormFooter isEdit={isEdit} sessionCount={savedVideosThisSession.length} label="video" onCancel={handleCloseVideoForm} />
+
+            <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                {isEdit
+                  ? 'Update this video entry.'
+                  : savedVideosThisSession.length > 0
+                  ? `${savedVideosThisSession.length} added in this session — keep going or finish.`
+                  : 'Pick a video, fill the metadata, then save.'}
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <Button type="button" variant="outline" onClick={handleCloseVideoForm} disabled={isSaving}>
+                  Cancel
+                </Button>
+                {isEdit ? (
+                  <Button type="submit" disabled={isSaving} className="gap-2">
+                    {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+                    {isSaving ? 'Saving…' : 'Save Changes'}
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'add-another'
+                        setPendingSubmitMode('add-another')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'add-another' ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                      Save &amp; Add Another
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'finish'
+                        setPendingSubmitMode('finish')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'finish' ? <Loader2 className="size-4 animate-spin" /> : null}
+                      Save &amp; Finish
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </form>
       </EmployeeEntityPage>
     )
   }
-
-  // ── Audio form ─────────────────────────────────────────────────────────────
 
   if (view === 'create' || view === 'edit') {
     const isEdit = view === 'edit'
+
     return (
-      <EmployeeEntityPage eyebrow={isEdit ? 'Editing' : 'New audio'} title={isEdit ? 'Edit Audio' : 'Add Audio to Project'} description={project ? `Inside "${project.projectName}" (${project.projectCode}).` : undefined}>
+      <EmployeeEntityPage
+        eyebrow={isEdit ? 'Editing' : 'New audio'}
+        title={isEdit ? 'Edit Audio' : 'Add Audio to Project'}
+        description={
+          project
+            ? `Inside project "${project.projectName}" (${project.projectCode}).`
+            : 'Inside project.'
+        }
+      >
         <form id="audio-form" onSubmit={handleAudioSubmit} className="mx-auto block w-full max-w-4xl">
           <div className="space-y-6">
-            <SessionBanner codes={savedThisSession} onFinish={handleCloseAudioForm} />
-            <IdentityCard mediaLabel="audio" versionKey="audioVersion" versions={AUDIO_VERSIONS} form={form} setForm={setForm} currentCode={isEdit ? currentAudio?.audioCode : null} project={project} isEdit={isEdit} getFieldMetadata={getAudioFieldMetadata} />
-            <MediaFileCard isEdit={isEdit} currentFileUrl={isEdit ? currentAudio?.audioFileUrl : null} currentCode={isEdit ? currentAudio?.audioCode : null} currentTitle={isEdit ? (currentAudio?.originTitle || currentAudio?.audioCode) : null} mediaType="audio" file={audioFile} onFileChange={handleAudioFilePicked} isAcceptedFile={isAudioFile} />
-            <AudioFormSections form={form} setForm={setForm} projectCategories={project?.categories || []} currentFile={audioFile} />
+            {!isEdit && savedThisSession.length > 0 ? (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 shadow-sm dark:bg-emerald-500/10">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex size-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+                    <CheckCircle2 className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <p className="text-sm font-semibold text-foreground">
+                      {savedThisSession.length === 1
+                        ? '1 audio added so far in this session'
+                        : `${savedThisSession.length} audios added so far in this session`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Form has been reset for the next one. Version & copy numbers carried over (copy auto-incremented).
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {savedThisSession.slice(-6).map((c) => (
+                        <span
+                          key={c}
+                          className="inline-flex items-center rounded-full border border-emerald-500/30 bg-background/60 px-2 py-0.5 font-mono text-[10px] tracking-wide text-foreground/80"
+                        >
+                          {c}
+                        </span>
+                      ))}
+                      {savedThisSession.length > 6 ? (
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                          +{savedThisSession.length - 6} earlier
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCloseAudioForm}
+                    className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
+                  >
+                    Finish & view list
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            <Card className="border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-base font-semibold">Identity</CardTitle>
+                <CardDescription className="text-xs">
+                  Version, copy and the auto-generated audio code.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5 pt-5">
+                <div className="grid gap-5 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="audioVersion">
+                        Version <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getAudioFieldMetadata('audioVersion')} />
+                    </div>
+                    <Select
+                      id="audioVersion"
+                      value={form.audioVersion}
+                      onChange={(v) => setForm({ ...form, audioVersion: v })}
+                      required
+                      className="w-full"
+                      options={AUDIO_VERSIONS.map((v) => ({ value: v, label: v }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="versionNumber">
+                        Version # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getAudioFieldMetadata('versionNumber')} />
+                    </div>
+                    <Input
+                      id="versionNumber"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={form.versionNumber}
+                      onChange={(e) => setForm({ ...form, versionNumber: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="copyNumber">
+                        Copy # <span className="text-destructive">*</span>
+                      </Label>
+                      <FieldHelpButton metadata={getAudioFieldMetadata('copyNumber')} />
+                    </div>
+                    <Input
+                      id="copyNumber"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={form.copyNumber}
+                      onChange={(e) => setForm({ ...form, copyNumber: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {isEdit && currentAudio?.audioCode ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Code:</span>
+                    <CodeBadge code={currentAudio.audioCode} variant="subtle" />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Auto-generated as{' '}
+                    <span className="font-mono font-semibold text-foreground">
+                      {project?.personCode
+                        ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_AUD_${form.audioVersion || 'RAW'}_V${form.versionNumber || '1'}_Copy(${form.copyNumber || '1'})_000001`
+                        : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_AUD_${form.audioVersion || 'RAW'}_V${form.versionNumber || '1'}_Copy(${form.copyNumber || '1'})_000001`}
+                    </span>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-base font-semibold">Audio File</CardTitle>
+                <CardDescription className="text-xs">
+                  {isEdit
+                    ? 'Upload a replacement file to overwrite the current recording. Leave empty to keep it.'
+                    : 'A single audio file is required.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-5">
+                {isEdit && currentAudio?.audioFileUrl ? (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      Current file
+                    </p>
+                    <AudioPlayer
+                      src={currentAudio.audioFileUrl}
+                      title={currentAudio.originTitle || currentAudio.audioCode}
+                      subtitle={[currentAudio.audioVersion, currentAudio.fileExtension, currentAudio.bitRate]
+                        .filter(Boolean)
+                        .join(' • ')}
+                    />
+                  </div>
+                ) : null}
+
+                <SingleMediaFilePicker
+                  id="audioFile"
+                  file={audioFile}
+                  onFileChange={handleAudioFilePicked}
+                  mediaLabel="audio"
+                  accept="audio/*,.wav,.mp3,.flac,.ogg,.m4a,.aac,.aiff,.aif,.wma,.opus"
+                  acceptedFormats="WAV, MP3, FLAC, OGG…"
+                  isEdit={isEdit}
+                  icon={FileAudio}
+                  isAcceptedFile={isAudioFile}
+                />
+              </CardContent>
+            </Card>
+
+            <AudioFormSections
+              form={form}
+              setForm={setForm}
+              projectCategories={project?.categories || []}
+            />
+
             <FormErrorBox error={formError} />
-            <FormFooter isEdit={isEdit} sessionCount={savedThisSession.length} label="audio" onCancel={handleCloseAudioForm} />
+
+            <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                {isEdit
+                  ? 'Update this audio entry.'
+                  : savedThisSession.length > 0
+                  ? `${savedThisSession.length} added in this session — keep going or finish.`
+                  : 'Pick a recording, fill the metadata, then save.'}
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <Button type="button" variant="outline" onClick={handleCloseAudioForm} disabled={isSaving}>
+                  Cancel
+                </Button>
+                {isEdit ? (
+                  <Button type="submit" disabled={isSaving} className="gap-2">
+                    {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+                    {isSaving ? 'Saving…' : 'Save Changes'}
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'add-another'
+                        setPendingSubmitMode('add-another')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'add-another' ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Plus className="size-4" />
+                      )}
+                      Save &amp; Add Another
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="gap-2"
+                      onClick={() => {
+                        submitModeRef.current = 'finish'
+                        setPendingSubmitMode('finish')
+                      }}
+                    >
+                      {isSaving && pendingSubmitMode === 'finish' ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : null}
+                      Save &amp; Finish
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </form>
       </EmployeeEntityPage>
     )
   }
 
-  // ── Loading / error states ─────────────────────────────────────────────────
+  /* ── detail / list view ─────────────────────────────────────── */
 
   if (isLoading) {
     return (
@@ -1028,515 +2429,758 @@ function EmployeeProjectDetailPage() {
     )
   }
 
-  // ── List view ──────────────────────────────────────────────────────────────
-
   return (
     <div className="space-y-4">
-      <Button type="button" variant="outline" size="lg" className="group h-10 gap-2.5 px-4 text-sm font-medium" onClick={() => navigate(`${sectionBase}/project`)}>
+      <Button
+        type="button"
+        variant="outline"
+        size="lg"
+        className="group h-10 gap-2.5 px-4 text-sm font-medium"
+        onClick={() => navigate(`${sectionBase}/project`)}
+      >
         <ArrowLeft className="size-5 transition-transform group-hover:-translate-x-0.5" />
         Back to projects
       </Button>
 
-      <EmployeeEntityPage
-        title={project.projectName}
-        badge={project.removedAt ? 'Removed' : undefined}
-        description={project.description || undefined}
-        action={
-          <div className="flex items-center gap-2 shrink-0">
-            {mediaType === 'audio' ? <Button onClick={handleOpenCreateAudio} className="gap-2"><Plus className="size-4" />Add Audio</Button>
-            : mediaType === 'video' ? <Button onClick={handleOpenCreateVideo} className="gap-2"><Plus className="size-4" />Add Video</Button>
-            : mediaType === 'image' ? <Button onClick={handleOpenCreateImage} className="gap-2"><Plus className="size-4" />Add Image</Button>
-            : <Button onClick={handleOpenCreateText} className="gap-2"><Plus className="size-4" />Add Text</Button>}
-          </div>
-        }
-      >
-        {/* Project summary card */}
-        <Card className="border-border bg-card shadow-sm shadow-black/5">
-          <CardContent className="grid gap-6 px-6 py-5 sm:grid-cols-[auto_1fr_auto]">
-            <div className="flex size-12 items-center justify-center rounded-xl border bg-background text-muted-foreground"><FolderOpen className="size-5" /></div>
-            <div className="space-y-2 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <CodeBadge code={project.projectCode} />
-                <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium', project.personCode ? 'bg-muted/40 text-foreground' : 'bg-muted/20 italic text-muted-foreground')}>
-                  {project.personCode ? <>{project.personName || project.personCode}<span className="font-mono text-[10px] text-muted-foreground">{project.personCode}</span></> : 'Untitled (no person)'}
-                </span>
-              </div>
-              {(project.categories?.length ?? 0) > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {project.categories.map((cat) => (
-                    <span key={cat.categoryCode || cat.id} className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] text-foreground/80">
-                      {cat.categoryName || cat.name || cat.categoryCode}
-                      <span className="font-mono text-[10px] text-muted-foreground">{cat.categoryCode}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col items-end gap-1 self-center text-[11px] text-muted-foreground">
-              <p>{audios.length} audio · {videos.length} video · {images.length} image · {texts.length} text</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <MediaTypeTabs mediaType={mediaType} onChange={handleSwitchMediaType} audioCount={visibleAudios.length} videoCount={visibleVideos.length} imageCount={visibleImages.length} textCount={visibleTexts.length} />
-
-        {/* Toolbars */}
-        {mediaType === 'audio' && <EntityToolbar filteredCount={filteredAudios.length} totalCount={visibleAudios.length} searchValue={searchTerm} onSearchChange={setSearchTerm} searchPlaceholder="Search audios…" onRefresh={loadAudios} isRefreshing={isLoadingAudios || isAudioSearching} trailing={<div className="flex flex-wrap items-center gap-2"><SortSelect value={audioSortKey} onChange={setAudioSortKey} options={AUDIO_SORT_OPTIONS} ascIcon={ArrowUpAZ} descIcon={ArrowDownAZ} disabled={Boolean(searchTerm.trim())} title="Sort audios" width="sm:w-[16rem]" /><FilterTriggerButton active={audioFiltersActive} count={audioFilterCount} open={isAudioFilterPanelOpen} onClick={() => setIsAudioFilterPanelOpen((v) => !v)} disabled={Boolean(searchTerm.trim())} disabledReason="Clear search to use filters" /></div>} />}
-        {mediaType === 'video' && <EntityToolbar filteredCount={filteredVideos.length} totalCount={visibleVideos.length} searchValue={videoSearchTerm} onSearchChange={setVideoSearchTerm} searchPlaceholder="Search videos…" onRefresh={loadVideos} isRefreshing={isLoadingVideos || isVideoSearching} trailing={<div className="flex flex-wrap items-center gap-2"><SortSelect value={videoSortKey} onChange={setVideoSortKey} options={VIDEO_SORT_OPTIONS} ascIcon={ArrowUpAZ} descIcon={ArrowDownAZ} disabled={Boolean(videoSearchTerm.trim())} title="Sort videos" width="sm:w-[16rem]" /><FilterTriggerButton active={videoFiltersActive} count={videoFilterCount} open={isVideoFilterPanelOpen} onClick={() => setIsVideoFilterPanelOpen((v) => !v)} disabled={Boolean(videoSearchTerm.trim())} disabledReason="Clear search to use filters" /></div>} />}
-        {mediaType === 'image' && <EntityToolbar filteredCount={filteredImages.length} totalCount={visibleImages.length} searchValue={imageSearchTerm} onSearchChange={setImageSearchTerm} searchPlaceholder="Search images…" onRefresh={loadImages} isRefreshing={isLoadingImages || isImageSearching} trailing={<div className="flex flex-wrap items-center gap-2"><SortSelect value={imageSortKey} onChange={setImageSortKey} options={IMAGE_SORT_OPTIONS} ascIcon={ArrowUpAZ} descIcon={ArrowDownAZ} disabled={Boolean(imageSearchTerm.trim())} title="Sort images" width="sm:w-[16rem]" /><FilterTriggerButton active={imageFiltersActive} count={imageFilterCount} open={isImageFilterPanelOpen} onClick={() => setIsImageFilterPanelOpen((v) => !v)} disabled={Boolean(imageSearchTerm.trim())} disabledReason="Clear search to use filters" /></div>} />}
-        {mediaType === 'text'  && <EntityToolbar filteredCount={filteredTexts.length} totalCount={visibleTexts.length} searchValue={textSearchTerm} onSearchChange={setTextSearchTerm} searchPlaceholder="Search texts…" onRefresh={loadTexts} isRefreshing={isLoadingTexts || isTextSearching} trailing={<div className="flex flex-wrap items-center gap-2"><SortSelect value={textSortKey} onChange={setTextSortKey} options={TEXT_SORT_OPTIONS} ascIcon={ArrowUpAZ} descIcon={ArrowDownAZ} disabled={Boolean(textSearchTerm.trim())} title="Sort texts" width="sm:w-[16rem]" /><FilterTriggerButton active={textFiltersActive} count={textFilterCount} open={isTextFilterPanelOpen} onClick={() => setIsTextFilterPanelOpen((v) => !v)} disabled={Boolean(textSearchTerm.trim())} disabledReason="Clear search to use filters" /></div>} />}
-
-        {/* Filter panels */}
-        {mediaType === 'audio' && !searchTerm.trim()      && <AudioFilterPanel open={isAudioFilterPanelOpen} filters={audioFilters} onChange={updateAudioFilter} onClear={clearAudioFilters} onClose={() => setIsAudioFilterPanelOpen(false)} isAnyActive={audioFiltersActive} activeCount={audioFilterCount} />}
-        {mediaType === 'audio' && audioChips.length > 0   && <FilterChips chips={audioChips} onClearAll={audioFiltersActive || audioSortActive ? () => { clearAudioFilters(); setAudioSortKey(DEFAULT_AUDIO_SORT_KEY) } : null} />}
-        {mediaType === 'video' && !videoSearchTerm.trim() && <VideoFilterPanel open={isVideoFilterPanelOpen} filters={videoFilters} onChange={updateVideoFilter} onClear={clearVideoFilters} onClose={() => setIsVideoFilterPanelOpen(false)} isAnyActive={videoFiltersActive} activeCount={videoFilterCount} />}
-        {mediaType === 'video' && videoChips.length > 0   && <FilterChips chips={videoChips} onClearAll={videoFiltersActive || videoSortActive ? () => { clearVideoFilters(); setVideoSortKey(DEFAULT_VIDEO_SORT_KEY) } : null} />}
-        {mediaType === 'image' && !imageSearchTerm.trim() && <ImageFilterPanel open={isImageFilterPanelOpen} filters={imageFilters} onChange={updateImageFilter} onClear={clearImageFilters} onClose={() => setIsImageFilterPanelOpen(false)} isAnyActive={imageFiltersActive} activeCount={imageFilterCount} />}
-        {mediaType === 'image' && imageChips.length > 0   && <FilterChips chips={imageChips} onClearAll={imageFiltersActive || imageSortActive ? () => { clearImageFilters(); setImageSortKey(DEFAULT_IMAGE_SORT_KEY) } : null} />}
-        {mediaType === 'text'  && !textSearchTerm.trim()  && <TextFilterPanel open={isTextFilterPanelOpen} filters={textFilters} onChange={updateTextFilter} onClear={clearTextFilters} onClose={() => setIsTextFilterPanelOpen(false)} isAnyActive={textFiltersActive} activeCount={textFilterCount} />}
-        {mediaType === 'text'  && textChips.length > 0    && <FilterChips chips={textChips} onClearAll={textFiltersActive || textSortActive ? () => { clearTextFilters(); setTextSortKey(DEFAULT_TEXT_SORT_KEY) } : null} />}
-
-        {/* List sections */}
-        {mediaType === 'audio' && <AudioListSection isLoading={isLoadingAudios} audios={audios} filteredAudios={filteredAudios} searchQuery={searchTerm} filtersOrSortActive={audioFiltersActive || audioSortActive} onClearFiltersAndSort={() => { clearAudioFilters(); setAudioSortKey(DEFAULT_AUDIO_SORT_KEY) }} onAdd={handleOpenCreateAudio} onEdit={handleOpenEditAudio} onDetails={setDetailsTarget} onDelete={setDeleteTarget} />}
-        {mediaType === 'video' && <VideoListSection  isLoading={isLoadingVideos} videos={videos}   filteredVideos={filteredVideos}   searchQuery={videoSearchTerm} filtersOrSortActive={videoFiltersActive || videoSortActive}   onClearFiltersAndSort={() => { clearVideoFilters(); setVideoSortKey(DEFAULT_VIDEO_SORT_KEY) }}   onAdd={handleOpenCreateVideo} onEdit={handleOpenEditVideo} onDetails={setVideoDetailsTarget} onDelete={setVideoDeleteTarget} />}
-        {mediaType === 'image' && <ImageListSection  isLoading={isLoadingImages} images={images}   filteredImages={filteredImages}   searchQuery={imageSearchTerm} filtersOrSortActive={imageFiltersActive || imageSortActive}   onClearFiltersAndSort={() => { clearImageFilters(); setImageSortKey(DEFAULT_IMAGE_SORT_KEY) }}   onAdd={handleOpenCreateImage} onEdit={handleOpenEditImage} onDetails={setImageDetailsTarget} onDelete={setImageDeleteTarget} />}
-        {mediaType === 'text'  && <TextListSection   isLoading={isLoadingTexts}  texts={texts}     filteredTexts={filteredTexts}     searchQuery={textSearchTerm}  filtersOrSortActive={textFiltersActive  || textSortActive}    onClearFiltersAndSort={() => { clearTextFilters();  setTextSortKey(DEFAULT_TEXT_SORT_KEY) }}    onAdd={handleOpenCreateText}  onEdit={handleOpenEditText}  onDetails={setTextDetailsTarget}  onDelete={setTextDeleteTarget} />}
-
-        {/* Dialogs */}
-        <TypedConfirmDialog open={Boolean(deleteTarget)}      title="Send audio to trash" description="Trashed items can be restored by an admin." codeToConfirm={deleteTarget?.audioCode}      promptLabel="Type audio code to confirm"  confirmLabel="Send to Trash" cancelLabel="Cancel" confirmVariant="destructive" isProcessing={isDeleting}      onConfirm={handleDeleteAudio} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }} />
-        <TypedConfirmDialog open={Boolean(videoDeleteTarget)} title="Send video to trash" description="Trashed items can be restored by an admin." codeToConfirm={videoDeleteTarget?.videoCode} promptLabel="Type video code to confirm"  confirmLabel="Send to Trash" cancelLabel="Cancel" confirmVariant="destructive" isProcessing={isVideoDeleting} onConfirm={handleDeleteVideo} onOpenChange={(o) => { if (!o) setVideoDeleteTarget(null) }} />
-        <TypedConfirmDialog open={Boolean(imageDeleteTarget)} title="Send image to trash" description="Trashed items can be restored by an admin." codeToConfirm={imageDeleteTarget?.imageCode} promptLabel="Type image code to confirm"  confirmLabel="Send to Trash" cancelLabel="Cancel" confirmVariant="destructive" isProcessing={isImageDeleting} onConfirm={handleDeleteImage} onOpenChange={(o) => { if (!o) setImageDeleteTarget(null) }} />
-        <TypedConfirmDialog open={Boolean(textDeleteTarget)}  title="Send text to trash"  description="Trashed items can be restored by an admin." codeToConfirm={textDeleteTarget?.textCode}   promptLabel="Type text code to confirm"   confirmLabel="Send to Trash" cancelLabel="Cancel" confirmVariant="destructive" isProcessing={isTextDeleting}  onConfirm={handleDeleteText}  onOpenChange={(o) => { if (!o) setTextDeleteTarget(null) }} />
-        <AudioDetailsModal open={Boolean(detailsTarget)}      audio={detailsTarget}      searchQuery={searchTerm}      onOpenChange={(o) => { if (!o) setDetailsTarget(null) }} />
-        <VideoDetailsModal open={Boolean(videoDetailsTarget)} video={videoDetailsTarget} searchQuery={videoSearchTerm}  onOpenChange={(o) => { if (!o) setVideoDetailsTarget(null) }} />
-        <ImageDetailsModal open={Boolean(imageDetailsTarget)} image={imageDetailsTarget} searchQuery={imageSearchTerm}  onOpenChange={(o) => { if (!o) setImageDetailsTarget(null) }} />
-        <TextDetailsModal  open={Boolean(textDetailsTarget)}  text={textDetailsTarget}   searchQuery={textSearchTerm}   onOpenChange={(o) => { if (!o) setTextDetailsTarget(null) }} />
-      </EmployeeEntityPage>
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared form sub-components (used by all four media-type forms)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Identity card: version + version number + copy number + auto-generated code preview. */
-function IdentityCard({ mediaLabel, versionKey, versions, form, setForm, currentCode, project, isEdit, getFieldMetadata }) {
-  const shortLabel = mediaLabel.toUpperCase().slice(0, 3)
-  const prefix = project?.personCode
-    ? (project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)
-    : (project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)
-  const previewCode = `${prefix}_${shortLabel}_${form[versionKey] || 'RAW'}_V${form.versionNumber || '1'}_Copy(${form.copyNumber || '1'})_000001`
-
-  return (
-    <Card className="border-border bg-card shadow-sm shadow-black/5">
-      <CardHeader className="border-b border-border pb-4">
-        <CardTitle className="text-base font-semibold">Identity</CardTitle>
-        <CardDescription className="text-xs">Version, copy and the auto-generated {mediaLabel} code.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5 pt-5">
-        <div className="grid gap-5 sm:grid-cols-3">
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <Label htmlFor={versionKey}>Version <span className="text-destructive">*</span></Label>
-              <FieldHelpButton metadata={getFieldMetadata(versionKey)} />
-            </div>
-            <Select id={versionKey} value={form[versionKey]} onChange={(v) => setForm({ ...form, [versionKey]: v })} required className="w-full" options={versions.map((v) => ({ value: v, label: v }))} />
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="versionNumber">Version # <span className="text-destructive">*</span></Label>
-              <FieldHelpButton metadata={getFieldMetadata('versionNumber')} />
-            </div>
-            <Input id="versionNumber" type="number" min="1" step="1" value={form.versionNumber} onChange={(e) => setForm({ ...form, versionNumber: e.target.value })} required />
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="copyNumber">Copy # <span className="text-destructive">*</span></Label>
-              <FieldHelpButton metadata={getFieldMetadata('copyNumber')} />
-            </div>
-            <Input id="copyNumber" type="number" min="1" step="1" value={form.copyNumber} onChange={(e) => setForm({ ...form, copyNumber: e.target.value })} required />
-          </div>
+    <EmployeeEntityPage
+      title={project.projectName}
+      badge={project.removedAt ? 'Removed' : undefined}
+      description={project.description || undefined}
+      action={
+        <div className="flex items-center gap-2 shrink-0">
+          {mediaType === 'audio' ? (
+            <Button onClick={handleOpenCreateAudio} className="gap-2">
+              <Plus className="size-4" />
+              Add Audio
+            </Button>
+          ) : mediaType === 'video' ? (
+            <Button onClick={handleOpenCreateVideo} className="gap-2">
+              <Plus className="size-4" />
+              Add Video
+            </Button>
+          ) : mediaType === 'image' ? (
+            <Button onClick={handleOpenCreateImage} className="gap-2">
+              <Plus className="size-4" />
+              Add Image
+            </Button>
+          ) : (
+            <Button onClick={handleOpenCreateText} className="gap-2">
+              <Plus className="size-4" />
+              Add Text
+            </Button>
+          )}
         </div>
-        {isEdit && currentCode ? (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span>Code:</span><CodeBadge code={currentCode} variant="subtle" /></div>
-        ) : (
-          <p className="text-xs text-muted-foreground">Auto-generated as <span className="font-mono font-semibold text-foreground">{previewCode}</span></p>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
+      }
+    >
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardContent className="grid gap-6 px-6 py-5 sm:grid-cols-[auto_1fr_auto]">
+          <div className="flex size-12 items-center justify-center rounded-xl border bg-background text-muted-foreground">
+            <FolderOpen className="size-5" />
+          </div>
+          <div className="space-y-2 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <CodeBadge code={project.projectCode} />
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                  project.personCode ? 'bg-muted/40 text-foreground' : 'bg-muted/20 italic text-muted-foreground',
+                )}
+              >
+                {project.personCode ? (
+                  <>
+                    {project.personName || project.personCode}
+                    <span className="font-mono text-[10px] text-muted-foreground">{project.personCode}</span>
+                  </>
+                ) : (
+                  'Untitled (no person)'
+                )}
+              </span>
+            </div>
 
-/** File card: shows current file (edit mode) + the file picker. */
-function MediaFileCard({ isEdit, currentFileUrl, currentCode, currentTitle, mediaType, file, onFileChange, isAcceptedFile }) {
-  const acceptMap = {
-    audio: { accept: 'audio/*,.wav,.mp3,.flac,.ogg,.m4a,.aac,.aiff,.aif,.wma,.opus', formats: 'WAV, MP3, FLAC, OGG…', icon: FileAudio },
-    video: { accept: 'video/*,.mp4,.mov,.mkv,.webm,.avi,.m4v,.mpg,.mpeg,.wmv,.flv,.3gp,.ogv', formats: 'MP4, MOV, MKV, WEBM…', icon: VideoIcon },
-    image: { accept: 'image/*,.tif,.tiff,.heic,.heif,.raw,.cr2,.cr3,.nef,.arw,.dng', formats: 'JPG, PNG, TIFF, RAW…', icon: ImageIcon },
-    text:  { accept: '.pdf,.doc,.docx,.odt,.rtf,.txt,.md,.tex,.epub,.mobi,.xml,.html,.htm,.csv,.tsv,application/pdf,text/*', formats: 'PDF, DOCX, TXT, MD, EPUB…', icon: FileText },
-  }
-  const { accept, formats, icon: Icon } = acceptMap[mediaType] ?? acceptMap.audio
+            {(project.categories?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {project.categories.map((cat) => (
+                  <span
+                    key={cat.categoryCode || cat.id}
+                    className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] text-foreground/80"
+                  >
+                    {cat.categoryName || cat.name || cat.categoryCode}
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {cat.categoryCode}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            )}
 
-  return (
-    <Card className="border-border bg-card shadow-sm shadow-black/5">
-      <CardHeader className="border-b border-border pb-4">
-        <CardTitle className="text-base font-semibold">{mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} File</CardTitle>
-        <CardDescription className="text-xs">{isEdit ? `Upload a replacement file to overwrite the current ${mediaType}. Leave empty to keep it.` : `A single ${mediaType} file is required.`}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 pt-5">
-        {isEdit && currentFileUrl && (
-          <div className="space-y-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current file</p>
-            {mediaType === 'audio' && <AudioPlayer src={currentFileUrl} title={currentTitle} />}
-            {mediaType === 'video' && <VideoPlayer src={currentFileUrl} title={currentTitle} />}
-            {mediaType === 'image' && <div className="overflow-hidden rounded-lg border bg-muted/20"><img src={currentFileUrl} alt={currentTitle} className="block max-h-72 w-auto max-w-full object-contain" /></div>}
-            {mediaType === 'text'  && (
-              <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
-                <FileText className="size-5 text-muted-foreground" />
-                <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{currentCode}</p></div>
-                <a href={currentFileUrl} download className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:bg-muted">Download</a>
+            {((project.tags?.length ?? 0) > 0 || (project.keywords?.length ?? 0) > 0) && (
+              <div className="flex flex-wrap gap-1 text-[11px] text-muted-foreground">
+                {(project.tags || []).map((t) => (
+                  <span key={`t-${t}`} className="inline-flex items-center rounded-full bg-muted/40 px-2 py-0.5">
+                    #{t}
+                  </span>
+                ))}
+                {(project.keywords || []).map((k) => (
+                  <span key={`k-${k}`} className="inline-flex items-center rounded-full bg-muted/20 px-2 py-0.5">
+                    {k}
+                  </span>
+                ))}
               </div>
             )}
           </div>
-        )}
-        <SingleMediaFilePicker id={`${mediaType}File`} file={file} onFileChange={onFileChange} mediaLabel={mediaType} accept={accept} acceptedFormats={formats} isEdit={isEdit} icon={Icon} isAcceptedFile={isAcceptedFile} />
-      </CardContent>
-    </Card>
-  )
-}
+          <div className="flex flex-col items-end gap-1 self-center text-[11px] text-muted-foreground">
+            <p>
+              {audios.length} audio · {videos.length} video · {images.length} image · {texts.length} text
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AudioFormSections — includes the Storage card with FolderSourcePicker
-// ─────────────────────────────────────────────────────────────────────────────
+      <MediaTypeTabs
+        mediaType={mediaType}
+        onChange={handleSwitchMediaType}
+        audioCount={visibleAudios.length}
+        videoCount={visibleVideos.length}
+        imageCount={visibleImages.length}
+        textCount={visibleTexts.length}
+      />
 
-function AudioFieldLabel({ htmlFor, fieldKey, className, children }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <Label htmlFor={htmlFor} className={className}>{children}</Label>
-      <FieldHelpButton metadata={getAudioFieldMetadata(fieldKey || htmlFor)} />
-    </div>
-  )
-}
+      {mediaType === 'audio' ? (
+        <EntityToolbar
+          filteredCount={filteredAudios.length}
+          totalCount={visibleAudios.length}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search audios — code, title, lyrics, genre, contributors, tags…"
+          onRefresh={() => loadAudios()}
+          isRefreshing={isLoadingAudios || isAudioSearching}
+          trailing={
+            // Sort + filter live in the trailing slot so they sit
+            // alongside the refresh button. Both are disabled while
+            // a fuzzy search is active because /audio/search has its
+            // own ranking and bypasses the filter model server-side.
+            <div className="flex flex-wrap items-center gap-2">
+              <SortSelect
+                value={audioSortKey}
+                onChange={setAudioSortKey}
+                options={AUDIO_SORT_OPTIONS}
+                ascIcon={ArrowUpAZ}
+                descIcon={ArrowDownAZ}
+                disabled={Boolean(searchTerm.trim())}
+                title="Sort audios"
+                width="sm:w-[16rem]"
+              />
+              <FilterTriggerButton
+                active={audioFiltersActive}
+                count={audioFilterCount}
+                open={isAudioFilterPanelOpen}
+                onClick={() => setIsAudioFilterPanelOpen((v) => !v)}
+                disabled={Boolean(searchTerm.trim())}
+                disabledReason="Clear search to use filters"
+              />
+            </div>
+          }
+        />
+      ) : mediaType === 'video' ? (
+        <EntityToolbar
+          filteredCount={filteredVideos.length}
+          totalCount={visibleVideos.length}
+          searchValue={videoSearchTerm}
+          onSearchChange={setVideoSearchTerm}
+          searchPlaceholder="Search videos — code, title, location, subjects, tags…"
+          onRefresh={() => loadVideos()}
+          isRefreshing={isLoadingVideos || isVideoSearching}
+          trailing={
+            <div className="flex flex-wrap items-center gap-2">
+              <SortSelect
+                value={videoSortKey}
+                onChange={setVideoSortKey}
+                options={VIDEO_SORT_OPTIONS}
+                ascIcon={ArrowUpAZ}
+                descIcon={ArrowDownAZ}
+                disabled={Boolean(videoSearchTerm.trim())}
+                title="Sort videos"
+                width="sm:w-[16rem]"
+              />
+              <FilterTriggerButton
+                active={videoFiltersActive}
+                count={videoFilterCount}
+                open={isVideoFilterPanelOpen}
+                onClick={() => setIsVideoFilterPanelOpen((v) => !v)}
+                disabled={Boolean(videoSearchTerm.trim())}
+                disabledReason="Clear search to use filters"
+              />
+            </div>
+          }
+        />
+      ) : mediaType === 'image' ? (
+        <EntityToolbar
+          filteredCount={filteredImages.length}
+          totalCount={visibleImages.length}
+          searchValue={imageSearchTerm}
+          onSearchChange={setImageSearchTerm}
+          searchPlaceholder="Search images — code, title, creator, location, subjects, tags…"
+          onRefresh={() => loadImages()}
+          isRefreshing={isLoadingImages || isImageSearching}
+          trailing={
+            <div className="flex flex-wrap items-center gap-2">
+              <SortSelect
+                value={imageSortKey}
+                onChange={setImageSortKey}
+                options={IMAGE_SORT_OPTIONS}
+                ascIcon={ArrowUpAZ}
+                descIcon={ArrowDownAZ}
+                disabled={Boolean(imageSearchTerm.trim())}
+                title="Sort images"
+                width="sm:w-[16rem]"
+              />
+              <FilterTriggerButton
+                active={imageFiltersActive}
+                count={imageFilterCount}
+                open={isImageFilterPanelOpen}
+                onClick={() => setIsImageFilterPanelOpen((v) => !v)}
+                disabled={Boolean(imageSearchTerm.trim())}
+                disabledReason="Clear search to use filters"
+              />
+            </div>
+          }
+        />
+      ) : (
+        <EntityToolbar
+          filteredCount={filteredTexts.length}
+          totalCount={visibleTexts.length}
+          searchValue={textSearchTerm}
+          onSearchChange={setTextSearchTerm}
+          searchPlaceholder="Search texts — code, title, author, ISBN, transcription, tags…"
+          onRefresh={() => loadTexts()}
+          isRefreshing={isLoadingTexts || isTextSearching}
+          trailing={
+            <div className="flex flex-wrap items-center gap-2">
+              <SortSelect
+                value={textSortKey}
+                onChange={setTextSortKey}
+                options={TEXT_SORT_OPTIONS}
+                ascIcon={ArrowUpAZ}
+                descIcon={ArrowDownAZ}
+                disabled={Boolean(textSearchTerm.trim())}
+                title="Sort texts"
+                width="sm:w-[16rem]"
+              />
+              <FilterTriggerButton
+                active={textFiltersActive}
+                count={textFilterCount}
+                open={isTextFilterPanelOpen}
+                onClick={() => setIsTextFilterPanelOpen((v) => !v)}
+                disabled={Boolean(textSearchTerm.trim())}
+                disabledReason="Clear search to use filters"
+              />
+            </div>
+          }
+        />
+      )}
 
-function GenreChips({ categories, value, onChange }) {
-  const selected = Array.isArray(value) ? value : []
-  const selectedLower = new Set(selected.map((s) => s.toLowerCase()))
-  const categoryNames = (categories || []).map((c) => c.categoryName || c.name || c.categoryCode).filter(Boolean)
-  const suggestions = categoryNames.filter((name) => !selectedLower.has(name.toLowerCase()))
-  return (
-    <div className="space-y-2">
-      <TagsInput value={selected} onChange={onChange} placeholder="Type a genre and press Enter, or pick a suggestion" />
-      {suggestions.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">From categories:</p>
-          {suggestions.map((name) => (
-            <button key={name} type="button" onClick={() => onChange([...selected, name])} className="inline-flex items-center gap-1 rounded-full border border-dashed border-border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground">
-              <Plus className="size-3" />{name}
-            </button>
-          ))}
+      {mediaType === 'audio' && !searchTerm.trim() ? (
+        <AudioFilterPanel
+          open={isAudioFilterPanelOpen}
+          filters={audioFilters}
+          onChange={updateAudioFilter}
+          onClear={clearAudioFilters}
+          onClose={() => setIsAudioFilterPanelOpen(false)}
+          isAnyActive={audioFiltersActive}
+          activeCount={audioFilterCount}
+        />
+      ) : null}
+
+      {mediaType === 'audio' && audioChips.length > 0 ? (
+        <FilterChips
+          chips={audioChips}
+          onClearAll={
+            audioFiltersActive || audioSortActive
+              ? () => {
+                  clearAudioFilters()
+                  setAudioSortKey(DEFAULT_AUDIO_SORT_KEY)
+                }
+              : null
+          }
+        />
+      ) : null}
+
+      {mediaType === 'image' && !imageSearchTerm.trim() ? (
+        <ImageFilterPanel
+          open={isImageFilterPanelOpen}
+          filters={imageFilters}
+          onChange={updateImageFilter}
+          onClear={clearImageFilters}
+          onClose={() => setIsImageFilterPanelOpen(false)}
+          isAnyActive={imageFiltersActive}
+          activeCount={imageFilterCount}
+        />
+      ) : null}
+
+      {mediaType === 'image' && imageChips.length > 0 ? (
+        <FilterChips
+          chips={imageChips}
+          onClearAll={
+            imageFiltersActive || imageSortActive
+              ? () => {
+                  clearImageFilters()
+                  setImageSortKey(DEFAULT_IMAGE_SORT_KEY)
+                }
+              : null
+          }
+        />
+      ) : null}
+
+      {mediaType === 'video' && !videoSearchTerm.trim() ? (
+        <VideoFilterPanel
+          open={isVideoFilterPanelOpen}
+          filters={videoFilters}
+          onChange={updateVideoFilter}
+          onClear={clearVideoFilters}
+          onClose={() => setIsVideoFilterPanelOpen(false)}
+          isAnyActive={videoFiltersActive}
+          activeCount={videoFilterCount}
+        />
+      ) : null}
+
+      {mediaType === 'video' && videoChips.length > 0 ? (
+        <FilterChips
+          chips={videoChips}
+          onClearAll={
+            videoFiltersActive || videoSortActive
+              ? () => {
+                  clearVideoFilters()
+                  setVideoSortKey(DEFAULT_VIDEO_SORT_KEY)
+                }
+              : null
+          }
+        />
+      ) : null}
+
+      {mediaType === 'text' && !textSearchTerm.trim() ? (
+        <TextFilterPanel
+          open={isTextFilterPanelOpen}
+          filters={textFilters}
+          onChange={updateTextFilter}
+          onClear={clearTextFilters}
+          onClose={() => setIsTextFilterPanelOpen(false)}
+          isAnyActive={textFiltersActive}
+          activeCount={textFilterCount}
+        />
+      ) : null}
+
+      {mediaType === 'text' && textChips.length > 0 ? (
+        <FilterChips
+          chips={textChips}
+          onClearAll={
+            textFiltersActive || textSortActive
+              ? () => {
+                  clearTextFilters()
+                  setTextSortKey(DEFAULT_TEXT_SORT_KEY)
+                }
+              : null
+          }
+        />
+      ) : null}
+
+      {mediaType === 'audio' ? (
+      <>{isLoadingAudios ? (
+        <Card className="border-border bg-card shadow-sm shadow-black/5">
+          <div className="divide-y divide-border">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3">
+                <Skeleton className="h-4 w-6" />
+                <Skeleton className="h-6 w-52 rounded-md" />
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-5 w-24 rounded-full" />
+                <Skeleton className="ml-auto h-7 w-20" />
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : audios.length === 0 ? (
+        <EmptyState
+          icon={AudioLines}
+          title="No audios in this project yet"
+          description="Upload field recordings, interviews, or performances and they will be coded under this project."
+          action={
+            <Button onClick={handleOpenCreateAudio} className="gap-2">
+              <Plus className="size-4" />
+              Add Audio
+            </Button>
+          }
+        />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm shadow-black/5">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead className="w-[52px] text-center">#</TableHead>
+                <TableHead className="w-[280px]">Code</TableHead>
+                <TableHead className="w-[280px]">Title</TableHead>
+                <TableHead className="w-[120px]">Version</TableHead>
+                <TableHead>Genre</TableHead>
+                <TableHead className="w-[180px] text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAudios.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    {audioFiltersActive || audioSortActive ? (
+                      <span className="inline-flex items-center gap-2">
+                        No audios match the current filters.
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            clearAudioFilters()
+                            setAudioSortKey(DEFAULT_AUDIO_SORT_KEY)
+                          }}
+                          className="h-7 gap-1 px-2 text-xs"
+                        >
+                          <X className="size-3" />
+                          Clear filters
+                        </Button>
+                      </span>
+                    ) : (
+                      'No matching audios.'
+                    )}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredAudios.map((audio, index) => {
+                  const title =
+                    audio.originTitle ||
+                    audio.alterTitle ||
+                    audio.romanizedTitle ||
+                    audio.fullName ||
+                    audio.audioCode
+                  return (
+                    <TableRow
+                      key={audio.audioCode}
+                      className={`group transition-colors ${audio.removedAt ? 'opacity-60' : ''}`}
+                    >
+                      <TableCell className="text-center text-xs tabular-nums text-muted-foreground">
+                        {index + 1}
+                      </TableCell>
+                      <TableCell>
+                        <CodeBadge code={audio.audioCode} variant="subtle" highlightQuery={searchTerm} />
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          type="button"
+                          onClick={() => setDetailsTarget(audio)}
+                          className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline"
+                          title={title}
+                        >
+                          <Highlight text={title} query={searchTerm} />
+                        </button>
+                        {audio.removedAt && (
+                          <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                            Removed
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium">
+                          {audio.audioVersion ? (
+                            <Highlight text={audio.audioVersion} query={searchTerm} />
+                          ) : (
+                            '—'
+                          )}
+                          {audio.versionNumber != null ? (
+                            <span className="text-muted-foreground">v{audio.versionNumber}</span>
+                          ) : null}
+                          {audio.copyNumber != null ? (
+                            <span className="text-muted-foreground">c{audio.copyNumber}</span>
+                          ) : null}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const genres = Array.isArray(audio.genre)
+                            ? audio.genre
+                            : audio.genre
+                            ? [audio.genre]
+                            : []
+                          if (genres.length === 0) {
+                            return <span className="text-sm text-muted-foreground">—</span>
+                          }
+                          const visible = genres.slice(0, 2)
+                          const extra = genres.length - visible.length
+                          return (
+                            <div className="flex flex-wrap gap-1">
+                              {visible.map((g) => (
+                                <span
+                                  key={g}
+                                  className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80"
+                                >
+                                  <Highlight text={g} query={searchTerm} />
+                                </span>
+                              ))}
+                              {extra > 0 ? (
+                                <span className="text-[11px] font-medium text-muted-foreground">
+                                  +{extra}
+                                </span>
+                              ) : null}
+                            </div>
+                          )
+                        })()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 gap-1 px-2 text-xs"
+                            onClick={() => setDetailsTarget(audio)}
+                          >
+                            <Eye className="size-3.5" />
+                            Details
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-muted-foreground hover:text-foreground"
+                            onClick={() => handleOpenEditAudio(audio)}
+                            title="Edit audio"
+                          >
+                            <Pencil className="size-3.5" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => setDeleteTarget(audio)}
+                            title="Send to trash"
+                          >
+                            <Trash2 className="size-3.5" />
+                            <span className="sr-only">Send to trash</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
         </div>
       )}
+
+      </>
+      ) : mediaType === 'video' ? (
+        <VideoListSection
+          isLoading={isLoadingVideos}
+          videos={videos}
+          filteredVideos={filteredVideos}
+          searchQuery={videoSearchTerm}
+          filtersOrSortActive={videoFiltersActive || videoSortActive}
+          onClearFiltersAndSort={() => {
+            clearVideoFilters()
+            setVideoSortKey(DEFAULT_VIDEO_SORT_KEY)
+          }}
+          onAdd={handleOpenCreateVideo}
+          onEdit={handleOpenEditVideo}
+          onDetails={(v) => setVideoDetailsTarget(v)}
+          onDelete={(v) => setVideoDeleteTarget(v)}
+        />
+      ) : mediaType === 'image' ? (
+        <ImageListSection
+          isLoading={isLoadingImages}
+          images={images}
+          filteredImages={filteredImages}
+          searchQuery={imageSearchTerm}
+          filtersOrSortActive={imageFiltersActive || imageSortActive}
+          onClearFiltersAndSort={() => {
+            clearImageFilters()
+            setImageSortKey(DEFAULT_IMAGE_SORT_KEY)
+          }}
+          onAdd={handleOpenCreateImage}
+          onEdit={handleOpenEditImage}
+          onDetails={(i) => setImageDetailsTarget(i)}
+          onDelete={(i) => setImageDeleteTarget(i)}
+        />
+      ) : (
+        <TextListSection
+          isLoading={isLoadingTexts}
+          texts={texts}
+          filteredTexts={filteredTexts}
+          searchQuery={textSearchTerm}
+          filtersOrSortActive={textFiltersActive || textSortActive}
+          onClearFiltersAndSort={() => {
+            clearTextFilters()
+            setTextSortKey(DEFAULT_TEXT_SORT_KEY)
+          }}
+          onAdd={handleOpenCreateText}
+          onEdit={handleOpenEditText}
+          onDetails={(t) => setTextDetailsTarget(t)}
+          onDelete={(t) => setTextDeleteTarget(t)}
+        />
+      )}
+
+      <TypedConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Send audio to trash"
+        description="The audio file will be moved to trash. An admin can restore it from the Trash page."
+        codeToConfirm={deleteTarget?.audioCode}
+        promptLabel="To confirm, type the audio code"
+        confirmLabel="Send to Trash"
+        cancelLabel="Cancel"
+        confirmVariant="destructive"
+        isProcessing={isDeleting}
+        onConfirm={handleDeleteAudio}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setDeleteTarget(null)
+        }}
+      />
+
+      <TypedConfirmDialog
+        open={Boolean(videoDeleteTarget)}
+        title="Send video to trash"
+        description="The video file will be moved to trash. An admin can restore it from the Trash page."
+        codeToConfirm={videoDeleteTarget?.videoCode}
+        promptLabel="To confirm, type the video code"
+        confirmLabel="Send to Trash"
+        cancelLabel="Cancel"
+        confirmVariant="destructive"
+        isProcessing={isVideoDeleting}
+        onConfirm={handleDeleteVideo}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setVideoDeleteTarget(null)
+        }}
+      />
+
+      <AudioDetailsModal
+        open={Boolean(detailsTarget)}
+        audio={detailsTarget}
+        searchQuery={searchTerm}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setDetailsTarget(null)
+        }}
+      />
+
+      <VideoDetailsModal
+        open={Boolean(videoDetailsTarget)}
+        video={videoDetailsTarget}
+        searchQuery={videoSearchTerm}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setVideoDetailsTarget(null)
+        }}
+      />
+
+      <TypedConfirmDialog
+        open={Boolean(imageDeleteTarget)}
+        title="Send image to trash"
+        description="The image file will be moved to trash. An admin can restore it from the Trash page."
+        codeToConfirm={imageDeleteTarget?.imageCode}
+        promptLabel="To confirm, type the image code"
+        confirmLabel="Send to Trash"
+        cancelLabel="Cancel"
+        confirmVariant="destructive"
+        isProcessing={isImageDeleting}
+        onConfirm={handleDeleteImage}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setImageDeleteTarget(null)
+        }}
+      />
+
+      <ImageDetailsModal
+        open={Boolean(imageDetailsTarget)}
+        image={imageDetailsTarget}
+        searchQuery={imageSearchTerm}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setImageDetailsTarget(null)
+        }}
+      />
+
+      <TypedConfirmDialog
+        open={Boolean(textDeleteTarget)}
+        title="Send text to trash"
+        description="The text record will be moved to trash. An admin can restore it from the Trash page."
+        codeToConfirm={textDeleteTarget?.textCode}
+        promptLabel="To confirm, type the text code"
+        confirmLabel="Send to Trash"
+        cancelLabel="Cancel"
+        confirmVariant="destructive"
+        isProcessing={isTextDeleting}
+        onConfirm={handleDeleteText}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setTextDeleteTarget(null)
+        }}
+      />
+
+      <TextDetailsModal
+        open={Boolean(textDetailsTarget)}
+        text={textDetailsTarget}
+        searchQuery={textSearchTerm}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setTextDetailsTarget(null)
+        }}
+      />
+    </EmployeeEntityPage>
     </div>
   )
 }
-
-/**
- * All audio form sections.
- *
- * @param {{ form: object, setForm: Function, projectCategories: any[], currentFile: File|null }} props
- *   currentFile – the File object currently staged for upload; used by
- *   FolderSourcePicker to pre-build externalPath when a folder is selected
- *   before the file is picked.
- */
-function AudioFormSections({ form, setForm, projectCategories = [], currentFile = null }) {
-  const isPublic = form.isPublic === true
-
-  return (
-    <>
-      {/* Visibility toggle */}
-      <div className={cn('flex items-center justify-between rounded-2xl border px-5 py-4', isPublic ? 'border-green-200 bg-green-50/40 dark:border-green-900/30 dark:bg-green-950/10' : 'border-amber-200 bg-amber-50/40 dark:border-amber-900/30 dark:bg-amber-950/10')}>
-        <div className="flex items-center gap-3">
-          <span className={cn('grid size-9 shrink-0 place-items-center rounded-xl', isPublic ? 'bg-green-500/15 text-green-600' : 'bg-amber-500/15 text-amber-600')}>
-            {isPublic ? <Globe className="size-4.5" /> : <EyeOff className="size-4.5" />}
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-foreground">{isPublic ? 'Public — visible in the catalogue' : 'Private — hidden from guests'}</p>
-            <p className="text-xs text-muted-foreground">{isPublic ? 'Visible to all public visitors.' : 'Only archive staff can access this record.'}</p>
-          </div>
-        </div>
-        <label className="relative cursor-pointer select-none">
-          <input type="checkbox" className="sr-only peer" checked={isPublic} onChange={(e) => setForm({ ...form, isPublic: e.target.checked })} />
-          <div className={cn('flex h-6 w-11 items-center rounded-full px-0.5 transition-colors', isPublic ? 'bg-green-500' : 'bg-input')}>
-            <div className={cn('size-5 rounded-full bg-white shadow-sm transition-transform', isPublic ? 'translate-x-5' : 'translate-x-0')} />
-          </div>
-        </label>
-      </div>
-
-      {/* Titles */}
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Titles</CardTitle></CardHeader>
-        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          <div className="space-y-1.5 sm:col-span-2"><AudioFieldLabel htmlFor="fullName">Full Name</AudioFieldLabel><Input id="fullName" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="originTitle">Origin Title</AudioFieldLabel><Input id="originTitle" value={form.originTitle} onChange={(e) => setForm({ ...form, originTitle: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="alterTitle">Alternate Title</AudioFieldLabel><Input id="alterTitle" value={form.alterTitle} onChange={(e) => setForm({ ...form, alterTitle: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="centralKurdishTitle">Central Kurdish Title</AudioFieldLabel><Input id="centralKurdishTitle" value={form.centralKurdishTitle} onChange={(e) => setForm({ ...form, centralKurdishTitle: e.target.value })} dir="rtl" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="romanizedTitle">Romanized Title</AudioFieldLabel><Input id="romanizedTitle" value={form.romanizedTitle} onChange={(e) => setForm({ ...form, romanizedTitle: e.target.value })} /></div>
-        </CardContent>
-      </Card>
-
-      {/* Description */}
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Description</CardTitle></CardHeader>
-        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="abstractText">Abstract</AudioFieldLabel><textarea id="abstractText" className={TEXTAREA_CLASS} value={form.abstractText} onChange={(e) => setForm({ ...form, abstractText: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="description">Description</AudioFieldLabel><textarea id="description" className={TEXTAREA_CLASS} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-        </CardContent>
-      </Card>
-
-      {/* Music & Form */}
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Music & Form</CardTitle></CardHeader>
-        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="form">Form</AudioFieldLabel><Input id="form" value={form.form} onChange={(e) => setForm({ ...form, form: e.target.value })} /></div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <div className="flex items-center justify-between gap-2"><Label>Genres</Label><FieldHelpButton metadata={getAudioFieldMetadata('genre')} /></div>
-            <GenreChips categories={projectCategories} value={form.genre} onChange={(next) => setForm({ ...form, genre: next })} />
-          </div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="typeOfBasta">Type of Basta</AudioFieldLabel><Input id="typeOfBasta" value={form.typeOfBasta} onChange={(e) => setForm({ ...form, typeOfBasta: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="typeOfMaqam">Type of Maqam</AudioFieldLabel><Input id="typeOfMaqam" value={form.typeOfMaqam} onChange={(e) => setForm({ ...form, typeOfMaqam: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="typeOfComposition">Type of Composition</AudioFieldLabel><Input id="typeOfComposition" value={form.typeOfComposition} onChange={(e) => setForm({ ...form, typeOfComposition: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="typeOfPerformance">Type of Performance</AudioFieldLabel><Input id="typeOfPerformance" value={form.typeOfPerformance} onChange={(e) => setForm({ ...form, typeOfPerformance: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="poet">Poet</AudioFieldLabel><Input id="poet" value={form.poet} onChange={(e) => setForm({ ...form, poet: e.target.value })} /></div>
-          <div className="space-y-1.5 sm:col-span-2"><AudioFieldLabel htmlFor="lyrics">Lyrics</AudioFieldLabel><textarea id="lyrics" className={TEXTAREA_CLASS} value={form.lyrics} onChange={(e) => setForm({ ...form, lyrics: e.target.value })} /></div>
-        </CardContent>
-      </Card>
-
-      {/* Credits */}
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Credits</CardTitle></CardHeader>
-        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="speaker">Speaker</AudioFieldLabel><Input id="speaker" value={form.speaker} onChange={(e) => setForm({ ...form, speaker: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="producer">Producer</AudioFieldLabel><Input id="producer" value={form.producer} onChange={(e) => setForm({ ...form, producer: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="composer">Composer</AudioFieldLabel><Input id="composer" value={form.composer} onChange={(e) => setForm({ ...form, composer: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="contributors">Contributors</AudioFieldLabel><TagsInput id="contributors" value={form.contributors} onChange={(next) => setForm({ ...form, contributors: next })} placeholder="Name, role…" /></div>
-        </CardContent>
-      </Card>
-
-      {/* Context */}
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Context</CardTitle><CardDescription className="text-xs">Language, recording location, and dates.</CardDescription></CardHeader>
-        <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="language">Language</AudioFieldLabel><Input id="language" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="dialect">Dialect</AudioFieldLabel><Input id="dialect" value={form.dialect} onChange={(e) => setForm({ ...form, dialect: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="audience">Audience</AudioFieldLabel><Input id="audience" value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="recordingVenue">Recording Venue</AudioFieldLabel><Input id="recordingVenue" value={form.recordingVenue} onChange={(e) => setForm({ ...form, recordingVenue: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="city">City</AudioFieldLabel><Input id="city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="region">Region</AudioFieldLabel><Input id="region" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="dateCreated">Date Created</AudioFieldLabel><Input id="dateCreated" type="date" value={form.dateCreated} onChange={(e) => setForm({ ...form, dateCreated: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="datePublished">Date Published</AudioFieldLabel><Input id="datePublished" type="date" value={form.datePublished} onChange={(e) => setForm({ ...form, datePublished: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="dateModified">Date Modified</AudioFieldLabel><Input id="dateModified" type="date" value={form.dateModified} onChange={(e) => setForm({ ...form, dateModified: e.target.value })} /></div>
-        </CardContent>
-      </Card>
-
-      {/* Tags & Keywords */}
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Tags & Keywords</CardTitle></CardHeader>
-        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="audioTags" fieldKey="tags">Tags</AudioFieldLabel><TagSuggestInput id="audioTags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="audioKeywords" fieldKey="keywords">Keywords</AudioFieldLabel><KeywordSuggestInput id="audioKeywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} /></div>
-        </CardContent>
-      </Card>
-
-      {/* Archival */}
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Archival</CardTitle></CardHeader>
-        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          <div className="flex items-center gap-2 sm:col-span-2">
-            <input id="physicalAvailability" type="checkbox" checked={Boolean(form.physicalAvailability)} onChange={(e) => setForm({ ...form, physicalAvailability: e.target.checked })} className="size-4 rounded border-input" />
-            <Label htmlFor="physicalAvailability" className="cursor-pointer">A physical copy is available</Label>
-            <FieldHelpButton metadata={getAudioFieldMetadata('physicalAvailability')} />
-          </div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="physicalLabel">Physical Label</AudioFieldLabel><Input id="physicalLabel" value={form.physicalLabel} onChange={(e) => setForm({ ...form, physicalLabel: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="locationArchive">Archive Location</AudioFieldLabel><Input id="locationArchive" value={form.locationArchive} onChange={(e) => setForm({ ...form, locationArchive: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="degitizedBy">Digitized By</AudioFieldLabel><Input id="degitizedBy" value={form.degitizedBy} onChange={(e) => setForm({ ...form, degitizedBy: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="degitizationEquipment">Digitization Equipment</AudioFieldLabel><Input id="degitizationEquipment" value={form.degitizationEquipment} onChange={(e) => setForm({ ...form, degitizationEquipment: e.target.value })} /></div>
-        </CardContent>
-      </Card>
-
-      {/* Technical */}
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Technical</CardTitle><CardDescription className="text-xs">Extension and file size auto-fill from the picked file.</CardDescription></CardHeader>
-        <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="audioChannel">Channel</AudioFieldLabel><Input id="audioChannel" value={form.audioChannel} onChange={(e) => setForm({ ...form, audioChannel: e.target.value })} placeholder="Mono, Stereo…" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="fileExtension">File Extension</AudioFieldLabel><Input id="fileExtension" value={form.fileExtension} onChange={(e) => setForm({ ...form, fileExtension: e.target.value })} placeholder="auto-filled (wav, mp3…)" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="fileSize">File Size</AudioFieldLabel><Input id="fileSize" value={form.fileSize} onChange={(e) => setForm({ ...form, fileSize: e.target.value })} placeholder="auto-filled (e.g. 45.2 MB)" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="bitRate">Bit Rate</AudioFieldLabel><Input id="bitRate" value={form.bitRate} onChange={(e) => setForm({ ...form, bitRate: e.target.value })} placeholder="e.g. 320 kbps" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="bitDepth">Bit Depth</AudioFieldLabel><Input id="bitDepth" value={form.bitDepth} onChange={(e) => setForm({ ...form, bitDepth: e.target.value })} placeholder="e.g. 24-bit" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="sampleRate">Sample Rate</AudioFieldLabel><Input id="sampleRate" value={form.sampleRate} onChange={(e) => setForm({ ...form, sampleRate: e.target.value })} placeholder="e.g. 48 kHz" /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="audioQualityOutOf10">Quality (0–10)</AudioFieldLabel><Input id="audioQualityOutOf10" type="number" min="0" max="10" step="1" value={form.audioQualityOutOf10} onChange={(e) => setForm({ ...form, audioQualityOutOf10: e.target.value })} /></div>
-        </CardContent>
-      </Card>
-
-      {/* ── Storage ─────────────────────────────────────────────────────────── */}
-      {/*
-       * Auto-fill matrix (what populates automatically when a file is picked):
-       *
-       *  Runtime              │ Volume Name │ Directory │ External Path │ Auto Path
-       *  ─────────────────────┼─────────────┼───────────┼───────────────┼──────────
-       *  Electron             │  ✓ Hard1    │  ✓ 1 MP3  │ ✓ 1 MP3/f.mp3 │  ✓
-       *  Browser folder pick* │  ✗ (blank)  │  ✓ 1 MP3  │ ✓ 1 MP3/f.mp3 │  ✓
-       *  Browser file pick    │  ✗ (blank)  │  ✗ (blank)│ ✗ (blank)     │  ✗
-       *
-       *  *) "Browser folder pick" = user clicks "Select Source Folder" below,
-       *     then separately picks the file with the regular file picker above.
-       *     External Path is constructed as "<folder>/<filename>" automatically
-       *     when both the folder and the file have been selected.
-       *
-       * All fields remain fully editable after auto-fill.
-       * Volume Name can always be typed manually regardless of runtime.
-       */}
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4">
-          <CardTitle className="text-base font-semibold">Storage</CardTitle>
-          <CardDescription className="text-xs">
-            {isElectronRuntime()
-              ? 'Volume, Directory, and External Path auto-fill from the file you pick above (Electron).'
-              : 'In Electron: all fields auto-fill. In browser: use "Select Source Folder" to fill Directory and External Path; Volume Name must be typed.'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5 pt-5">
-          {/* FolderSourcePicker — hidden in Electron, shown in browser */}
-          <FolderSourcePicker
-            currentFile={currentFile}
-            onParsed={(result) => {
-              setForm((prev) => ({
-                ...prev,
-                ...(result.directoryName && !prev.directoryName  ? { directoryName: result.directoryName }   : {}),
-                ...(result.externalPath  && !prev.pathInExternal ? { pathInExternal: result.externalPath, autoPath: result.autoPath } : {}),
-              }))
-            }}
-          />
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            {/* Volume Name — auto-fills in Electron, manual otherwise */}
-            <div className="space-y-1.5">
-              <AudioFieldLabel htmlFor="volumeName">Volume Name</AudioFieldLabel>
-              <Input
-                id="volumeName"
-                value={form.volumeName}
-                onChange={(e) => setForm({ ...form, volumeName: e.target.value })}
-                placeholder={isElectronRuntime() ? 'Auto-filled from file path (e.g. Hard1)' : 'Type the device name — e.g. Hard1, My Passport'}
-              />
-            </div>
-
-            {/* Directory — auto-fills from file path OR folder picker */}
-            <div className="space-y-1.5">
-              <AudioFieldLabel htmlFor="directoryName">Directory</AudioFieldLabel>
-              <Input
-                id="directoryName"
-                value={form.directoryName}
-                onChange={(e) => setForm({ ...form, directoryName: e.target.value })}
-                placeholder="Auto-filled from source folder (e.g. 1 MP3)"
-              />
-            </div>
-
-            {/* External Path — drives Auto Path derivation */}
-            <div className="space-y-1.5 sm:col-span-2">
-              <AudioFieldLabel htmlFor="pathInExternal">External Path</AudioFieldLabel>
-              <Input
-                id="pathInExternal"
-                value={form.pathInExternal}
-                onChange={(e) => {
-                  const raw = e.target.value
-                  // Strip Windows drive letter / leading slash; normalise separators.
-                  const withoutDisk = raw
-                    .replace(/^[A-Za-z]:[\\\/]+/, '')
-                    .replace(/^\/+/, '')
-                    .replace(/\\/g, '/')
-                  const segs = withoutDisk.split('/').filter(Boolean)
-                  const parentDir = segs.length >= 2 ? segs[segs.length - 2] : ''
-                  setForm((prev) => ({
-                    ...prev,
-                    pathInExternal: raw,
-                    autoPath: withoutDisk,
-                    ...(parentDir && !prev.directoryName ? { directoryName: parentDir } : {}),
-                  }))
-                }}
-                placeholder={isElectronRuntime() ? 'Auto-filled (e.g. بۆ پلاتفۆرمەکە/دەنگ/سێوە/1 MP3/track.mp3)' : 'e.g. 1 MP3/track.mp3  (auto-filled after folder selection)'}
-              />
-            </div>
-
-            {/* Auto Path — synced from External Path; always editable */}
-            <div className="space-y-1.5 sm:col-span-2">
-              <div className="flex items-center justify-between gap-2">
-                <Label htmlFor="autoPath" className="flex items-center gap-1.5">
-                  Auto Path
-                  <span className="rounded-full border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
-                    synced · editable
-                  </span>
-                </Label>
-                <FieldHelpButton metadata={getAudioFieldMetadata('autoPath')} />
-              </div>
-              <Input
-                id="autoPath"
-                value={form.autoPath}
-                onChange={(e) => setForm({ ...form, autoPath: e.target.value })}
-                placeholder="Synced from External Path without drive letter"
-                className="font-mono text-xs"
-              />
-            </div>
-
-            <div className="space-y-1.5 sm:col-span-2">
-              <AudioFieldLabel htmlFor="audioFileNote">File Note</AudioFieldLabel>
-              <textarea id="audioFileNote" className={TEXTAREA_CLASS} value={form.audioFileNote} onChange={(e) => setForm({ ...form, audioFileNote: e.target.value })} />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Rights & Provenance */}
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardHeader className="border-b border-border pb-4"><CardTitle className="text-base font-semibold">Rights & Provenance</CardTitle></CardHeader>
-        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="copyright">Copyright</AudioFieldLabel><Input id="copyright" value={form.copyright} onChange={(e) => setForm({ ...form, copyright: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="rightOwner">Right Owner</AudioFieldLabel><Input id="rightOwner" value={form.rightOwner} onChange={(e) => setForm({ ...form, rightOwner: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="dateCopyrighted">Date Copyrighted</AudioFieldLabel><Input id="dateCopyrighted" type="date" value={form.dateCopyrighted} onChange={(e) => setForm({ ...form, dateCopyrighted: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="availability">Availability</AudioFieldLabel><Input id="availability" value={form.availability} onChange={(e) => setForm({ ...form, availability: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="licenseType">License Type</AudioFieldLabel><Input id="licenseType" value={form.licenseType} onChange={(e) => setForm({ ...form, licenseType: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="usageRights">Usage Rights</AudioFieldLabel><Input id="usageRights" value={form.usageRights} onChange={(e) => setForm({ ...form, usageRights: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="owner">Owner</AudioFieldLabel><Input id="owner" value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="publisher">Publisher</AudioFieldLabel><Input id="publisher" value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="provenance">Provenance</AudioFieldLabel><Input id="provenance" value={form.provenance} onChange={(e) => setForm({ ...form, provenance: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="accrualMethod">Accrual Method</AudioFieldLabel><Input id="accrualMethod" value={form.accrualMethod} onChange={(e) => setForm({ ...form, accrualMethod: e.target.value })} /></div>
-          <div className="space-y-1.5"><AudioFieldLabel htmlFor="lccClassification">LCC Classification</AudioFieldLabel><Input id="lccClassification" value={form.lccClassification} onChange={(e) => setForm({ ...form, lccClassification: e.target.value })} /></div>
-          <div className="space-y-1.5 sm:col-span-2"><AudioFieldLabel htmlFor="archiveLocalNote">Archive Local Note</AudioFieldLabel><textarea id="archiveLocalNote" className={TEXTAREA_CLASS} value={form.archiveLocalNote} onChange={(e) => setForm({ ...form, archiveLocalNote: e.target.value })} /></div>
-        </CardContent>
-      </Card>
-    </>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Media type tabs
-// ─────────────────────────────────────────────────────────────────────────────
 
 function MediaTypeTabs({ mediaType, onChange, audioCount, videoCount, imageCount, textCount }) {
   const types = [
-    { key: 'audio', label: 'Audio', icon: AudioLines, count: audioCount },
-    { key: 'video', label: 'Video', icon: VideoIcon,  count: videoCount },
-    { key: 'image', label: 'Image', icon: ImageIcon,  count: imageCount },
-    { key: 'text',  label: 'Text',  icon: FileText,   count: textCount  },
+    { key: 'audio', label: 'Audio', icon: AudioLines, count: audioCount, enabled: true },
+    { key: 'video', label: 'Video', icon: VideoIcon, count: videoCount, enabled: true },
+    { key: 'image', label: 'Image', icon: ImageIcon, count: imageCount, enabled: true },
+    { key: 'text', label: 'Text', icon: FileText, count: textCount, enabled: true },
   ]
   return (
     <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border bg-card/60 p-1 shadow-sm">
-      {types.map(({ key, label, icon: Icon, count }) => {
-        const active = mediaType === key
+      {types.map((t) => {
+        const Icon = t.icon
+        const isActive = t.enabled && mediaType === t.key
+        if (!t.enabled) {
+          return (
+            <button
+              key={t.key}
+              type="button"
+              disabled
+              title={`${t.label} support coming soon`}
+              className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-muted-foreground/60"
+            >
+              <Icon className="size-4" />
+              {t.label}
+              <span className="inline-flex items-center rounded-full border border-dashed border-border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                soon
+              </span>
+            </button>
+          )
+        }
         return (
-          <button key={key} type="button" onClick={() => onChange(key)} aria-pressed={active}
-            className={cn('inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors', active ? 'bg-primary/10 font-semibold text-primary' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground')}>
-            <Icon className="size-4" />{label}
-            {typeof count === 'number' && <span className={cn('inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums', active ? 'bg-primary/20' : 'bg-muted text-muted-foreground')}>{count}</span>}
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => onChange(t.key)}
+            aria-pressed={isActive}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-primary/10 font-semibold text-primary'
+                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+            )}
+          >
+            <Icon className="size-4" />
+            {t.label}
+            {typeof t.count === 'number' ? (
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums',
+                  isActive ? 'bg-primary/20' : 'bg-muted text-muted-foreground',
+                )}
+              >
+                {t.count}
+              </span>
+            ) : null}
           </button>
         )
       })}
@@ -1544,65 +3188,191 @@ function MediaTypeTabs({ mediaType, onChange, audioCount, videoCount, imageCount
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// List sections (Audio / Video / Image / Text)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function AudioListSection({ isLoading, audios, filteredAudios, searchQuery, filtersOrSortActive, onClearFiltersAndSort, onAdd, onEdit, onDetails, onDelete }) {
-  if (isLoading) return <SkeletonList />
-  if (!audios.length) return <EmptyState icon={AudioLines} title="No audios yet" description="Upload recordings and they will be coded here." action={<Button onClick={onAdd} className="gap-2"><Plus className="size-4" />Add Audio</Button>} />
-  return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm shadow-black/5">
-      <Table>
-        <TableHeader><TableRow className="bg-muted/40 hover:bg-muted/40"><TableHead className="w-[52px] text-center">#</TableHead><TableHead className="w-[280px]">Code</TableHead><TableHead className="w-[280px]">Title</TableHead><TableHead className="w-[120px]">Version</TableHead><TableHead>Genre</TableHead><TableHead className="w-[180px] text-right">Actions</TableHead></TableRow></TableHeader>
-        <TableBody>
-          {filteredAudios.length === 0 ? <EmptyFilterRow colSpan={6} active={filtersOrSortActive} onClear={onClearFiltersAndSort} label="audios" /> : filteredAudios.map((audio, i) => {
-            const title = audio.originTitle || audio.alterTitle || audio.romanizedTitle || audio.fullName || audio.audioCode
-            return (
-              <TableRow key={audio.audioCode} className={cn('group transition-colors', audio.removedAt && 'opacity-60')}>
-                <TableCell className="text-center text-xs tabular-nums text-muted-foreground">{i + 1}</TableCell>
-                <TableCell><CodeBadge code={audio.audioCode} variant="subtle" highlightQuery={searchQuery} /></TableCell>
-                <TableCell>
-                  <button type="button" onClick={() => onDetails(audio)} className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary"><Highlight text={title} query={searchQuery} /></button>
-                  {audio.removedAt && <RemovedBadge />}
-                </TableCell>
-                <TableCell><VersionBadge version={audio.audioVersion} vNum={audio.versionNumber} cNum={audio.copyNumber} query={searchQuery} /></TableCell>
-                <TableCell><GenrePills genres={audio.genre} query={searchQuery} /></TableCell>
-                <TableCell className="text-right"><RowActions onDetails={() => onDetails(audio)} onEdit={() => onEdit(audio)} onDelete={() => onDelete(audio)} /></TableCell>
-              </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
-    </div>
-  )
-}
-
 function VideoListSection({ isLoading, videos, filteredVideos, searchQuery, filtersOrSortActive, onClearFiltersAndSort, onAdd, onEdit, onDetails, onDelete }) {
-  if (isLoading) return <SkeletonList />
-  if (!videos.length) return <EmptyState icon={VideoIcon} title="No videos yet" description="Upload footage and it will be coded here." action={<Button onClick={onAdd} className="gap-2"><Plus className="size-4" />Add Video</Button>} />
+  if (isLoading) {
+    return (
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <div className="divide-y divide-border">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3">
+              <Skeleton className="h-4 w-6" />
+              <Skeleton className="h-6 w-52 rounded-md" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-5 w-24 rounded-full" />
+              <Skeleton className="ml-auto h-7 w-20" />
+            </div>
+          ))}
+        </div>
+      </Card>
+    )
+  }
+  if (videos.length === 0) {
+    return (
+      <EmptyState
+        icon={VideoIcon}
+        title="No videos in this project yet"
+        description="Upload films, footage, or interviews and they will be coded under this project."
+        action={
+          <Button onClick={onAdd} className="gap-2">
+            <Plus className="size-4" />
+            Add Video
+          </Button>
+        }
+      />
+    )
+  }
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm shadow-black/5">
       <Table>
-        <TableHeader><TableRow className="bg-muted/40 hover:bg-muted/40"><TableHead className="w-[52px] text-center">#</TableHead><TableHead className="w-[260px]">Code</TableHead><TableHead className="w-[280px]">Title</TableHead><TableHead className="w-[140px]">Version</TableHead><TableHead className="w-[140px]">Resolution</TableHead><TableHead>Genre</TableHead><TableHead className="w-[180px] text-right">Actions</TableHead></TableRow></TableHeader>
+        <TableHeader>
+          <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableHead className="w-[52px] text-center">#</TableHead>
+            <TableHead className="w-[260px]">Code</TableHead>
+            <TableHead className="w-[280px]">Title</TableHead>
+            <TableHead className="w-[140px]">Version</TableHead>
+            <TableHead className="w-[140px]">Resolution</TableHead>
+            <TableHead>Genre</TableHead>
+            <TableHead className="w-[180px] text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
         <TableBody>
-          {filteredVideos.length === 0 ? <EmptyFilterRow colSpan={7} active={filtersOrSortActive} onClear={onClearFiltersAndSort} label="videos" /> : filteredVideos.map((v, i) => {
-            const title = v.originalTitle || v.alternativeTitle || v.romanizedTitle || v.fileName || v.videoCode
-            return (
-              <TableRow key={v.videoCode} className={cn('group transition-colors', v.removedAt && 'opacity-60')}>
-                <TableCell className="text-center text-xs tabular-nums text-muted-foreground">{i + 1}</TableCell>
-                <TableCell><CodeBadge code={v.videoCode} variant="subtle" highlightQuery={searchQuery} /></TableCell>
-                <TableCell>
-                  <button type="button" onClick={() => onDetails(v)} className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary"><Highlight text={title} query={searchQuery} /></button>
-                  {v.removedAt && <RemovedBadge />}
-                </TableCell>
-                <TableCell><VersionBadge version={v.videoVersion} vNum={v.versionNumber} cNum={v.copyNumber} query={searchQuery} /></TableCell>
-                <TableCell><span className="text-sm text-muted-foreground">{v.resolution || v.dimension ? <Highlight text={v.resolution || v.dimension} query={searchQuery} /> : '—'}</span></TableCell>
-                <TableCell><GenrePills genres={v.genre} query={searchQuery} /></TableCell>
-                <TableCell className="text-right"><RowActions onDetails={() => onDetails(v)} onEdit={() => onEdit(v)} onDelete={() => onDelete(v)} /></TableCell>
-              </TableRow>
-            )
-          })}
+          {filteredVideos.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                {filtersOrSortActive ? (
+                  <span className="inline-flex items-center gap-2">
+                    No videos match the current filters.
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onClearFiltersAndSort}
+                      className="h-7 gap-1 px-2 text-xs"
+                    >
+                      <X className="size-3" />
+                      Clear filters
+                    </Button>
+                  </span>
+                ) : (
+                  'No matching videos.'
+                )}
+              </TableCell>
+            </TableRow>
+          ) : (
+            filteredVideos.map((video, index) => {
+              const title =
+                video.originalTitle ||
+                video.alternativeTitle ||
+                video.romanizedTitle ||
+                video.fileName ||
+                video.videoCode
+              const genres = Array.isArray(video.genre) ? video.genre : video.genre ? [video.genre] : []
+              const visibleGenres = genres.slice(0, 2)
+              const extraGenres = genres.length - visibleGenres.length
+              return (
+                <TableRow
+                  key={video.videoCode}
+                  className={`group transition-colors ${video.removedAt ? 'opacity-60' : ''}`}
+                >
+                  <TableCell className="text-center text-xs tabular-nums text-muted-foreground">
+                    {index + 1}
+                  </TableCell>
+                  <TableCell>
+                    <CodeBadge code={video.videoCode} variant="subtle" highlightQuery={searchQuery} />
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => onDetails(video)}
+                      className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline"
+                      title={title}
+                    >
+                      <Highlight text={title} query={searchQuery} />
+                    </button>
+                    {video.removedAt && (
+                      <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                        Removed
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium">
+                      {video.videoVersion ? (
+                        <Highlight text={video.videoVersion} query={searchQuery} />
+                      ) : (
+                        '—'
+                      )}
+                      {video.versionNumber != null ? (
+                        <span className="text-muted-foreground">v{video.versionNumber}</span>
+                      ) : null}
+                      {video.copyNumber != null ? (
+                        <span className="text-muted-foreground">c{video.copyNumber}</span>
+                      ) : null}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-muted-foreground">
+                      {video.resolution || video.dimension ? (
+                        <Highlight text={video.resolution || video.dimension} query={searchQuery} />
+                      ) : (
+                        '—'
+                      )}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {genres.length === 0 ? (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {visibleGenres.map((g) => (
+                          <span key={g} className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80">
+                            <Highlight text={g} query={searchQuery} />
+                          </span>
+                        ))}
+                        {extraGenres > 0 ? (
+                          <span className="text-[11px] font-medium text-muted-foreground">+{extraGenres}</span>
+                        ) : null}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-xs"
+                        onClick={() => onDetails(video)}
+                      >
+                        <Eye className="size-3.5" />
+                        Details
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => onEdit(video)}
+                        title="Edit video"
+                      >
+                        <Pencil className="size-3.5" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => onDelete(video)}
+                        title="Send to trash"
+                      >
+                        <Trash2 className="size-3.5" />
+                        <span className="sr-only">Send to trash</span>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })
+          )}
         </TableBody>
       </Table>
     </div>
@@ -1610,31 +3380,208 @@ function VideoListSection({ isLoading, videos, filteredVideos, searchQuery, filt
 }
 
 function ImageListSection({ isLoading, images, filteredImages, searchQuery, filtersOrSortActive, onClearFiltersAndSort, onAdd, onEdit, onDetails, onDelete }) {
-  if (isLoading) return <SkeletonList />
-  if (!images.length) return <EmptyState icon={ImageIcon} title="No images yet" description="Upload photos and they will be coded here." action={<Button onClick={onAdd} className="gap-2"><Plus className="size-4" />Add Image</Button>} />
+  if (isLoading) {
+    return (
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <div className="divide-y divide-border">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3">
+              <Skeleton className="h-4 w-6" />
+              <Skeleton className="size-12 rounded-md" />
+              <Skeleton className="h-6 w-52 rounded-md" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="ml-auto h-7 w-20" />
+            </div>
+          ))}
+        </div>
+      </Card>
+    )
+  }
+  if (images.length === 0) {
+    return (
+      <EmptyState
+        icon={ImageIcon}
+        title="No images in this project yet"
+        description="Upload photos, scans, or artwork and they will be coded under this project."
+        action={
+          <Button onClick={onAdd} className="gap-2">
+            <Plus className="size-4" />
+            Add Image
+          </Button>
+        }
+      />
+    )
+  }
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm shadow-black/5">
       <Table>
-        <TableHeader><TableRow className="bg-muted/40 hover:bg-muted/40"><TableHead className="w-[52px] text-center">#</TableHead><TableHead className="w-[80px]">Preview</TableHead><TableHead className="w-[260px]">Code</TableHead><TableHead className="w-[280px]">Title</TableHead><TableHead className="w-[140px]">Version</TableHead><TableHead className="w-[140px]">Dimension</TableHead><TableHead>Genre</TableHead><TableHead className="w-[180px] text-right">Actions</TableHead></TableRow></TableHeader>
+        <TableHeader>
+          <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableHead className="w-[52px] text-center">#</TableHead>
+            <TableHead className="w-[80px]">Preview</TableHead>
+            <TableHead className="w-[260px]">Code</TableHead>
+            <TableHead className="w-[280px]">Title</TableHead>
+            <TableHead className="w-[140px]">Version</TableHead>
+            <TableHead className="w-[140px]">Dimension</TableHead>
+            <TableHead>Genre</TableHead>
+            <TableHead className="w-[180px] text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
         <TableBody>
-          {filteredImages.length === 0 ? <EmptyFilterRow colSpan={8} active={filtersOrSortActive} onClear={onClearFiltersAndSort} label="images" /> : filteredImages.map((img, i) => {
-            const title = img.originalTitle || img.alternativeTitle || img.romanizedTitle || img.fileName || img.imageCode
-            return (
-              <TableRow key={img.imageCode} className={cn('group transition-colors', img.removedAt && 'opacity-60')}>
-                <TableCell className="text-center text-xs tabular-nums text-muted-foreground">{i + 1}</TableCell>
-                <TableCell>{img.imageFileUrl ? (<button type="button" onClick={() => onDetails(img)} className="block size-12 overflow-hidden rounded-md border bg-muted/40 transition hover:ring-2 hover:ring-primary/30"><img src={img.imageFileUrl} alt={title} className="h-full w-full object-cover" loading="lazy" /></button>) : <div className="flex size-12 items-center justify-center rounded-md border bg-muted/40 text-muted-foreground"><ImageIcon className="size-4" /></div>}</TableCell>
-                <TableCell><CodeBadge code={img.imageCode} variant="subtle" highlightQuery={searchQuery} /></TableCell>
-                <TableCell>
-                  <button type="button" onClick={() => onDetails(img)} className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary"><Highlight text={title} query={searchQuery} /></button>
-                  {img.removedAt && <RemovedBadge />}
-                </TableCell>
-                <TableCell><VersionBadge version={img.imageVersion} vNum={img.versionNumber} cNum={img.copyNumber} query={searchQuery} /></TableCell>
-                <TableCell><span className="text-sm text-muted-foreground">{img.dimension ? <Highlight text={img.dimension} query={searchQuery} /> : '—'}</span></TableCell>
-                <TableCell><GenrePills genres={img.genre} query={searchQuery} /></TableCell>
-                <TableCell className="text-right"><RowActions onDetails={() => onDetails(img)} onEdit={() => onEdit(img)} onDelete={() => onDelete(img)} /></TableCell>
-              </TableRow>
-            )
-          })}
+          {filteredImages.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                {filtersOrSortActive ? (
+                  <span className="inline-flex items-center gap-2">
+                    No images match the current filters.
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onClearFiltersAndSort}
+                      className="h-7 gap-1 px-2 text-xs"
+                    >
+                      <X className="size-3" />
+                      Clear filters
+                    </Button>
+                  </span>
+                ) : (
+                  'No matching images.'
+                )}
+              </TableCell>
+            </TableRow>
+          ) : (
+            filteredImages.map((image, index) => {
+              const title =
+                image.originalTitle ||
+                image.alternativeTitle ||
+                image.romanizedTitle ||
+                image.fileName ||
+                image.imageCode
+              const genres = Array.isArray(image.genre) ? image.genre : image.genre ? [image.genre] : []
+              const visibleGenres = genres.slice(0, 2)
+              const extraGenres = genres.length - visibleGenres.length
+              return (
+                <TableRow
+                  key={image.imageCode}
+                  className={`group transition-colors ${image.removedAt ? 'opacity-60' : ''}`}
+                >
+                  <TableCell className="text-center text-xs tabular-nums text-muted-foreground">
+                    {index + 1}
+                  </TableCell>
+                  <TableCell>
+                    {image.imageFileUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => onDetails(image)}
+                        className="block size-12 overflow-hidden rounded-md border bg-muted/40 transition hover:ring-2 hover:ring-primary/30"
+                        title="Open preview"
+                      >
+                        <img
+                          src={image.imageFileUrl}
+                          alt={title}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      </button>
+                    ) : (
+                      <div className="flex size-12 items-center justify-center rounded-md border bg-muted/40 text-muted-foreground">
+                        <ImageIcon className="size-4" />
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <CodeBadge code={image.imageCode} variant="subtle" highlightQuery={searchQuery} />
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => onDetails(image)}
+                      className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline"
+                      title={title}
+                    >
+                      <Highlight text={title} query={searchQuery} />
+                    </button>
+                    {image.removedAt && (
+                      <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                        Removed
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium">
+                      {image.imageVersion ? (
+                        <Highlight text={image.imageVersion} query={searchQuery} />
+                      ) : (
+                        '—'
+                      )}
+                      {image.versionNumber != null ? (
+                        <span className="text-muted-foreground">v{image.versionNumber}</span>
+                      ) : null}
+                      {image.copyNumber != null ? (
+                        <span className="text-muted-foreground">c{image.copyNumber}</span>
+                      ) : null}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-muted-foreground">
+                      {image.dimension ? <Highlight text={image.dimension} query={searchQuery} /> : '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {genres.length === 0 ? (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {visibleGenres.map((g) => (
+                          <span key={g} className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80">
+                            <Highlight text={g} query={searchQuery} />
+                          </span>
+                        ))}
+                        {extraGenres > 0 ? (
+                          <span className="text-[11px] font-medium text-muted-foreground">+{extraGenres}</span>
+                        ) : null}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-xs"
+                        onClick={() => onDetails(image)}
+                      >
+                        <Eye className="size-3.5" />
+                        Details
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => onEdit(image)}
+                        title="Edit image"
+                      >
+                        <Pencil className="size-3.5" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => onDelete(image)}
+                        title="Send to trash"
+                      >
+                        <Trash2 className="size-3.5" />
+                        <span className="sr-only">Send to trash</span>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })
+          )}
         </TableBody>
       </Table>
     </div>
@@ -1642,105 +3589,655 @@ function ImageListSection({ isLoading, images, filteredImages, searchQuery, filt
 }
 
 function TextListSection({ isLoading, texts, filteredTexts, searchQuery, filtersOrSortActive, onClearFiltersAndSort, onAdd, onEdit, onDetails, onDelete }) {
-  if (isLoading) return <SkeletonList />
-  if (!texts.length) return <EmptyState icon={FileText} title="No texts yet" description="Upload documents and they will be coded here." action={<Button onClick={onAdd} className="gap-2"><Plus className="size-4" />Add Text</Button>} />
+  if (isLoading) {
+    return (
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <div className="divide-y divide-border">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3">
+              <Skeleton className="h-4 w-6" />
+              <Skeleton className="h-6 w-52 rounded-md" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-5 w-24 rounded-full" />
+              <Skeleton className="ml-auto h-7 w-20" />
+            </div>
+          ))}
+        </div>
+      </Card>
+    )
+  }
+  if (texts.length === 0) {
+    return (
+      <EmptyState
+        icon={FileText}
+        title="No texts in this project yet"
+        description="Upload books, manuscripts, or documents and they will be coded under this project."
+        action={
+          <Button onClick={onAdd} className="gap-2">
+            <Plus className="size-4" />
+            Add Text
+          </Button>
+        }
+      />
+    )
+  }
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm shadow-black/5">
       <Table>
-        <TableHeader><TableRow className="bg-muted/40 hover:bg-muted/40"><TableHead className="w-[52px] text-center">#</TableHead><TableHead className="w-[260px]">Code</TableHead><TableHead className="w-[280px]">Title</TableHead><TableHead className="w-[140px]">Version</TableHead><TableHead className="w-[160px]">Author</TableHead><TableHead className="w-[100px] text-right">Pages</TableHead><TableHead>Genre</TableHead><TableHead className="w-[180px] text-right">Actions</TableHead></TableRow></TableHeader>
+        <TableHeader>
+          <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableHead className="w-[52px] text-center">#</TableHead>
+            <TableHead className="w-[260px]">Code</TableHead>
+            <TableHead className="w-[280px]">Title</TableHead>
+            <TableHead className="w-[140px]">Version</TableHead>
+            <TableHead className="w-[160px]">Author</TableHead>
+            <TableHead className="w-[100px] text-right">Pages</TableHead>
+            <TableHead>Genre</TableHead>
+            <TableHead className="w-[180px] text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
         <TableBody>
-          {filteredTexts.length === 0 ? <EmptyFilterRow colSpan={8} active={filtersOrSortActive} onClear={onClearFiltersAndSort} label="texts" /> : filteredTexts.map((t, i) => {
-            const title = t.originalTitle || t.alternativeTitle || t.romanizedTitle || t.fileName || t.textCode
-            return (
-              <TableRow key={t.textCode} className={cn('group transition-colors', t.removedAt && 'opacity-60')}>
-                <TableCell className="text-center text-xs tabular-nums text-muted-foreground">{i + 1}</TableCell>
-                <TableCell><CodeBadge code={t.textCode} variant="subtle" highlightQuery={searchQuery} /></TableCell>
-                <TableCell>
-                  <button type="button" onClick={() => onDetails(t)} className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary"><Highlight text={title} query={searchQuery} /></button>
-                  {t.removedAt && <RemovedBadge />}
-                </TableCell>
-                <TableCell><VersionBadge version={t.textVersion} vNum={t.versionNumber} cNum={t.copyNumber} query={searchQuery} /></TableCell>
-                <TableCell><span className="block max-w-[160px] truncate text-sm text-muted-foreground">{t.author ? <Highlight text={t.author} query={searchQuery} /> : '—'}</span></TableCell>
-                <TableCell className="text-right tabular-nums text-sm text-muted-foreground">{t.pageCount ?? '—'}</TableCell>
-                <TableCell><GenrePills genres={t.genre} query={searchQuery} /></TableCell>
-                <TableCell className="text-right"><RowActions onDetails={() => onDetails(t)} onEdit={() => onEdit(t)} onDelete={() => onDelete(t)} /></TableCell>
-              </TableRow>
-            )
-          })}
+          {filteredTexts.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                {filtersOrSortActive ? (
+                  <span className="inline-flex items-center gap-2">
+                    No texts match the current filters.
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onClearFiltersAndSort}
+                      className="h-7 gap-1 px-2 text-xs"
+                    >
+                      <X className="size-3" />
+                      Clear filters
+                    </Button>
+                  </span>
+                ) : (
+                  'No matching texts.'
+                )}
+              </TableCell>
+            </TableRow>
+          ) : (
+            filteredTexts.map((text, index) => {
+              const title =
+                text.originalTitle ||
+                text.alternativeTitle ||
+                text.romanizedTitle ||
+                text.fileName ||
+                text.textCode
+              const genres = Array.isArray(text.genre) ? text.genre : text.genre ? [text.genre] : []
+              const visibleGenres = genres.slice(0, 2)
+              const extraGenres = genres.length - visibleGenres.length
+              return (
+                <TableRow
+                  key={text.textCode}
+                  className={`group transition-colors ${text.removedAt ? 'opacity-60' : ''}`}
+                >
+                  <TableCell className="text-center text-xs tabular-nums text-muted-foreground">
+                    {index + 1}
+                  </TableCell>
+                  <TableCell>
+                    <CodeBadge code={text.textCode} variant="subtle" highlightQuery={searchQuery} />
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => onDetails(text)}
+                      className="block max-w-[280px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline"
+                      title={title}
+                    >
+                      <Highlight text={title} query={searchQuery} />
+                    </button>
+                    {text.removedAt && (
+                      <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                        Removed
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium">
+                      {text.textVersion ? (
+                        <Highlight text={text.textVersion} query={searchQuery} />
+                      ) : (
+                        '—'
+                      )}
+                      {text.versionNumber != null ? (
+                        <span className="text-muted-foreground">v{text.versionNumber}</span>
+                      ) : null}
+                      {text.copyNumber != null ? (
+                        <span className="text-muted-foreground">c{text.copyNumber}</span>
+                      ) : null}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="block max-w-[160px] truncate text-sm text-muted-foreground" title={text.author || ''}>
+                      {text.author ? <Highlight text={text.author} query={searchQuery} /> : '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
+                    {text.pageCount != null ? text.pageCount : '—'}
+                  </TableCell>
+                  <TableCell>
+                    {genres.length === 0 ? (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {visibleGenres.map((g) => (
+                          <span key={g} className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80">
+                            <Highlight text={g} query={searchQuery} />
+                          </span>
+                        ))}
+                        {extraGenres > 0 ? (
+                          <span className="text-[11px] font-medium text-muted-foreground">+{extraGenres}</span>
+                        ) : null}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-xs"
+                        onClick={() => onDetails(text)}
+                      >
+                        <Eye className="size-3.5" />
+                        Details
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => onEdit(text)}
+                        title="Edit text"
+                      >
+                        <Pencil className="size-3.5" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => onDelete(text)}
+                        title="Send to trash"
+                      >
+                        <Trash2 className="size-3.5" />
+                        <span className="sr-only">Send to trash</span>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })
+          )}
         </TableBody>
       </Table>
     </div>
   )
 }
 
-// ── Tiny shared UI atoms ──────────────────────────────────────────────────────
+function GenreChips({ categories, value, onChange }) {
+  const selected = Array.isArray(value) ? value : []
+  const selectedLower = new Set(selected.map((s) => s.toLowerCase()))
 
-function SkeletonList() {
+  const categoryNames = (categories || [])
+    .map((c) => c.categoryName || c.name || c.categoryCode)
+    .filter(Boolean)
+  const suggestions = categoryNames.filter((name) => !selectedLower.has(name.toLowerCase()))
+
+  const addOne = (name) => {
+    if (!name || selectedLower.has(name.toLowerCase())) return
+    onChange([...selected, name])
+  }
+
   return (
-    <Card className="border-border bg-card shadow-sm shadow-black/5">
-      <div className="divide-y divide-border">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="flex items-center gap-4 px-4 py-3">
-            <Skeleton className="h-4 w-6" /><Skeleton className="h-6 w-52 rounded-md" />
-            <Skeleton className="h-4 w-40" /><Skeleton className="h-5 w-24 rounded-full" />
-            <Skeleton className="ml-auto h-7 w-20" />
-          </div>
-        ))}
-      </div>
-    </Card>
+    <div className="space-y-2">
+      <TagsInput
+        value={selected}
+        onChange={onChange}
+        placeholder="Type a genre and press Enter, or pick a suggestion below"
+      />
+      {categoryNames.length === 0 ? (
+        <p className="text-[11px] text-muted-foreground">
+          Tip: add categories to this project to get one-click genre suggestions here.
+        </p>
+      ) : suggestions.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            From categories:
+          </p>
+          {suggestions.map((name) => (
+            <button
+              type="button"
+              key={name}
+              onClick={() => addOne(name)}
+              className="inline-flex items-center gap-1 rounded-full border border-dashed border-border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+            >
+              <Plus className="size-3" />
+              {name}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">
+          All of this project's categories are already used as genres.
+        </p>
+      )}
+    </div>
   )
 }
 
-function EmptyFilterRow({ colSpan, active, onClear, label }) {
+// Wraps a Label + help button row, looking up the description from the
+// audio metadata. `fieldKey` defaults to `htmlFor` since most audio
+// labels share the same name; pass an explicit fieldKey for the
+// handful that differ (audioTags → tags, audioKeywords → keywords).
+function AudioFieldLabel({ htmlFor, fieldKey, className, children }) {
   return (
-    <TableRow>
-      <TableCell colSpan={colSpan} className="h-24 text-center text-muted-foreground">
-        {active ? (
-          <span className="inline-flex items-center gap-2">
-            No {label} match the current filters.
-            <Button type="button" variant="ghost" size="sm" onClick={onClear} className="h-7 gap-1 px-2 text-xs">
-              <X className="size-3" />Clear filters
-            </Button>
+    <div className="flex items-center justify-between gap-2">
+      <Label htmlFor={htmlFor} className={className}>
+        {children}
+      </Label>
+      <FieldHelpButton metadata={getAudioFieldMetadata(fieldKey || htmlFor)} />
+    </div>
+  )
+}
+
+function AudioFormSections({ form, setForm, projectCategories = [] }) {
+  const isPublicAudio = form.isPublic === true
+  return (
+    <>
+      {/* Visibility */}
+      <div className={cn(
+        'flex items-center justify-between rounded-2xl border px-5 py-4',
+        isPublicAudio
+          ? 'border-green-200 bg-green-50/40 dark:border-green-900/30 dark:bg-green-950/10'
+          : 'border-amber-200 bg-amber-50/40 dark:border-amber-900/30 dark:bg-amber-950/10',
+      )}>
+        <div className="flex items-center gap-3">
+          <span className={cn(
+            'grid size-9 shrink-0 place-items-center rounded-xl',
+            isPublicAudio ? 'bg-green-500/15 text-green-600' : 'bg-amber-500/15 text-amber-600',
+          )}>
+            {isPublicAudio ? <Globe className="size-4.5" /> : <EyeOff className="size-4.5" />}
           </span>
-        ) : `No matching ${label}.`}
-      </TableCell>
-    </TableRow>
-  )
-}
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {isPublicAudio ? 'Public — visible in the catalogue' : 'Private — hidden from guests'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isPublicAudio
+                ? 'This audio is visible to all public visitors and can be searched.'
+                : 'Only archive staff can access this record. Guests cannot find or view it.'}
+            </p>
+          </div>
+        </div>
+        <label className="relative cursor-pointer select-none">
+          <input
+            type="checkbox"
+            className="sr-only peer"
+            checked={isPublicAudio}
+            onChange={(e) => setForm({ ...form, isPublic: e.target.checked })}
+          />
+          <div className={cn(
+            'flex h-6 w-11 items-center rounded-full px-0.5 transition-colors',
+            isPublicAudio ? 'bg-green-500' : 'bg-input',
+          )}>
+            <div className={cn(
+              'size-5 rounded-full bg-white shadow-sm transition-transform',
+              isPublicAudio ? 'translate-x-5' : 'translate-x-0',
+            )} />
+          </div>
+        </label>
+      </div>
 
-function RemovedBadge() {
-  return <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">Removed</span>
-}
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Titles</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2">
+            <AudioFieldLabel htmlFor="fullName">Full Name</AudioFieldLabel>
+            <Input id="fullName" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="originTitle">Origin Title</AudioFieldLabel>
+            <Input id="originTitle" value={form.originTitle} onChange={(e) => setForm({ ...form, originTitle: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="alterTitle">Alternate Title</AudioFieldLabel>
+            <Input id="alterTitle" value={form.alterTitle} onChange={(e) => setForm({ ...form, alterTitle: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="centralKurdishTitle">Central Kurdish Title</AudioFieldLabel>
+            <Input id="centralKurdishTitle" value={form.centralKurdishTitle} onChange={(e) => setForm({ ...form, centralKurdishTitle: e.target.value })} dir="rtl" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="romanizedTitle">Romanized Title</AudioFieldLabel>
+            <Input id="romanizedTitle" value={form.romanizedTitle} onChange={(e) => setForm({ ...form, romanizedTitle: e.target.value })} />
+          </div>
+        </CardContent>
+      </Card>
 
-function VersionBadge({ version, vNum, cNum, query }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium">
-      {version ? <Highlight text={version} query={query} /> : '—'}
-      {vNum != null && <span className="text-muted-foreground">v{vNum}</span>}
-      {cNum != null && <span className="text-muted-foreground">c{cNum}</span>}
-    </span>
-  )
-}
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Description</CardTitle>
+          <CardDescription className="text-xs">Abstract and full description.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="abstractText">Abstract</AudioFieldLabel>
+            <textarea id="abstractText" className={TEXTAREA_CLASS} value={form.abstractText} onChange={(e) => setForm({ ...form, abstractText: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="description">Description</AudioFieldLabel>
+            <textarea id="description" className={TEXTAREA_CLASS} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </div>
+        </CardContent>
+      </Card>
 
-function GenrePills({ genres, query }) {
-  const list = Array.isArray(genres) ? genres : genres ? [genres] : []
-  if (!list.length) return <span className="text-sm text-muted-foreground">—</span>
-  const visible = list.slice(0, 2); const extra = list.length - visible.length
-  return (
-    <div className="flex flex-wrap gap-1">
-      {visible.map((g) => <span key={g} className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80"><Highlight text={g} query={query} /></span>)}
-      {extra > 0 && <span className="text-[11px] font-medium text-muted-foreground">+{extra}</span>}
-    </div>
-  )
-}
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Music & Form</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="form">Form</AudioFieldLabel>
+            <Input id="form" value={form.form} onChange={(e) => setForm({ ...form, form: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label>
+                Genres{' '}
+                <span className="font-normal text-muted-foreground">
+                  (pick from this project's categories)
+                </span>
+              </Label>
+              <FieldHelpButton metadata={getAudioFieldMetadata('genre')} />
+            </div>
+            <GenreChips
+              categories={projectCategories}
+              value={form.genre}
+              onChange={(next) => setForm({ ...form, genre: next })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="typeOfBasta">Type of Basta</AudioFieldLabel>
+            <Input id="typeOfBasta" value={form.typeOfBasta} onChange={(e) => setForm({ ...form, typeOfBasta: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="typeOfMaqam">Type of Maqam</AudioFieldLabel>
+            <Input id="typeOfMaqam" value={form.typeOfMaqam} onChange={(e) => setForm({ ...form, typeOfMaqam: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="typeOfComposition">Type of Composition</AudioFieldLabel>
+            <Input id="typeOfComposition" value={form.typeOfComposition} onChange={(e) => setForm({ ...form, typeOfComposition: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="typeOfPerformance">Type of Performance</AudioFieldLabel>
+            <Input id="typeOfPerformance" value={form.typeOfPerformance} onChange={(e) => setForm({ ...form, typeOfPerformance: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="poet">Poet</AudioFieldLabel>
+            <Input id="poet" value={form.poet} onChange={(e) => setForm({ ...form, poet: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <AudioFieldLabel htmlFor="lyrics">Lyrics</AudioFieldLabel>
+            <textarea id="lyrics" className={TEXTAREA_CLASS} value={form.lyrics} onChange={(e) => setForm({ ...form, lyrics: e.target.value })} />
+          </div>
+        </CardContent>
+      </Card>
 
-function RowActions({ onDetails, onEdit, onDelete }) {
-  return (
-    <div className="flex items-center justify-end gap-1">
-      <Button type="button" variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={onDetails}><Eye className="size-3.5" />Details</Button>
-      <Button variant="ghost" size="icon-xs" className="text-muted-foreground hover:text-foreground" onClick={onEdit}><Pencil className="size-3.5" /><span className="sr-only">Edit</span></Button>
-      <Button variant="ghost" size="icon-xs" className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive" onClick={onDelete}><Trash2 className="size-3.5" /><span className="sr-only">Send to trash</span></Button>
-    </div>
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Credits</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="speaker">Speaker</AudioFieldLabel>
+            <Input id="speaker" value={form.speaker} onChange={(e) => setForm({ ...form, speaker: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="producer">Producer</AudioFieldLabel>
+            <Input id="producer" value={form.producer} onChange={(e) => setForm({ ...form, producer: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="composer">Composer</AudioFieldLabel>
+            <Input id="composer" value={form.composer} onChange={(e) => setForm({ ...form, composer: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="contributors">Contributors</AudioFieldLabel>
+            <TagsInput id="contributors" value={form.contributors} onChange={(next) => setForm({ ...form, contributors: next })} placeholder="Name, role…" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Context</CardTitle>
+          <CardDescription className="text-xs">Language, recording location, and dates.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="language">Language</AudioFieldLabel>
+            <Input id="language" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="dialect">Dialect</AudioFieldLabel>
+            <Input id="dialect" value={form.dialect} onChange={(e) => setForm({ ...form, dialect: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="audience">Audience</AudioFieldLabel>
+            <Input id="audience" value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="recordingVenue">Recording Venue</AudioFieldLabel>
+            <Input id="recordingVenue" value={form.recordingVenue} onChange={(e) => setForm({ ...form, recordingVenue: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="city">City</AudioFieldLabel>
+            <Input id="city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="region">Region</AudioFieldLabel>
+            <Input id="region" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="dateCreated">Date Created</AudioFieldLabel>
+            <Input id="dateCreated" type="date" value={form.dateCreated} onChange={(e) => setForm({ ...form, dateCreated: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="datePublished">Date Published</AudioFieldLabel>
+            <Input id="datePublished" type="date" value={form.datePublished} onChange={(e) => setForm({ ...form, datePublished: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="dateModified">Date Modified</AudioFieldLabel>
+            <Input id="dateModified" type="date" value={form.dateModified} onChange={(e) => setForm({ ...form, dateModified: e.target.value })} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Tags & Keywords</CardTitle>
+          <CardDescription className="text-xs">Discovery tags and keywords for researchers.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="audioTags" fieldKey="tags">Tags</AudioFieldLabel>
+            <TagSuggestInput id="audioTags" value={form.tags} onChange={(next) => setForm({ ...form, tags: next })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="audioKeywords" fieldKey="keywords">Keywords</AudioFieldLabel>
+            <KeywordSuggestInput id="audioKeywords" value={form.keywords} onChange={(next) => setForm({ ...form, keywords: next })} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Archival</CardTitle>
+          <CardDescription className="text-xs">Physical copy availability, archive location, and digitization details.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
+          <div className="flex items-center gap-2 sm:col-span-2">
+            <input
+              id="physicalAvailability"
+              type="checkbox"
+              checked={Boolean(form.physicalAvailability)}
+              onChange={(e) => setForm({ ...form, physicalAvailability: e.target.checked })}
+              className="size-4 rounded border-input"
+            />
+            <Label htmlFor="physicalAvailability" className="cursor-pointer">
+              A physical copy is available
+            </Label>
+            <FieldHelpButton metadata={getAudioFieldMetadata('physicalAvailability')} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="physicalLabel">Physical Label</AudioFieldLabel>
+            <Input id="physicalLabel" value={form.physicalLabel} onChange={(e) => setForm({ ...form, physicalLabel: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="locationArchive">Archive Location</AudioFieldLabel>
+            <Input id="locationArchive" value={form.locationArchive} onChange={(e) => setForm({ ...form, locationArchive: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="degitizedBy">Digitized By</AudioFieldLabel>
+            <Input id="degitizedBy" value={form.degitizedBy} onChange={(e) => setForm({ ...form, degitizedBy: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="degitizationEquipment">Digitization Equipment</AudioFieldLabel>
+            <Input id="degitizationEquipment" value={form.degitizationEquipment} onChange={(e) => setForm({ ...form, degitizationEquipment: e.target.value })} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Technical</CardTitle>
+          <CardDescription className="text-xs">Channel, bit-rate, sample-rate, etc. — extension and file size auto-fill from the picked file.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="audioChannel">Channel</AudioFieldLabel>
+            <Input id="audioChannel" value={form.audioChannel} onChange={(e) => setForm({ ...form, audioChannel: e.target.value })} placeholder="Mono, Stereo…" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="fileExtension">File Extension</AudioFieldLabel>
+            <Input id="fileExtension" value={form.fileExtension} onChange={(e) => setForm({ ...form, fileExtension: e.target.value })} placeholder="auto-filled from file (wav, mp3…)" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="fileSize">File Size</AudioFieldLabel>
+            <Input id="fileSize" value={form.fileSize} onChange={(e) => setForm({ ...form, fileSize: e.target.value })} placeholder="auto-filled from file (e.g. 45.2 MB)" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="bitRate">Bit Rate</AudioFieldLabel>
+            <Input id="bitRate" value={form.bitRate} onChange={(e) => setForm({ ...form, bitRate: e.target.value })} placeholder="e.g. 320 kbps" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="bitDepth">Bit Depth</AudioFieldLabel>
+            <Input id="bitDepth" value={form.bitDepth} onChange={(e) => setForm({ ...form, bitDepth: e.target.value })} placeholder="e.g. 24-bit" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="sampleRate">Sample Rate</AudioFieldLabel>
+            <Input id="sampleRate" value={form.sampleRate} onChange={(e) => setForm({ ...form, sampleRate: e.target.value })} placeholder="e.g. 48 kHz" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="audioQualityOutOf10">Quality (0–10)</AudioFieldLabel>
+            <Input id="audioQualityOutOf10" type="number" min="0" max="10" step="1" value={form.audioQualityOutOf10} onChange={(e) => setForm({ ...form, audioQualityOutOf10: e.target.value })} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Storage</CardTitle>
+          <CardDescription className="text-xs">
+            File metadata fills automatically. Enter source Volume, Directory, External Path, and cloud/archive Auto Path when required.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="volumeName">Volume</AudioFieldLabel>
+            <Input id="volumeName" value={form.volumeName} onChange={(e) => setForm({ ...form, volumeName: getVolumeNameFromPath(e.target.value) || e.target.value })} placeholder="Volume name or /Volumes/Hard1/…" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="directoryName">Directory</AudioFieldLabel>
+            <Input id="directoryName" value={form.directoryName} onChange={(e) => setForm({ ...form, directoryName: e.target.value })} placeholder="Parent folder, e.g. Hassan_Zirak" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="pathInExternal">External Path</AudioFieldLabel>
+            <Input id="pathInExternal" value={form.pathInExternal} onChange={(e) => setForm({ ...form, pathInExternal: e.target.value })} placeholder="e.g. F:\\KHI_Audio\\Hassan_Zirak\\track.wav" />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="autoPath">Auto Path</AudioFieldLabel>
+            <Input id="autoPath" value={form.autoPath} onChange={(e) => setForm({ ...form, autoPath: e.target.value })} placeholder="e.g. https://cloud.khi.org/audio/…" />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <AudioFieldLabel htmlFor="audioFileNote">File Note</AudioFieldLabel>
+            <textarea id="audioFileNote" className={TEXTAREA_CLASS} value={form.audioFileNote} onChange={(e) => setForm({ ...form, audioFileNote: e.target.value })} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card shadow-sm shadow-black/5">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="text-base font-semibold">Rights & Provenance</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="copyright">Copyright</AudioFieldLabel>
+            <Input id="copyright" value={form.copyright} onChange={(e) => setForm({ ...form, copyright: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="rightOwner">Right Owner</AudioFieldLabel>
+            <Input id="rightOwner" value={form.rightOwner} onChange={(e) => setForm({ ...form, rightOwner: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="dateCopyrighted">Date Copyrighted</AudioFieldLabel>
+            <Input id="dateCopyrighted" type="date" value={form.dateCopyrighted} onChange={(e) => setForm({ ...form, dateCopyrighted: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="availability">Availability</AudioFieldLabel>
+            <Input id="availability" value={form.availability} onChange={(e) => setForm({ ...form, availability: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="licenseType">License Type</AudioFieldLabel>
+            <Input id="licenseType" value={form.licenseType} onChange={(e) => setForm({ ...form, licenseType: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="usageRights">Usage Rights</AudioFieldLabel>
+            <Input id="usageRights" value={form.usageRights} onChange={(e) => setForm({ ...form, usageRights: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="owner">Owner</AudioFieldLabel>
+            <Input id="owner" value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="publisher">Publisher</AudioFieldLabel>
+            <Input id="publisher" value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="provenance">Provenance</AudioFieldLabel>
+            <Input id="provenance" value={form.provenance} onChange={(e) => setForm({ ...form, provenance: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="accrualMethod">Accrual Method</AudioFieldLabel>
+            <Input id="accrualMethod" value={form.accrualMethod} onChange={(e) => setForm({ ...form, accrualMethod: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="lccClassification">LCC Classification</AudioFieldLabel>
+            <Input id="lccClassification" value={form.lccClassification} onChange={(e) => setForm({ ...form, lccClassification: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <AudioFieldLabel htmlFor="archiveLocalNote">Archive Local Note</AudioFieldLabel>
+            <textarea id="archiveLocalNote" className={TEXTAREA_CLASS} value={form.archiveLocalNote} onChange={(e) => setForm({ ...form, archiveLocalNote: e.target.value })} />
+          </div>
+        </CardContent>
+      </Card>
+    </>
   )
 }
 
