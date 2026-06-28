@@ -10,7 +10,12 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { getFileSourcePath } from '@/lib/file-source-path'
+import { Input } from '@/components/ui/input'
+import {
+  getFileSourcePath,
+  getVolumeNameFromPath,
+  setFileSourceFolderPath,
+} from '@/lib/file-source-path'
 
 function defaultFileMatcher() {
   return true
@@ -46,6 +51,7 @@ export function SingleMediaFilePicker({
   const inputRef = useRef(null)
   const [folderFiles, setFolderFiles] = useState([])
   const [folderName, setFolderName] = useState('')
+  const [sourceFolderPath, setSourceFolderPath] = useState('')
   const [error, setError] = useState('')
 
   const sortedFiles = useMemo(
@@ -67,6 +73,7 @@ export function SingleMediaFilePicker({
     setError('')
     setFolderFiles([])
     setFolderName('')
+    setSourceFolderPath('')
     onFileChange(null)
     clearInput()
   }
@@ -83,6 +90,7 @@ export function SingleMediaFilePicker({
 
     if (files.length === 0) return
 
+    setSourceFolderPath('')
     const compatibleFiles = files.filter(isAcceptedFile)
     if (compatibleFiles.length === 0) {
       setFolderFiles([])
@@ -99,9 +107,12 @@ export function SingleMediaFilePicker({
   const chooseFile = (picked) => {
     if (!picked || !isAcceptedFile(picked)) return
     setError('')
+    setFileSourceFolderPath(picked, sourceFolderPath)
     // Only this one File is passed to form state and the upload service.
     onFileChange(picked)
   }
+
+  const sourceVolumeName = getVolumeNameFromPath(sourceFolderPath)
 
   if (file) {
     const source = getFileSourcePath(file)
@@ -179,6 +190,34 @@ export function SingleMediaFilePicker({
               <RefreshCw className="size-3.5" />
               Change folder
             </Button>
+          </div>
+
+          <div className="space-y-1.5 border-b border-border px-4 py-3.5">
+            <label
+              htmlFor={`${id}-source-folder-path`}
+              className="text-xs font-semibold text-foreground"
+            >
+              Full source folder path
+            </label>
+            <Input
+              id={`${id}-source-folder-path`}
+              value={sourceFolderPath}
+              onChange={(event) => setSourceFolderPath(event.target.value)}
+              placeholder="/Volumes/Hard1/…/1 MP3"
+              className="font-mono text-xs"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              {sourceVolumeName ? (
+                <>
+                  Volume will be filled as{' '}
+                  <span className="font-semibold text-foreground">{sourceVolumeName}</span>.
+                </>
+              ) : (
+                'Paste the Finder folder path so the browser can identify the storage volume.'
+              )}
+            </p>
           </div>
 
           <div className="max-h-72 divide-y divide-border overflow-y-auto p-1.5">
