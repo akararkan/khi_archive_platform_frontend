@@ -121,3 +121,44 @@ export function getFileSourcePath(file) {
     directory: parts[parts.length - 2] || '',
   }
 }
+
+/**
+ * True only in a desktop shell that can expose a File's native disk path.
+ * A normal browser deliberately hides that path.
+ */
+export function isElectronRuntime() {
+  if (typeof window === 'undefined') return false
+
+  return Boolean(
+    window.electron ||
+      window.electronAPI ||
+      window.process?.versions?.electron ||
+      window.navigator?.userAgent?.includes('Electron'),
+  )
+}
+
+/**
+ * Compatibility shape used by EmployeeProjectDetailPage's storage auto-fill.
+ */
+export function parseFileSourcePath(file) {
+  const source = getFileSourcePath(file)
+  const nativePath = String(file?.path || file?.fullPath || '').replace(/\\/g, '/')
+  let externalPath = source.path
+
+  if (nativePath && source.volumeName) {
+    if (nativePath.startsWith('/Volumes/')) {
+      externalPath = nativePath.split('/').filter(Boolean).slice(2).join('/')
+    } else if (/^[A-Za-z]:\//.test(nativePath)) {
+      externalPath = nativePath.replace(/^[A-Za-z]:\/+/, '')
+    }
+  }
+
+  const directoryParts = normalizePath(source.directory).split('/').filter(Boolean)
+
+  return {
+    volumeName: source.volumeName,
+    directoryName: directoryParts.at(-1) || '',
+    externalPath,
+    autoPath: externalPath,
+  }
+}
