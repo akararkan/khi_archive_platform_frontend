@@ -15,7 +15,31 @@ import {
   getFileSourcePath,
   getVolumeNameFromPath,
   setFileSourceFolderPath,
+  setFileSourceVolumeName,
 } from '@/lib/file-source-path'
+
+const SOURCE_VOLUME_STORAGE_KEY = 'khi-source-volume-name'
+
+function resolveSourceVolume(value) {
+  return getVolumeNameFromPath(value) || String(value || '').trim()
+}
+
+function getRememberedSourceVolume() {
+  try {
+    return window.localStorage.getItem(SOURCE_VOLUME_STORAGE_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+function rememberSourceVolume(value) {
+  try {
+    if (value) window.localStorage.setItem(SOURCE_VOLUME_STORAGE_KEY, value)
+    else window.localStorage.removeItem(SOURCE_VOLUME_STORAGE_KEY)
+  } catch {
+    // Storage may be unavailable in a private browser context.
+  }
+}
 
 function defaultFileMatcher() {
   return true
@@ -51,7 +75,7 @@ export function SingleMediaFilePicker({
   const inputRef = useRef(null)
   const [folderFiles, setFolderFiles] = useState([])
   const [folderName, setFolderName] = useState('')
-  const [sourceFolderPath, setSourceFolderPath] = useState('')
+  const [sourceVolumeInput, setSourceVolumeInput] = useState(getRememberedSourceVolume)
   const [error, setError] = useState('')
 
   const sortedFiles = useMemo(
@@ -73,7 +97,6 @@ export function SingleMediaFilePicker({
     setError('')
     setFolderFiles([])
     setFolderName('')
-    setSourceFolderPath('')
     onFileChange(null)
     clearInput()
   }
@@ -90,7 +113,6 @@ export function SingleMediaFilePicker({
 
     if (files.length === 0) return
 
-    setSourceFolderPath('')
     const compatibleFiles = files.filter(isAcceptedFile)
     if (compatibleFiles.length === 0) {
       setFolderFiles([])
@@ -107,12 +129,28 @@ export function SingleMediaFilePicker({
   const chooseFile = (picked) => {
     if (!picked || !isAcceptedFile(picked)) return
     setError('')
-    setFileSourceFolderPath(picked, sourceFolderPath)
+    const volumeName = resolveSourceVolume(sourceVolumeInput)
+    setFileSourceFolderPath(picked, sourceVolumeInput)
+    setFileSourceVolumeName(picked, volumeName)
+    rememberSourceVolume(volumeName)
     // Only this one File is passed to form state and the upload service.
     onFileChange(picked)
   }
 
-  const sourceVolumeName = getVolumeNameFromPath(sourceFolderPath)
+  const sourceVolumeName = resolveSourceVolume(sourceVolumeInput)
+
+  const updateSelectedFileSourceVolume = (value) => {
+    setSourceVolumeInput(value)
+    const volumeName = resolveSourceVolume(value)
+    if (!file || !volumeName) return
+
+    setFileSourceFolderPath(file, value)
+    setFileSourceVolumeName(file, volumeName)
+    rememberSourceVolume(volumeName)
+    // Re-run the owning form's auto-fill now that the browser-hidden volume
+    // name is available. This shared picker covers every media form.
+    onFileChange(file)
+  }
 
   if (file) {
     const source = getFileSourcePath(file)
@@ -149,6 +187,33 @@ export function SingleMediaFilePicker({
           >
             <X className="size-4" />
           </Button>
+        </div>
+
+        <div className="space-y-1.5 border-t border-emerald-500/15 bg-background/50 px-4 py-3.5">
+          <label
+            htmlFor={`${id}-selected-source-volume`}
+            className="text-xs font-semibold text-foreground"
+          >
+            Source volume / device
+          </label>
+          <Input
+            id={`${id}-selected-source-volume`}
+            value={sourceVolumeInput}
+            onChange={(event) => updateSelectedFileSourceVolume(event.target.value)}
+            placeholder="e.g. Hard1"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            {source.volumeName ? (
+              <>
+                Volume filled as{' '}
+                <span className="font-semibold text-foreground">{source.volumeName}</span>.
+              </>
+            ) : (
+              'Enter the device name once; it is remembered for every media type.'
+            )}
+          </p>
         </div>
 
         {folderFiles.length > 0 ? (
@@ -194,17 +259,16 @@ export function SingleMediaFilePicker({
 
           <div className="space-y-1.5 border-b border-border px-4 py-3.5">
             <label
-              htmlFor={`${id}-source-folder-path`}
+              htmlFor={`${id}-source-volume`}
               className="text-xs font-semibold text-foreground"
             >
-              Full source folder path
+              Source volume / device
             </label>
             <Input
-              id={`${id}-source-folder-path`}
-              value={sourceFolderPath}
-              onChange={(event) => setSourceFolderPath(event.target.value)}
-              placeholder="/Volumes/Hard1/…/1 MP3"
-              className="font-mono text-xs"
+              id={`${id}-source-volume`}
+              value={sourceVolumeInput}
+              onChange={(event) => setSourceVolumeInput(event.target.value)}
+              placeholder="e.g. Hard1"
               autoComplete="off"
               spellCheck={false}
             />
@@ -215,7 +279,7 @@ export function SingleMediaFilePicker({
                   <span className="font-semibold text-foreground">{sourceVolumeName}</span>.
                 </>
               ) : (
-                'Paste the Finder folder path so the browser can identify the storage volume.'
+                'Enter the device name once; it will be remembered for audio, video, image, and text.'
               )}
             </p>
           </div>

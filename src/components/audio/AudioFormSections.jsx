@@ -8,6 +8,7 @@ import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
 import { KeywordSuggestInput } from '@/components/ui/keyword-suggest-input'
 import { FieldHelpButton } from '@/components/ui/field-help'
 import { getAudioFieldMetadata } from '@/lib/audio-fields-metadata'
+import { getVolumeNameFromPath } from '@/lib/file-source-path'
 import { cn } from '@/lib/utils'
 
 // Extracted verbatim from EmployeeProjectDetailPage so the audio metadata form
@@ -400,7 +401,7 @@ export function AudioFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="volumeName">Volume</AudioFieldLabel>
-            <Input id="volumeName" value={form.volumeName} onChange={(e) => setForm({ ...form, volumeName: e.target.value })} placeholder="Source storage, device, or volume" />
+            <Input id="volumeName" value={form.volumeName} onChange={(e) => setForm({ ...form, volumeName: getVolumeNameFromPath(e.target.value) || e.target.value })} placeholder="Volume name or /Volumes/Hard1/…" />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="directoryName">Directory</AudioFieldLabel>

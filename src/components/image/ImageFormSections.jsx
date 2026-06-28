@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { TagsInput } from '@/components/ui/tags-input'
 import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
 import { KeywordSuggestInput } from '@/components/ui/keyword-suggest-input'
+import { getVolumeNameFromPath } from '@/lib/file-source-path'
 import { cn } from '@/lib/utils'
 import { getImageFieldMetadata } from '@/lib/image-fields-metadata'
 
@@ -355,7 +356,7 @@ function ImageFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <ImageFieldLabel htmlFor="img-volumeName">Volume</ImageFieldLabel>
-            <Input id="img-volumeName" value={form.volumeName} onChange={(e) => setForm({ ...form, volumeName: e.target.value })} placeholder="Source storage, device, or volume" />
+            <Input id="img-volumeName" value={form.volumeName} onChange={(e) => setForm({ ...form, volumeName: getVolumeNameFromPath(e.target.value) || e.target.value })} placeholder="Volume name or /Volumes/Hard1/…" />
           </div>
           <div className="space-y-1.5">
             <ImageFieldLabel htmlFor="img-directory">Directory</ImageFieldLabel>
