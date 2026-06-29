@@ -15,9 +15,9 @@
 //                        gain.)
 //   image (JPEG/PNG/...) Natural width/height via Image() — universal
 //                        across formats, no deps.
-//   text  (PDF/TXT/...)  Just the file's own size + extension; PDF
-//                        document metadata would need pdf.js, which is
-//                        ~700KB of bundle for very little gain.
+//   text  (PDF/TXT/...)  PDF page count, orientation, paper size and
+//                        physical page dimensions. Other text formats
+//                        keep the basic size + extension from text-form.
 //
 // All readers return `null`-or-empty values rather than throwing, so a
 // flaky file (no tags, broken header, unsupported codec) just leaves
@@ -496,16 +496,25 @@ export async function extractImageMetadata(file) {
   return { width: dims.width, height: dims.height }
 }
 
-// ── Text/PDF: lightweight stub ─────────────────────────────────────────
+// ── Text/PDF ───────────────────────────────────────────────────────────
 //
-// Browser-side PDF metadata requires pdf.js (~700KB), and the rest of
-// the supported text formats (txt, doc, docx, …) don't have widely-
-// portable metadata. We'd rather have the backend extract this on
-// upload than ship a heavy parser here. The function exists so the
-// per-kind file-picked handlers can call it uniformly.
+// PDF.js lives in its own lazy-loaded chunk, so audio/video/image users
+// don't download it. A PDF's first page supplies its displayed page box;
+// together with numPages this is the authoritative source for all four
+// document fields used by the text form.
 export async function extractTextMetadata(file) {
   if (!file) return null
-  return null
+  const isPdf =
+    file.type === 'application/pdf' ||
+    String(file.name || '').toLowerCase().endsWith('.pdf')
+  if (!isPdf) return null
+
+  try {
+    const { extractPdfMetadata } = await import('./pdf-metadata.js')
+    return await extractPdfMetadata(file)
+  } catch {
+    return null
+  }
 }
 
 // ── Helpers shared by the per-kind form mappers ────────────────────────
@@ -601,6 +610,12 @@ export function imageMetadataToForm(meta) {
   return out
 }
 
-export function textMetadataToForm() {
-  return {}
+export function textMetadataToForm(meta) {
+  if (!meta) return {}
+  const out = {}
+  if (Number.isInteger(meta.pageCount) && meta.pageCount > 0) out.pageCount = meta.pageCount
+  if (meta.orientation) out.orientation = meta.orientation
+  if (meta.size) out.size = meta.size
+  if (meta.physicalDimensions) out.physicalDimensions = meta.physicalDimensions
+  return out
 }

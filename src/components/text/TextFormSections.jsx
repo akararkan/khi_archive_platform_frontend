@@ -297,7 +297,7 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
       <Card className="border-border bg-card shadow-sm shadow-black/5">
         <CardHeader className="border-b border-border pb-4">
           <CardTitle className="text-base font-semibold">Technical</CardTitle>
-          <CardDescription className="text-xs">Pages, dimensions — extension and file size auto-fill from the picked file.</CardDescription>
+          <CardDescription className="text-xs">Pages, orientation, paper size, dimensions, extension and file size auto-fill from the picked file.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
           <div className="space-y-1.5">

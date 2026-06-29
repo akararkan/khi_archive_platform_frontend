@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, FileUp, Loader2 } from 'lucide-react'
 
 import { EmployeeEntityPage } from '@/components/employee/EmployeeEntityPage'
@@ -36,6 +36,7 @@ import {
   deriveTextAutoFieldsFromFile,
   populateTextFormFromText,
 } from '@/lib/text-form'
+import { extractTextMetadata, textMetadataToForm } from '@/lib/media-metadata'
 
 import { getAudio, updateAudio } from '@/services/audio'
 import { getVideo, updateVideo } from '@/services/video'
@@ -135,6 +136,7 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
   const [isSaving, setIsSaving] = useState(false)
   const [file, setFile] = useState(null)
   const [projectCategories, setProjectCategories] = useState([])
+  const metadataSessionRef = useRef(0)
 
   // Populate the form with the record's CURRENT field values, then load the
   // parent project's categories for the genre picker.
@@ -142,6 +144,7 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
   useEffect(() => {
     if (!item || !cfg) return undefined
     let cancelled = false
+    metadataSessionRef.current += 1
 
     // Instant partial fill from whatever the list row already carries, so the
     // form isn't blank while the full record loads.
@@ -188,11 +191,24 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
   const FormSections = cfg.FormSections
 
   const handlePickFile = (picked) => {
+    const sessionId = ++metadataSessionRef.current
     setFile(picked)
     // Replacing the file means the file-bound technical fields should follow it.
     if (picked) {
       const derived = cfg.derive(picked)
       if (derived) setForm((f) => ({ ...f, ...derived }))
+
+      if (item.type === 'TEXT') {
+        extractTextMetadata(picked)
+          .then((metadata) => {
+            if (sessionId !== metadataSessionRef.current) return
+            const extracted = textMetadataToForm(metadata)
+            if (Object.keys(extracted).length > 0) {
+              setForm((current) => ({ ...current, ...extracted }))
+            }
+          })
+          .catch(() => {})
+      }
     }
   }
 
@@ -255,7 +271,7 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
                 <CardTitle className="text-base font-semibold">Replace file</CardTitle>
                 <CardDescription className="text-xs">
                   Optional — leave empty to keep the current file. Picking a new one re-fills the
-                  extension, size and path fields.
+                  file metadata and path fields.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 pt-5">

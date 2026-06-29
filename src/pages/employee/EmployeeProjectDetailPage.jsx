@@ -1388,19 +1388,20 @@ function EmployeeProjectDetailPage() {
 
     const auto = deriveTextAutoFieldsFromFile(file)
     setTextFile(file)
-    setTextForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
+    // These values describe the selected file itself, so a replacement file
+    // must replace values belonging to the previous upload as well.
+    setTextForm((prev) => ({ ...prev, ...auto }))
     lastAutoFilledRef.current = auto
 
-    // Async: text/PDF metadata extractor is currently a stub (PDF
-    // metadata would need pdf.js, ~700KB). Keep the call so the
-    // pattern is uniform across kinds and so backend-side metadata
-    // can populate this hook later.
+    // Async: PDF.js reads the document count and first-page box directly
+    // from the selected PDF. The mapper derives orientation, named paper
+    // size and centimetre dimensions from that page box.
     extractTextMetadata(file)
       .then((meta) => {
         if (sessionId !== metaSessionRef.current) return
         const extra = textMetadataToForm(meta)
         if (Object.keys(extra).length === 0) return
-        setTextForm((prev) => mergeAutoFilled(prev, extra, lastAutoFilledRef.current))
+        setTextForm((prev) => ({ ...prev, ...extra }))
         lastAutoFilledRef.current = { ...lastAutoFilledRef.current, ...extra }
       })
       .catch(() => {})
