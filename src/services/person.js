@@ -136,7 +136,7 @@ export async function updatePerson(code, payload, mediaPortrait) {
 //   {
 //     personCode: "PER0042",
 //     trashedProjectsCount: 2,
-//     trashedProjectCodes: ["PER0042_PROJ_000001", "PER0042_PROJ_000002"]
+//     trashedProjectCodes: ["PERSONCODE-PROJ-000001", "NATURE-PROJ-000006"]
 //   }
 // The body is empty `{}` if there were no active projects to trash.
 export async function deletePerson(code) {
@@ -152,7 +152,7 @@ export async function deletePerson(code) {
 //   {
 //     person: { ... PersonResponseDTO ... },
 //     restoredProjectsCount: 2,
-//     restoredProjectCodes: ["PER0042_PROJ_000001", "PER0042_PROJ_000002"],
+//     restoredProjectCodes: ["PERSONCODE-PROJ-000001", "NATURE-PROJ-000006"],
 //   }
 export async function restorePerson(code) {
   const { data } = await apiClient.post(`/person/${code}/restore`)

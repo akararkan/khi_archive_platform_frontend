@@ -47,8 +47,10 @@ function isCorrectionWarning(w) {
 // Extract a media code from a warning message if the backend embeds it.
 function extractMediaCode(message = '') {
   // Backend typically includes the code in the message, e.g.:
-  // "record code: AHMETTÜRK_V6_PROJ_000002_AUD_RAW_V1_000002"
-  const match = message.match(/\b([A-Z0-9_]{10,}(?:AUD|VID|IMG|TXT)[A-Z0-9_]*)\b/i)
+  // "record code: NATURE(OLD_PICTURES)_IMG_RAW_V1_Copy(1)_000001"
+  const match =
+    message.match(/([A-Z0-9()_-]+_(?:AUD|VID|IMG|TXT)_[A-Z0-9()_-]+)/i) ??
+    message.match(/\b([A-Z0-9_]{10,}(?:AUD|VID|IMG|TXT)[A-Z0-9_]*)\b/i)
   return match?.[1] ?? null
 }
 

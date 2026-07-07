@@ -1574,7 +1574,7 @@ function EmployeeProjectDetailPage() {
             <Card className="border-border bg-card shadow-sm shadow-black/5">
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="text-base font-semibold">Identity</CardTitle>
-                <CardDescription className="text-xs">Version, copy and the auto-generated image code.</CardDescription>
+                <CardDescription className="text-xs">Version, copy, and the backend-generated image code.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5 pt-5">
                 <div className="grid gap-5 sm:grid-cols-3">
@@ -1621,12 +1621,7 @@ function EmployeeProjectDetailPage() {
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Auto-generated as{' '}
-                    <span className="font-mono font-semibold text-foreground">
-                      {project?.personCode
-                        ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_IMG_${imageForm.imageVersion || 'RAW'}_V${imageForm.versionNumber || '1'}_Copy(${imageForm.copyNumber || '1'})_000001`
-                        : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_IMG_${imageForm.imageVersion || 'RAW'}_V${imageForm.versionNumber || '1'}_Copy(${imageForm.copyNumber || '1'})_000001`}
-                    </span>
+                    The backend will generate the image code after save.
                   </p>
                 )}
               </CardContent>
@@ -1784,7 +1779,7 @@ function EmployeeProjectDetailPage() {
             <Card className="border-border bg-card shadow-sm shadow-black/5">
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="text-base font-semibold">Identity</CardTitle>
-                <CardDescription className="text-xs">Version, copy and the auto-generated text code.</CardDescription>
+                <CardDescription className="text-xs">Version, copy, and the backend-generated text code.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5 pt-5">
                 <div className="grid gap-5 sm:grid-cols-3">
@@ -1831,12 +1826,7 @@ function EmployeeProjectDetailPage() {
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Auto-generated as{' '}
-                    <span className="font-mono font-semibold text-foreground">
-                      {project?.personCode
-                        ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_TXT_${textForm.textVersion || 'RAW'}_V${textForm.versionNumber || '1'}_Copy(${textForm.copyNumber || '1'})_000001`
-                        : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_TXT_${textForm.textVersion || 'RAW'}_V${textForm.versionNumber || '1'}_Copy(${textForm.copyNumber || '1'})_000001`}
-                    </span>
+                    The backend will generate the text code after save.
                   </p>
                 )}
               </CardContent>
@@ -2000,7 +1990,7 @@ function EmployeeProjectDetailPage() {
             <Card className="border-border bg-card shadow-sm shadow-black/5">
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="text-base font-semibold">Identity</CardTitle>
-                <CardDescription className="text-xs">Version, copy and the auto-generated video code.</CardDescription>
+                <CardDescription className="text-xs">Version, copy, and the backend-generated video code.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5 pt-5">
                 <div className="grid gap-5 sm:grid-cols-3">
@@ -2047,12 +2037,7 @@ function EmployeeProjectDetailPage() {
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Auto-generated as{' '}
-                    <span className="font-mono font-semibold text-foreground">
-                      {project?.personCode
-                        ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_VID_${videoForm.videoVersion || 'RAW'}_V${videoForm.versionNumber || '1'}_Copy(${videoForm.copyNumber || '1'})_000001`
-                        : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_VID_${videoForm.videoVersion || 'RAW'}_V${videoForm.versionNumber || '1'}_Copy(${videoForm.copyNumber || '1'})_000001`}
-                    </span>
+                    The backend will generate the video code after save.
                   </p>
                 )}
               </CardContent>
@@ -2218,7 +2203,7 @@ function EmployeeProjectDetailPage() {
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="text-base font-semibold">Identity</CardTitle>
                 <CardDescription className="text-xs">
-                  Version, copy and the auto-generated audio code.
+                  Version, copy, and the backend-generated audio code.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5 pt-5">
@@ -2282,12 +2267,7 @@ function EmployeeProjectDetailPage() {
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Auto-generated as{' '}
-                    <span className="font-mono font-semibold text-foreground">
-                      {project?.personCode
-                        ? `${(project.personName || project.personCode).replace(/\s+/g, '').toUpperCase().slice(0, 8)}_AUD_${form.audioVersion || 'RAW'}_V${form.versionNumber || '1'}_Copy(${form.copyNumber || '1'})_000001`
-                        : `${(project?.categories?.[0]?.categoryName || project?.categories?.[0]?.categoryCode || 'CATEGORY').replace(/\s+/g, '').toUpperCase().slice(0, 8)}_AUD_${form.audioVersion || 'RAW'}_V${form.versionNumber || '1'}_Copy(${form.copyNumber || '1'})_000001`}
-                    </span>
+                    The backend will generate the audio code after save.
                   </p>
                 )}
               </CardContent>
@@ -2493,7 +2473,7 @@ function EmployeeProjectDetailPage() {
                     <span className="font-mono text-[10px] text-muted-foreground">{project.personCode}</span>
                   </>
                 ) : (
-                  'Untitled (no person)'
+                  'No person linked'
                 )}
               </span>
             </div>

@@ -87,7 +87,7 @@ function ProjectDetailsModal({ project, open, onOpenChange }) {
 
   const personLabel = project.personCode
     ? project.personName || project.personCode
-    : 'Untitled (no person)'
+    : 'No person linked'
   const categories = Array.isArray(project.categories) ? project.categories : []
   const audioCount = Array.isArray(project.audios) ? project.audios.length : project.audioCount
 

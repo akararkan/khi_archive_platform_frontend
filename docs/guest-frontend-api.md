@@ -226,6 +226,11 @@ GET /api/guest/persons/{personCode}
 GET /api/guest/persons/{personCode}/projects
 ```
 
+Project codes are backend-generated. Person-linked projects use
+`PERSONCODE-PROJ-######`, while person-less projects use
+`PROJECTNAME-PROJ-######`. The frontend should store and reuse the returned
+`projectCode` from create/update responses instead of composing its own.
+
 ## Media-Specific Pages
 Use `/feed` for the main mixed public page. Use media-specific endpoints only
 when the page needs fields unique to one media type.

@@ -14,8 +14,8 @@ import { cn } from '@/lib/utils'
  * pattern. Same visual shell as <ConfirmDialog>; the Confirm button
  * stays disabled until `value === codeToConfirm` exactly (case-sensitive
  * by default — codes in this archive are uppercase identifiers like
- * `HAZAZIRA_PROJ_000002`, where a typo could mean trashing the wrong
- * thing on retry).
+ * `NATURE-PROJ-000006`, where a typo could mean trashing the wrong
+ * thing on retry.
  *
  * The input auto-focuses on open and the field clears whenever the
  * dialog opens for a new target, so the previous value can't leak
