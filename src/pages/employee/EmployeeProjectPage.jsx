@@ -66,6 +66,7 @@ import {
 } from '@/services/project'
 
 const PROJECTS_PAGE_SIZE = 100
+const PROJECT_CODE_PATTERN = /^[A-Z0-9_-]+-PROJ-\d{6}$/
 const PROJECT_CODE_SUFFIX_RE = /-PROJ-(\d{6})$/i
 
 function toArray(value) {
@@ -86,9 +87,23 @@ function projectCodePrefix(value) {
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
     .replace(/&/g, 'AND')
-    .replace(/[^A-Z0-9]+/g, '')
-    .slice(0, 32)
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 48)
+    .replace(/-$/g, '')
   return prefix || 'PROJECT'
+}
+
+function formatProjectCodeInput(value) {
+  return String(value || '')
+    .trim()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^A-Z0-9_-]/g, '-')
+    .replace(/-+/g, '-')
 }
 
 function nextProjectCodeNumber(projects) {
@@ -112,6 +127,7 @@ function buildProjectCode(form, projects) {
 function createInitialForm() {
   return {
     projectName: '',
+    projectCode: '',
     personKind: PERSON_KIND_PERSON,
     personCode: '',
     categoryCodes: [],
@@ -126,6 +142,7 @@ function createInitialForm() {
 function populateFormFromProject(project) {
   return {
     projectName: project.projectName || '',
+    projectCode: project.projectCode || '',
     personKind: project.personCode ? PERSON_KIND_PERSON : PERSON_KIND_NONE,
     personCode: project.personCode || '',
     categoryCodes: (project.categories || [])
@@ -161,6 +178,7 @@ function EmployeeProjectPage() {
   const [currentProject, setCurrentProject] = useState(null)
 
   const [form, setForm] = useState(createInitialForm)
+  const [isProjectCodeManual, setIsProjectCodeManual] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
@@ -285,6 +303,7 @@ function EmployeeProjectPage() {
   const handleOpenCreate = () => {
     setCurrentProject(null)
     setForm(createInitialForm())
+    setIsProjectCodeManual(false)
     setFormError('')
     loadLinkOptions()
     setView('create')
@@ -293,6 +312,7 @@ function EmployeeProjectPage() {
   const handleOpenEdit = (project) => {
     setCurrentProject(project)
     setForm(populateFormFromProject(project))
+    setIsProjectCodeManual(true)
     setFormError('')
     loadLinkOptions()
     setView('edit')
@@ -301,12 +321,15 @@ function EmployeeProjectPage() {
   const handleCloseForm = () => {
     setView('list')
     setCurrentProject(null)
+    setIsProjectCodeManual(false)
     setFormError('')
   }
 
   const buildCreatePayload = (existingProjects = projects) => ({
     projectName: form.projectName.trim(),
-    projectCode: buildProjectCode(form, existingProjects),
+    projectCode: isProjectCodeManual
+      ? formatProjectCodeInput(form.projectCode).trim()
+      : buildProjectCode(form, existingProjects),
     personCode:
       form.personKind === PERSON_KIND_PERSON && form.personCode.trim()
         ? form.personCode.trim()
@@ -353,6 +376,15 @@ function EmployeeProjectPage() {
     if (form.categoryCodes.length === 0) {
       setFormError('Pick at least one category for this project.')
       return
+    }
+    if (view === 'create') {
+      const projectCode = isProjectCodeManual
+        ? formatProjectCodeInput(form.projectCode).trim()
+        : buildProjectCode(form, projects)
+      if (!PROJECT_CODE_PATTERN.test(projectCode)) {
+        setFormError('Project code must look like NATURE-PROJ-000006.')
+        return
+      }
     }
 
     setIsSaving(true)
@@ -471,13 +503,17 @@ function EmployeeProjectPage() {
     const isPublicVisible = form.isVisibleToPublic === true
     // The cascade choice only matters when editing AND the flag actually changed.
     const visibilityDirty = isEdit && isPublicVisible !== (currentProject?.isVisibleToPublic === true)
+    const suggestedProjectCode =
+      form.personKind === PERSON_KIND_PERSON && !form.personCode.trim()
+        ? ''
+        : form.projectName.trim()
+        ? buildProjectCode(form, projects)
+        : ''
     const previewProjectCode = isEdit
       ? currentProject?.projectCode
-      : form.personKind === PERSON_KIND_PERSON && !form.personCode.trim()
-      ? null
-      : form.projectName.trim()
-      ? buildProjectCode(form, projects)
-      : null
+      : isProjectCodeManual
+      ? formatProjectCodeInput(form.projectCode)
+      : suggestedProjectCode
     return (
       <EmployeeEntityPage
         eyebrow={isEdit ? 'Editing' : 'New record'}
@@ -522,7 +558,10 @@ function EmployeeProjectPage() {
                       size="sm"
                       variant={form.personKind === PERSON_KIND_PERSON ? 'default' : 'outline'}
                       disabled={isEdit}
-                      onClick={() => setForm((f) => ({ ...f, personKind: PERSON_KIND_PERSON }))}
+                      onClick={() => {
+                        setIsProjectCodeManual(false)
+                        setForm((f) => ({ ...f, personKind: PERSON_KIND_PERSON }))
+                      }}
                     >
                       Linked to a person
                     </Button>
@@ -531,9 +570,10 @@ function EmployeeProjectPage() {
                       size="sm"
                       variant={form.personKind === PERSON_KIND_NONE ? 'default' : 'outline'}
                       disabled={isEdit}
-                      onClick={() =>
+                      onClick={() => {
+                        setIsProjectCodeManual(false)
                         setForm((f) => ({ ...f, personKind: PERSON_KIND_NONE, personCode: '' }))
-                      }
+                      }}
                     >
                       No person linked
                     </Button>
@@ -543,7 +583,10 @@ function EmployeeProjectPage() {
                       <SearchSelect
                         items={persons}
                         value={form.personCode}
-                        onChange={(next) => setForm({ ...form, personCode: next })}
+                        onChange={(next) => {
+                          setIsProjectCodeManual(false)
+                          setForm({ ...form, personCode: next })
+                        }}
                         getKey={(p) => p.personCode}
                         getLabel={(p) => p.fullName || p.personCode}
                         getSubtitle={(p) => p.personCode}
@@ -570,25 +613,49 @@ function EmployeeProjectPage() {
                   )}
                 </div>
 
-                <div className="space-y-1.5 rounded-lg border bg-muted/20 px-4 py-3">
+                <div className="space-y-2 rounded-lg border bg-muted/20 px-4 py-3">
                   <div className="flex items-center justify-between gap-2">
-                    <Label>Project code</Label>
+                    <Label htmlFor="projectCode">Project code</Label>
                     <FieldHelpButton metadata={getProjectFieldMetadata('projectCode')} />
                   </div>
-                  {previewProjectCode ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <CodeBadge code={previewProjectCode} variant="subtle" />
-                      <span className="text-xs text-muted-foreground">
-                        {isEdit ? 'Locked after creation.' : 'This code will be sent with the create request.'}
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      {form.personKind === PERSON_KIND_PERSON
-                        ? 'Choose a person to preview the project code.'
-                        : 'Enter a project name to preview the project code.'}
-                    </p>
-                  )}
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      id="projectCode"
+                      value={previewProjectCode || ''}
+                      onChange={(e) => {
+                        setIsProjectCodeManual(true)
+                        setForm({ ...form, projectCode: formatProjectCodeInput(e.target.value) })
+                      }}
+                      placeholder={
+                        form.personKind === PERSON_KIND_PERSON
+                          ? 'Choose a person first'
+                          : 'Enter a project name first'
+                      }
+                      disabled={isEdit}
+                      readOnly={isEdit}
+                      className="font-mono text-sm font-semibold tracking-[0.06em]"
+                    />
+                    {!isEdit ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="shrink-0 gap-2"
+                        disabled={!suggestedProjectCode}
+                        onClick={() => {
+                          setIsProjectCodeManual(false)
+                          setForm((f) => ({ ...f, projectCode: '' }))
+                        }}
+                      >
+                        <RefreshCw className="size-3.5" />
+                        Use suggested
+                      </Button>
+                    ) : null}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {isEdit
+                      ? 'Locked after creation.'
+                      : 'You can edit this before save. This exact code will be sent with the create request.'}
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">
