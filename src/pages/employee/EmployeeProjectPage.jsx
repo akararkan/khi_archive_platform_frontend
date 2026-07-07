@@ -107,6 +107,10 @@ function formatProjectCodeInput(value) {
     .replace(/^-|-$/g, '')
 }
 
+function projectCodeTextFromValue(value) {
+  return formatProjectCodeInput(value).replace(PROJECT_CODE_SUFFIX_RE, '')
+}
+
 function nextProjectCodeNumber(projects) {
   const max = (projects || []).reduce((highest, project) => {
     const match = String(project?.projectCode || '').match(PROJECT_CODE_SUFFIX_RE)
@@ -118,7 +122,7 @@ function nextProjectCodeNumber(projects) {
 }
 
 function buildProjectCodeFromPrefix(prefix, projects) {
-  return `${formatProjectCodeInput(prefix) || 'PROJECT'}-PROJ-${nextProjectCodeNumber(projects)}`
+  return `${projectCodeTextFromValue(prefix) || 'PROJECT'}-PROJ-${nextProjectCodeNumber(projects)}`
 }
 
 function buildProjectCode(form, projects) {
@@ -341,7 +345,7 @@ function EmployeeProjectPage() {
     }
     if (form.personKind === PERSON_KIND_NONE) {
       const prefix = isProjectCodeManual
-        ? formatProjectCodeInput(form.projectCode).trim()
+        ? projectCodeTextFromValue(form.projectCode).trim()
         : projectCodePrefix(form.projectName)
       payload.projectCode = buildProjectCodeFromPrefix(prefix, existingProjects)
     }
@@ -386,7 +390,7 @@ function EmployeeProjectPage() {
     }
     if (view === 'create' && form.personKind === PERSON_KIND_NONE) {
       const projectCodePrefixValue = isProjectCodeManual
-        ? formatProjectCodeInput(form.projectCode).trim()
+        ? projectCodeTextFromValue(form.projectCode).trim()
         : projectCodePrefix(form.projectName)
       if (!PROJECT_CODE_PREFIX_PATTERN.test(projectCodePrefixValue)) {
         setFormError('Project code text must use letters, numbers, hyphens, or underscores.')
@@ -520,7 +524,7 @@ function EmployeeProjectPage() {
     const projectCodeText = isEdit
       ? String(currentProject?.projectCode || '').replace(PROJECT_CODE_SUFFIX_RE, '')
       : isProjectCodeManual
-      ? formatProjectCodeInput(form.projectCode)
+      ? projectCodeTextFromValue(form.projectCode)
       : suggestedProjectCodeText
     const savedProjectCodePreview =
       showProjectCodeField && projectCodeText
@@ -613,7 +617,7 @@ function EmployeeProjectPage() {
                     </div>
                   ) : (
                     <p className="pt-1 text-xs text-muted-foreground">
-                      Type only the readable code text here. The frontend adds the project suffix when saving.
+                      Type only the readable code text here. The frontend sends the full project code shown below.
                     </p>
                   )}
                 </div>
@@ -630,7 +634,7 @@ function EmployeeProjectPage() {
                         value={projectCodeText || ''}
                         onChange={(e) => {
                           setIsProjectCodeManual(true)
-                          setForm({ ...form, projectCode: formatProjectCodeInput(e.target.value) })
+                          setForm({ ...form, projectCode: projectCodeTextFromValue(e.target.value) })
                         }}
                         placeholder="ORDINARY-SOUND"
                         disabled={isEdit}
@@ -657,7 +661,7 @@ function EmployeeProjectPage() {
                       {isEdit
                         ? 'Locked after creation.'
                         : savedProjectCodePreview
-                        ? `The saved project code will be ${savedProjectCodePreview}.`
+                        ? `The frontend will send ${savedProjectCodePreview}. The backend stores it as-is and appends media suffixes later.`
                         : 'Only no-person projects send this text from the frontend. You can edit it before save.'}
                     </p>
                   </div>

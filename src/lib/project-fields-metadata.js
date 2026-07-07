@@ -6,7 +6,7 @@ const projectFieldsMetadata = {
   projectCode: {
     title: 'کۆدی پڕۆژە',
     description:
-      'بۆ پڕۆژەی بەکەس، frontend کۆدی پڕۆژە نانێرێت و backend وەک پێشوو دروستی دەکات. تەنها بۆ پڕۆژەی بێکەس frontend کۆدی وەک `NATURE-PROJ-000006` دەنێرێت.',
+      'بۆ پڕۆژەی بەکەس، frontend کۆدی پڕۆژە نانێرێت و backend وەک پێشوو دروستی دەکات. تەنها بۆ پڕۆژەی بێکەس frontend کۆدی تەواو وەک `NATURE-PROJ-000006` دەنێرێت؛ backend هەمان کۆد بەکاردێنێت بۆ کۆدی مێدیا.',
   },
   description: {
     title: 'وەسف',

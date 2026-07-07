@@ -229,7 +229,9 @@ GET /api/guest/persons/{personCode}/projects
 For person-linked project creation, the frontend sends `personCode` and does not
 send `projectCode`; that flow stays backend-owned as before. For person-less
 projects, the frontend sends `projectCode` on create using
-`PROJECTNAME-PROJ-######`, such as `NATURE-PROJ-000006`. After create, use the
+`PROJECTNAME-PROJ-######`, such as `NATURE-PROJ-000006`. The backend stores
+that code as-is. Later media codes append the media suffix and sequence, such
+as `NATURE-PROJ-000006_IMG_RAW_V1_Copy(1)_000001`. After create, use the
 returned `projectCode` for media creation and links.
 
 ## Media-Specific Pages
