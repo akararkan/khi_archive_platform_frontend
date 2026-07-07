@@ -2460,11 +2460,16 @@ function EmployeeProjectDetailPage() {
           </div>
           <div className="space-y-2 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <CodeBadge code={project.projectCode} />
+              <CodeBadge
+                code={project.projectCode}
+                className="border-blue-200 bg-blue-500/10 text-blue-700 dark:border-blue-900/40 dark:text-blue-300"
+              />
               <span
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
-                  project.personCode ? 'bg-muted/40 text-foreground' : 'bg-muted/20 italic text-muted-foreground',
+                  project.personCode
+                    ? 'border-purple-200 bg-purple-500/10 text-purple-700 dark:border-purple-900/40 dark:text-purple-300'
+                    : 'border-border bg-muted/30 italic text-muted-foreground',
                 )}
               >
                 {project.personCode ? (
@@ -2509,10 +2514,18 @@ function EmployeeProjectDetailPage() {
               </div>
             )}
           </div>
-          <div className="flex flex-col items-end gap-1 self-center text-[11px] text-muted-foreground">
-            <p>
-              {audios.length} audio · {videos.length} video · {images.length} image · {texts.length} text
-            </p>
+          <div className="flex flex-wrap justify-end gap-1 self-center text-[11px] text-muted-foreground">
+            {[
+              ['audio', audios.length],
+              ['video', videos.length],
+              ['image', images.length],
+              ['text', texts.length],
+            ].map(([label, count]) => (
+              <span key={label} className="inline-flex items-center rounded-full border bg-background px-2 py-0.5 font-medium text-foreground/80">
+                <span className="mr-1 font-mono text-[10px] text-muted-foreground">{count}</span>
+                {label}
+              </span>
+            ))}
           </div>
         </CardContent>
       </Card>

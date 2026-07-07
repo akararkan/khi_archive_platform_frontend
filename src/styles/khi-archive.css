@@ -213,6 +213,10 @@
 .khi-root .card .media .cover-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .khi-root .card .acc{position:absolute;top:13px;right:13px;z-index:3;font-size:10px;background:rgba(20,38,32,.72);color:var(--gold-soft);padding:5px 9px;border-radius:7px;backdrop-filter:blur(4px);border:1px solid rgba(231,211,160,.25)}
 .khi-root .card .type-badge{position:absolute;top:13px;left:13px;z-index:3;display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;background:rgba(251,246,234,.92);color:var(--pine);padding:5px 10px;border-radius:8px;backdrop-filter:blur(4px);border:1px solid var(--line-2)}
+.khi-root .card .type-badge.kind-image{background:rgba(220,252,231,.94);color:#166534;border-color:rgba(22,101,52,.24)}
+.khi-root .card .type-badge.kind-audio{background:rgba(255,237,213,.94);color:#9a3412;border-color:rgba(154,52,18,.24)}
+.khi-root .card .type-badge.kind-video{background:rgba(254,226,226,.94);color:#b91c1c;border-color:rgba(185,28,28,.24)}
+.khi-root .card .type-badge.kind-text{background:rgba(224,231,255,.94);color:#3730a3;border-color:rgba(55,48,163,.24)}
 .khi-root .card .type-badge svg{width:13px;height:13px}
 .khi-root .card .trend-badge{position:absolute;top:13px;right:13px;z-index:3;display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:800;background:rgba(20,38,32,.86);color:var(--gold-soft);padding:5px 10px;border-radius:8px;backdrop-filter:blur(4px);border:1px solid rgba(231,211,160,.32)}
 .khi-root .card .trend-badge svg{width:13px;height:13px}
@@ -309,6 +313,27 @@
 .khi-root .tag{font-size:12px;font-weight:600;color:var(--ink-soft);background:var(--paper-3);border:1px solid var(--line);border-radius:7px;padding:4px 10px}
 .khi-root .tag.lang{color:var(--pine);border-color:var(--line-2);background:transparent}
 .khi-root .tag.dec{font-family:'IBM Plex Mono',monospace;direction:ltr}
+.khi-root .card .card-chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:-2px;margin-bottom:9px;align-items:center}
+.khi-root .card .card-code-chip{display:inline-flex;align-items:center;max-width:100%;border-radius:7px;border:1px solid var(--line);background:#fff;padding:3px 7px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;color:var(--ink-soft);direction:ltr;unicode-bidi:isolate;overflow-wrap:anywhere}
+.khi-root .card .card-code-chip.media-code{background:var(--paper-3);color:var(--ink)}
+.khi-root .card .card-code-chip.project-code{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+.khi-root .card .visibility-chip{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:10.5px;font-weight:800;border:1px solid transparent}
+.khi-root .card .visibility-chip.public{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+.khi-root .card .visibility-chip.private{background:#f3f4f6;color:#4b5563;border-color:#e5e7eb}
+.khi-root .card .card-entity-line{display:grid;grid-template-columns:auto minmax(0,1fr);gap:7px;align-items:baseline;margin-bottom:8px;color:var(--ink)}
+.khi-root .card .card-entity-line .label{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase}
+.khi-root .card .card-entity-line span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px;font-weight:700}
+.khi-root .card .card-person-chip{display:inline-flex;align-items:center;gap:7px;width:max-content;max-width:100%;border-radius:999px;border:1px solid;padding:3px 9px;margin-bottom:9px;font-size:12.5px;font-weight:700}
+.khi-root .card .card-person-chip.linked{background:#f3e8ff;border-color:#e9d5ff;color:#6b21a8}
+.khi-root .card .card-person-chip.empty{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280;font-style:italic}
+.khi-root .card .card-person-chip .avatar{width:22px;height:22px;font-size:10px;border-color:rgba(107,33,168,.22);background:#fff;color:#6b21a8}
+.khi-root .card .card-person-chip span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.khi-root .card .card-categories{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:4px}
+.khi-root .card .category-chip{display:inline-flex;align-items:center;max-width:100%;border-radius:999px;border:1px solid var(--line);background:#fff;padding:3px 8px;color:var(--ink-soft);font-size:11.5px;font-weight:700}
+.khi-root .card .category-chip.muted{background:var(--paper-3);color:var(--muted)}
+.khi-root .card .count-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:7px}
+.khi-root .card .count-chip{display:inline-flex;align-items:center;gap:4px;border-radius:8px;border:1px solid var(--line);background:#fff;padding:4px 8px;color:var(--ink-soft);font-size:11.5px;font-weight:700}
+.khi-root .card .count-chip strong{font-family:'IBM Plex Mono',monospace;color:var(--ink);direction:ltr}
 
 .khi-root .khi-grid.list{grid-template-columns:1fr;gap:14px}
 .khi-root .khi-grid.list .card{flex-direction:row;align-items:stretch}

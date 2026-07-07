@@ -8,26 +8,26 @@ export const ITEM_TYPE_META = {
   AUDIO: {
     label: 'Audio',
     icon: AudioLines,
-    chip: 'bg-violet-500/15 text-violet-600 dark:text-violet-300',
-    dot: 'bg-violet-500',
+    chip: 'bg-orange-500/15 text-orange-700 dark:text-orange-300',
+    dot: 'bg-orange-500',
   },
   VIDEO: {
     label: 'Video',
     icon: Video,
-    chip: 'bg-rose-500/15 text-rose-600 dark:text-rose-300',
-    dot: 'bg-rose-500',
+    chip: 'bg-red-500/15 text-red-600 dark:text-red-300',
+    dot: 'bg-red-500',
   },
   IMAGE: {
     label: 'Image',
     icon: ImageIcon,
-    chip: 'bg-amber-500/15 text-amber-600 dark:text-amber-300',
-    dot: 'bg-amber-500',
+    chip: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300',
+    dot: 'bg-emerald-500',
   },
   TEXT: {
     label: 'Text',
     icon: FileText,
-    chip: 'bg-sky-500/15 text-sky-600 dark:text-sky-300',
-    dot: 'bg-sky-500',
+    chip: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-300',
+    dot: 'bg-indigo-500',
   },
 }
 

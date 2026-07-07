@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/list-filters'
 import { ItemDetailDialog } from '@/components/items/ItemDetailDialog'
 import { ItemEditForm } from '@/components/items/ItemEditForm'
-import { TypeBadge } from '@/components/items/item-badges'
+import { TypeBadge, VisibilityBadges } from '@/components/items/item-badges'
 import { VisibilityToggle } from '@/components/ui/visibility-toggle'
 import { getTypeMeta } from '@/components/items/item-helpers'
 import { usePersistentState } from '@/hooks/use-persistent-state'
@@ -87,6 +87,83 @@ const endInstant = (d) => (d ? `${d}T23:59:59Z` : undefined)
 
 const boolToSeg = (v) => (v === true ? 'yes' : v === false ? 'no' : 'any')
 const segToBool = (s) => (s === 'yes' ? true : s === 'no' ? false : undefined)
+
+function itemCategoryEntries(item, categoryLabelByCode = new Map()) {
+  const raw = Array.isArray(item?.categories)
+    ? item.categories
+    : Array.isArray(item?.categoryCodes)
+    ? item.categoryCodes
+    : []
+  const entries = raw.map((cat) => {
+    if (typeof cat === 'string') {
+      return { code: cat, label: categoryLabelByCode.get(cat) || cat }
+    }
+    const code = cat?.categoryCode || cat?.code || cat?.value || cat?.id
+    const label = cat?.categoryName || cat?.name || cat?.label || categoryLabelByCode.get(code) || code
+    return label || code ? { code: code || label, label: label || code } : null
+  }).filter(Boolean)
+  const seen = new Set()
+  return entries.filter((entry) => {
+    const key = entry.code || entry.label
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function isTrendingItem(item) {
+  const rank = Number(item?.trendingRank ?? item?.trendRank)
+  const score = Number(item?.trendingScore ?? item?.trendScore)
+  return Boolean(
+    item?.trending ||
+    item?.isTrending ||
+    (Number.isFinite(rank) && rank > 0) ||
+    (Number.isFinite(score) && score > 0),
+  )
+}
+
+function TrendingBadge({ item }) {
+  if (!isTrendingItem(item)) return null
+  const rank = item?.trendingRank ?? item?.trendRank
+  return (
+    <span className="inline-flex items-center rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-semibold text-orange-700 dark:text-orange-300">
+      {rank ? `Trending #${rank}` : 'Trending'}
+    </span>
+  )
+}
+
+function CategoryChips({ item, categoryLabelByCode, query, max = 3 }) {
+  const categories = itemCategoryEntries(item, categoryLabelByCode)
+  if (categories.length === 0) return <span className="text-sm text-muted-foreground">—</span>
+  const visible = categories.slice(0, max)
+  const extra = categories.length - visible.length
+  return (
+    <div className="flex flex-wrap gap-1">
+      {visible.map((cat) => (
+        <span key={cat.code || cat.label} className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80">
+          <Highlight text={cat.label || cat.code} query={query} />
+        </span>
+      ))}
+      {extra > 0 ? <span className="text-[11px] font-medium text-muted-foreground">+{extra}</span> : null}
+    </div>
+  )
+}
+
+function PersonChip({ item, query }) {
+  const label = item?.personName || item?.personCode
+  return (
+    <span
+      className={cn(
+        'inline-flex max-w-full items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
+        label
+          ? 'border-purple-200 bg-purple-500/10 text-purple-700 dark:border-purple-900/40 dark:text-purple-300'
+          : 'border-border bg-muted/30 text-muted-foreground italic',
+      )}
+    >
+      {label ? <Highlight text={label} query={query} /> : 'Untitled'}
+    </span>
+  )
+}
 
 // ── A reusable "pick several codes" control (project / category pickers) ──────
 function CodeMultiSelect({ items, selected, onChange, getKey, getLabel, getSubtitle, asyncSearch, placeholder, emptyHint, loading }) {
@@ -183,6 +260,14 @@ function EmployeeItemsPage() {
   const [seedLoading, setSeedLoading] = useState(true)
 
   const sortOpt = useMemo(() => SORT_OPTIONS.find((o) => o.key === sortKey) || SORT_OPTIONS[0], [sortKey])
+  const categoryLabelByCode = useMemo(() => {
+    const map = new Map()
+    for (const cat of categories) {
+      const code = cat.categoryCode || cat.code
+      if (code) map.set(code, cat.categoryName || cat.name || code)
+    }
+    return map
+  }, [categories])
 
   // Any filter or sort change resets to the first page so we never land past
   // the end of a smaller result set.
@@ -625,10 +710,11 @@ function EmployeeItemsPage() {
               <TableRow className="bg-muted/40 hover:bg-muted/40">
                 <TableHead className="w-[52px] text-center">#</TableHead>
                 <TableHead className="w-[88px]">Type</TableHead>
-                <TableHead className="w-[240px]">Code</TableHead>
+                <TableHead className="w-[220px]">Code</TableHead>
                 <TableHead>Title</TableHead>
-                <TableHead className="hidden lg:table-cell">Collection</TableHead>
+                <TableHead className="hidden lg:table-cell">Project</TableHead>
                 <TableHead className="hidden xl:table-cell">Person</TableHead>
+                <TableHead className="hidden 2xl:table-cell">Categories</TableHead>
                 <TableHead className="hidden md:table-cell">Visibility</TableHead>
                 <TableHead className="hidden lg:table-cell">Updated</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -647,44 +733,54 @@ function EmployeeItemsPage() {
                     <CodeBadge code={item.code} variant="subtle" size="sm" highlightQuery={filter.q} />
                   </TableCell>
                   <TableCell className="max-w-[280px]">
-                    <button
-                      type="button"
-                      onClick={() => setDetailItem(item)}
-                      className="block max-w-full truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:underline focus-visible:outline-none"
-                      title={item.title}
-                    >
-                      <Highlight text={item.title || item.code} query={filter.q} />
-                    </button>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDetailItem(item)}
+                        className="block max-w-full truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:underline focus-visible:outline-none"
+                        title={item.title}
+                      >
+                        <Highlight text={item.title || item.code} query={filter.q} />
+                      </button>
+                      <TrendingBadge item={item} />
+                    </div>
                     {/* Compact context line shown when the wider columns are hidden */}
                     <p className="mt-0.5 truncate text-[11px] text-muted-foreground lg:hidden">
-                      {item.projectName || '—'}
+                      {item.projectCode || '—'}
+                      {item.projectName ? ` · ${item.projectName}` : ''}
                       {item.personName ? ` · ${item.personName}` : ''}
                     </p>
+                    <div className="mt-1 lg:hidden">
+                      <CategoryChips item={item} categoryLabelByCode={categoryLabelByCode} query={filter.q} max={2} />
+                    </div>
                   </TableCell>
                   <TableCell className="hidden max-w-[200px] lg:table-cell">
                     {item.projectCode ? (
-                      <Link
-                        to={`${sectionBase}/project/${item.projectCode}`}
-                        className="block truncate text-sm text-foreground hover:text-primary hover:underline"
-                        title={item.projectName}
-                      >
-                        <Highlight text={item.projectName || item.projectCode} query={filter.q} />
-                      </Link>
+                      <div className="min-w-0 space-y-1">
+                        <Link
+                          to={`${sectionBase}/project/${item.projectCode}`}
+                          className="block truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
+                          title={item.projectName}
+                        >
+                          <Highlight text={item.projectName || item.projectCode} query={filter.q} />
+                        </Link>
+                        <span className="inline-flex max-w-full items-center rounded-md border border-blue-200 bg-blue-500/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-700 dark:border-blue-900/40 dark:text-blue-300">
+                          <Highlight text={item.projectCode} query={filter.q} />
+                        </span>
+                      </div>
                     ) : (
                       <span className="text-sm text-muted-foreground">—</span>
                     )}
                   </TableCell>
                   <TableCell className="hidden max-w-[160px] xl:table-cell">
-                    {item.personName || item.personCode ? (
-                      <span className="block truncate text-sm text-foreground">
-                        <Highlight text={item.personName || item.personCode} query={filter.q} />
-                      </span>
-                    ) : (
-                      <span className="text-sm italic text-muted-foreground">Untitled</span>
-                    )}
+                    <PersonChip item={item} query={filter.q} />
+                  </TableCell>
+                  <TableCell className="hidden max-w-[220px] 2xl:table-cell">
+                    <CategoryChips item={item} categoryLabelByCode={categoryLabelByCode} query={filter.q} />
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     <div className="flex flex-col items-start gap-1">
+                      <VisibilityBadges item={item} />
                       <VisibilityToggle
                         checked={item.isPublic === true}
                         pending={Boolean(savingVis[`${item.type}-${item.code}`])}
@@ -695,11 +791,6 @@ function EmployeeItemsPage() {
                             : 'Hidden from public — click to show'
                         }
                       />
-                      {item.projectVisibleToPublic === false ? (
-                        <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                          Collection hidden
-                        </span>
-                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell className="hidden whitespace-nowrap text-xs text-muted-foreground lg:table-cell">

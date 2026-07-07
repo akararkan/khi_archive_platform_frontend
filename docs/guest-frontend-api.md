@@ -228,11 +228,48 @@ GET /api/guest/persons/{personCode}/projects
 
 For person-linked project creation, the frontend sends `personCode` and does not
 send `projectCode`; that flow stays backend-owned as before. For person-less
-projects, the frontend sends `projectCode` on create using
-`PROJECTNAME-PROJ-######`, such as `NATURE-PROJ-000006`. The backend stores
-that code as-is. Later media codes append the media suffix and sequence, such
-as `NATURE-PROJ-000006_IMG_RAW_V1_Copy(1)_000001`. After create, use the
-returned `projectCode` for media creation and links.
+projects, the frontend sends the full `projectCode` on create using
+`PROJECTNAME-PROJ-######`, such as `DENG-PROJ-000004`. The backend stores that
+project code exactly as sent. Later media codes use only the prefix before
+`PROJ`, so `DENG-PROJ-000004` produces media codes like
+`DENG_AUD_RAW_V1_Copy(1)_000001`. Project categories do not change the media
+code prefix. After create, use the returned `projectCode` for media creation
+and links.
+
+## Card Rendering
+Render categories anywhere public media or projects appear, including the
+unified media list, guest media lists, project cards, and project detail pages.
+
+Media item cards should show:
+
+- media type badge
+- media code
+- title
+- project code
+- project name
+- person name if present
+- category chips
+- public/private badge
+- trending badge if available
+
+Project cards should show:
+
+- project name as the main title
+- project code as a smaller chip
+- person name if present
+- category chips
+- media counts
+- trending badge if available
+
+Suggested colour mapping:
+
+- image: green
+- audio: orange
+- video: red
+- text: indigo
+- project code: blue
+- person chip: purple when linked, gray when empty
+- categories: neutral chips or stable tinted chips
 
 ## Media-Specific Pages
 Use `/feed` for the main mixed public page. Use media-specific endpoints only

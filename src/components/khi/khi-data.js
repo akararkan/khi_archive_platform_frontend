@@ -377,6 +377,76 @@ function tagsOf(item) {
   return []
 }
 
+function categoriesOf(item) {
+  const out = []
+  const push = (raw) => {
+    if (!raw) return
+    if (typeof raw === 'string') {
+      out.push({ code: raw, label: raw })
+      return
+    }
+    const code = raw.categoryCode || raw.code || raw.value || raw.key || raw.id || null
+    const label = raw.categoryName || raw.name || raw.label || code
+    if (!label && !code) return
+    out.push({
+      code: code ? String(code) : String(label),
+      label: String(label || code),
+    })
+  }
+  if (Array.isArray(item?.categories)) {
+    item.categories.forEach(push)
+  } else if (Array.isArray(item?.categoryCodes)) {
+    item.categoryCodes.forEach(push)
+  } else {
+    push(item?.category || {
+      categoryCode: item?.categoryCode,
+      categoryName: item?.categoryName,
+      name: item?.categoryName,
+    })
+  }
+  const seen = new Set()
+  return out.filter((cat) => {
+    const key = cat.code || cat.label
+    if (!key || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function visibilityOf(item) {
+  const raw =
+    item?.visibility ||
+    item?.publicVisibility ||
+    item?.status ||
+    null
+  if (typeof raw === 'string') {
+    const normalized = raw.trim().toLowerCase()
+    if (['public', 'visible', 'published'].includes(normalized)) return 'public'
+    if (['private', 'hidden', 'draft'].includes(normalized)) return 'private'
+  }
+
+  const itemPublic = item?.isPublic ?? item?.public
+  const projectPublic =
+    item?.projectVisibleToPublic ??
+    item?.project?.isVisibleToPublic ??
+    item?.project?.visibleToPublic
+  if (itemPublic === false || projectPublic === false) return 'private'
+  if (itemPublic === true || projectPublic === true) return 'public'
+  return 'public'
+}
+
+function projectCountsOf(item) {
+  const defs = [
+    ['audio', item?.audioCount, DETAIL.counts.audio],
+    ['video', item?.videoCount, DETAIL.counts.video],
+    ['image', item?.imageCount, DETAIL.counts.image],
+    ['text', item?.textCount, DETAIL.counts.text],
+  ]
+  return defs
+    .map(([kind, value, label]) => ({ kind, value: Number(value) || 0, label }))
+    .filter((entry) => entry.value > 0)
+}
+
 function trendOf(item) {
   const rank = item?.trendingRank ?? item?.trendRank ?? null
   const score = item?.trendingScore ?? item?.trendScore ?? null
@@ -406,6 +476,8 @@ export function cardFromItem(item, typeKey) {
   const code = codeOf(item, kind)
   const resource = KIND_TO_RESOURCE[kind] || 'audios'
   const to = code ? `/public/${resource}/${code}` : '#'
+  const categories = categoriesOf(item)
+  const trend = trendOf(item)
 
   if (kind === 'person') {
     // Two DTO shapes flow through here: the full Person record (dedicated
@@ -423,27 +495,28 @@ export function cardFromItem(item, typeKey) {
       avatarText: personInitials(name),
       tags: tagsOf(item),
       count: item.projectCount || item.totalCount || null,
+      ...trend,
     }
   }
 
   if (kind === 'project') {
-    const counts = []
-    if (item.audioCount) counts.push(`${item.audioCount} دەنگ`)
-    if (item.videoCount) counts.push(`${item.videoCount} ڤیدیۆ`)
-    if (item.imageCount) counts.push(`${item.imageCount} وێنە`)
-    if (item.textCount) counts.push(`${item.textCount} دەق`)
     const person = extractPersonFromItem(item)
     return {
       kind, code, to, acc: code,
       title: item.projectName || item.name || item.title || code,
-      collection: Array.isArray(item.categories) && item.categories[0]
-        ? (item.categories[0].categoryName || item.categories[0].name || item.categories[0].categoryCode)
-        : null,
+      projectCode: item.projectCode || code,
+      projectName: item.projectName || item.name || item.title || null,
+      collection: categories[0]?.label || null,
+      categories,
       person: person ? { name: person.fullName || person.name, code: person.personCode, image: personImageSrc(person) } : null,
-      tags: counts,
+      personEmpty: !person,
+      counts: projectCountsOf(item),
+      tags: tagsOf(item),
+      visibility: visibilityOf(item),
       // Per-type project DTOs carry a thumbnail field; older slim rows mirror
       // the cover into `fileUrl`.
       image: mediaThumbHref(item) || item.fileUrl || null,
+      ...trend,
     }
   }
 
@@ -453,6 +526,7 @@ export function cardFromItem(item, typeKey) {
       title: item.categoryName || item.name || code,
       collection: null,
       tags: item.projectCount ? [`${item.projectCount} پڕۆژە`] : tagsOf(item),
+      ...trend,
     }
   }
 
@@ -461,8 +535,13 @@ export function cardFromItem(item, typeKey) {
   return {
     kind, code, to, acc: code,
     title: pickMediaTitle(item) || code,
+    projectCode: item.projectCode || item.project?.projectCode || null,
+    projectName: item.projectName || item.project?.projectName || item.collection || null,
     collection: item.projectName || item.project?.projectName || item.collection || null,
     person: person ? { name: person.fullName || person.name, code: person.personCode, image: personImageSrc(person) } : null,
+    personEmpty: !person,
+    categories,
+    visibility: visibilityOf(item),
     region: item.region || item.location || null,
     lang: item.language || null,
     decade: yearOf(item),
@@ -471,6 +550,6 @@ export function cardFromItem(item, typeKey) {
     image: kind === 'image' ? (mediaThumbHref(item) || item.fileUrl || null) : null,
     tags: tagsOf(item),
     matchedOn: Array.isArray(item.matchedOn) ? item.matchedOn : null,
-    ...trendOf(item),
+    ...trend,
   }
 }

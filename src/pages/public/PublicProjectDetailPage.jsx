@@ -6,7 +6,7 @@ import { DETAIL, cardFromItem } from '@/components/khi/khi-data'
 import KhiCard from '@/components/khi/KhiCard'
 import {
   KhiDetailShell, KhiBreadcrumb, KhiDetailHero, KhiDetailDisc, KhiInfoGrid,
-  KhiStatsRow, KhiSectionCard, KhiEmptyState,
+  KhiStatsRow, KhiSectionCard, KhiEmptyState, KhiCategoryLinks,
 } from '@/components/khi/KhiDetail'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -79,9 +79,14 @@ function PublicProjectDetailPage() {
   }
 
   const title = project.projectName || project.name || DETAIL.none
-  const firstCat = Array.isArray(project.categories) && project.categories[0]
+  const projectCategories = Array.isArray(project.categories) ? project.categories : []
+  const firstCat = projectCategories[0]
   const catName = firstCat ? (typeof firstCat === 'string' ? firstCat : (firstCat.categoryName || firstCat.name || firstCat.categoryCode)) : null
   const catCode = firstCat ? (typeof firstCat === 'string' ? firstCat : (firstCat.categoryCode || firstCat.code)) : null
+  const categorySummary = projectCategories
+    .map((cat) => (typeof cat === 'string' ? cat : (cat.categoryName || cat.name || cat.categoryCode || cat.code)))
+    .filter(Boolean)
+    .join(' · ')
   const totalMedia = (project.audioCount || 0) + (project.videoCount || 0) + (project.textCount || 0) + (project.imageCount || 0)
 
   const stats = [
@@ -93,7 +98,9 @@ function PublicProjectDetailPage() {
 
   const infoCards = [
     { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? `/public/persons/${person.personCode}` : null },
-    { icon: IconCategory, label: DETAIL.category, value: catName, to: catCode ? `/public/categories/${catCode}` : null },
+    projectCategories.length === 1
+      ? { icon: IconCategory, label: DETAIL.category, value: catName, to: catCode ? `/public/categories/${catCode}` : null }
+      : { icon: IconCategory, label: DETAIL.categories, value: categorySummary || null },
     { icon: IconLayers, label: DETAIL.media, value: totalMedia ? totalMedia.toLocaleString() : null },
   ]
 
@@ -115,6 +122,12 @@ function PublicProjectDetailPage() {
 
       <KhiStatsRow items={stats} />
       <KhiInfoGrid items={infoCards} />
+
+      {projectCategories.length > 0 ? (
+        <KhiSectionCard icon={IconCategory} title={DETAIL.categories} count={projectCategories.length}>
+          <KhiCategoryLinks categories={projectCategories} />
+        </KhiSectionCard>
+      ) : null}
 
       <KhiSectionCard icon={IconProject} title={DETAIL.media} count={totalMedia || null}>
         <div className="detail-tabs">

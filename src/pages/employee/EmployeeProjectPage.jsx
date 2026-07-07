@@ -68,6 +68,8 @@ import {
 const PROJECTS_PAGE_SIZE = 100
 const PROJECT_CODE_PREFIX_PATTERN = /^[A-Z0-9_-]+$/
 const PROJECT_CODE_SUFFIX_RE = /-PROJ-(\d{6})$/i
+const PROJECT_CODE_FULL_PATTERN = /^[A-Z0-9_-]+-PROJ-\d{6}$/
+const PROJECT_CODE_MARKER_RE = /-PROJ-/i
 
 function toArray(value) {
   if (Array.isArray(value)) return value.filter(Boolean)
@@ -80,6 +82,89 @@ function toArray(value) {
 
 const PERSON_KIND_PERSON = 'person'
 const PERSON_KIND_NONE = 'none'
+
+function projectMediaCounts(project) {
+  return [
+    { key: 'audio', label: 'audio', value: Number(project?.audioCount) || 0 },
+    { key: 'video', label: 'video', value: Number(project?.videoCount) || 0 },
+    { key: 'image', label: 'image', value: Number(project?.imageCount) || 0 },
+    { key: 'text', label: 'text', value: Number(project?.textCount) || 0 },
+  ].filter((entry) => entry.value > 0)
+}
+
+function isTrendingProject(project) {
+  const rank = Number(project?.trendingRank ?? project?.trendRank)
+  const score = Number(project?.trendingScore ?? project?.trendScore)
+  return Boolean(
+    project?.trending ||
+    project?.isTrending ||
+    (Number.isFinite(rank) && rank > 0) ||
+    (Number.isFinite(score) && score > 0),
+  )
+}
+
+function ProjectTrendingBadge({ project }) {
+  if (!isTrendingProject(project)) return null
+  const rank = project?.trendingRank ?? project?.trendRank
+  return (
+    <span className="inline-flex items-center rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-semibold text-orange-700 dark:text-orange-300">
+      {rank ? `Trending #${rank}` : 'Trending'}
+    </span>
+  )
+}
+
+function ProjectPersonChip({ project, query }) {
+  const label = project?.personCode ? project.personName || project.personCode : 'No person linked'
+  return (
+    <span
+      className={cn(
+        'inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+        project?.personCode
+          ? 'border-purple-200 bg-purple-500/10 text-purple-700 dark:border-purple-900/40 dark:text-purple-300'
+          : 'border-border bg-muted/30 text-muted-foreground italic',
+      )}
+    >
+      <Highlight text={String(label)} query={query} />
+      {project?.personCode ? (
+        <span className="font-mono text-[10px] text-muted-foreground">
+          <Highlight text={project.personCode} query={query} />
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
+function ProjectCategoryChips({ project, query }) {
+  const categories = Array.isArray(project?.categories) ? project.categories : []
+  if (categories.length === 0) return <span className="text-sm text-muted-foreground">—</span>
+  return (
+    <div className="flex flex-wrap gap-1">
+      {categories.map((c) => (
+        <span
+          key={c.categoryCode || c.code || c.id || c.categoryName || c.name}
+          className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80"
+        >
+          <Highlight text={c.categoryName || c.name || c.categoryCode || c.code} query={query} />
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function ProjectCountChips({ project }) {
+  const counts = projectMediaCounts(project)
+  if (counts.length === 0) return <span className="text-sm text-muted-foreground">0 media</span>
+  return (
+    <div className="flex flex-wrap gap-1">
+      {counts.map((count) => (
+        <span key={count.key} className="inline-flex items-center rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium text-foreground/80">
+          <span className="font-mono text-[10px] text-muted-foreground">{count.value}</span>
+          {count.label}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 function projectCodePrefix(value) {
   const prefix = String(value || '')
@@ -107,8 +192,16 @@ function formatProjectCodeInput(value) {
     .replace(/^-|-$/g, '')
 }
 
-function projectCodeTextFromValue(value) {
+function projectCodePrefixFromValue(value) {
   return formatProjectCodeInput(value).replace(PROJECT_CODE_SUFFIX_RE, '')
+}
+
+function normalizedProjectCodeInput(value) {
+  return formatProjectCodeInput(value)
+}
+
+function isFullProjectCode(value) {
+  return PROJECT_CODE_FULL_PATTERN.test(normalizedProjectCodeInput(value))
 }
 
 function nextProjectCodeNumber(projects) {
@@ -122,11 +215,13 @@ function nextProjectCodeNumber(projects) {
 }
 
 function buildProjectCodeFromPrefix(prefix, projects) {
-  return `${projectCodeTextFromValue(prefix) || 'PROJECT'}-PROJ-${nextProjectCodeNumber(projects)}`
+  return `${projectCodePrefixFromValue(prefix) || 'PROJECT'}-PROJ-${nextProjectCodeNumber(projects)}`
 }
 
-function buildProjectCode(form, projects) {
-  return buildProjectCodeFromPrefix(projectCodePrefix(form.projectName), projects)
+function buildProjectCodeFromInput(value, projects) {
+  const normalized = normalizedProjectCodeInput(value)
+  if (isFullProjectCode(normalized)) return normalized
+  return buildProjectCodeFromPrefix(normalized, projects)
 }
 
 function createInitialForm() {
@@ -344,10 +439,10 @@ function EmployeeProjectPage() {
       isVisibleToPublic: form.isVisibleToPublic === true,
     }
     if (form.personKind === PERSON_KIND_NONE) {
-      const prefix = isProjectCodeManual
-        ? projectCodeTextFromValue(form.projectCode).trim()
+      const codeInput = isProjectCodeManual
+        ? normalizedProjectCodeInput(form.projectCode).trim()
         : projectCodePrefix(form.projectName)
-      payload.projectCode = buildProjectCodeFromPrefix(prefix, existingProjects)
+      payload.projectCode = buildProjectCodeFromInput(codeInput, existingProjects)
     }
     return payload
   }
@@ -389,11 +484,15 @@ function EmployeeProjectPage() {
       return
     }
     if (view === 'create' && form.personKind === PERSON_KIND_NONE) {
-      const projectCodePrefixValue = isProjectCodeManual
-        ? projectCodeTextFromValue(form.projectCode).trim()
+      const projectCodeInputValue = isProjectCodeManual
+        ? normalizedProjectCodeInput(form.projectCode).trim()
         : projectCodePrefix(form.projectName)
-      if (!PROJECT_CODE_PREFIX_PATTERN.test(projectCodePrefixValue)) {
-        setFormError('Project code text must use letters, numbers, hyphens, or underscores.')
+      if (PROJECT_CODE_MARKER_RE.test(projectCodeInputValue) && !isFullProjectCode(projectCodeInputValue)) {
+        setFormError('Full project codes must end with -PROJ- followed by six digits, for example DENG-PROJ-000004.')
+        return
+      }
+      if (!PROJECT_CODE_PREFIX_PATTERN.test(projectCodeInputValue)) {
+        setFormError('Project code must use letters, numbers, hyphens, or underscores.')
         return
       }
     }
@@ -517,18 +616,18 @@ function EmployeeProjectPage() {
     // The cascade choice only matters when editing AND the flag actually changed.
     const visibilityDirty = isEdit && isPublicVisible !== (currentProject?.isVisibleToPublic === true)
     const showProjectCodeField = form.personKind === PERSON_KIND_NONE
-    const suggestedProjectCodeText =
+    const suggestedProjectCode =
       showProjectCodeField && form.projectName.trim()
-        ? projectCodePrefix(form.projectName)
+        ? buildProjectCodeFromPrefix(projectCodePrefix(form.projectName), projects)
         : ''
-    const projectCodeText = isEdit
-      ? String(currentProject?.projectCode || '').replace(PROJECT_CODE_SUFFIX_RE, '')
+    const projectCodeInput = isEdit
+      ? String(currentProject?.projectCode || '')
       : isProjectCodeManual
-      ? projectCodeTextFromValue(form.projectCode)
-      : suggestedProjectCodeText
+      ? normalizedProjectCodeInput(form.projectCode)
+      : suggestedProjectCode
     const savedProjectCodePreview =
-      showProjectCodeField && projectCodeText
-        ? buildProjectCodeFromPrefix(projectCodeText, projects)
+      showProjectCodeField && projectCodeInput
+        ? buildProjectCodeFromInput(projectCodeInput, projects)
         : ''
     return (
       <EmployeeEntityPage
@@ -617,7 +716,7 @@ function EmployeeProjectPage() {
                     </div>
                   ) : (
                     <p className="pt-1 text-xs text-muted-foreground">
-                      Type only the readable code text here. The frontend sends the full project code shown below.
+                      The frontend sends the full project code for no-person projects; the backend stores that exact code.
                     </p>
                   )}
                 </div>
@@ -625,28 +724,28 @@ function EmployeeProjectPage() {
                 {showProjectCodeField ? (
                   <div className="space-y-2 rounded-lg border bg-muted/20 px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
-                      <Label htmlFor="projectCode">Project code text</Label>
+                      <Label htmlFor="projectCode">Project code</Label>
                       <FieldHelpButton metadata={getProjectFieldMetadata('projectCode')} />
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <Input
                         id="projectCode"
-                        value={projectCodeText || ''}
+                        value={projectCodeInput || ''}
                         onChange={(e) => {
                           setIsProjectCodeManual(true)
-                          setForm({ ...form, projectCode: projectCodeTextFromValue(e.target.value) })
+                          setForm({ ...form, projectCode: normalizedProjectCodeInput(e.target.value) })
                         }}
-                        placeholder="ORDINARY-SOUND"
+                        placeholder="DENG-PROJ-000004"
                         disabled={isEdit}
                         readOnly={isEdit}
-                        className="font-mono text-sm font-semibold tracking-[0.06em]"
+                        className="font-mono text-sm font-semibold"
                       />
                       {!isEdit ? (
                         <Button
                           type="button"
                           variant="outline"
                           className="shrink-0 gap-2"
-                          disabled={!suggestedProjectCodeText}
+                          disabled={!suggestedProjectCode}
                           onClick={() => {
                             setIsProjectCodeManual(false)
                             setForm((f) => ({ ...f, projectCode: '' }))
@@ -661,8 +760,8 @@ function EmployeeProjectPage() {
                       {isEdit
                         ? 'Locked after creation.'
                         : savedProjectCodePreview
-                        ? `The frontend will send ${savedProjectCodePreview}. The backend stores it as-is and appends media suffixes later.`
-                        : 'Only no-person projects send this text from the frontend. You can edit it before save.'}
+                        ? `The frontend will send ${savedProjectCodePreview}. The backend stores it as-is; media codes use only the prefix before -PROJ-.`
+                        : 'Only no-person projects send projectCode from the frontend. Type a full code, or type a prefix and use the generated preview.'}
                     </p>
                   </div>
                 ) : null}
@@ -860,7 +959,7 @@ function EmployeeProjectPage() {
       badge={!isLoading && !error
         ? `${(searchTerm.trim() ? visibleProjects.length : totalElements).toLocaleString()} total`
         : null}
-      description="Each project is a collection of media files (audio for now), tied to a person or left without a person."
+      description="Each project is a collection of audio, video, image and text records, tied to a person or left without a person."
       action={
         <Button onClick={handleOpenCreate} className="gap-2 shrink-0">
           <Plus className="size-4" />
@@ -912,7 +1011,7 @@ function EmployeeProjectPage() {
         <EmptyState
           icon={FolderOpen}
           title="No projects yet"
-          description="Create your first project — pick a person or leave it blank, choose categories, and start ingesting audio."
+          description="Create your first project — pick a person or leave it blank, choose categories, and start ingesting media."
           action={
             <Button onClick={handleOpenCreate} className="gap-2">
               <Plus className="size-4" />
@@ -926,11 +1025,10 @@ function EmployeeProjectPage() {
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
                 <TableHead className="w-[52px] text-center">#</TableHead>
-                <TableHead className="w-[220px]">Code</TableHead>
-                <TableHead className="w-[260px]">Name</TableHead>
+                <TableHead className="w-[320px]">Project</TableHead>
                 <TableHead className="w-[200px]">Person</TableHead>
                 <TableHead className="w-[260px]">Categories</TableHead>
-                <TableHead>Description</TableHead>
+                <TableHead className="w-[240px]">Media</TableHead>
                 <TableHead className="w-[130px]">Visibility</TableHead>
                 <TableHead className="w-[200px] text-right">Actions</TableHead>
               </TableRow>
@@ -938,18 +1036,12 @@ function EmployeeProjectPage() {
             <TableBody>
               {filteredProjects.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                     No matching projects for this search.
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredProjects.map((project, index) => {
-                  const cats = (project.categories || []).slice(0, 2)
-                  const extraCats = (project.categories?.length || 0) - cats.length
-                  const personLabel = project.personCode
-                    ? project.personName || project.personCode
-                    : 'No person linked'
-                  return (
+                filteredProjects.map((project, index) => (
                     <TableRow
                       key={project.projectCode}
                       className={`group transition-colors ${project.removedAt ? 'opacity-60' : ''}`}
@@ -962,66 +1054,39 @@ function EmployeeProjectPage() {
                         {(searchTerm.trim() ? 0 : page * PROJECTS_PAGE_SIZE) + index + 1}
                       </TableCell>
                       <TableCell>
-                        <CodeBadge code={project.projectCode} variant="subtle" highlightQuery={searchTerm} />
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          to={`${sectionBase}/project/${project.projectCode}`}
-                          className="block max-w-[260px] truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline"
-                          title={project.projectName}
-                        >
-                          <Highlight text={project.projectName || ''} query={searchTerm} />
-                        </Link>
-                        {project.removedAt && (
-                          <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
-                            Removed
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${project.personCode ? 'bg-muted/40 text-foreground' : 'bg-muted/20 text-muted-foreground italic'}`}
-                        >
-                          <Highlight text={String(personLabel)} query={searchTerm} />
-                          {project.personCode ? (
-                            <span className="font-mono text-[10px] text-muted-foreground">
-                              <Highlight text={project.personCode} query={searchTerm} />
-                            </span>
-                          ) : null}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {cats.length === 0 ? (
-                          <span className="text-sm text-muted-foreground">—</span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {cats.map((c) => (
-                              <span
-                                key={c.categoryCode}
-                                className="inline-flex items-center rounded-full border bg-background px-2 py-0.5 text-[11px] text-foreground/80"
-                              >
-                                <Highlight text={c.categoryName || c.categoryCode} query={searchTerm} />
-                              </span>
-                            ))}
-                            {extraCats > 0 ? (
-                              <span className="text-[11px] font-medium text-muted-foreground">
-                                +{extraCats}
-                              </span>
-                            ) : null}
+                        <div className="min-w-0 space-y-1.5">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <Link
+                              to={`${sectionBase}/project/${project.projectCode}`}
+                              className="block min-w-0 truncate text-left font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline"
+                              title={project.projectName}
+                            >
+                              <Highlight text={project.projectName || project.projectCode || ''} query={searchTerm} />
+                            </Link>
+                            <ProjectTrendingBadge project={project} />
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-[320px]">
-                        <p
-                          className="truncate text-sm text-muted-foreground"
-                          title={project.description || '—'}
-                        >
-                          {project.description ? (
-                            <Highlight text={project.description} query={searchTerm} />
-                          ) : (
-                            '—'
+                          <CodeBadge
+                            code={project.projectCode}
+                            variant="subtle"
+                            size="sm"
+                            highlightQuery={searchTerm}
+                            className="border-blue-200 bg-blue-500/10 text-blue-700 dark:border-blue-900/40 dark:text-blue-300"
+                          />
+                          {project.removedAt && (
+                            <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                              Removed
+                            </span>
                           )}
-                        </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <ProjectPersonChip project={project} query={searchTerm} />
+                      </TableCell>
+                      <TableCell>
+                        <ProjectCategoryChips project={project} query={searchTerm} />
+                      </TableCell>
+                      <TableCell>
+                        <ProjectCountChips project={project} />
                       </TableCell>
                       <TableCell>
                         <VisibilityToggle
@@ -1080,8 +1145,7 @@ function EmployeeProjectPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  )
-                })
+                  ))
               )}
             </TableBody>
           </Table>

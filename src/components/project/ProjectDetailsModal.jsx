@@ -62,6 +62,21 @@ function Chips({ items }) {
   )
 }
 
+function mediaCounts(project) {
+  const readCount = (label) => {
+    const explicit = Number(project?.[`${label}Count`])
+    if (Number.isFinite(explicit) && explicit > 0) return explicit
+    const collection = project?.[`${label}s`]
+    return Array.isArray(collection) ? collection.length : 0
+  }
+  return [
+    ['audio', readCount('audio')],
+    ['video', readCount('video')],
+    ['image', readCount('image')],
+    ['text', readCount('text')],
+  ].map(([label, value]) => ({ label, value })).filter((entry) => entry.value > 0)
+}
+
 function ProjectDetailsModal({ project, open, onOpenChange }) {
   const isAdmin = useIsAdmin()
 
@@ -89,7 +104,7 @@ function ProjectDetailsModal({ project, open, onOpenChange }) {
     ? project.personName || project.personCode
     : 'No person linked'
   const categories = Array.isArray(project.categories) ? project.categories : []
-  const audioCount = Array.isArray(project.audios) ? project.audios.length : project.audioCount
+  const counts = mediaCounts(project)
 
   const hasAudit =
     project.createdAt ||
@@ -145,7 +160,7 @@ function ProjectDetailsModal({ project, open, onOpenChange }) {
               </h2>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-muted-foreground">person</span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-0.5 text-xs font-medium text-foreground">
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${project.personCode ? 'border-purple-200 bg-purple-500/10 text-purple-700 dark:border-purple-900/40 dark:text-purple-300' : 'border-border bg-muted/30 text-muted-foreground italic'}`}>
                   {personLabel}
                   {project.personCode ? (
                     <span className="font-mono text-[10px] text-muted-foreground">
@@ -153,11 +168,13 @@ function ProjectDetailsModal({ project, open, onOpenChange }) {
                     </span>
                   ) : null}
                 </span>
-                {audioCount != null ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-0.5 text-xs font-medium text-foreground">
-                    {audioCount} audio
-                  </span>
-                ) : null}
+                {counts.length > 0
+                  ? counts.map((count) => (
+                    <span key={count.label} className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-0.5 text-xs font-medium text-foreground">
+                      {count.value} {count.label}
+                    </span>
+                  ))
+                  : null}
               </div>
             </div>
           </div>
