@@ -6,7 +6,7 @@ const projectFieldsMetadata = {
   projectCode: {
     title: 'کۆدی پڕۆژە',
     description:
-      'کۆدی پڕۆژەکە لەلایەن backend دروست دەکرێت. بۆ پڕۆژەی بەکەس: `PERSONCODE-PROJ-000001`؛ بۆ پڕۆژەی بێکەس: `NATURE-PROJ-000006`.',
+      'کۆدی پڕۆژەکە لەلایەن frontend دەنێردرێت. بۆ پڕۆژەی بەکەس: `PERSONCODE-PROJ-000001`؛ بۆ پڕۆژەی بێکەس: `NATURE-PROJ-000006`.',
   },
   description: {
     title: 'وەسف',
