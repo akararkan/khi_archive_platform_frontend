@@ -81,6 +81,83 @@ export function KhiActions({ actions = [] }) {
 export function KhiDetailDisc({ kind, image, alt, badge, vinyl = false, initials, frame = false }) {
   const BadgeIcon = KIND_BADGE_ICON[kind] || IconMic
 
+  if (kind === 'video') {
+    return (
+      <div className="hero-image-area video-visual">
+        <div className="cinema-frame">
+          <span className="film-edge top" aria-hidden="true" />
+          <span className="film-edge bottom" aria-hidden="true" />
+          <div className="cinema-screen">
+            {image ? (
+              <img src={image} alt={alt || ''} loading="lazy" />
+            ) : (
+              <span className="record-ph"><BadgeIcon width="70" height="70" /></span>
+            )}
+            <span className="cinema-play" aria-hidden="true"><IconVideo width="24" height="24" /></span>
+          </div>
+        </div>
+        {badge ? (
+          <span className="mic-badge"><BadgeIcon width="18" height="18" /> {badge}</span>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (kind === 'text') {
+    return (
+      <div className="hero-image-area text-visual">
+        <div className="document-frame">
+          <span className="doc-shadow" aria-hidden="true" />
+          <div className="document-page">
+            {image ? <img src={image} alt={alt || ''} loading="lazy" /> : null}
+            <span className="doc-mark"><IconText width="38" height="38" /></span>
+            <span className="doc-line wide" />
+            <span className="doc-line" />
+            <span className="doc-line short" />
+          </div>
+        </div>
+        {badge ? (
+          <span className="mic-badge"><BadgeIcon width="18" height="18" /> {badge}</span>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (kind === 'project') {
+    return (
+      <div className="hero-image-area project-visual">
+        <div className="collection-frame">
+          {image ? <img src={image} alt={alt || ''} loading="lazy" /> : null}
+          <span className="shelf-row top" aria-hidden="true" />
+          <span className="shelf-row middle" aria-hidden="true" />
+          <span className="shelf-row bottom" aria-hidden="true" />
+          <span className="archive-tile image" aria-hidden="true"><IconImage width="22" height="22" /></span>
+          <span className="archive-tile audio" aria-hidden="true"><IconMic width="22" height="22" /></span>
+          <span className="archive-tile text" aria-hidden="true"><IconText width="22" height="22" /></span>
+        </div>
+        {badge ? (
+          <span className="mic-badge"><BadgeIcon width="18" height="18" /> {badge}</span>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (kind === 'category') {
+    return (
+      <div className="hero-image-area category-visual">
+        <div className="category-mark">
+          <span className="category-ring one" aria-hidden="true" />
+          <span className="category-ring two" aria-hidden="true" />
+          <span className="category-ring three" aria-hidden="true" />
+          <span className="category-core">{initials || <IconCategory width="58" height="58" />}</span>
+        </div>
+        {badge ? (
+          <span className="mic-badge"><BadgeIcon width="18" height="18" /> {badge}</span>
+        ) : null}
+      </div>
+    )
+  }
+
   if (frame) {
     return (
       <div className="hero-image-area">
@@ -128,7 +205,7 @@ export function KhiDetailHero({
 }) {
   const cleanTags = (tags || []).filter(Boolean)
   return (
-    <section className="detail-hero">
+    <section className={`detail-hero${kind ? ` kind-${kind}` : ''}`}>
       {breadcrumb}
       <div className="hero-grid">
         <div className="hero-content">
