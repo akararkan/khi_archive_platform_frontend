@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import { AudioPlayer } from '@/components/ui/audio-player'
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
@@ -17,6 +17,7 @@ import {
   IconCalendar, IconClock, IconLayers, IconMic, IconText, IconQuote, IconPlus,
 } from '@/components/khi/icons'
 import { guestAudios } from '@/services/guest'
+import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 // Normalise a list-ish value (array | comma/semicolon/Arabic-comma string).
 function toList(v, cap = 12) {
@@ -26,11 +27,19 @@ function toList(v, cap = 12) {
 }
 
 function PublicAudioDetailPage() {
-  const { code } = useParams()
+  const { code: routeCode } = useParams()
+  const navigate = useNavigate()
+  const code = decodePublicCode(routeCode)
   const [audio, setAudio] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [helpOpen, setHelpOpen] = useState(false)
+
+  useEffect(() => {
+    if (routeCode && !isEncodedPublicCode(routeCode)) {
+      navigate(publicDetailPath('audios', routeCode), { replace: true })
+    }
+  }, [navigate, routeCode])
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -60,9 +69,9 @@ function PublicAudioDetailPage() {
   const projectCode = audio.project?.projectCode || audio.projectCode
 
   const infoCards = [
-    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? `/public/persons/${person.personCode}` : null },
-    { icon: IconProject, label: DETAIL.project, value: audio.project?.projectName || audio.projectName, to: projectCode ? `/public/projects/${projectCode}` : null },
-    { icon: IconCategory, label: DETAIL.category, value: catName, to: catCode ? `/public/categories/${catCode}` : null },
+    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
+    { icon: IconProject, label: DETAIL.project, value: audio.project?.projectName || audio.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
+    { icon: IconCategory, label: DETAIL.category, value: catName, to: catCode ? publicDetailPath('categories', catCode) : null },
     { icon: IconAudio, label: DETAIL.form, value: audio.form },
     { icon: IconLanguage, label: DETAIL.language, value: audio.language },
     { icon: IconRegion, label: DETAIL.region, value: audio.region || audio.city },

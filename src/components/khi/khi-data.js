@@ -20,6 +20,7 @@ import {
   extractPersonFromItem,
   formatPublicDate,
 } from '@/components/public/public-helpers'
+import { publicDetailPath } from '@/components/public/public-route-id'
 
 export const PAGE_SIZE = 12
 export const TYPE_PAGE_SIZES = {
@@ -475,7 +476,7 @@ export function cardFromItem(item, typeKey) {
   const kind = typeKey === 'all' ? (item.kind || 'audio') : typeKey
   const code = codeOf(item, kind)
   const resource = KIND_TO_RESOURCE[kind] || 'audios'
-  const to = code ? `/public/${resource}/${code}` : '#'
+  const to = code ? publicDetailPath(resource, code) : '#'
   const categories = categoriesOf(item)
   const trend = trendOf(item)
 

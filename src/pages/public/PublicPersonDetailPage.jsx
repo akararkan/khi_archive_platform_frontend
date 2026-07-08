@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import {
   personImageSrc, personInitials,
@@ -15,6 +15,7 @@ import {
   IconPerson, IconMic, IconRegion, IconCalendar, IconTag, IconProject,
 } from '@/components/khi/icons'
 import { guestPerson, guestPersonProjects } from '@/services/guest'
+import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 const PAGE_SIZE = 24
 const GENDER = { MALE: 'نێر', FEMALE: 'مێ', OTHER: 'تر', M: 'نێر', F: 'مێ' }
@@ -26,7 +27,9 @@ function toList(v, cap = 12) {
 }
 
 function PublicPersonDetailPage() {
-  const { code } = useParams()
+  const { code: routeCode } = useParams()
+  const navigate = useNavigate()
+  const code = decodePublicCode(routeCode)
 
   const [person, setPerson] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -41,6 +44,12 @@ function PublicPersonDetailPage() {
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [projectsLoadingMore, setProjectsLoadingMore] = useState(false)
   const projectQueryRef = useRef('')
+
+  useEffect(() => {
+    if (routeCode && !isEncodedPublicCode(routeCode)) {
+      navigate(publicDetailPath('persons', routeCode), { replace: true })
+    }
+  }, [navigate, routeCode])
 
   useEffect(() => {
     const ctrl = new AbortController()

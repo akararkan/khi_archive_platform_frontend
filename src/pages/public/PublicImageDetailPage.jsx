@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import {
@@ -16,6 +16,7 @@ import {
   IconMic, IconExternal, IconPlus,
 } from '@/components/khi/icons'
 import { guestImages } from '@/services/guest'
+import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 function toList(v, cap = 12) {
   if (!v) return []
@@ -24,11 +25,19 @@ function toList(v, cap = 12) {
 }
 
 function PublicImageDetailPage() {
-  const { code } = useParams()
+  const { code: routeCode } = useParams()
+  const navigate = useNavigate()
+  const code = decodePublicCode(routeCode)
   const [image, setImage] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [helpOpen, setHelpOpen] = useState(false)
+
+  useEffect(() => {
+    if (routeCode && !isEncodedPublicCode(routeCode)) {
+      navigate(publicDetailPath('images', routeCode), { replace: true })
+    }
+  }, [navigate, routeCode])
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -56,8 +65,8 @@ function PublicImageDetailPage() {
   const projectCode = image.project?.projectCode || image.projectCode
 
   const infoCards = [
-    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? `/public/persons/${person.personCode}` : null },
-    { icon: IconProject, label: DETAIL.project, value: image.project?.projectName || image.projectName, to: projectCode ? `/public/projects/${projectCode}` : null },
+    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
+    { icon: IconProject, label: DETAIL.project, value: image.project?.projectName || image.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
     { icon: IconCalendar, label: DETAIL.event, value: image.event },
     { icon: IconRegion, label: DETAIL.location, value: image.location || image.region },
     { icon: IconMic, label: DETAIL.photographer, value: image.creatorArtistPhotographer },

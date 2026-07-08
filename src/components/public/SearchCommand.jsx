@@ -19,6 +19,7 @@ import {
 import { Highlight, HighlightProvider } from '@/components/ui/highlight'
 import { cn } from '@/lib/utils'
 import { guestSuggest, guestTrending } from '@/services/guest'
+import { publicDetailPath } from '@/components/public/public-route-id'
 
 // ── SearchCommand ───────────────────────────────────────────────────────
 //
@@ -280,7 +281,7 @@ function SearchCommand({ className, autoFocus = false }) {
     const meta = SUGGEST_KINDS[s.kind] || SUGGEST_KINDS.tag
     setSuggestOpen(false)
     if (meta.mode === 'entity' && meta.path && s.code) {
-      navigate(`/public/${meta.path}/${encodeURIComponent(s.code)}`)
+      navigate(publicDetailPath(meta.path, s.code))
       return
     }
     submitWith(s.value)

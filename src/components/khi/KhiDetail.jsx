@@ -2,6 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 
 import { DETAIL, TYPE_PILL } from './khi-data'
+import { publicDetailPath } from '@/components/public/public-route-id'
 import {
   IconHome, IconMic, IconVideo, IconImage, IconText, IconProject,
   IconCategory, IconPerson, IconArrowLeft,
@@ -413,13 +414,13 @@ export function KhiProjectLink({ project }) {
   if (!project) return null
   const code = project.projectCode || project.code
   if (!code) return null
-  return <KhiEntityChip to={`/public/projects/${code}`} label={project.projectName || project.name || DETAIL.project} icon={IconProject} />
+  return <KhiEntityChip to={publicDetailPath('projects', code)} label={project.projectName || project.name || DETAIL.project} icon={IconProject} />
 }
 
 export function KhiPersonLink({ person, fallbackCode, fallbackName }) {
   const code = person?.personCode || fallbackCode
   if (!code) return null
-  return <KhiEntityChip to={`/public/persons/${code}`} label={person?.fullName || person?.name || fallbackName || DETAIL.person} icon={IconPerson} />
+  return <KhiEntityChip to={publicDetailPath('persons', code)} label={person?.fullName || person?.name || fallbackName || DETAIL.person} icon={IconPerson} />
 }
 
 export function KhiCategoryLinks({ categories }) {
@@ -430,7 +431,7 @@ export function KhiCategoryLinks({ categories }) {
         const code = typeof c === 'string' ? c : (c?.categoryCode || c?.code)
         const label = typeof c === 'string' ? c : (c?.categoryName || c?.name || c?.categoryCode || c?.code)
         if (!code) return null
-        return <KhiEntityChip key={code} to={`/public/categories/${code}`} label={label} icon={IconCategory} />
+        return <KhiEntityChip key={code} to={publicDetailPath('categories', code)} label={label} icon={IconCategory} />
       })}
     </div>
   )

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import {
@@ -16,6 +16,7 @@ import {
   IconText, IconMic, IconQuote, IconExternal, IconPlus,
 } from '@/components/khi/icons'
 import { guestTexts } from '@/services/guest'
+import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 function toList(v, cap = 12) {
   if (!v) return []
@@ -24,11 +25,19 @@ function toList(v, cap = 12) {
 }
 
 function PublicTextDetailPage() {
-  const { code } = useParams()
+  const { code: routeCode } = useParams()
+  const navigate = useNavigate()
+  const code = decodePublicCode(routeCode)
   const [text, setText] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [helpOpen, setHelpOpen] = useState(false)
+
+  useEffect(() => {
+    if (routeCode && !isEncodedPublicCode(routeCode)) {
+      navigate(publicDetailPath('texts', routeCode), { replace: true })
+    }
+  }, [navigate, routeCode])
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -57,8 +66,8 @@ function PublicTextDetailPage() {
   const projectCode = text.project?.projectCode || text.projectCode
 
   const infoCards = [
-    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? `/public/persons/${person.personCode}` : null },
-    { icon: IconProject, label: DETAIL.project, value: text.project?.projectName || text.projectName, to: projectCode ? `/public/projects/${projectCode}` : null },
+    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
+    { icon: IconProject, label: DETAIL.project, value: text.project?.projectName || text.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
     { icon: IconBook, label: DETAIL.documentType, value: text.documentType },
     { icon: IconMic, label: DETAIL.author, value: text.author },
     { icon: IconLanguage, label: DETAIL.language, value: text.language },

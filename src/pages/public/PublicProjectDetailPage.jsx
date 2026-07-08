@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import { mediaThumbHref, extractPersonFromItem } from '@/components/public/public-helpers'
 import { DETAIL, cardFromItem } from '@/components/khi/khi-data'
@@ -14,6 +14,7 @@ import {
   IconCategory, IconCalendar, IconProject,
 } from '@/components/khi/icons'
 import { guestProject, guestProjectMedia } from '@/services/guest'
+import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 const TABS = [
   { key: 'all', label: DETAIL.media, icon: IconLayers },
@@ -41,13 +42,21 @@ function pickArr(obj, keys) {
 }
 
 function PublicProjectDetailPage() {
-  const { code } = useParams()
+  const { code: routeCode } = useParams()
+  const navigate = useNavigate()
+  const code = decodePublicCode(routeCode)
   const [project, setProject] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [tab, setTab] = useState('all')
   const [media, setMedia] = useState(null)
   const [mediaLoading, setMediaLoading] = useState(true)
+
+  useEffect(() => {
+    if (routeCode && !isEncodedPublicCode(routeCode)) {
+      navigate(publicDetailPath('projects', routeCode), { replace: true })
+    }
+  }, [navigate, routeCode])
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -97,9 +106,9 @@ function PublicProjectDetailPage() {
   ]
 
   const infoCards = [
-    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? `/public/persons/${person.personCode}` : null },
+    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
     projectCategories.length === 1
-      ? { icon: IconCategory, label: DETAIL.category, value: catName, to: catCode ? `/public/categories/${catCode}` : null }
+      ? { icon: IconCategory, label: DETAIL.category, value: catName, to: catCode ? publicDetailPath('categories', catCode) : null }
       : { icon: IconCategory, label: DETAIL.categories, value: categorySummary || null },
     { icon: IconLayers, label: DETAIL.media, value: totalMedia ? totalMedia.toLocaleString() : null },
   ]

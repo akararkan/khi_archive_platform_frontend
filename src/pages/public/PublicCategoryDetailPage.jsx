@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import { DETAIL, UI, cardFromItem } from '@/components/khi/khi-data'
 import KhiCard from '@/components/khi/KhiCard'
@@ -10,11 +10,14 @@ import {
 import { CardGridSkeleton } from '@/components/public/PublicShared'
 import { IconCategory, IconProject } from '@/components/khi/icons'
 import { guestCategory, guestCategoryProjects } from '@/services/guest'
+import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 const PAGE_SIZE = 24
 
 function PublicCategoryDetailPage() {
-  const { code } = useParams()
+  const { code: routeCode } = useParams()
+  const navigate = useNavigate()
+  const code = decodePublicCode(routeCode)
 
   const [category, setCategory] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -29,6 +32,12 @@ function PublicCategoryDetailPage() {
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [projectsLoadingMore, setProjectsLoadingMore] = useState(false)
   const projectQueryRef = useRef('')
+
+  useEffect(() => {
+    if (routeCode && !isEncodedPublicCode(routeCode)) {
+      navigate(publicDetailPath('categories', routeCode), { replace: true })
+    }
+  }, [navigate, routeCode])
 
   useEffect(() => {
     const ctrl = new AbortController()

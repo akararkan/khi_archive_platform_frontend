@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import { VideoPlayer } from '@/components/ui/video-player'
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
@@ -17,6 +17,7 @@ import {
   IconLayers, IconVideo, IconMic, IconText, IconPlus,
 } from '@/components/khi/icons'
 import { guestVideos } from '@/services/guest'
+import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 function toList(v, cap = 12) {
   if (!v) return []
@@ -25,11 +26,19 @@ function toList(v, cap = 12) {
 }
 
 function PublicVideoDetailPage() {
-  const { code } = useParams()
+  const { code: routeCode } = useParams()
+  const navigate = useNavigate()
+  const code = decodePublicCode(routeCode)
   const [video, setVideo] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [helpOpen, setHelpOpen] = useState(false)
+
+  useEffect(() => {
+    if (routeCode && !isEncodedPublicCode(routeCode)) {
+      navigate(publicDetailPath('videos', routeCode), { replace: true })
+    }
+  }, [navigate, routeCode])
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -56,8 +65,8 @@ function PublicVideoDetailPage() {
   const projectCode = video.project?.projectCode || video.projectCode
 
   const infoCards = [
-    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? `/public/persons/${person.personCode}` : null },
-    { icon: IconProject, label: DETAIL.project, value: video.project?.projectName || video.projectName, to: projectCode ? `/public/projects/${projectCode}` : null },
+    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
+    { icon: IconProject, label: DETAIL.project, value: video.project?.projectName || video.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
     { icon: IconCalendar, label: DETAIL.event, value: video.event },
     { icon: IconRegion, label: DETAIL.location, value: video.location || video.region },
     { icon: IconLanguage, label: DETAIL.language, value: video.language },
