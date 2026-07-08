@@ -1,7 +1,7 @@
 // Lightweight inline SVG icons for the public "Living Archive" surface.
 // They inherit `color` (currentColor) and are sized by CSS, so they work
 // anywhere without an icon library. Ported from the design kit + a few
-// additions (close, arrow, external, download, calendar).
+// additions (close, arrow, external, calendar).
 import React from 'react'
 
 const Svg = ({ children, sw = 1.8, fill = 'none', ...p }) => (
@@ -34,7 +34,6 @@ export const IconPlay = (p) => <Svg fill="currentColor" {...p}><path d="M8 5v14l
 export const IconClose = (p) => <Svg sw={2.2} {...p}><path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" /></Svg>
 export const IconArrowLeft = (p) => <Svg sw={2} {...p}><path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" /></Svg>
 export const IconExternal = (p) => <Svg {...p}><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></Svg>
-export const IconDownload = (p) => <Svg {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" strokeLinecap="round" strokeLinejoin="round" /></Svg>
 export const IconCalendar = (p) => <Svg {...p}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" /></Svg>
 export const IconMic = (p) => <Svg {...p}><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" strokeLinecap="round" /></Svg>
 export const IconClock = (p) => <Svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" strokeLinecap="round" /></Svg>
@@ -56,5 +55,5 @@ export const TYPE_ICON = {
 export const FACET_ICON = {
   category: IconCategory, person: IconPerson, region: IconRegion,
   language: IconLanguage, dialect: IconLanguage, subject: IconBook,
-  genre: IconTag, tag: IconTag, keyword: IconTag,
+  genre: IconTag, tag: IconTag,
 }

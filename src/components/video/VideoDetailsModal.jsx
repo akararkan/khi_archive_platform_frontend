@@ -221,7 +221,6 @@ function VideoDetailsModal({ video, open, onOpenChange, searchQuery }) {
                   subtitle={[video.videoVersion, video.extension, video.resolution, video.frameRate]
                     .filter(Boolean)
                     .join(' • ')}
-                  downloadHref={video.videoFileUrl}
                 />
               </Section>
             )}

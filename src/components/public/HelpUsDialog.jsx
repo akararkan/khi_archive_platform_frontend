@@ -94,9 +94,8 @@ const FIELD_GROUPS = {
       { key: 'owner',        label: 'خاوەن'      },
       { key: 'publisher',    label: 'بڵاوکەرەوە' },
     ]},
-    { section: 'تاگ و کلیلەوشە', color: 'bg-green-500', Icon: Tag, fields: [
+    { section: 'تاگەکان', color: 'bg-green-500', Icon: Tag, fields: [
       { key: 'tags',     label: 'تاگەکان'     },
-      { key: 'keywords', label: 'کلیلەوشەکان' },
     ]},
   ],
   VIDEO: [
@@ -131,8 +130,8 @@ const FIELD_GROUPS = {
       { key: 'owner',        label: 'خاوەن'      },
       { key: 'publisher',    label: 'بڵاوکەرەوە' },
     ]},
-    { section: 'تاگ و کلیلەوشە', color: 'bg-green-500', Icon: Tag, fields: [
-      { key: 'tags', label: 'تاگەکان' }, { key: 'keywords', label: 'کلیلەوشەکان' },
+    { section: 'تاگەکان', color: 'bg-green-500', Icon: Tag, fields: [
+      { key: 'tags', label: 'تاگەکان' },
     ]},
   ],
   IMAGE: [
@@ -157,8 +156,8 @@ const FIELD_GROUPS = {
       { key: 'owner',        label: 'خاوەن'      },
       { key: 'publisher',    label: 'بڵاوکەرەوە' },
     ]},
-    { section: 'تاگ و کلیلەوشە', color: 'bg-green-500', Icon: Tag, fields: [
-      { key: 'tags', label: 'تاگەکان' }, { key: 'keywords', label: 'کلیلەوشەکان' },
+    { section: 'تاگەکان', color: 'bg-green-500', Icon: Tag, fields: [
+      { key: 'tags', label: 'تاگەکان' },
     ]},
   ],
   TEXT: [
@@ -194,8 +193,8 @@ const FIELD_GROUPS = {
       { key: 'owner',        label: 'خاوەن'      },
       { key: 'publisher',    label: 'بڵاوکەرەوە' },
     ]},
-    { section: 'تاگ و کلیلەوشە', color: 'bg-green-500', Icon: Tag, fields: [
-      { key: 'tags', label: 'تاگەکان' }, { key: 'keywords', label: 'کلیلەوشەکان' },
+    { section: 'تاگەکان', color: 'bg-green-500', Icon: Tag, fields: [
+      { key: 'tags', label: 'تاگەکان' },
     ]},
   ],
 }

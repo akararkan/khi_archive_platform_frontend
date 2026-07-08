@@ -13,7 +13,7 @@ import {
 } from '@/components/khi/KhiDetail'
 import {
   IconPerson, IconProject, IconCalendar, IconRegion, IconImage, IconLayers,
-  IconMic, IconExternal, IconDownload, IconPlus,
+  IconMic, IconExternal, IconPlus,
 } from '@/components/khi/icons'
 import { guestImages } from '@/services/guest'
 
@@ -126,7 +126,6 @@ function PublicImageDetailPage() {
           actions={[
             ...(fileUrl ? [
               { label: DETAIL.openOriginal, href: fileUrl, icon: IconExternal, external: true, primary: true },
-              { label: DETAIL.download, href: fileUrl, icon: IconDownload, download: true },
             ] : []),
             { label: DETAIL.help, icon: IconPlus, onClick: () => setHelpOpen(true) },
           ]}

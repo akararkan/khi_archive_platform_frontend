@@ -11,6 +11,14 @@ function pickFirst(...values) {
   return null
 }
 
+function cleanTitleValue(value) {
+  if (value == null) return null
+  const text = String(value).trim()
+  if (!text) return null
+  if (/^https?:\/\//i.test(text)) return null
+  return text
+}
+
 // Returns the most-readable title for any media DTO regardless of which
 // of the backend's title field names it actually carries. The backend
 // uses different names per kind (audio uses originTitle / alterTitle /
@@ -24,22 +32,22 @@ function pickMediaTitle(item) {
   if (!item) return null
   return (
     pickFirst(
-      // Already-resolved title.
-      item.title,
-      // Per-kind primary "main" titles.
-      item.titleEnglish,
-      item.fullName,
-      // Romanized — same script everyone can read.
-      item.romanizedTitle,
-      // Original-script titles, in priority order.
-      item.originalTitle,
-      item.originTitle,
-      item.titleOriginal,
-      item.centralKurdishTitle,
-      item.titleInCentralKurdish,
-      // Alternative titles as a final fallback.
-      item.alternativeTitle,
-      item.alterTitle,
+      // Public catalogue rule: Central Kurdish first. English / romanized
+      // titles are dashboard context and only fall back when no Kurdish title
+      // exists in the DTO.
+      cleanTitleValue(item.centralKurdishTitle),
+      cleanTitleValue(item.titleInCentralKurdish),
+      cleanTitleValue(item.titleCentralKurdish),
+      cleanTitleValue(item.kurdishTitle),
+      cleanTitleValue(item.originalTitle),
+      cleanTitleValue(item.originTitle),
+      cleanTitleValue(item.titleOriginal),
+      cleanTitleValue(item.fullName),
+      cleanTitleValue(item.alternativeTitle),
+      cleanTitleValue(item.alterTitle),
+      cleanTitleValue(item.title),
+      cleanTitleValue(item.titleEnglish),
+      cleanTitleValue(item.romanizedTitle),
     ) || null
   )
 }
@@ -120,8 +128,6 @@ function formatBool(value) {
 //     subjects:   [{ value, count }, …],
 //     genres:     [{ value, count }, …],
 //     tags:       [{ value, count }, …],
-//     subjects:   [{ value, count }, …],
-//     keywords:   [{ value, count }, …],
 //   }
 //
 // Entries are tolerated in a couple of shapes so a small backend rename
@@ -137,13 +143,27 @@ const FACET_KEYS = [
   'subjects',
   'genres',
   'tags',
-  'keywords',
 ]
 
 function readFacetEntry(entry) {
   if (!entry) return null
-  const value = entry.value ?? entry.label ?? entry.name ?? entry.code ?? entry.key
-  const code = entry.code ?? entry.value ?? entry.key
+  const value =
+    entry.label ??
+    entry.name ??
+    entry.categoryName ??
+    entry.personName ??
+    entry.fullName ??
+    entry.projectName ??
+    entry.value ??
+    entry.code ??
+    entry.key
+  const code =
+    entry.code ??
+    entry.categoryCode ??
+    entry.personCode ??
+    entry.projectCode ??
+    entry.value ??
+    entry.key
   const count = entry.count ?? entry.total ?? entry.docCount ?? 0
   const image =
     entry.image ??

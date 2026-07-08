@@ -59,14 +59,13 @@ const SUGGEST_KINDS = {
   text: { icon: FileText, label: 'Text', mode: 'entity', path: 'texts' },
   image: { icon: ImageIcon, label: 'Image', mode: 'entity', path: 'images' },
   tag: { icon: Tag, label: 'Tag', mode: 'query' },
-  keyword: { icon: Tag, label: 'Keyword', mode: 'query' },
 }
 
 // Display order for grouped suggestion buckets. Entity kinds come first
 // because they jump straight to a record; tags trail because they just
 // narrow the next search.
 const SUGGEST_ORDER = [
-  'person', 'project', 'audio', 'video', 'text', 'image', 'category', 'tag', 'keyword',
+  'person', 'project', 'audio', 'video', 'text', 'image', 'category', 'tag',
 ]
 
 // One-tap starter chips shown in the dropdown when the input is focused
@@ -86,6 +85,7 @@ function groupSuggestions(list) {
   const buckets = new Map()
   for (const s of list || []) {
     const kind = s?.kind || 'tag'
+    if (kind === 'keyword') continue
     const arr = buckets.get(kind) || []
     arr.push(s)
     buckets.set(kind, arr)
@@ -120,8 +120,7 @@ function trendingLabel(item) {
     item.query ??
     item.q ??
     item.term ??
-    item.searchTerm ??
-    item.keyword
+    item.searchTerm
   return raw == null ? '' : String(raw).trim()
 }
 

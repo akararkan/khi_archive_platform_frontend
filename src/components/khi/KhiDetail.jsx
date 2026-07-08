@@ -62,7 +62,6 @@ export function KhiActions({ actions = [] }) {
               key={i}
               href={a.href}
               className={cls}
-              {...(a.download ? { download: true } : {})}
               {...(a.external ? { target: '_blank', rel: 'noreferrer' } : {})}
             >
               {inner}

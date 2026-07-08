@@ -228,7 +228,6 @@ function AudioDetailsModal({ audio, open, onOpenChange, searchQuery }) {
                   subtitle={[audio.audioVersion, audio.fileExtension, audio.bitRate]
                     .filter(Boolean)
                     .join(' • ')}
-                  downloadHref={audio.audioFileUrl}
                 />
               </Section>
             )}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Download, Image as ImageIcon, X } from 'lucide-react'
+import { Image as ImageIcon, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { CodeBadge } from '@/components/ui/code-badge'
@@ -69,7 +69,7 @@ function hasAny(obj, keys) {
   })
 }
 
-function ImagePreview({ src, alt, downloadHref }) {
+function ImagePreview({ src, alt }) {
   const [hasError, setHasError] = useState(false)
 
   if (!src) return null
@@ -90,18 +90,6 @@ function ImagePreview({ src, alt, downloadHref }) {
           />
         )}
       </div>
-      {downloadHref ? (
-        <div className="flex items-center justify-end border-t bg-card/60 px-3 py-2">
-          <a
-            href={downloadHref}
-            download
-            className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:bg-muted"
-          >
-            <Download className="size-3.5" />
-            Download original
-          </a>
-        </div>
-      ) : null}
     </div>
   )
 }
@@ -248,7 +236,7 @@ function ImageDetailsModal({ image, open, onOpenChange, searchQuery }) {
           <div className="space-y-8">
             {image.imageFileUrl && (
               <Section title="Preview">
-                <ImagePreview src={image.imageFileUrl} alt={title} downloadHref={image.imageFileUrl} />
+                <ImagePreview src={image.imageFileUrl} alt={title} />
               </Section>
             )}
 

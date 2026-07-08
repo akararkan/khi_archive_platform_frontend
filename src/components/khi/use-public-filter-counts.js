@@ -85,7 +85,6 @@ function splitValues(raw) {
       raw.name ??
       raw.subject ??
       raw.tag ??
-      raw.keyword ??
       raw.code,
     )
   }
@@ -167,7 +166,6 @@ function emptyFacetMaps() {
     subjects: new Map(),
     genres: new Map(),
     tags: new Map(),
-    keywords: new Map(),
   }
 }
 
@@ -193,7 +191,6 @@ function tallyMediaFacets(items) {
     addSimpleList(maps, 'subjects', [item?.subject, item?.subjects])
     addSimpleList(maps, 'genres', [item?.genre, item?.genres])
     addSimpleList(maps, 'tags', [item?.tag, item?.tags])
-    addSimpleList(maps, 'keywords', [item?.keyword, item?.keywords])
   }
   return mapsToFacets(maps)
 }

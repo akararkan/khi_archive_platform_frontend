@@ -55,7 +55,11 @@ export async function guestTrending({ signal } = {}) {
 // ── Projects ─────────────────────────────────────────────────────────────
 export async function guestProjects(params = {}) {
   const { signal, ...query } = params
-  const { data } = await apiClient.get('/guest/projects', { params: query, signal })
+  const { data } = await apiClient.get('/guest/projects', {
+    params: query,
+    paramsSerializer: { indexes: null },
+    signal,
+  })
   return data
 }
 
@@ -74,7 +78,11 @@ export async function guestProjectMedia(projectCode, { type, signal } = {}) {
 // ── Categories ───────────────────────────────────────────────────────────
 export async function guestCategories(params = {}) {
   const { signal, ...query } = params
-  const { data } = await apiClient.get('/guest/categories', { params: query, signal })
+  const { data } = await apiClient.get('/guest/categories', {
+    params: query,
+    paramsSerializer: { indexes: null },
+    signal,
+  })
   return data
 }
 
@@ -95,7 +103,11 @@ export async function guestCategoryProjects(categoryCode, params = {}) {
 // ── Persons ──────────────────────────────────────────────────────────────
 export async function guestPersons(params = {}) {
   const { signal, ...query } = params
-  const { data } = await apiClient.get('/guest/persons', { params: query, signal })
+  const { data } = await apiClient.get('/guest/persons', {
+    params: query,
+    paramsSerializer: { indexes: null },
+    signal,
+  })
   return data
 }
 

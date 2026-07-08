@@ -74,7 +74,7 @@ function PublicAudioDetailPage() {
     <>
       {audio.audioFileUrl ? (
         <div className="player-mount" style={{ marginBottom: 22 }}>
-          <AudioPlayer src={audio.audioFileUrl} title={title} subtitle={audio.form || audio.language || ''} downloadHref={audio.audioFileUrl} />
+          <AudioPlayer src={audio.audioFileUrl} title={title} subtitle={audio.form || audio.language || ''} />
         </div>
       ) : (
         <div className="media-unavailable">{DETAIL.fileUnavailable}</div>

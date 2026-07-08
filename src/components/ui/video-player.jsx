@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   Check,
-  Download,
   Gauge,
   Loader2,
   Maximize,
@@ -30,7 +29,7 @@ function formatTime(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-function VideoPlayer({ src, title, subtitle, downloadHref, className }) {
+function VideoPlayer({ src, title, subtitle, className }) {
   const containerRef = useRef(null)
   const videoRef = useRef(null)
   const scrubberRef = useRef(null)
@@ -546,18 +545,6 @@ function VideoPlayer({ src, title, subtitle, downloadHref, className }) {
               {isFullscreen ? <Minimize className="size-3.5" /> : <Maximize className="size-3.5" />}
             </ChipButton>
 
-            {downloadHref ? (
-              <a
-                href={downloadHref}
-                target="_blank"
-                rel="noreferrer"
-                title="Open original file"
-                aria-label="Download / open original file"
-                className="flex size-8 items-center justify-center rounded-full border border-border bg-background/70 text-muted-foreground transition hover:bg-background hover:text-foreground"
-              >
-                <Download className="size-3.5" />
-              </a>
-            ) : null}
           </div>
         </div>
 

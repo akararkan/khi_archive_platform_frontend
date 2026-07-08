@@ -246,8 +246,7 @@ export function KhiBrowsePage() {
     for (const group of filterGroups) {
       const list = selected[group.paramKey]
       if (!Array.isArray(list) || !list.length) continue
-      // Repeatable params send every selection; single params send one value.
-      params[group.paramKey] = group.multi ? list : list[0]
+      params[group.paramKey] = list
     }
     const request = typeKey === 'all'
       ? loadPublicMediaSections(params, selectedMediaTypes)
@@ -305,21 +304,11 @@ export function KhiBrowsePage() {
   const mediaTypeCounts = { audio: counts.audio, video: counts.video, text: counts.text, image: counts.image }
 
   // ── Facet / filter handlers ─────────────────────────────────────────────────
-  // Repeatable params (subject/genre/tag/keyword + entity list fields)
-  // accumulate; single-value params (category/person/language/… + single
-  // entity fields) replace, so the checkbox group behaves like the backend's
-  // one-value contract.
+  // Every public facet behaves as a multi-select checkbox group. Values stay in
+  // the URL as comma-separated chips and are sent as repeated query params.
   const onToggleFacet = (paramKey, val) => {
-    const group = filterGroups.find((g) => g.paramKey === paramKey)
     const cur = new Set(selected[paramKey] || [])
-    if (group && group.multi) {
-      cur.has(val) ? cur.delete(val) : cur.add(val)
-    } else if (cur.has(val) && cur.size === 1) {
-      cur.clear()
-    } else {
-      cur.clear()
-      cur.add(val)
-    }
+    cur.has(val) ? cur.delete(val) : cur.add(val)
     const arr = [...cur]
     update({ [paramKey]: arr.length ? arr.join(',') : null })
   }

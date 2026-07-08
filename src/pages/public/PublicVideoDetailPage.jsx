@@ -69,7 +69,7 @@ function PublicVideoDetailPage() {
     <>
       {video.videoFileUrl ? (
         <div className="player-mount" style={{ marginBottom: 22 }}>
-          <VideoPlayer src={video.videoFileUrl} title={title} subtitle={video.event || video.location || video.language || ''} downloadHref={video.videoFileUrl} />
+          <VideoPlayer src={video.videoFileUrl} title={title} subtitle={video.event || video.location || video.language || ''} />
         </div>
       ) : (
         <div className="media-unavailable">{DETAIL.fileUnavailable}</div>

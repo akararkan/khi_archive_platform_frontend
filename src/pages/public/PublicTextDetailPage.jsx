@@ -13,7 +13,7 @@ import {
 } from '@/components/khi/KhiDetail'
 import {
   IconPerson, IconProject, IconBook, IconLanguage, IconCalendar, IconLayers,
-  IconText, IconMic, IconQuote, IconExternal, IconDownload, IconPlus,
+  IconText, IconMic, IconQuote, IconExternal, IconPlus,
 } from '@/components/khi/icons'
 import { guestTexts } from '@/services/guest'
 
@@ -132,7 +132,6 @@ function PublicTextDetailPage() {
           actions={[
             ...(fileUrl ? [
               { label: DETAIL.openDoc, href: fileUrl, icon: IconExternal, external: true, primary: true },
-              { label: DETAIL.download, href: fileUrl, icon: IconDownload, download: true },
             ] : []),
             { label: DETAIL.help, icon: IconPlus, onClick: () => setHelpOpen(true) },
           ]}

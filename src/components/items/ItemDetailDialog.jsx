@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Calendar, Download, ExternalLink, FolderOpen, Hash, Languages, Pencil, User, X } from 'lucide-react'
+import { Calendar, ExternalLink, FolderOpen, Hash, Languages, Pencil, User, X } from 'lucide-react'
 
 import { Button, buttonVariants } from '@/components/ui/button'
 import { CodeBadge } from '@/components/ui/code-badge'
@@ -218,7 +218,7 @@ export function ItemDetailDialog({ item, onClose, onEdit }) {
               rel="noopener noreferrer"
               className={cn(buttonVariants({ variant: 'outline' }), 'gap-2')}
             >
-              {item.type === 'IMAGE' || item.type === 'TEXT' ? <ExternalLink className="size-4" /> : <Download className="size-4" />}
+              <ExternalLink className="size-4" />
               Open file
             </a>
           ) : null}

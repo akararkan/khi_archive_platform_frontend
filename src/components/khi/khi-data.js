@@ -18,6 +18,7 @@ import {
   personImageSrc,
   personInitials,
   extractPersonFromItem,
+  formatPublicDate,
 } from '@/components/public/public-helpers'
 
 export const PAGE_SIZE = 12
@@ -104,7 +105,6 @@ export const DETAIL = {
   back: 'گەڕانەوە',
   openDoc: 'کردنەوەی بەڵگەنامە',
   openOriginal: 'کردنەوەی ڕەسەن',
-  download: 'داگرتن',
   help: 'یارمەتیمان بدە',
   seeAll: 'بینینی هەموو',
   none: 'هیچ نییە',
@@ -180,14 +180,12 @@ const SHARED_MEDIA_FACETS = [
   { paramKey: 'subject', facetKey: 'subjects', title: DETAIL.subject, multi: true },
   { paramKey: 'genre', facetKey: 'genres', title: 'ژانر', multi: true },
   { paramKey: 'tag', facetKey: 'tags', title: 'تاگ', multi: true },
-  { paramKey: 'keyword', facetKey: 'keywords', title: 'کلیلەوشەکان', multi: true },
 ]
 const IMAGE_FACETS = SHARED_MEDIA_FACETS.filter((f) => !['language', 'dialect'].includes(f.paramKey))
 const PROJECT_FACETS = [
   { paramKey: 'categoryCode', facetKey: 'categories', title: 'پۆل', defaultOpen: true },
   { paramKey: 'personCode', facetKey: 'persons', title: 'کەس', person: true },
   { paramKey: 'tag', facetKey: 'tags', title: 'تاگ', multi: true },
-  { paramKey: 'keyword', facetKey: 'keywords', title: 'کلیلەوشەکان', multi: true },
 ]
 const PERSON_FACETS = [{ paramKey: 'region', facetKey: 'regions', title: 'ناوچە', defaultOpen: true }]
 // Common filters sent to every selected public media endpoint. The media-type
@@ -198,7 +196,6 @@ const FEED_FACETS = [
   { paramKey: 'subject', facetKey: 'subjects', title: DETAIL.subject, multi: true },
   { paramKey: 'genre', facetKey: 'genres', title: 'ژانر', multi: true },
   { paramKey: 'tag', facetKey: 'tags', title: 'تاگ', multi: true },
-  { paramKey: 'keyword', facetKey: 'keywords', title: 'کلیلەوشەکان', multi: true },
   { paramKey: 'region', facetKey: 'regions', title: 'ناوچە' },
   { paramKey: 'language', facetKey: 'languages', title: 'زمان' },
   { paramKey: 'dialect', facetKey: 'dialects', title: 'زاراوە' },
@@ -363,6 +360,31 @@ function durationOf(item) {
   )
 }
 
+function dateLabelOf(item) {
+  if (!item) return null
+  const raw =
+    item.recordedAt || item.recordingDate || item.documentDate || item.imageDate ||
+    item.dateCreated || item.datePublished || item.printDate || item.createdAt ||
+    item.year || item.date || null
+  if (raw != null && /^\d{4}$/.test(String(raw).trim())) return String(raw).trim()
+  return formatPublicDate(raw) || yearOf(item)
+}
+
+function descriptionOf(item) {
+  const raw =
+    item?.description ||
+    item?.summary ||
+    item?.bio ||
+    item?.photostory ||
+    item?.transcription ||
+    item?.bodyText ||
+    item?.lyrics ||
+    null
+  if (raw == null) return null
+  const text = String(raw).replace(/\s+/g, ' ').trim()
+  return text || null
+}
+
 function codeOf(item, kind) {
   return (
     item.code || item[`${kind}Code`] || item.audioCode || item.videoCode || item.textCode ||
@@ -411,28 +433,6 @@ function categoriesOf(item) {
     seen.add(key)
     return true
   })
-}
-
-function visibilityOf(item) {
-  const raw =
-    item?.visibility ||
-    item?.publicVisibility ||
-    item?.status ||
-    null
-  if (typeof raw === 'string') {
-    const normalized = raw.trim().toLowerCase()
-    if (['public', 'visible', 'published'].includes(normalized)) return 'public'
-    if (['private', 'hidden', 'draft'].includes(normalized)) return 'private'
-  }
-
-  const itemPublic = item?.isPublic ?? item?.public
-  const projectPublic =
-    item?.projectVisibleToPublic ??
-    item?.project?.isVisibleToPublic ??
-    item?.project?.visibleToPublic
-  if (itemPublic === false || projectPublic === false) return 'private'
-  if (itemPublic === true || projectPublic === true) return 'public'
-  return 'public'
 }
 
 function projectCountsOf(item) {
@@ -485,12 +485,14 @@ export function cardFromItem(item, typeKey) {
     // (name in `title`/`personName`, portrait in `personMediaPortrait` and
     // mirrored to `fileUrl`). Read both so cards show the real name and photo
     // instead of falling through to the technical code.
-    const name = item.fullName || item.name || item.personName || item.title || code
+    const name = item.fullName || item.name || item.personName || item.title || DETAIL.untitled
     return {
       kind, code, to, acc: code,
       title: name,
+      description: descriptionOf(item),
       collection: Array.isArray(item.personType) ? item.personType.join(' · ') : item.personType || null,
       region: item.region || null,
+      dateLabel: dateLabelOf(item),
       image: personImageSrc(item) || item.personMediaPortrait || item.fileUrl || '',
       avatarText: personInitials(name),
       tags: tagsOf(item),
@@ -503,7 +505,8 @@ export function cardFromItem(item, typeKey) {
     const person = extractPersonFromItem(item)
     return {
       kind, code, to, acc: code,
-      title: item.projectName || item.name || item.title || code,
+      title: item.projectName || item.name || item.title || DETAIL.untitled,
+      description: descriptionOf(item),
       projectCode: item.projectCode || code,
       projectName: item.projectName || item.name || item.title || null,
       collection: categories[0]?.label || null,
@@ -512,7 +515,7 @@ export function cardFromItem(item, typeKey) {
       personEmpty: !person,
       counts: projectCountsOf(item),
       tags: tagsOf(item),
-      visibility: visibilityOf(item),
+      dateLabel: dateLabelOf(item),
       // Per-type project DTOs carry a thumbnail field; older slim rows mirror
       // the cover into `fileUrl`.
       image: mediaThumbHref(item) || item.fileUrl || null,
@@ -523,7 +526,8 @@ export function cardFromItem(item, typeKey) {
   if (kind === 'category') {
     return {
       kind, code, to, acc: code,
-      title: item.categoryName || item.name || code,
+      title: item.categoryName || item.name || DETAIL.untitled,
+      description: descriptionOf(item),
       collection: null,
       tags: item.projectCount ? [`${item.projectCount} پڕۆژە`] : tagsOf(item),
       ...trend,
@@ -534,17 +538,18 @@ export function cardFromItem(item, typeKey) {
   const person = extractPersonFromItem(item)
   return {
     kind, code, to, acc: code,
-    title: pickMediaTitle(item) || code,
+    title: pickMediaTitle(item) || DETAIL.untitled,
+    description: descriptionOf(item),
     projectCode: item.projectCode || item.project?.projectCode || null,
     projectName: item.projectName || item.project?.projectName || item.collection || null,
     collection: item.projectName || item.project?.projectName || item.collection || null,
     person: person ? { name: person.fullName || person.name, code: person.personCode, image: personImageSrc(person) } : null,
     personEmpty: !person,
     categories,
-    visibility: visibilityOf(item),
     region: item.region || item.location || null,
     lang: item.language || null,
     decade: yearOf(item),
+    dateLabel: dateLabelOf(item),
     duration: durationOf(item),
     // Per-type rows use imageFileUrl; tolerate normalized rows with `fileUrl`.
     image: kind === 'image' ? (mediaThumbHref(item) || item.fileUrl || null) : null,

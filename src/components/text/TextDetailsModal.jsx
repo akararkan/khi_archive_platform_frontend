@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Download, FileText, X } from 'lucide-react'
+import { FileText, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { CodeBadge } from '@/components/ui/code-badge'
@@ -69,7 +69,7 @@ function hasAny(obj, keys) {
   })
 }
 
-function TextFilePreview({ src, ext, downloadHref }) {
+function TextFilePreview({ src, ext }) {
   if (!src) return null
   const lower = (ext || '').toLowerCase()
   const isPdf = lower === 'pdf'
@@ -88,18 +88,6 @@ function TextFilePreview({ src, ext, downloadHref }) {
           <p className="text-sm">Inline preview is not available for this file type.</p>
         </div>
       )}
-      {downloadHref ? (
-        <div className="flex items-center justify-end border-t bg-card/60 px-3 py-2">
-          <a
-            href={downloadHref}
-            download
-            className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:bg-muted"
-          >
-            <Download className="size-3.5" />
-            Download original
-          </a>
-        </div>
-      ) : null}
     </div>
   )
 }
@@ -252,7 +240,6 @@ function TextDetailsModal({ text, open, onOpenChange, searchQuery }) {
                 <TextFilePreview
                   src={text.textFileUrl}
                   ext={text.extension}
-                  downloadHref={text.textFileUrl}
                 />
               </Section>
             )}
