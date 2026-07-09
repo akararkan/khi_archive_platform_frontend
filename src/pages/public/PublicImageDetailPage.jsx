@@ -81,7 +81,6 @@ function PublicImageDetailPage() {
             src={fileUrl}
             alt={title}
             draggable={false}
-            onContextMenu={(event) => event.preventDefault()}
           />
         </div>
       ) : (

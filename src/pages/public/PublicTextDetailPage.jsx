@@ -54,14 +54,14 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
 
         const response = await fetch(fileUrl, {
           signal: abortController.signal,
-          credentials: 'include',
+          cache: 'no-store',
         })
 
         if (!response.ok) {
           throw new Error(`Failed to download document: ${response.status}`)
         }
 
-        const rawData = await response.arrayBuffer()
+        const rawData = new Uint8Array(await response.arrayBuffer())
         loadingTask = getDocument({ data: rawData })
         const pdf = await loadingTask.promise
         const renderedPages = []
@@ -84,8 +84,8 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
           if (canceled) break
         }
       } catch (err) {
-        if (!canceled) {
-          setError('Could not render document preview.')
+        if (!canceled && err?.name !== 'AbortError') {
+          setError(err?.message || 'Could not render document preview.')
           setPages([])
         }
       } finally {
@@ -105,7 +105,7 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
   }, [fileUrl])
 
   return (
-    <div className="protected-file-viewer" onContextMenu={(event) => event.preventDefault()}>
+    <div className="protected-file-viewer">
       {loading ? (
         <div className="media-unavailable">Loading document images…</div>
       ) : error ? (
@@ -121,7 +121,6 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
               src={src}
               alt={`${title} – Page ${index + 1}`}
               draggable="false"
-              onContextMenu={(event) => event.preventDefault()}
             />
           </div>
         ))

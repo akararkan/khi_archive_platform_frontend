@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 
 import { ScrollMemory } from '@/components/scroll-memory'
@@ -11,6 +11,7 @@ function App() {
   // tweaker, so we hide the tweaker there.
   const hideTweaker = pathname.startsWith('/public') || pathname.startsWith('/teacher')
   const publicRoute = pathname.startsWith('/public')
+  const [isScreenLocked, setIsScreenLocked] = useState(false)
 
   useEffect(() => {
     if (!publicRoute) return undefined
@@ -40,12 +41,8 @@ function App() {
       event.preventDefault()
     }
 
-    const preventContextMenu = (event) => event.preventDefault()
     const preventClipboard = (event) => event.preventDefault()
     const preventSelection = (event) => event.preventDefault()
-    const preventMouseRight = (event) => {
-      if (event.button === 2) event.preventDefault()
-    }
     const preventForbiddenKeys = (event) => {
       const key = event.key?.toLowerCase()
       const isCmd = event.metaKey || event.ctrlKey
@@ -75,17 +72,11 @@ function App() {
     const preventDrag = (event) => event.preventDefault()
     const preventBeforePrint = (event) => event.preventDefault()
     const lockWhenHidden = () => {
-      if (document.visibilityState !== 'visible' || document.hasFocus() === false) {
-        document.documentElement.classList.add('screen-locked')
-      } else {
-        document.documentElement.classList.remove('screen-locked')
-      }
+      setIsScreenLocked(document.visibilityState !== 'visible')
     }
 
     document.addEventListener('keydown', preventImplicitFormSubmit, true)
     document.addEventListener('keydown', preventForbiddenKeys, true)
-    document.addEventListener('contextmenu', preventContextMenu, true)
-    document.addEventListener('mousedown', preventMouseRight, true)
     document.addEventListener('copy', preventClipboard, true)
     document.addEventListener('cut', preventClipboard, true)
     document.addEventListener('paste', preventClipboard, true)
@@ -95,17 +86,11 @@ function App() {
     window.addEventListener('visibilitychange', lockWhenHidden)
     window.addEventListener('blur', lockWhenHidden)
     window.addEventListener('focus', lockWhenHidden)
-    window.addEventListener('contextmenu', preventContextMenu, true)
-    window.addEventListener('mousedown', preventMouseRight, true)
-    document.documentElement.oncontextmenu = () => false
-    document.body && (document.body.oncontextmenu = () => false)
     lockWhenHidden()
 
     return () => {
       document.removeEventListener('keydown', preventImplicitFormSubmit, true)
       document.removeEventListener('keydown', preventForbiddenKeys, true)
-      document.removeEventListener('contextmenu', preventContextMenu, true)
-      document.removeEventListener('mousedown', preventMouseRight, true)
       document.removeEventListener('copy', preventClipboard, true)
       document.removeEventListener('cut', preventClipboard, true)
       document.removeEventListener('paste', preventClipboard, true)
@@ -115,10 +100,6 @@ function App() {
       window.removeEventListener('visibilitychange', lockWhenHidden)
       window.removeEventListener('blur', lockWhenHidden)
       window.removeEventListener('focus', lockWhenHidden)
-      window.removeEventListener('contextmenu', preventContextMenu, true)
-      window.removeEventListener('mousedown', preventMouseRight, true)
-      document.documentElement.oncontextmenu = null
-      if (document.body) document.body.oncontextmenu = null
     }
   }, [publicRoute])
 
@@ -128,6 +109,7 @@ function App() {
       <ScrollMemory />
       <Outlet />
       {hideTweaker ? null : <AppearanceTweaker />}
+      {publicRoute && isScreenLocked ? <div className="screen-locked-overlay" aria-hidden="true" /> : null}
     </main>
   )
 }

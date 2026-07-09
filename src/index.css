@@ -266,11 +266,32 @@
     }
   }
 
-  .screen-locked {
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
+  .screen-locked-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 2147483647 !important;
+    background: #000 !important;
+    color: transparent !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
     user-select: none !important;
+    display: grid !important;
+    place-items: center !important;
+    font-size: 0 !important;
+    touch-action: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+  }
+
+  .screen-locked-overlay::before {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    background: #000 !important;
+    opacity: 1 !important;
+    pointer-events: none !important;
   }
 }
 
