@@ -43,7 +43,8 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
     }
 
     let canceled = false
-    const loadingTask = getDocument({ url: fileUrl })
+    const abortController = new AbortController()
+    let loadingTask = null
 
     async function renderPages() {
       try {
@@ -51,6 +52,17 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
         setError('')
         setPages([])
 
+        const response = await fetch(fileUrl, {
+          signal: abortController.signal,
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to download document: ${response.status}`)
+        }
+
+        const rawData = await response.arrayBuffer()
+        loadingTask = getDocument({ data: rawData })
         const pdf = await loadingTask.promise
         const renderedPages = []
 
@@ -63,14 +75,14 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
           canvas.width = viewport.width
           canvas.height = viewport.height
           await page.render({ canvasContext: context, viewport }).promise
-          renderedPages.push(canvas.toDataURL('image/png'))
+          const pageImage = canvas.toDataURL('image/png')
+          renderedPages.push(pageImage)
           if (!canceled) {
-            setPages((prev) => [...prev, renderedPages[renderedPages.length - 1]])
+            setPages((prev) => [...prev, pageImage])
           }
           page.cleanup()
+          if (canceled) break
         }
-
-        await loadingTask.destroy()
       } catch (err) {
         if (!canceled) {
           setError('Could not render document preview.')
@@ -85,7 +97,10 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
 
     return () => {
       canceled = true
-      loadingTask.destroy().catch(() => null)
+      abortController.abort()
+      if (loadingTask) {
+        loadingTask.destroy().catch(() => null)
+      }
     }
   }, [fileUrl])
 

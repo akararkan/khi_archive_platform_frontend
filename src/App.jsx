@@ -10,8 +10,11 @@ function App() {
   // and get their own background-tone slider instead of the full appearance
   // tweaker, so we hide the tweaker there.
   const hideTweaker = pathname.startsWith('/public') || pathname.startsWith('/teacher')
+  const publicRoute = pathname.startsWith('/public')
 
   useEffect(() => {
+    if (!publicRoute) return undefined
+
     const preventImplicitFormSubmit = (event) => {
       if (
         event.key !== 'Enter' ||
@@ -117,7 +120,7 @@ function App() {
       document.documentElement.oncontextmenu = null
       if (document.body) document.body.oncontextmenu = null
     }
-  }, [])
+  }, [publicRoute])
 
   return (
     <main className="min-h-dvh bg-background text-foreground">
