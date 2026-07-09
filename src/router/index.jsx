@@ -12,7 +12,6 @@ import { KhiPublicLayout } from '@/components/public/KhiPublicLayout'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { RegisterPage } from '@/pages/RegisterPage'
-import { AccountProfilePage } from '@/pages/account/AccountProfilePage'
 import { AdminAnalyticsPage } from '@/pages/admin/AdminAnalyticsPage'
 import { AdminCategoryPage } from '@/pages/admin/AdminCategoryPage'
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
@@ -121,11 +120,10 @@ const router = createBrowserRouter([
             element: <RoleLandingRoute />,
           },
           {
-            // Generic signed-in account home. Not role-gated: any authenticated
-            // user can manage their profile here, but it's the default landing
-            // for GUESTs (who have no role workspace of their own).
+            // Legacy guest account page removed. Preserve old deep links by
+            // redirecting /account back to the public catalogue.
             path: 'account',
-            element: <AccountProfilePage />,
+            element: <Navigate to="/public" replace />,
           },
           {
             element: <RoleRoute allowedRole="employee" />,

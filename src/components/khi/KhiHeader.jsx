@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { KhiLogo } from '@/components/brand/KhiLogo'
@@ -34,6 +34,9 @@ export default function KhiHeader() {
   }, [searchParams])
 
   const [translateOpen, setTranslateOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const profileButtonRef = useRef(null)
+  const profileMenuRef = useRef(null)
 
   const submit = (event) => {
     event?.preventDefault()
@@ -42,11 +45,39 @@ export default function KhiHeader() {
   }
 
   const toggleTranslate = () => setTranslateOpen((open) => !open)
+  const toggleProfileMenu = () => setProfileOpen((open) => !open)
+  const closeProfileMenu = () => setProfileOpen(false)
 
   const onSignout = () => {
     logout()
+    closeProfileMenu()
     navigate('/public', { replace: true })
   }
+
+  useEffect(() => {
+    if (!profileOpen) return undefined
+
+    const handleClickOutside = (event) => {
+      if (
+        profileMenuRef.current?.contains(event.target) ||
+        profileButtonRef.current?.contains(event.target)
+      ) {
+        return
+      }
+      closeProfileMenu()
+    }
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') closeProfileMenu()
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [profileOpen])
 
   return (
     <header className="nav">
@@ -82,7 +113,14 @@ export default function KhiHeader() {
               {showDashboard && (
                 <Link className="btn btn-ghost" to={dashboardPath}><IconDashboard /><span>{UI.dashboard}</span></Link>
               )}
-              <Link className="account-identity" to="/account" aria-label={`${UI.profile}: ${accountName}`}>
+              <button
+                ref={profileButtonRef}
+                type="button"
+                className="account-identity"
+                aria-haspopup="dialog"
+                aria-expanded={profileOpen}
+                onClick={toggleProfileMenu}
+              >
                 <span className="account-avatar">
                   {accountImage ? <img src={accountImage} alt="" /> : accountInitial}
                 </span>
@@ -90,8 +128,42 @@ export default function KhiHeader() {
                   <strong>{accountName}</strong>
                   <small>{accountUsername ? `@${accountUsername}` : UI.profile}</small>
                 </span>
-              </Link>
-              <button className="btn btn-line" type="button" onClick={onSignout}><IconSignout /><span>{UI.signout}</span></button>
+              </button>
+              {profileOpen ? (
+                <div ref={profileMenuRef} className="account-dropdown" role="dialog" aria-label="Account menu">
+                  <div className="account-dropdown-hero">
+                    <div className="account-avatar account-dropdown-avatar">
+                      {accountImage ? <img src={accountImage} alt={accountName} /> : accountInitial}
+                    </div>
+                    <div>
+                      <p className="account-dropdown-name">{accountName}</p>
+                      <p className="account-dropdown-meta">{accountUsername ? `@${accountUsername}` : UI.profile}</p>
+                    </div>
+                  </div>
+                  {profile?.email ? (
+                    <div className="account-dropdown-row">
+                      <span>Email</span>
+                      <strong>{profile.email}</strong>
+                    </div>
+                  ) : null}
+                  <div className="account-dropdown-row">
+                    <span>Role</span>
+                    <strong>{profile?.role || 'Guest'}</strong>
+                  </div>
+                  <div className="account-dropdown-actions">
+                    {showDashboard && (
+                      <Link className="btn btn-ghost" to={dashboardPath} onClick={closeProfileMenu}>
+                        <IconDashboard className="size-4" />
+                        Dashboard
+                      </Link>
+                    )}
+                    <button className="btn btn-line w-full" type="button" onClick={onSignout}>
+                      <IconSignout className="size-4" />
+                      {UI.signout}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </>
           ) : (
             <>
