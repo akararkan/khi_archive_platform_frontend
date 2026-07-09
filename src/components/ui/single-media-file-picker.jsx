@@ -13,8 +13,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   getFileSourcePath,
+  getFileSourceRelativePath,
   getVolumeNameFromPath,
   setFileSourceFolderPath,
+  setFileSourceRelativePath,
   setFileSourceVolumeName,
 } from '@/lib/file-source-path'
 
@@ -46,12 +48,36 @@ function defaultFileMatcher() {
 }
 
 function getRelativePath(file) {
-  return String(file?.webkitRelativePath || file?.name || '').replace(/\\/g, '/')
+  return String(getFileSourceRelativePath(file) || getFileSourcePath(file)?.path || file?.name || '')
+    .replace(/\\/g, '/')
 }
 
 function getFolderName(files) {
   const relativePath = getRelativePath(files[0])
   return relativePath.includes('/') ? relativePath.split('/')[0] : ''
+}
+
+async function collectFilesFromDirectoryHandle(directoryHandle, rootName) {
+  const files = []
+
+  const walk = async (handle, prefix) => {
+    for await (const [name, entry] of handle.entries()) {
+      const relativePath = prefix ? `${prefix}/${name}` : name
+      if (entry.kind === 'file') {
+        const file = await entry.getFile()
+        setFileSourceRelativePath(file, relativePath)
+        files.push(file)
+        continue
+      }
+
+      if (entry.kind === 'directory') {
+        await walk(entry, relativePath)
+      }
+    }
+  }
+
+  await walk(directoryHandle, rootName)
+  return files
 }
 
 /**
@@ -77,6 +103,26 @@ export function SingleMediaFilePicker({
   const [folderName, setFolderName] = useState('')
   const [sourceVolumeInput, setSourceVolumeInput] = useState(getRememberedSourceVolume)
   const [error, setError] = useState('')
+
+  const setFolderSelection = (files, folderLabel) => {
+    const compatibleFiles = files.filter(isAcceptedFile)
+    if (compatibleFiles.length === 0) {
+      setFolderFiles([])
+      setFolderName(folderLabel || getFolderName(files))
+      setError(`This folder does not contain a supported ${mediaLabel} file.`)
+      return false
+    }
+
+    const nextFolderName = folderLabel || getFolderName(files)
+    setFolderFiles(compatibleFiles)
+    setFolderName(nextFolderName)
+    if (nextFolderName) {
+      setSourceVolumeInput(nextFolderName)
+      rememberSourceVolume(nextFolderName)
+    }
+    onFileChange(null)
+    return true
+  }
 
   const sortedFiles = useMemo(
     () =>
@@ -113,24 +159,33 @@ export function SingleMediaFilePicker({
 
     if (files.length === 0) return
 
-    const compatibleFiles = files.filter(isAcceptedFile)
-    if (compatibleFiles.length === 0) {
-      setFolderFiles([])
-      setFolderName(getFolderName(files))
-      setError(`This folder does not contain a supported ${mediaLabel} file.`)
-      return
+    setFolderSelection(files, getFolderName(files))
+  }
+
+  const openFolderPicker = async () => {
+    setError('')
+
+    if (typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function') {
+      try {
+        const directoryHandle = await window.showDirectoryPicker({ mode: 'read' })
+        const files = await collectFilesFromDirectoryHandle(directoryHandle, directoryHandle.name)
+        if (files.length === 0) return
+        setFolderSelection(files, directoryHandle.name)
+        return
+      } catch {
+        return
+      }
     }
 
-    setFolderFiles(compatibleFiles)
-    setFolderName(getFolderName(files))
-    onFileChange(null)
+    inputRef.current?.click()
   }
 
   const chooseFile = (picked) => {
     if (!picked || !isAcceptedFile(picked)) return
     setError('')
-    const volumeName = resolveSourceVolume(sourceVolumeInput)
+    const volumeName = resolveSourceVolume(sourceVolumeInput || folderName)
     setFileSourceFolderPath(picked, sourceVolumeInput)
+    setFileSourceRelativePath(picked, getRelativePath(picked))
     setFileSourceVolumeName(picked, volumeName)
     rememberSourceVolume(volumeName)
     // Only this one File is passed to form state and the upload service.
@@ -145,6 +200,7 @@ export function SingleMediaFilePicker({
     if (!file || !volumeName) return
 
     setFileSourceFolderPath(file, value)
+    setFileSourceRelativePath(file, getRelativePath(file))
     setFileSourceVolumeName(file, volumeName)
     rememberSourceVolume(volumeName)
     // Re-run the owning form's auto-fill now that the browser-hidden volume
@@ -250,7 +306,7 @@ export function SingleMediaFilePicker({
               variant="outline"
               size="sm"
               className="gap-2"
-              onClick={() => inputRef.current?.click()}
+              onClick={openFolderPicker}
             >
               <RefreshCw className="size-3.5" />
               Change folder
@@ -316,9 +372,10 @@ export function SingleMediaFilePicker({
           </div>
         </div>
       ) : (
-        <label
-          htmlFor={id}
+        <button
+          type="button"
           className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border bg-muted/20 px-5 py-9 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.03]"
+          onClick={openFolderPicker}
         >
           <span className="grid size-12 place-items-center rounded-2xl bg-background text-primary shadow-sm ring-1 ring-border">
             <FolderOpen className="size-5.5" />
@@ -334,7 +391,7 @@ export function SingleMediaFilePicker({
               <p className="mt-1.5 text-[11px] text-muted-foreground">{acceptedFormats}</p>
             ) : null}
           </div>
-        </label>
+        </button>
       )}
 
       {error ? (

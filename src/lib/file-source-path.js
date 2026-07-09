@@ -6,6 +6,7 @@ function normalizePath(value) {
 
 const sourceFolderPaths = new WeakMap()
 const sourceVolumeNames = new WeakMap()
+const sourceRelativePaths = new WeakMap()
 
 /**
  * Extract the storage/device name from an absolute source path.
@@ -53,6 +54,18 @@ export function setFileSourceVolumeName(file, value) {
   else sourceVolumeNames.delete(file)
 }
 
+export function setFileSourceRelativePath(file, value) {
+  if (!file || (typeof file !== 'object' && typeof file !== 'function')) return
+
+  const relativePath = String(value || '').trim()
+  if (relativePath) sourceRelativePaths.set(file, relativePath)
+  else sourceRelativePaths.delete(file)
+}
+
+export function getFileSourceRelativePath(file) {
+  return normalizePath(file?.webkitRelativePath || sourceRelativePaths.get(file))
+}
+
 function parseNativePath(value) {
   const raw = String(value || '').replace(/\\/g, '/')
   if (!raw) return null
@@ -98,7 +111,7 @@ function parseNativePath(value) {
  */
 export function getFileSourcePath(file) {
   const native = parseNativePath(file?.path || file?.fullPath)
-  const relativePath = normalizePath(file?.webkitRelativePath)
+  const relativePath = getFileSourceRelativePath(file)
   const parts = relativePath.split('/').filter(Boolean)
   const suppliedVolumeName =
     sourceVolumeNames.get(file) || getVolumeNameFromPath(sourceFolderPaths.get(file))
