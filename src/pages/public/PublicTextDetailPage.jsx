@@ -33,6 +33,11 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
   const [pages, setPages] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [activePage, setActivePage] = useState(1)
+
+  useEffect(() => {
+    setActivePage(1)
+  }, [fileUrl])
 
   useEffect(() => {
     if (!fileUrl) {
@@ -104,26 +109,69 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
     }
   }, [fileUrl])
 
+  const pageCount = pages.length
+  const leftPage = pages[activePage - 1]
+  const rightPage = pages[activePage]
+  const hasSpread = pageCount > 1
+
+  const visiblePages = pageCount === 0 ? [] : hasSpread ? [leftPage, rightPage].filter(Boolean) : [leftPage]
+
+  const handlePrevious = () => {
+    setActivePage((current) => Math.max(1, current - 2))
+  }
+
+  const handleNext = () => {
+    setActivePage((current) => Math.min(pageCount - (pageCount % 2 === 0 ? 1 : 0), current + 2))
+  }
+
+  const handlePageChange = (event) => {
+    const page = Number(event.target.value)
+    setActivePage(page)
+  }
+
   return (
     <div className="protected-file-viewer">
       {loading ? (
         <div className="media-unavailable">Loading document images…</div>
       ) : error ? (
         <div className="media-unavailable">{error}</div>
-      ) : pages.length ? (
-        pages.map((src, index) => (
-          <div
-            key={`pdf-page-${index + 1}`}
-            className="protected-file-page"
-            data-page={`Page ${index + 1}`}
-          >
-            <img
-              src={src}
-              alt={`${title} – Page ${index + 1}`}
-              draggable="false"
+      ) : visiblePages.length ? (
+        <>
+          <div className="protected-file-viewer-header">
+            <div className="protected-file-viewer-controls">
+              <button type="button" className="viewer-nav-button" onClick={handlePrevious} disabled={activePage <= 1}>
+                ‹
+              </button>
+              <button type="button" className="viewer-nav-button" onClick={handleNext} disabled={activePage >= pageCount - (pageCount % 2 === 0 ? 1 : 0)}>
+                ›
+              </button>
+              <div className="viewer-page-indicator">
+                Page {activePage}{hasSpread && pageCount > activePage ? `–${Math.min(activePage + 1, pageCount)}` : ''} of {pageCount}
+              </div>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max={pageCount}
+              step="1"
+              value={activePage}
+              onChange={handlePageChange}
+              className="viewer-page-slider"
             />
           </div>
-        ))
+          <div className="protected-file-grid">
+            {visiblePages.map((src, index) => (
+              <div
+                key={`pdf-page-${activePage + index}`}
+                className="protected-file-page"
+                data-page={`Page ${activePage + index}`}
+                style={{ backgroundImage: `url(${src})` }}
+                role="img"
+                aria-label={`${title} – Page ${activePage + index}`}
+              />
+            ))}
+          </div>
+        </>
       ) : (
         <div className="media-unavailable">Preview is not available for this file type.</div>
       )}
