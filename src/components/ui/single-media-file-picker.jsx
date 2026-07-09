@@ -172,8 +172,8 @@ export function SingleMediaFilePicker({
         if (files.length === 0) return
         setFolderSelection(files, directoryHandle.name)
         return
-      } catch {
-        return
+      } catch (error) {
+        if (error?.name === 'AbortError') return
       }
     }
 
