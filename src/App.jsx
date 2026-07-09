@@ -3,7 +3,6 @@ import { Outlet, useLocation } from 'react-router-dom'
 
 import { ScrollMemory } from '@/components/scroll-memory'
 import { AppearanceTweaker } from '@/components/ui/appearance-tweaker'
-import { GoogleTranslate } from '@/components/ui/google-translate'
 
 function App() {
   const { pathname } = useLocation()
@@ -47,7 +46,6 @@ function App() {
       {/* Remembers per-route scroll position across navigations. */}
       <ScrollMemory />
       <Outlet />
-      <GoogleTranslate />
       {hideTweaker ? null : <AppearanceTweaker />}
     </main>
   )

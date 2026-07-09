@@ -6,7 +6,7 @@ import { getStoredToken, logout } from '@/services/auth'
 import { useCurrentProfile } from '@/hooks/use-current-profile'
 import { getAccountArea, getAccountHomePath } from '@/lib/account-role'
 import { resolveProfileImageSource } from '@/lib/profile-image'
-import { IconSearch, IconSignout, IconSignin, IconPerson, IconDashboard } from './icons'
+import { IconSearch, IconSignout, IconSignin, IconPerson, IconDashboard, IconLanguage } from './icons'
 import { UI } from './khi-data'
 
 // Sticky public header: brand → home, a global search that lands on the public
@@ -64,6 +64,10 @@ export default function KhiHeader() {
         </form>
 
         <div className="nav-actions">
+          <Link className="btn btn-translate" to="/public/translate">
+            <IconLanguage />
+            <span>وەرگێڕان</span>
+          </Link>
           {isAuthed ? (
             <>
               {showDashboard && (

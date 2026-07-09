@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Languages, X } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 const SCRIPT_ID = 'google-translate-element-script'
 const CONTAINER_ID = 'google_translate_element'
@@ -8,7 +8,8 @@ function initializeGoogleTranslate() {
   const container = document.getElementById(CONTAINER_ID)
   const TranslateElement = window.google?.translate?.TranslateElement
 
-  if (!container || !TranslateElement || container.dataset.initialized === 'true') return false
+  if (container?.dataset.initialized === 'true') return true
+  if (!container || !TranslateElement) return false
 
   container.dataset.initialized = 'true'
   // ckb is the language used by the public archive. Google can still detect
@@ -25,8 +26,8 @@ function initializeGoogleTranslate() {
   return true
 }
 
-function GoogleTranslate() {
-  const [open, setOpen] = useState(false)
+function GoogleTranslateWidget() {
+  const [ready, setReady] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
   const retryRef = useRef(null)
 
@@ -36,12 +37,15 @@ function GoogleTranslate() {
     const initialize = () => {
       if (cancelled) return
       if (initializeGoogleTranslate()) {
+        setReady(true)
         setUnavailable(false)
         return
       }
 
       retryRef.current = window.setTimeout(() => {
-        if (!cancelled && !initializeGoogleTranslate()) setUnavailable(true)
+        if (cancelled) return
+        if (initializeGoogleTranslate()) setReady(true)
+        else setUnavailable(true)
       }, 8000)
     }
 
@@ -69,35 +73,24 @@ function GoogleTranslate() {
   }, [])
 
   return (
-    <div className="google-translate-control notranslate" translate="no">
-      <button
-        type="button"
-        className="google-translate-trigger"
-        aria-label={open ? 'Close language translator' : 'Translate this page'}
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-      >
-        {open ? <X aria-hidden="true" /> : <Languages aria-hidden="true" />}
-        <span>Translate</span>
-      </button>
-
-      <div className={`google-translate-panel${open ? ' is-open' : ''}`}>
-        <p>Translate this page</p>
-        <span>Powered by Google Translate</span>
-        <div id={CONTAINER_ID} />
-        {unavailable ? (
-          <a
-            href="https://translate.google.com/"
-            target="_blank"
-            rel="noreferrer"
-            className="google-translate-fallback"
-          >
+    <div className="translate-widget notranslate" translate="no">
+      {!ready && !unavailable ? (
+        <div className="translate-widget-loading">
+          <Loader2 aria-hidden="true" />
+          <span>Loading Google Translate…</span>
+        </div>
+      ) : null}
+      <div id={CONTAINER_ID} />
+      {unavailable ? (
+        <div className="translate-widget-error">
+          <p>Google Translate could not load in this browser.</p>
+          <a href="https://translate.google.com/" target="_blank" rel="noreferrer">
             Open Google Translate
           </a>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   )
 }
 
-export { GoogleTranslate }
+export { GoogleTranslateWidget }

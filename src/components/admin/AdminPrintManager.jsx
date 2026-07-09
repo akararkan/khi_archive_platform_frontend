@@ -1,8 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { Printer } from 'lucide-react'
+import { FileText, Printer } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
-
-import { Button } from '@/components/ui/button'
 
 const PRINTABLE_ADMIN_PATHS = [
   '/admin/category',
@@ -32,6 +30,18 @@ const PAGE_TITLES = {
   '/admin/corrections': 'Corrections',
 }
 
+const NON_REPORT_SELECTOR = [
+  '[data-admin-print-toolbar]',
+  '[data-admin-print-record]',
+  '[data-no-print]',
+  '[role="dialog"]',
+  'button',
+  'input',
+  'select',
+  'textarea',
+  '[data-slot="pagination"]',
+].join(',')
+
 function isPrintablePath(pathname) {
   return PRINTABLE_ADMIN_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
@@ -48,131 +58,474 @@ function titleForPath(pathname, root) {
   return match?.[1] || 'Archive Report'
 }
 
-function removeNonReportContent(node) {
-  node
-    .querySelectorAll(
-      [
-        '[data-admin-print-toolbar]',
-        '[data-admin-print-record]',
-        '[data-no-print]',
-        '[role="dialog"]',
-        'button',
-        'input',
-        'select',
-        'textarea',
-        '[data-slot="pagination"]',
-      ].join(','),
-    )
-    .forEach((element) => element.remove())
-
-  node.querySelectorAll('[aria-hidden="true"]').forEach((element) => element.remove())
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
 }
 
-function reportDocument({ title, content, direction }) {
+function isDataRow(row) {
+  const text = row?.textContent?.replace(/\s+/g, ' ').trim()
+  return Boolean(
+    text &&
+      row.cells?.length >= 2 &&
+      !row.querySelector('[data-slot="skeleton"]') &&
+      !row.querySelector('[role="status"]'),
+  )
+}
+
+function removeNonReportContent(node) {
+  node.querySelectorAll(NON_REPORT_SELECTOR).forEach((element) => element.remove())
+  node.querySelectorAll('[aria-hidden="true"], svg').forEach((element) => element.remove())
+}
+
+function removeActionColumns(table) {
+  const firstHeaderRow = table.tHead?.rows?.[0]
+  if (!firstHeaderRow) return
+
+  const actionIndexes = [...firstHeaderRow.cells]
+    .map((cell, index) => ({ index, label: cell.textContent?.trim().toLowerCase() }))
+    .filter(({ label }) => label === 'actions' || label === 'action')
+    .map(({ index }) => index)
+    .reverse()
+
+  if (!actionIndexes.length) return
+
+  ;[...table.rows].forEach((row) => {
+    actionIndexes.forEach((index) => row.cells[index]?.remove())
+  })
+}
+
+function prepareTable(sourceTable) {
+  const table = sourceTable.cloneNode(true)
+  removeNonReportContent(table)
+  removeActionColumns(table)
+  table.querySelectorAll('[class], [style]').forEach((element) => {
+    element.removeAttribute('class')
+    element.removeAttribute('style')
+  })
+  return table
+}
+
+function tableSectionTitle(table, fallback, index, total) {
+  const cardTitle = table
+    .closest('[data-slot="card"]')
+    ?.querySelector('[data-slot="card-title"], h2, h3')
+    ?.textContent?.trim()
+  if (cardTitle) return cardTitle
+  return total > 1 ? `${fallback} · Section ${index + 1}` : `${fallback} records`
+}
+
+function buildAllRecordsContent(root, title) {
+  const sourceTables = [...root.querySelectorAll('table')].filter((table) =>
+    [...table.tBodies].some((body) => [...body.rows].some(isDataRow)),
+  )
+
+  if (sourceTables.length) {
+    let totalRows = 0
+    const sections = sourceTables.map((sourceTable, index) => {
+      const rowCount = [...sourceTable.tBodies].reduce(
+        (count, body) => count + [...body.rows].filter(isDataRow).length,
+        0,
+      )
+      totalRows += rowCount
+      const table = prepareTable(sourceTable)
+      const sectionTitle = tableSectionTitle(sourceTable, title, index, sourceTables.length)
+
+      return `
+        <section class="report-section">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">ARCHIVE DATA</span>
+              <h2>${escapeHtml(sectionTitle)}</h2>
+            </div>
+            <span class="section-count">${rowCount.toLocaleString()} records</span>
+          </div>
+          <div class="table-shell">${table.outerHTML}</div>
+        </section>`
+    })
+
+    return { content: sections.join(''), recordCount: totalRows }
+  }
+
+  const fallback = root.cloneNode(true)
+  removeNonReportContent(fallback)
+  fallback.querySelectorAll('[class], [style]').forEach((element) => {
+    element.removeAttribute('class')
+    element.removeAttribute('style')
+  })
+  return {
+    content: `<section class="report-section fallback-content">${fallback.innerHTML}</section>`,
+    recordCount: 0,
+  }
+}
+
+function buildRecordContent(sourceTable, row) {
+  const headers = sourceTable.tHead?.rows?.[0]
+    ? [...sourceTable.tHead.rows[0].cells].map((cell) => cell.textContent?.trim())
+    : []
+
+  const fields = [...row.cells].flatMap((cell, index) => {
+    const label = headers[index] || `Field ${index + 1}`
+    if (/^actions?$/i.test(label)) return []
+
+    const value = cell.cloneNode(true)
+    removeNonReportContent(value)
+    value.querySelectorAll('[class], [style]').forEach((element) => {
+      element.removeAttribute('class')
+      element.removeAttribute('style')
+    })
+    value.removeAttribute('class')
+    value.removeAttribute('style')
+
+    const text = value.textContent?.replace(/\s+/g, ' ').trim()
+    if (!text && !value.querySelector('img')) return []
+
+    return [
+      `<article class="record-field">
+        <span class="field-label">${escapeHtml(label)}</span>
+        <div class="field-value">${value.innerHTML}</div>
+      </article>`,
+    ]
+  })
+
+  const recordName =
+    [...row.cells]
+      .map((cell) => cell.textContent?.replace(/\s+/g, ' ').trim())
+      .find((value) => value && !/^\d+$/.test(value) && value.toLowerCase() !== 'actions') ||
+    'Selected record'
+
+  return {
+    recordName,
+    content: `
+      <section class="record-sheet">
+        <div class="record-sheet-heading">
+          <span>INDIVIDUAL ARCHIVE RECORD</span>
+          <h2>${escapeHtml(recordName)}</h2>
+          <p>Complete details captured from the current admin record.</p>
+        </div>
+        <div class="record-grid">${fields.join('')}</div>
+      </section>`,
+  }
+}
+
+function reportDocument({
+  title,
+  content,
+  direction,
+  mode,
+  recordCount,
+  recordName,
+}) {
+  const safeTitle = escapeHtml(title)
+  const safeRecordName = escapeHtml(recordName || '')
   const logo = new URL('/khi-logo.jpg', window.location.origin).href
   const printedAt = new Intl.DateTimeFormat(undefined, {
     dateStyle: 'long',
     timeStyle: 'short',
   }).format(new Date())
+  const reportLabel = mode === 'record' ? 'Individual Record' : 'Collection Report'
+  const metaValue =
+    mode === 'record'
+      ? safeRecordName
+      : `${Number(recordCount || 0).toLocaleString()} visible records`
 
   return `<!doctype html>
 <html dir="${direction}" lang="${document.documentElement.lang || 'en'}">
   <head>
     <meta charset="utf-8" />
-    <title>${title}</title>
+    <meta name="color-scheme" content="light" />
+    <title>${safeTitle} · KHI Archive</title>
     <style>
-      @page { size: A4 landscape; margin: 13mm; }
+      @page {
+        size: A4 ${mode === 'record' ? 'portrait' : 'landscape'};
+        margin: 14mm 12mm 17mm;
+      }
+      :root {
+        --pine: #173d30;
+        --pine-deep: #0d2b21;
+        --pine-soft: #eaf1ed;
+        --gold: #b68a37;
+        --gold-soft: #ead9ad;
+        --ink: #18221d;
+        --muted: #65716a;
+        --line: #d9e0dc;
+        --paper: #f8f5ec;
+      }
       * { box-sizing: border-box; }
+      html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       body {
         margin: 0;
-        color: #17231d;
+        color: var(--ink);
         background: #fff;
-        font: 12px/1.55 Arial, "Noto Sans Arabic", sans-serif;
+        font: 11px/1.55 Arial, "Noto Sans Arabic", sans-serif;
       }
-      .report-header {
-        display: flex;
+      .report-masthead {
+        position: relative;
+        min-height: 112px;
+        display: grid;
+        grid-template-columns: 78px minmax(0, 1fr) auto;
         align-items: center;
-        gap: 14px;
-        padding-bottom: 14px;
+        gap: 18px;
+        overflow: hidden;
         margin-bottom: 18px;
-        border-bottom: 2px solid #264c3d;
+        padding: 17px 22px;
+        border-radius: 18px;
+        background:
+          radial-gradient(circle at 82% -30%, rgba(234,217,173,.2), transparent 42%),
+          linear-gradient(135deg, var(--pine), var(--pine-deep));
+        color: #fffdf5;
       }
-      .report-header img {
-        width: 58px;
-        height: 58px;
+      .report-masthead::after {
+        content: "";
+        position: absolute;
+        inset-inline-end: -45px;
+        bottom: -82px;
+        width: 190px;
+        height: 190px;
+        border: 1px solid rgba(234,217,173,.17);
+        border-radius: 50%;
+      }
+      .logo-wrap {
+        width: 74px;
+        height: 74px;
+        display: grid;
+        place-items: center;
+        padding: 5px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid var(--gold-soft);
+        box-shadow: 0 12px 30px rgba(0,0,0,.22);
+      }
+      .logo-wrap img {
+        width: 100%;
+        height: 100%;
+        display: block;
         object-fit: contain;
         border-radius: 50%;
-        border: 1px solid #d8c89e;
       }
-      .report-heading { flex: 1; }
-      .report-heading h1 { margin: 0; color: #193d30; font-size: 22px; }
-      .report-heading p { margin: 3px 0 0; color: #66736c; font-size: 11px; }
-      .report-mark {
-        color: #8a6a25;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: .16em;
+      .brand-line {
+        margin: 0 0 5px;
+        color: var(--gold-soft);
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: .2em;
         text-transform: uppercase;
       }
-      h1, h2, h3, p { break-after: avoid; }
-      h1 { font-size: 22px; }
-      h2 { font-size: 17px; }
-      h3 { font-size: 14px; }
-      section, article, [data-slot="card"] { break-inside: avoid; }
+      .masthead-copy h1 { margin: 0; font-size: 25px; line-height: 1.2; }
+      .masthead-copy p { margin: 6px 0 0; color: rgba(255,253,245,.68); }
+      .report-type {
+        position: relative;
+        z-index: 1;
+        min-width: 142px;
+        padding: 10px 13px;
+        border: 1px solid rgba(234,217,173,.28);
+        border-radius: 12px;
+        background: rgba(255,255,255,.06);
+        text-align: center;
+      }
+      .report-type span {
+        display: block;
+        color: var(--gold-soft);
+        font-size: 7px;
+        font-weight: 800;
+        letter-spacing: .17em;
+        text-transform: uppercase;
+      }
+      .report-type strong { display: block; margin-top: 4px; font-size: 12px; }
+      .report-meta {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        margin-bottom: 24px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+      }
+      .meta-item { min-height: 53px; padding: 10px 14px; border-inline-start: 1px solid var(--line); }
+      .meta-item:first-child { border-inline-start: 0; }
+      .meta-item span {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--muted);
+        font-size: 7px;
+        font-weight: 800;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+      }
+      .meta-item strong { color: var(--pine); font-size: 10px; }
+      .report-section { margin-top: 22px; break-inside: auto; }
+      .report-section + .report-section { break-before: page; }
+      .section-heading {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 10px;
+        padding-inline: 2px;
+      }
+      .section-kicker {
+        display: block;
+        color: var(--gold);
+        font-size: 7px;
+        font-weight: 800;
+        letter-spacing: .16em;
+      }
+      .section-heading h2 { margin: 2px 0 0; color: var(--pine); font-size: 16px; }
+      .section-count {
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: var(--pine-soft);
+        color: var(--pine);
+        font-size: 8px;
+        font-weight: 800;
+      }
+      .table-shell {
+        overflow: hidden;
+        border: 1px solid #cbd6d0;
+        border-radius: 12px;
+      }
       table {
         width: 100%;
         border-collapse: collapse;
         table-layout: auto;
-        font-size: 10px;
+        font-size: 8px;
       }
+      thead { display: table-header-group; }
+      tr { break-inside: avoid; }
       th, td {
-        padding: 7px 8px;
-        border: 1px solid #ccd5d0;
+        padding: 7px 7px;
+        border-inline-start: 1px solid #dce3df;
+        border-bottom: 1px solid #dce3df;
         text-align: start;
         vertical-align: top;
-        white-space: normal !important;
+        white-space: normal;
         overflow-wrap: anywhere;
       }
-      th { color: #173d2f; background: #edf3ef; font-weight: 700; }
-      tr:nth-child(even) td { background: #f8faf9; }
-      img { max-width: 100%; }
-      svg { width: 14px; height: 14px; }
+      th:first-child, td:first-child { border-inline-start: 0; }
+      tbody tr:last-child td { border-bottom: 0; }
+      th {
+        background: var(--pine);
+        color: #fffdf5;
+        font-size: 7px;
+        font-weight: 800;
+        letter-spacing: .035em;
+      }
+      tbody tr:nth-child(even) td { background: #f5f8f6; }
+      td img { width: 36px; height: 36px; object-fit: contain; border-radius: 7px; }
       a { color: inherit; text-decoration: none; }
-      [class*="overflow"] { overflow: visible !important; }
-      [class*="truncate"] { overflow: visible !important; text-overflow: clip !important; white-space: normal !important; }
-      .report-content > :first-child { margin-top: 0; }
+      .record-sheet {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: linear-gradient(180deg, var(--paper), #fff 180px);
+      }
+      .record-sheet-heading {
+        padding: 24px 27px 21px;
+        border-bottom: 1px solid var(--line);
+      }
+      .record-sheet-heading span {
+        color: var(--gold);
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: .18em;
+      }
+      .record-sheet-heading h2 { margin: 6px 0 4px; color: var(--pine); font-size: 22px; }
+      .record-sheet-heading p { margin: 0; color: var(--muted); }
+      .record-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0;
+        padding: 12px 20px 22px;
+      }
+      .record-field {
+        min-height: 78px;
+        padding: 14px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .record-field:nth-child(odd) { border-inline-end: 1px solid var(--line); }
+      .field-label {
+        display: block;
+        margin-bottom: 7px;
+        color: var(--gold);
+        font-size: 7px;
+        font-weight: 800;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .field-value {
+        color: var(--ink);
+        font-size: 11px;
+        font-weight: 650;
+        overflow-wrap: anywhere;
+      }
+      .field-value img {
+        width: auto;
+        max-width: 120px;
+        max-height: 110px;
+        object-fit: contain;
+        border-radius: 10px;
+      }
+      .fallback-content { padding: 20px; border: 1px solid var(--line); border-radius: 14px; }
+      .fallback-content img { max-width: 140px; max-height: 120px; object-fit: contain; }
+      .fallback-content > * { margin-bottom: 12px; }
       .report-footer {
-        margin-top: 18px;
-        padding-top: 9px;
-        border-top: 1px solid #d9dfdc;
-        color: #718078;
-        font-size: 10px;
-        text-align: center;
+        position: fixed;
+        right: 0;
+        bottom: -10mm;
+        left: 0;
+        display: flex;
+        justify-content: space-between;
+        padding-top: 5px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 7px;
+      }
+      .page-number::after { content: "Page " counter(page); }
+      @media print {
+        body { background: #fff; }
       }
     </style>
   </head>
   <body>
-    <header class="report-header">
-      <img src="${logo}" alt="KHI Archive logo" />
-      <div class="report-heading">
-        <h1>${title}</h1>
-        <p>Generated ${printedAt}</p>
+    <header class="report-masthead">
+      <div class="logo-wrap"><img src="${logo}" alt="KHI Archive logo" /></div>
+      <div class="masthead-copy">
+        <p class="brand-line">Kurdish Heritage Institute · Digital Archive</p>
+        <h1>${safeTitle}</h1>
+        <p>Official archive report generated from the administration workspace.</p>
       </div>
-      <div class="report-mark">KHI Archive Report</div>
+      <div class="report-type">
+        <span>Report type</span>
+        <strong>${reportLabel}</strong>
+      </div>
     </header>
-    <main class="report-content">${content}</main>
-    <footer class="report-footer">KHI Archive Platform · ${title}</footer>
+
+    <section class="report-meta">
+      <div class="meta-item"><span>Archive</span><strong>KHI Archive Platform</strong></div>
+      <div class="meta-item"><span>Report scope</span><strong>${metaValue}</strong></div>
+      <div class="meta-item"><span>Generated</span><strong>${escapeHtml(printedAt)}</strong></div>
+    </section>
+
+    <main>${content}</main>
+    <footer class="report-footer">
+      <span>KHI Archive · Confidential administration report</span>
+      <span class="page-number"></span>
+    </footer>
   </body>
 </html>`
 }
 
-function openPrintReport({ title, content, direction = 'ltr' }) {
-  const printWindow = window.open('', '_blank', 'width=1200,height=850')
+function openPrintReport(options) {
+  const printWindow = window.open('', '_blank', 'width=1280,height=900')
   if (!printWindow) return
 
   printWindow.opener = null
   printWindow.document.open()
-  printWindow.document.write(reportDocument({ title, content, direction }))
+  printWindow.document.write(reportDocument(options))
   printWindow.document.close()
 
   const printWhenReady = () => {
@@ -181,9 +534,9 @@ function openPrintReport({ title, content, direction = 'ltr' }) {
   }
 
   if (printWindow.document.readyState === 'complete') {
-    window.setTimeout(printWhenReady, 180)
+    window.setTimeout(printWhenReady, 350)
   } else {
-    printWindow.addEventListener('load', () => window.setTimeout(printWhenReady, 180), {
+    printWindow.addEventListener('load', () => window.setTimeout(printWhenReady, 350), {
       once: true,
     })
   }
@@ -198,12 +551,14 @@ function AdminPrintManager({ children }) {
     const root = surfaceRef.current
     if (!root) return
 
-    const clone = root.cloneNode(true)
-    removeNonReportContent(clone)
+    const title = titleForPath(location.pathname, root)
+    const report = buildAllRecordsContent(root, title)
     openPrintReport({
-      title: titleForPath(location.pathname, root),
-      content: clone.innerHTML,
+      title,
+      content: report.content,
+      recordCount: report.recordCount,
       direction: getComputedStyle(root).direction || 'ltr',
+      mode: 'all',
     })
   }
 
@@ -218,13 +573,10 @@ function AdminPrintManager({ children }) {
         if (
           cleanups.has(row) ||
           row.querySelector('[data-admin-print-record]') ||
-          row.cells.length < 2
+          !isDataRow(row)
         ) {
           return
         }
-
-        const text = row.textContent?.replace(/\s+/g, ' ').trim()
-        if (!text || row.querySelector('[data-slot="skeleton"]')) return
 
         const hostCell = row.cells[row.cells.length - 1]
         const button = document.createElement('button')
@@ -232,26 +584,25 @@ function AdminPrintManager({ children }) {
         button.dataset.adminPrintRecord = 'true'
         button.className = 'admin-print-record-button'
         button.setAttribute('aria-label', 'Print this record')
-        button.title = 'Print record'
+        button.title = 'Print this record'
         button.innerHTML =
-          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Print record</span>'
+          '<span class="admin-print-record-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="admin-print-record-text">Print</span>'
 
         const onClick = (event) => {
           event.preventDefault()
           event.stopPropagation()
 
           const table = row.closest('table')
-          const reportTable = document.createElement('table')
-          if (table?.tHead) reportTable.append(table.tHead.cloneNode(true))
-          const body = document.createElement('tbody')
-          body.append(row.cloneNode(true))
-          reportTable.append(body)
-          removeNonReportContent(reportTable)
+          if (!table) return
+          const title = titleForPath(location.pathname, root)
+          const record = buildRecordContent(table, row)
 
           openPrintReport({
-            title: `${titleForPath(location.pathname, root)} — Record`,
-            content: reportTable.outerHTML,
+            title: `${title} · Record`,
+            content: record.content,
+            recordName: record.recordName,
             direction: getComputedStyle(root).direction || 'ltr',
+            mode: 'record',
           })
         }
 
@@ -278,14 +629,23 @@ function AdminPrintManager({ children }) {
   return (
     <>
       {printable ? (
-        <div
-          className="mb-5 flex items-center justify-end border-b border-border pb-4"
-          data-admin-print-toolbar
-        >
-          <Button type="button" variant="outline" className="gap-2" onClick={printAll}>
-            <Printer className="size-4" />
-            Print all
-          </Button>
+        <div className="admin-report-toolbar" data-admin-print-toolbar>
+          <div className="admin-report-toolbar-copy">
+            <span className="admin-report-toolbar-icon">
+              <FileText aria-hidden="true" />
+            </span>
+            <span>
+              <strong>Archive report</strong>
+              <small>Print the current filtered view with KHI branding</small>
+            </span>
+          </div>
+          <button type="button" className="admin-print-all-button" onClick={printAll}>
+            <Printer aria-hidden="true" />
+            <span>
+              <strong>Print report</strong>
+              <small>All visible records</small>
+            </span>
+          </button>
         </div>
       ) : null}
       <div ref={surfaceRef} id="admin-print-surface">
