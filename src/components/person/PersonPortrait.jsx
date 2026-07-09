@@ -46,7 +46,7 @@ function PersonPortrait({
       alt={name}
       loading={loading}
       onError={() => setFailedSrc(src)}
-      className={cn('border object-cover', rounded, objectPosition, className, imgClassName)}
+      className={cn('border bg-muted object-contain', rounded, objectPosition, className, imgClassName)}
     />
   )
 }

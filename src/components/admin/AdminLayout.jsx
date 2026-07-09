@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 
 import { KhiLogo } from '@/components/brand/KhiLogo'
+import { AdminPrintManager } from '@/components/admin/AdminPrintManager'
 import { Button } from '@/components/ui/button'
 import { GuestActivationBanner } from '@/components/ui/guest-activation-banner'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -265,7 +266,9 @@ function AdminLayout() {
 
       <main className="min-w-0 rounded-3xl border border-border bg-card p-4 shadow-sm shadow-black/5 sm:p-6 xl:p-8">
         <GuestActivationBanner role={profileRole} />
-        <Outlet />
+        <AdminPrintManager>
+          <Outlet />
+        </AdminPrintManager>
       </main>
     </section>
   )

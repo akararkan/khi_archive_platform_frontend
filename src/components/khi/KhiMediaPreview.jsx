@@ -22,6 +22,12 @@ function Waveform() {
 // uniform.
 export default function KhiMediaPreview({ record }) {
   const { kind, duration, image, title } = record
+  const naturalImage = image ? (
+    <div className="natural-cover">
+      <img className="cover-backdrop" src={image} alt="" aria-hidden="true" loading="lazy" />
+      <img className="cover-img" src={image} alt={title || ''} loading="lazy" />
+    </div>
+  ) : null
 
   if (kind === 'audio') {
     return (
@@ -50,17 +56,13 @@ export default function KhiMediaPreview({ record }) {
   }
 
   if (kind === 'image') {
-    return image ? (
-      <img className="cover-img" src={image} alt={title || ''} loading="lazy" />
-    ) : (
+    return image ? naturalImage : (
       <div className="m-image"><div className="ph"><IconImage /></div></div>
     )
   }
 
   if (kind === 'project') {
-    return image ? (
-      <img className="cover-img" src={image} alt={title || ''} loading="lazy" />
-    ) : (
+    return image ? naturalImage : (
       <div className="m-image"><div className="ph"><IconProject /></div></div>
     )
   }
@@ -70,11 +72,9 @@ export default function KhiMediaPreview({ record }) {
   }
 
   if (kind === 'person') {
-    // Portrait fills the cover like any photo card; the gold-ringed avatar disc
-    // is the no-photo fallback.
-    return image ? (
-      <img className="cover-img" src={image} alt={title || ''} loading="lazy" />
-    ) : (
+    // The real portrait is contained over a soft tonal backdrop, so faces and
+    // full-length archival photographs are never sliced by the card ratio.
+    return image ? naturalImage : (
       <div className="m-avatar">
         <span className="big-avatar">{record.avatarText || <IconPerson />}</span>
       </div>

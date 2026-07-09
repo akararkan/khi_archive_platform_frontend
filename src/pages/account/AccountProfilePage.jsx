@@ -368,7 +368,7 @@ function AccountProfilePage() {
                       {hasProfileImage ? (
                         <img
                           alt={profileName}
-                          className="size-full object-cover"
+                          className="size-full bg-muted object-contain"
                           src={displayImage}
                           onError={() => setImageLoadError(true)}
                         />

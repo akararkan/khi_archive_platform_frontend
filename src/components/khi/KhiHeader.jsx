@@ -5,6 +5,7 @@ import { KhiLogo } from '@/components/brand/KhiLogo'
 import { getStoredToken, logout } from '@/services/auth'
 import { useCurrentProfile } from '@/hooks/use-current-profile'
 import { getAccountArea, getAccountHomePath } from '@/lib/account-role'
+import { resolveProfileImageSource } from '@/lib/profile-image'
 import { IconSearch, IconSignout, IconSignin, IconPerson, IconDashboard } from './icons'
 import { UI } from './khi-data'
 
@@ -20,6 +21,10 @@ export default function KhiHeader() {
   const accountArea = isAuthed ? getAccountArea(profile?.role) : 'guest'
   const dashboardPath = isAuthed && profile ? getAccountHomePath(profile) : null
   const showDashboard = dashboardPath && ['admin', 'employee', 'teacher'].includes(accountArea)
+  const accountName = profile?.name || profile?.username || UI.profile
+  const accountUsername = profile?.username
+  const accountImage = profile?.profileImageSource || resolveProfileImageSource(profile)
+  const accountInitial = accountName.charAt(0).toUpperCase()
 
   // Keep the box in sync when the URL query changes via chips or navigation.
   useEffect(() => {
@@ -64,7 +69,15 @@ export default function KhiHeader() {
               {showDashboard && (
                 <Link className="btn btn-ghost" to={dashboardPath}><IconDashboard /><span>{UI.dashboard}</span></Link>
               )}
-              <Link className="btn btn-ghost" to="/account"><IconPerson /><span>{UI.profile}</span></Link>
+              <Link className="account-identity" to="/account" aria-label={`${UI.profile}: ${accountName}`}>
+                <span className="account-avatar">
+                  {accountImage ? <img src={accountImage} alt="" /> : accountInitial}
+                </span>
+                <span className="account-copy">
+                  <strong>{accountName}</strong>
+                  <small>{accountUsername ? `@${accountUsername}` : UI.profile}</small>
+                </span>
+              </Link>
               <button className="btn btn-line" type="button" onClick={onSignout}><IconSignout /><span>{UI.signout}</span></button>
             </>
           ) : (
