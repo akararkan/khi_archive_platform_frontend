@@ -1,6 +1,19 @@
-import { useEffect, useRef } from 'react'
-import { FileText, Printer } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronDown, FileText, Printer } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
+
+const PAPER_FORMATS = [
+  { value: 'A4 portrait', label: 'A4 · Portrait' },
+  { value: 'A4 landscape', label: 'A4 · Landscape' },
+  { value: 'Letter portrait', label: 'Letter · Portrait' },
+  { value: 'Letter landscape', label: 'Letter · Landscape' },
+  { value: 'Legal portrait', label: 'Legal · Portrait' },
+  { value: 'Legal landscape', label: 'Legal · Landscape' },
+  { value: 'A3 portrait', label: 'A3 · Portrait' },
+  { value: 'A3 landscape', label: 'A3 · Landscape' },
+]
+
+const PAPER_SIZE_STORAGE_KEY = 'khi-admin-print-paper-format'
 
 const PRINTABLE_ADMIN_PATHS = [
   '/admin/category',
@@ -217,6 +230,7 @@ function reportDocument({
   content,
   direction,
   mode,
+  paperFormat,
   recordCount,
   recordName,
 }) {
@@ -228,6 +242,9 @@ function reportDocument({
     timeStyle: 'short',
   }).format(new Date())
   const reportLabel = mode === 'record' ? 'Individual Record' : 'Collection Report'
+  const pageSize = PAPER_FORMATS.some((format) => format.value === paperFormat)
+    ? paperFormat
+    : mode === 'record' ? 'A4 portrait' : 'A4 landscape'
   const metaValue =
     mode === 'record'
       ? safeRecordName
@@ -241,7 +258,7 @@ function reportDocument({
     <title>${safeTitle} · KHI Archive</title>
     <style>
       @page {
-        size: A4 ${mode === 'record' ? 'portrait' : 'landscape'};
+        size: ${pageSize};
         margin: 14mm 12mm 17mm;
       }
       :root {
@@ -345,18 +362,18 @@ function reportDocument({
         border-radius: 12px;
         background: #fff;
       }
-      .meta-item { min-height: 53px; padding: 10px 14px; border-inline-start: 1px solid var(--line); }
+      .meta-item { min-height: 53px; padding: 10px 14px; border-inline-start: 1px solid var(--line); background: linear-gradient(180deg, #fff, #fbfcfb); }
       .meta-item:first-child { border-inline-start: 0; }
       .meta-item span {
         display: block;
         margin-bottom: 3px;
         color: var(--muted);
-        font-size: 7px;
+        font-size: 7.5px;
         font-weight: 800;
         letter-spacing: .14em;
         text-transform: uppercase;
       }
-      .meta-item strong { color: var(--pine); font-size: 10px; }
+      .meta-item strong { color: var(--pine); font-size: 10.5px; line-height: 1.45; }
       .report-section { margin-top: 22px; break-inside: auto; }
       .report-section + .report-section { break-before: page; }
       .section-heading {
@@ -374,30 +391,31 @@ function reportDocument({
         font-weight: 800;
         letter-spacing: .16em;
       }
-      .section-heading h2 { margin: 2px 0 0; color: var(--pine); font-size: 16px; }
+      .section-heading h2 { margin: 2px 0 0; color: var(--pine); font-size: 17px; }
       .section-count {
         padding: 5px 9px;
         border-radius: 999px;
         background: var(--pine-soft);
         color: var(--pine);
-        font-size: 8px;
+        font-size: 8.5px;
         font-weight: 800;
       }
       .table-shell {
         overflow: hidden;
         border: 1px solid #cbd6d0;
-        border-radius: 12px;
+        border-radius: 14px;
+        background: #fff;
       }
       table {
         width: 100%;
         border-collapse: collapse;
         table-layout: auto;
-        font-size: 8px;
+        font-size: 8.6px;
       }
       thead { display: table-header-group; }
       tr { break-inside: avoid; }
       th, td {
-        padding: 7px 7px;
+        padding: 8px 8px;
         border-inline-start: 1px solid #dce3df;
         border-bottom: 1px solid #dce3df;
         text-align: start;
@@ -410,12 +428,15 @@ function reportDocument({
       th {
         background: var(--pine);
         color: #fffdf5;
-        font-size: 7px;
+        font-size: 7.5px;
         font-weight: 800;
-        letter-spacing: .035em;
+        letter-spacing: .05em;
+        text-transform: uppercase;
       }
       tbody tr:nth-child(even) td { background: #f5f8f6; }
-      td img { width: 36px; height: 36px; object-fit: contain; border-radius: 7px; }
+      tbody tr:nth-child(odd) td { background: #fff; }
+      td { color: #26332d; line-height: 1.55; }
+      td img { width: 42px; height: 42px; object-fit: contain; border-radius: 8px; background: #fff; }
       a { color: inherit; text-decoration: none; }
       .record-sheet {
         overflow: hidden;
@@ -433,43 +454,47 @@ function reportDocument({
         font-weight: 800;
         letter-spacing: .18em;
       }
-      .record-sheet-heading h2 { margin: 6px 0 4px; color: var(--pine); font-size: 22px; }
-      .record-sheet-heading p { margin: 0; color: var(--muted); }
+      .record-sheet-heading h2 { margin: 6px 0 4px; color: var(--pine); font-size: 23px; line-height: 1.25; }
+      .record-sheet-heading p { margin: 0; color: var(--muted); font-size: 11px; }
       .record-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0;
-        padding: 12px 20px 22px;
+        gap: 12px;
+        padding: 16px 18px 22px;
       }
       .record-field {
-        min-height: 78px;
-        padding: 14px 12px;
-        border-bottom: 1px solid var(--line);
+        min-height: 86px;
+        padding: 14px 14px 15px;
+        border: 1px solid #d9e0dc;
+        border-radius: 14px;
+        background: #fff;
+        break-inside: avoid;
+        box-shadow: 0 6px 16px rgba(19,43,34,.04);
       }
-      .record-field:nth-child(odd) { border-inline-end: 1px solid var(--line); }
       .field-label {
         display: block;
-        margin-bottom: 7px;
+        margin-bottom: 8px;
         color: var(--gold);
-        font-size: 7px;
+        font-size: 7.5px;
         font-weight: 800;
-        letter-spacing: .12em;
+        letter-spacing: .15em;
         text-transform: uppercase;
       }
       .field-value {
         color: var(--ink);
-        font-size: 11px;
+        font-size: 11.5px;
         font-weight: 650;
+        line-height: 1.65;
         overflow-wrap: anywhere;
       }
       .field-value img {
         width: auto;
-        max-width: 120px;
-        max-height: 110px;
+        max-width: 140px;
+        max-height: 120px;
         object-fit: contain;
         border-radius: 10px;
       }
-      .fallback-content { padding: 20px; border: 1px solid var(--line); border-radius: 14px; }
+      .fallback-content { padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
       .fallback-content img { max-width: 140px; max-height: 120px; object-fit: contain; }
       .fallback-content > * { margin-bottom: 12px; }
       .report-footer {
@@ -546,6 +571,23 @@ function AdminPrintManager({ children }) {
   const location = useLocation()
   const surfaceRef = useRef(null)
   const printable = isPrintablePath(location.pathname)
+  const [paperFormat, setPaperFormat] = useState('A4 landscape')
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(PAPER_SIZE_STORAGE_KEY)
+    if (stored && PAPER_FORMATS.some((format) => format.value === stored)) {
+      setPaperFormat(stored)
+    }
+  }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem(PAPER_SIZE_STORAGE_KEY, paperFormat)
+  }, [paperFormat])
+
+  const selectedPaperLabel = useMemo(
+    () => PAPER_FORMATS.find((format) => format.value === paperFormat)?.label || 'A4 · Landscape',
+    [paperFormat],
+  )
 
   const printAll = () => {
     const root = surfaceRef.current
@@ -559,6 +601,7 @@ function AdminPrintManager({ children }) {
       recordCount: report.recordCount,
       direction: getComputedStyle(root).direction || 'ltr',
       mode: 'all',
+      paperFormat,
     })
   }
 
@@ -603,6 +646,7 @@ function AdminPrintManager({ children }) {
             recordName: record.recordName,
             direction: getComputedStyle(root).direction || 'ltr',
             mode: 'record',
+            paperFormat,
           })
         }
 
@@ -639,13 +683,26 @@ function AdminPrintManager({ children }) {
               <small>Print the current filtered view with KHI branding</small>
             </span>
           </div>
-          <button type="button" className="admin-print-all-button" onClick={printAll}>
-            <Printer aria-hidden="true" />
-            <span>
-              <strong>Print report</strong>
-              <small>All visible records</small>
-            </span>
-          </button>
+          <div className="admin-print-controls">
+            <label className="admin-print-size-control">
+              <span>Paper size</span>
+              <div className="admin-print-size-shell">
+                <select value={paperFormat} onChange={(e) => setPaperFormat(e.target.value)}>
+                  {PAPER_FORMATS.map((format) => (
+                    <option key={format.value} value={format.value}>{format.label}</option>
+                  ))}
+                </select>
+                <ChevronDown aria-hidden="true" />
+              </div>
+            </label>
+            <button type="button" className="admin-print-all-button" onClick={printAll}>
+              <Printer aria-hidden="true" />
+              <span>
+                <strong>Print report</strong>
+                <small>{selectedPaperLabel} · all visible records</small>
+              </span>
+            </button>
+          </div>
         </div>
       ) : null}
       <div ref={surfaceRef} id="admin-print-surface">
