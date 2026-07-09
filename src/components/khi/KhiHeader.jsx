@@ -7,6 +7,7 @@ import { useCurrentProfile } from '@/hooks/use-current-profile'
 import { getAccountArea, getAccountHomePath } from '@/lib/account-role'
 import { resolveProfileImageSource } from '@/lib/profile-image'
 import { IconSearch, IconSignout, IconSignin, IconPerson, IconDashboard, IconLanguage } from './icons'
+import { GoogleTranslateWidget } from '@/components/ui/google-translate'
 import { UI } from './khi-data'
 
 // Sticky public header: brand → home, a global search that lands on the public
@@ -32,11 +33,15 @@ export default function KhiHeader() {
     setQ(searchParams.get('q') || '')
   }, [searchParams])
 
+  const [translateOpen, setTranslateOpen] = useState(false)
+
   const submit = (event) => {
     event?.preventDefault()
     const term = q.trim()
     navigate(`/public/browse?type=all${term ? `&q=${encodeURIComponent(term)}` : ''}`)
   }
+
+  const toggleTranslate = () => setTranslateOpen((open) => !open)
 
   const onSignout = () => {
     logout()
@@ -64,9 +69,14 @@ export default function KhiHeader() {
         </form>
 
         <div className="nav-actions">
-          <Link className="btn btn-translate" to="/public#translate" aria-label="وەرگێڕان">
+          <button type="button" className="btn btn-translate" onClick={toggleTranslate} aria-label="وەرگێڕان">
             <IconLanguage />
-          </Link>
+          </button>
+          {translateOpen ? (
+            <div className="translate-popover">
+              <GoogleTranslateWidget />
+            </div>
+          ) : null}
           {isAuthed ? (
             <>
               {showDashboard && (

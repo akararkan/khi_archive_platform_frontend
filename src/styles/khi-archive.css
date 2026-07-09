@@ -92,9 +92,13 @@
 .khi-root .btn-ghost:hover{background:var(--paper-3);color:var(--ink)}
 .khi-root .btn-line{border:1px solid var(--line-2);color:var(--ink)}
 .khi-root .btn-line:hover{border-color:var(--pine-2);background:var(--paper-2)}
-.khi-root .btn-translate{border:1px solid rgba(214,178,94,.5);background:linear-gradient(145deg,#fffdf7,#f7eed9);color:var(--pine);box-shadow:0 8px 20px -16px rgba(71,51,14,.65)}
+.khi-root .btn-translate{border:1px solid rgba(214,178,94,.5);background:linear-gradient(145deg,#fffdf7,#f7eed9);color:var(--pine);box-shadow:0 8px 20px -16px rgba(71,51,14,.65);position:relative}
 .khi-root .btn-translate svg{color:#9b7225}
 .khi-root .btn-translate:hover{border-color:var(--gold);background:#fff;color:var(--pine-deep);transform:translateY(-1px)}
+.khi-root .translate-popover{position:absolute;top:calc(100% + 10px);right:0;z-index:90;min-width:220px;max-width:320px;padding:10px;border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:0 18px 40px rgba(15,25,19,.17)}
+.khi-root .translate-popover .translate-widget{min-height:auto;padding:0;border:none;background:transparent}
+.khi-root .translate-popover .translate-widget #google_translate_element{width:100%}
+.khi-root .translate-popover .translate-widget .goog-te-combo{width:100%;height:42px;padding:0 12px;border-radius:12px}
 .khi-root .btn-gold{background:var(--gold-bright);color:var(--pine-deep);box-shadow:0 6px 16px rgba(214,178,94,.22)}
 .khi-root .btn-gold:hover{background:#fff}
 @media(max-width:1040px){.khi-root .search{max-width:none}}
