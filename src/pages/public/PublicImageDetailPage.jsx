@@ -76,9 +76,14 @@ function PublicImageDetailPage() {
   const content = (
     <>
       {fileUrl ? (
-        <a className="media-stage image" href={fileUrl} target="_blank" rel="noreferrer">
-          <img src={fileUrl} alt={title} />
-        </a>
+        <div className="media-stage image">
+          <img
+            src={fileUrl}
+            alt={title}
+            draggable={false}
+            onContextMenu={(event) => event.preventDefault()}
+          />
+        </div>
       ) : (
         <div className="media-unavailable">{DETAIL.fileUnavailable}</div>
       )}
@@ -133,9 +138,7 @@ function PublicImageDetailPage() {
             { label: title },
           ]}
           actions={[
-            ...(fileUrl ? [
-              { label: DETAIL.openOriginal, href: fileUrl, icon: IconExternal, external: true, primary: true },
-            ] : []),
+            ...([]),
             { label: DETAIL.help, icon: IconPlus, onClick: () => setHelpOpen(true) },
           ]}
           infoCards={infoCards}
