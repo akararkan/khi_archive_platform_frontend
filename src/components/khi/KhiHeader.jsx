@@ -64,7 +64,7 @@ export default function KhiHeader() {
         </form>
 
         <div className="nav-actions">
-          <Link className="btn btn-translate" to="/public/translate">
+          <Link className="btn btn-translate" to="/public#translate">
             <IconLanguage />
             <span>وەرگێڕان</span>
           </Link>

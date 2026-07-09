@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { CheckCircle2, Globe2, Languages } from 'lucide-react'
 
 import { HighlightProvider } from '@/components/ui/highlight'
+import { GoogleTranslateWidget } from '@/components/ui/google-translate'
 import { readMediaTypeCount, decodeSelectedFacets } from '@/components/public/public-helpers'
 import { guestAudios, guestFacets, guestImages, guestTexts, guestVideos } from '@/services/guest'
 import KhiSidebar from '@/components/khi/KhiSidebar'
@@ -32,6 +34,8 @@ const MEDIA_APIS = {
   video: (params) => guestVideos.list(params),
   text: (params) => guestTexts.list(params),
 }
+
+const TRANSLATION_HINTS = ['English', 'العربية', 'فارسی', 'Türkçe', 'Deutsch', 'Français']
 
 function emptyMediaPage(page, size) {
   return {
@@ -378,6 +382,45 @@ export function KhiBrowsePage() {
 
   return (
     <HighlightProvider query={q}>
+      <div className="public-translate-panel" id="translate">
+        <div className="public-translate-shell">
+          <div className="public-translate-copy">
+            <p className="public-translate-kicker">
+              <Languages aria-hidden="true" />
+              GOOGLE TRANSLATE
+            </p>
+            <h2>گەنجینەکە بە زمانی خۆت بخوێنەوە</h2>
+            <p>
+              لێرەدا زمانێک هەڵبژێرە و وەردەگێڕی Google دەستبەجێ ناوەڕۆکی پەڕەی سەرەکی
+              و هەموو ئەنجامەکان بۆت وەردەگێڕێت.
+            </p>
+            <div className="public-translate-language-chips" aria-label="Available language examples">
+              {TRANSLATION_HINTS.map((language) => (
+                <span key={language}>{language}</span>
+              ))}
+            </div>
+            <div className="public-translate-note">
+              <CheckCircle2 aria-hidden="true" />
+              <p>هەرکاتێک دەتەوێت دەتوانیت بگەڕێیتەوە بۆ زمانی ڕەسەن.</p>
+            </div>
+          </div>
+
+          <div className="public-translate-card translate-widget-card">
+            <div className="translate-card-heading">
+              <span className="translate-card-icon">
+                <Globe2 aria-hidden="true" />
+              </span>
+              <div>
+                <p>وەرگێڕانی سەرەکی</p>
+                <h2>زمانێک هەڵبژێرە</h2>
+              </div>
+            </div>
+
+            <GoogleTranslateWidget />
+          </div>
+        </div>
+      </div>
+
       <div className={`layout${sidebarOpen ? '' : ' side-hidden'}`}>
         {/* Mobile-only dimmer behind the filter drawer. */}
         <div className="scrim" onClick={() => setSidebarOpen(false)} aria-hidden="true" />

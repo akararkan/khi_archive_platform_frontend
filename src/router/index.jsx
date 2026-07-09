@@ -47,7 +47,6 @@ import { PublicPersonDetailPage } from '@/pages/public/PublicPersonDetailPage'
 import { PublicProjectDetailPage } from '@/pages/public/PublicProjectDetailPage'
 import { PublicSearchRedirect } from '@/pages/public/PublicSearchRedirect'
 import { PublicTextDetailPage } from '@/pages/public/PublicTextDetailPage'
-import { PublicTranslatePage } from '@/pages/public/PublicTranslatePage'
 import { PublicVideoDetailPage } from '@/pages/public/PublicVideoDetailPage'
 import { TeacherMaqamDetailPage } from '@/pages/teacher/TeacherMaqamDetailPage'
 import { TeacherMaqamListPage } from '@/pages/teacher/TeacherMaqamListPage'
@@ -64,7 +63,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'translate',
-        element: <Navigate to="/public/translate" replace />,
+        element: <Navigate to="/public#translate" replace />,
       },
       {
         path: 'public',
@@ -90,6 +89,7 @@ const router = createBrowserRouter([
           { path: 'videos', element: <Navigate to="/public/browse?types=video" replace /> },
           { path: 'texts', element: <Navigate to="/public/browse?types=text" replace /> },
           { path: 'images', element: <Navigate to="/public/browse?types=image" replace /> },
+          { path: 'translate', element: <Navigate to="/public#translate" replace /> },
           // Detail pages stay individual — every card links to one of these.
           { path: 'projects/:code', element: <PublicProjectDetailPage /> },
           { path: 'categories/:code', element: <PublicCategoryDetailPage /> },
@@ -98,7 +98,6 @@ const router = createBrowserRouter([
           { path: 'videos/:code', element: <PublicVideoDetailPage /> },
           { path: 'texts/:code', element: <PublicTextDetailPage /> },
           { path: 'images/:code', element: <PublicImageDetailPage /> },
-          { path: 'translate', element: <PublicTranslatePage /> },
         ],
       },
       {
