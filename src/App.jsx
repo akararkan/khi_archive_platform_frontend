@@ -39,36 +39,83 @@ function App() {
 
     const preventContextMenu = (event) => event.preventDefault()
     const preventClipboard = (event) => event.preventDefault()
-    const preventScreenshotKeys = (event) => {
+    const preventSelection = (event) => event.preventDefault()
+    const preventMouseRight = (event) => {
+      if (event.button === 2) event.preventDefault()
+    }
+    const preventForbiddenKeys = (event) => {
       const key = event.key?.toLowerCase()
-      if (key === 'printscreen') {
+      const isCmd = event.metaKey || event.ctrlKey
+      const isShift = event.shiftKey
+      const isAlt = event.altKey
+
+      if (key === 'printscreen' || key === 'snapshot') {
         event.preventDefault()
       }
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey && ['3', '4', '5'].includes(key)) {
+      if (key === 'f12') {
         event.preventDefault()
       }
-      if (event.ctrlKey && key === 'p') {
+      if (isCmd && isShift && ['i', 'c', 'j', 'p', '3', '4', '5', '6', 's'].includes(key)) {
+        event.preventDefault()
+      }
+      if (isCmd && ['u', 's', 'p'].includes(key)) {
+        event.preventDefault()
+      }
+      if (isCmd && isAlt && ['i', 'p', 's'].includes(key)) {
+        event.preventDefault()
+      }
+      if (isAlt && isShift && ['printscreen', 's'].includes(key)) {
         event.preventDefault()
       }
     }
 
     const preventDrag = (event) => event.preventDefault()
+    const preventBeforePrint = (event) => event.preventDefault()
+    const lockWhenHidden = () => {
+      if (document.visibilityState !== 'visible' || document.hasFocus() === false) {
+        document.documentElement.classList.add('screen-locked')
+      } else {
+        document.documentElement.classList.remove('screen-locked')
+      }
+    }
 
-    document.addEventListener('keydown', preventImplicitFormSubmit)
-    document.addEventListener('keydown', preventScreenshotKeys)
-    document.addEventListener('contextmenu', preventContextMenu)
-    document.addEventListener('copy', preventClipboard)
-    document.addEventListener('cut', preventClipboard)
-    document.addEventListener('paste', preventClipboard)
-    document.addEventListener('dragstart', preventDrag)
+    document.addEventListener('keydown', preventImplicitFormSubmit, true)
+    document.addEventListener('keydown', preventForbiddenKeys, true)
+    document.addEventListener('contextmenu', preventContextMenu, true)
+    document.addEventListener('mousedown', preventMouseRight, true)
+    document.addEventListener('copy', preventClipboard, true)
+    document.addEventListener('cut', preventClipboard, true)
+    document.addEventListener('paste', preventClipboard, true)
+    document.addEventListener('selectstart', preventSelection, true)
+    document.addEventListener('dragstart', preventDrag, true)
+    window.addEventListener('beforeprint', preventBeforePrint)
+    window.addEventListener('visibilitychange', lockWhenHidden)
+    window.addEventListener('blur', lockWhenHidden)
+    window.addEventListener('focus', lockWhenHidden)
+    window.addEventListener('contextmenu', preventContextMenu, true)
+    window.addEventListener('mousedown', preventMouseRight, true)
+    document.documentElement.oncontextmenu = () => false
+    document.body && (document.body.oncontextmenu = () => false)
+    lockWhenHidden()
+
     return () => {
-      document.removeEventListener('keydown', preventImplicitFormSubmit)
-      document.removeEventListener('keydown', preventScreenshotKeys)
-      document.removeEventListener('contextmenu', preventContextMenu)
-      document.removeEventListener('copy', preventClipboard)
-      document.removeEventListener('cut', preventClipboard)
-      document.removeEventListener('paste', preventClipboard)
-      document.removeEventListener('dragstart', preventDrag)
+      document.removeEventListener('keydown', preventImplicitFormSubmit, true)
+      document.removeEventListener('keydown', preventForbiddenKeys, true)
+      document.removeEventListener('contextmenu', preventContextMenu, true)
+      document.removeEventListener('mousedown', preventMouseRight, true)
+      document.removeEventListener('copy', preventClipboard, true)
+      document.removeEventListener('cut', preventClipboard, true)
+      document.removeEventListener('paste', preventClipboard, true)
+      document.removeEventListener('selectstart', preventSelection, true)
+      document.removeEventListener('dragstart', preventDrag, true)
+      window.removeEventListener('beforeprint', preventBeforePrint)
+      window.removeEventListener('visibilitychange', lockWhenHidden)
+      window.removeEventListener('blur', lockWhenHidden)
+      window.removeEventListener('focus', lockWhenHidden)
+      window.removeEventListener('contextmenu', preventContextMenu, true)
+      window.removeEventListener('mousedown', preventMouseRight, true)
+      document.documentElement.oncontextmenu = null
+      if (document.body) document.body.oncontextmenu = null
     }
   }, [])
 

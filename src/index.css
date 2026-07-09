@@ -256,6 +256,22 @@
     object-fit: contain;
     pointer-events: none;
   }
+
+  @media print {
+    html, body, #root {
+      visibility: hidden !important;
+      display: none !important;
+      height: 0 !important;
+      overflow: hidden !important;
+    }
+  }
+
+  .screen-locked {
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    user-select: none !important;
+  }
 }
 
 /* Runtime-aware font utilities — defined OUTSIDE @layer so they sit
