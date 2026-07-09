@@ -86,18 +86,23 @@
 .khi-root .account-copy strong,.khi-root .account-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .khi-root .account-copy strong{font-size:13px;font-weight:800}
 .khi-root .account-copy small{margin-top:3px;color:var(--muted);font-size:10px;direction:ltr}
-.khi-root .account-dropdown{position:absolute;top:calc(100% + 12px);right:0;z-index:95;min-width:280px;padding:18px;border:1px solid var(--line);border-radius:24px;background:#fff;box-shadow:0 24px 60px rgba(15,25,19,.13);backdrop-filter:blur(12px)}
-.khi-root .account-dropdown-hero{display:flex;gap:12px;align-items:center;padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--line-2)}
-.khi-root .account-dropdown-avatar{width:52px;height:52px}
+.khi-root .account-dropdown{position:absolute;top:calc(100% + 12px);right:0;z-index:95;min-width:320px;padding:0;border:none;border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.98),#f7f4ed);box-shadow:0 28px 70px rgba(15,25,19,.14);overflow:hidden}
+.khi-root .account-dropdown::before{content:'';position:absolute;top:-12px;right:24px;width:22px;height:22px;background:#fff;transform:rotate(45deg);box-shadow:-3px -3px 12px rgba(15,25,19,.06)}
+.khi-root .account-dropdown-hero{display:flex;gap:14px;align-items:center;padding:20px 22px;background:linear-gradient(135deg,rgba(220,198,153,.2),rgba(255,255,255,.92));border-bottom:1px solid rgba(165,138,101,.16)}
+.khi-root .account-dropdown-avatar{width:56px;height:56px}
+.khi-root .account-dropdown-hero-copy{min-width:0;display:flex;flex-direction:column;gap:4px}
 .khi-root .account-dropdown-name{margin:0;font-size:15px;font-weight:800}
-.khi-root .account-dropdown-meta{margin:4px 0 0;color:var(--muted);font-size:13px;direction:ltr}
-.khi-root .account-dropdown-row{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid var(--line-2)}
+.khi-root .account-dropdown-meta{margin:0;color:var(--muted);font-size:12px;direction:ltr}
+.khi-root .account-dropdown-email{margin:6px 0 0;color:var(--pine-deep);font-size:12px;line-height:1.3;direction:ltr;word-break:break-all}
+.khi-root .account-dropdown-row{display:flex;justify-content:space-between;gap:10px;padding:14px 22px;border-top:1px solid rgba(165,138,101,.12);font-size:13px}
 .khi-root .account-dropdown-row:first-of-type{border-top:none;padding-top:0}
 .khi-root .account-dropdown-row span{color:var(--muted);font-size:12px}
-.khi-root .account-dropdown-row strong{font-size:14px;max-width:170px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.khi-root .account-dropdown-actions{display:grid;gap:10px;margin-top:16px}
+.khi-root .account-dropdown-row strong{font-size:13px;max-width:170px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.khi-root .account-dropdown-actions{display:grid;gap:12px;padding:18px 22px 20px}
 .khi-root .account-dropdown .btn{width:100%;justify-content:center;padding:12px 14px}
 .khi-root .account-dropdown .btn svg{width:18px;height:18px}
+.khi-root .account-identity-chevron{width:14px;height:14px;color:var(--muted);transition:.2s transform}
+.khi-root .account-identity-chevron.open{transform:rotate(180deg)}
 .khi-root .btn{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:14.5px;border-radius:8px;padding:10px 15px;transition:.2s;white-space:nowrap;text-decoration:none}
 .khi-root .btn svg{width:18px;height:18px}
 .khi-root .btn-ghost{color:var(--ink-soft)}

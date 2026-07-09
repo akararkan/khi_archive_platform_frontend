@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import {
   formatPublicDate, mediaThumbHref, pickMediaTitle, extractPersonFromItem,
@@ -13,15 +16,105 @@ import {
 } from '@/components/khi/KhiDetail'
 import {
   IconPerson, IconProject, IconBook, IconLanguage, IconCalendar, IconLayers,
-  IconText, IconMic, IconQuote, IconExternal, IconPlus,
+  IconText, IconMic, IconQuote, IconPlus,
 } from '@/components/khi/icons'
 import { guestTexts } from '@/services/guest'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
+
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 function toList(v, cap = 12) {
   if (!v) return []
   const arr = Array.isArray(v) ? v : String(v).split(/[,،;]/)
   return arr.map((s) => String(s).trim()).filter(Boolean).slice(0, cap)
+}
+
+function TextPdfPageImagesViewer({ fileUrl, title }) {
+  const [pages, setPages] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!fileUrl) {
+      setPages([])
+      setLoading(false)
+      setError('')
+      return undefined
+    }
+
+    let canceled = false
+    const loadingTask = getDocument({ url: fileUrl })
+
+    async function renderPages() {
+      try {
+        setLoading(true)
+        setError('')
+        setPages([])
+
+        const pdf = await loadingTask.promise
+        const renderedPages = []
+
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+          if (canceled) break
+          const page = await pdf.getPage(pageNumber)
+          const viewport = page.getViewport({ scale: 1.3 })
+          const canvas = document.createElement('canvas')
+          const context = canvas.getContext('2d')
+          canvas.width = viewport.width
+          canvas.height = viewport.height
+          await page.render({ canvasContext: context, viewport }).promise
+          renderedPages.push(canvas.toDataURL('image/png'))
+          if (!canceled) {
+            setPages((prev) => [...prev, renderedPages[renderedPages.length - 1]])
+          }
+          page.cleanup()
+        }
+
+        await loadingTask.destroy()
+      } catch (err) {
+        if (!canceled) {
+          setError('Could not render document preview.')
+          setPages([])
+        }
+      } finally {
+        if (!canceled) setLoading(false)
+      }
+    }
+
+    renderPages()
+
+    return () => {
+      canceled = true
+      loadingTask.destroy().catch(() => null)
+    }
+  }, [fileUrl])
+
+  return (
+    <div className="protected-file-viewer" onContextMenu={(event) => event.preventDefault()}>
+      {loading ? (
+        <div className="media-unavailable">Loading document images…</div>
+      ) : error ? (
+        <div className="media-unavailable">{error}</div>
+      ) : pages.length ? (
+        pages.map((src, index) => (
+          <div
+            key={`pdf-page-${index + 1}`}
+            className="protected-file-page"
+            data-page={`Page ${index + 1}`}
+          >
+            <img
+              src={src}
+              alt={`${title} – Page ${index + 1}`}
+              draggable="false"
+              onContextMenu={(event) => event.preventDefault()}
+            />
+          </div>
+        ))
+      ) : (
+        <div className="media-unavailable">Preview is not available for this file type.</div>
+      )}
+    </div>
+  )
 }
 
 function PublicTextDetailPage() {
@@ -65,6 +158,22 @@ function PublicTextDetailPage() {
   const isPdf = fileUrl && /\.pdf($|\?)/i.test(fileUrl)
   const projectCode = text.project?.projectCode || text.projectCode
 
+  const content = (
+    <>
+      {fileUrl ? (
+        isPdf ? (
+          <TextPdfPageImagesViewer fileUrl={fileUrl} title={title} />
+        ) : (
+          <div className="media-unavailable">Preview is not available for this file type.</div>
+        )
+      ) : (
+        <div className="media-unavailable">{DETAIL.fileUnavailable}</div>
+      )}
+      {text.summary ? <KhiContentCard icon={IconQuote} title={DETAIL.summary}><p>{text.summary}</p></KhiContentCard> : null}
+      {text.bodyText ? <KhiContentCard icon={IconText} title={DETAIL.body}><p>{text.bodyText}</p></KhiContentCard> : null}
+    </>
+  )
+
   const infoCards = [
     { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
     { icon: IconProject, label: DETAIL.project, value: text.project?.projectName || text.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
@@ -73,17 +182,6 @@ function PublicTextDetailPage() {
     { icon: IconLanguage, label: DETAIL.language, value: text.language },
     { icon: IconCalendar, label: DETAIL.year, value: yearNum(text) },
   ]
-
-  const content = (
-    <>
-      {fileUrl && isPdf ? (
-        <div className="media-stage"><iframe src={fileUrl} title={title} loading="lazy" /></div>
-      ) : null}
-      {!fileUrl ? <div className="media-unavailable">{DETAIL.fileUnavailable}</div> : null}
-      {text.summary ? <KhiContentCard icon={IconQuote} title={DETAIL.summary}><p>{text.summary}</p></KhiContentCard> : null}
-      {text.bodyText ? <KhiContentCard icon={IconText} title={DETAIL.body}><p>{text.bodyText}</p></KhiContentCard> : null}
-    </>
-  )
 
   const meta = (
     <>
@@ -139,9 +237,6 @@ function PublicTextDetailPage() {
             { label: title },
           ]}
           actions={[
-            ...(fileUrl ? [
-              { label: DETAIL.openDoc, href: fileUrl, icon: IconExternal, external: true, primary: true },
-            ] : []),
             { label: DETAIL.help, icon: IconPlus, onClick: () => setHelpOpen(true) },
           ]}
           infoCards={infoCards}

@@ -37,8 +37,39 @@ function App() {
       event.preventDefault()
     }
 
+    const preventContextMenu = (event) => event.preventDefault()
+    const preventClipboard = (event) => event.preventDefault()
+    const preventScreenshotKeys = (event) => {
+      const key = event.key?.toLowerCase()
+      if (key === 'printscreen') {
+        event.preventDefault()
+      }
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && ['3', '4', '5'].includes(key)) {
+        event.preventDefault()
+      }
+      if (event.ctrlKey && key === 'p') {
+        event.preventDefault()
+      }
+    }
+
+    const preventDrag = (event) => event.preventDefault()
+
     document.addEventListener('keydown', preventImplicitFormSubmit)
-    return () => document.removeEventListener('keydown', preventImplicitFormSubmit)
+    document.addEventListener('keydown', preventScreenshotKeys)
+    document.addEventListener('contextmenu', preventContextMenu)
+    document.addEventListener('copy', preventClipboard)
+    document.addEventListener('cut', preventClipboard)
+    document.addEventListener('paste', preventClipboard)
+    document.addEventListener('dragstart', preventDrag)
+    return () => {
+      document.removeEventListener('keydown', preventImplicitFormSubmit)
+      document.removeEventListener('keydown', preventScreenshotKeys)
+      document.removeEventListener('contextmenu', preventContextMenu)
+      document.removeEventListener('copy', preventClipboard)
+      document.removeEventListener('cut', preventClipboard)
+      document.removeEventListener('paste', preventClipboard)
+      document.removeEventListener('dragstart', preventDrag)
+    }
   }, [])
 
   return (

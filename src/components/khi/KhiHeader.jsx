@@ -6,7 +6,7 @@ import { getStoredToken, logout } from '@/services/auth'
 import { useCurrentProfile } from '@/hooks/use-current-profile'
 import { getAccountArea, getAccountHomePath } from '@/lib/account-role'
 import { resolveProfileImageSource } from '@/lib/profile-image'
-import { IconSearch, IconSignout, IconSignin, IconPerson, IconDashboard, IconLanguage } from './icons'
+import { IconSearch, IconSignout, IconSignin, IconPerson, IconDashboard, IconLanguage, IconChevron } from './icons'
 import { GoogleTranslateWidget } from '@/components/ui/google-translate'
 import { UI } from './khi-data'
 
@@ -128,6 +128,7 @@ export default function KhiHeader() {
                   <strong>{accountName}</strong>
                   <small>{accountUsername ? `@${accountUsername}` : UI.profile}</small>
                 </span>
+                <IconChevron className={`account-identity-chevron${profileOpen ? ' open' : ''}`} />
               </button>
               {profileOpen ? (
                 <div ref={profileMenuRef} className="account-dropdown" role="dialog" aria-label="Account menu">
@@ -135,17 +136,12 @@ export default function KhiHeader() {
                     <div className="account-avatar account-dropdown-avatar">
                       {accountImage ? <img src={accountImage} alt={accountName} /> : accountInitial}
                     </div>
-                    <div>
+                    <div className="account-dropdown-hero-copy">
                       <p className="account-dropdown-name">{accountName}</p>
                       <p className="account-dropdown-meta">{accountUsername ? `@${accountUsername}` : UI.profile}</p>
+                      {profile?.email ? <p className="account-dropdown-email">{profile.email}</p> : null}
                     </div>
                   </div>
-                  {profile?.email ? (
-                    <div className="account-dropdown-row">
-                      <span>Email</span>
-                      <strong>{profile.email}</strong>
-                    </div>
-                  ) : null}
                   <div className="account-dropdown-row">
                     <span>Role</span>
                     <strong>{profile?.role || 'Guest'}</strong>
