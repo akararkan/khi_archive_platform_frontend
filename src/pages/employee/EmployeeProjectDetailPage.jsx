@@ -12,11 +12,13 @@ import {
   FileText,
   FolderOpen,
   Globe,
+  HardDrive,
   Image as ImageIcon,
   Loader2,
   Pencil,
   Plus,
   Trash2,
+  UploadCloud,
   Video as VideoIcon,
   X,
 } from 'lucide-react'
@@ -55,6 +57,7 @@ import {
   SortSelect,
 } from '@/components/ui/list-filters'
 import { Select } from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
 import {
   AUDIO_SORT_OPTIONS,
   DEFAULT_AUDIO_SORT_KEY,
@@ -235,6 +238,93 @@ function mergeAutoFilled(prev, newAuto, previousAuto) {
   return next
 }
 
+const UPLOAD_KIND_LABELS = {
+  audio: 'Audio',
+  video: 'Video',
+  image: 'Image',
+  text: 'Document',
+}
+
+function formatFileWeight(bytes) {
+  const value = Number(bytes)
+  if (!Number.isFinite(value) || value <= 0) return '0 B'
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let size = value
+  let unitIndex = 0
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex += 1
+  }
+
+  const precision = unitIndex === 0 ? 0 : size >= 100 ? 1 : 2
+  return `${size.toFixed(precision)} ${units[unitIndex]}`
+}
+
+function UploadProgressPanel({ progress }) {
+  if (!progress) return null
+
+  const total = progress.total || progress.fileSize || 0
+  const loaded = total ? Math.min(progress.loaded || 0, total) : (progress.loaded || 0)
+  const percent = Math.max(0, Math.min(100, Math.round(progress.percent || (total ? (loaded / total) * 100 : 0))))
+  const elapsedSeconds = progress.startedAt ? Math.max(1, (progress.updatedAt - progress.startedAt) / 1000) : 1
+  const speed = loaded > 0 ? loaded / elapsedSeconds : 0
+  const label = UPLOAD_KIND_LABELS[progress.kind] || 'File'
+  const finalizing = progress.stage === 'finalizing' || percent >= 100
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-primary/20 bg-primary/[0.035] shadow-sm">
+      <div className="flex items-start gap-3 p-4">
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+          <UploadCloud className="size-4.5" />
+        </span>
+        <div className="min-w-0 flex-1 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                {finalizing ? `Finalizing ${label.toLowerCase()} record` : `Uploading ${label.toLowerCase()} file`}
+              </p>
+              <p className="truncate text-xs text-muted-foreground" title={progress.fileName}>
+                {progress.fileName}
+              </p>
+            </div>
+            <span className="rounded-md border border-primary/15 bg-background px-2 py-1 font-mono text-xs font-semibold tabular-nums text-primary">
+              {percent}%
+            </span>
+          </div>
+
+          <Slider
+            value={[percent]}
+            min={0}
+            max={100}
+            step={1}
+            ariaLabel={`${label} upload progress`}
+            className="pointer-events-none"
+            trackClassName="h-2.5 bg-muted"
+            indicatorClassName="bg-gradient-to-r from-emerald-500 via-amber-500 to-primary"
+            thumbClassName="size-4 border-background bg-primary shadow-md"
+          />
+
+          <div className="grid gap-2 text-[11px] text-muted-foreground sm:grid-cols-3">
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              <HardDrive className="size-3.5 shrink-0 text-primary" />
+              <span className="truncate">
+                {formatFileWeight(loaded)} / {formatFileWeight(total)}
+              </span>
+            </span>
+            <span className="font-mono tabular-nums">
+              {speed > 0 ? `${formatFileWeight(speed)}/s` : 'Preparing...'}
+            </span>
+            <span className="text-right sm:text-left">
+              {finalizing ? 'Database save is completing.' : 'Upload is active.'}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const TEXTAREA_CLASS =
   'min-h-[96px] w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
 
@@ -290,6 +380,7 @@ function EmployeeProjectDetailPage() {
   const [view, setView] = useState('list') // list | create | edit
   const [isSaving, setIsSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  const [uploadProgress, setUploadProgress] = useState(null)
 
   // Audios saved in this create-session (resets when the form closes). Lets us
   // show "you've added N audios so far" so the user has clear feedback when they
@@ -311,6 +402,59 @@ function EmployeeProjectDetailPage() {
   // file has been picked while we were probing, the stale result is
   // discarded so it can't overwrite the new file's auto-filled values.
   const metaSessionRef = useRef(0)
+
+  const beginUploadProgress = useCallback((kind, file) => {
+    if (!file) {
+      setUploadProgress(null)
+      return undefined
+    }
+
+    const total = file.size || 0
+    const startedAt = Date.now()
+    setUploadProgress({
+      kind,
+      fileName: file.name,
+      fileSize: total,
+      loaded: 0,
+      total,
+      percent: 0,
+      stage: 'uploading',
+      startedAt,
+      updatedAt: startedAt,
+    })
+
+    return {
+      onUploadProgress: (event) => {
+        const loaded = Number(event.loaded) || 0
+        const eventTotal = Number(event.total) || total
+        const percent = eventTotal > 0 ? Math.min(100, (loaded / eventTotal) * 100) : 0
+        setUploadProgress((current) => ({
+          ...(current || {}),
+          kind,
+          fileName: file.name,
+          fileSize: total,
+          loaded,
+          total: eventTotal,
+          percent,
+          stage: percent >= 99.9 ? 'finalizing' : 'uploading',
+          startedAt,
+          updatedAt: Date.now(),
+        }))
+      },
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isSaving) return undefined
+
+    const warnBeforeLeave = (event) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', warnBeforeLeave)
+    return () => window.removeEventListener('beforeunload', warnBeforeLeave)
+  }, [isSaving])
 
   // Audio search/details/remove/delete
   const [searchTerm, setSearchTerm] = useState('')
@@ -926,10 +1070,11 @@ function EmployeeProjectDetailPage() {
     }
 
     setIsSaving(true)
+    const uploadOptions = beginUploadProgress('audio', audioFile)
     try {
       if (view === 'create') {
         const payload = buildAudioPayload(form, projectCode)
-        const saved = await createAudio(payload, audioFile)
+        const saved = await createAudio(payload, audioFile, uploadOptions)
         toast.success('Audio created', `${saved.audioCode} has been added to ${projectCode}.`)
         await loadAudios()
 
@@ -964,7 +1109,7 @@ function EmployeeProjectDetailPage() {
       // Backend forbids changing the project on update — the audio's project is
       // already fixed.
       delete payload.projectCode
-      const saved = await updateAudio(currentAudio.audioCode, payload, audioFile)
+      const saved = await updateAudio(currentAudio.audioCode, payload, audioFile, uploadOptions)
       toast.success('Audio updated', `${saved.audioCode} changes were saved.`)
       await loadAudios()
       handleCloseAudioForm()
@@ -984,6 +1129,7 @@ function EmployeeProjectDetailPage() {
       toast.apiError(err, 'Unable to save audio')
     } finally {
       setIsSaving(false)
+      setUploadProgress(null)
     }
   }
 
@@ -1099,10 +1245,11 @@ function EmployeeProjectDetailPage() {
     }
 
     setIsSaving(true)
+    const uploadOptions = beginUploadProgress('video', videoFile)
     try {
       if (view === 'create') {
         const payload = buildVideoPayload(videoForm, projectCode)
-        const saved = await createVideo(payload, videoFile)
+        const saved = await createVideo(payload, videoFile, uploadOptions)
         toast.success('Video created', `${saved.videoCode} has been added to ${projectCode}.`)
         await loadVideos()
 
@@ -1132,7 +1279,7 @@ function EmployeeProjectDetailPage() {
       const payload = buildVideoPayload(videoForm, projectCode)
       // projectCode is immutable on update — backend silently ignores it.
       delete payload.projectCode
-      const saved = await updateVideo(currentVideo.videoCode, payload, videoFile)
+      const saved = await updateVideo(currentVideo.videoCode, payload, videoFile, uploadOptions)
       toast.success('Video updated', `${saved.videoCode} changes were saved.`)
       await loadVideos()
       handleCloseVideoForm()
@@ -1148,6 +1295,7 @@ function EmployeeProjectDetailPage() {
       toast.apiError(err, 'Unable to save video')
     } finally {
       setIsSaving(false)
+      setUploadProgress(null)
     }
   }
 
@@ -1264,10 +1412,11 @@ function EmployeeProjectDetailPage() {
     }
 
     setIsSaving(true)
+    const uploadOptions = beginUploadProgress('image', imageFile)
     try {
       if (view === 'create') {
         const payload = buildImagePayload(imageForm, projectCode)
-        const saved = await createImage(payload, imageFile)
+        const saved = await createImage(payload, imageFile, uploadOptions)
         toast.success('Image created', `${saved.imageCode} has been added to ${projectCode}.`)
         await loadImages()
 
@@ -1296,7 +1445,7 @@ function EmployeeProjectDetailPage() {
 
       const payload = buildImagePayload(imageForm, projectCode)
       delete payload.projectCode
-      const saved = await updateImage(currentImage.imageCode, payload, imageFile)
+      const saved = await updateImage(currentImage.imageCode, payload, imageFile, uploadOptions)
       toast.success('Image updated', `${saved.imageCode} changes were saved.`)
       await loadImages()
       handleCloseImageForm()
@@ -1312,6 +1461,7 @@ function EmployeeProjectDetailPage() {
       toast.apiError(err, 'Unable to save image')
     } finally {
       setIsSaving(false)
+      setUploadProgress(null)
     }
   }
 
@@ -1439,10 +1589,11 @@ function EmployeeProjectDetailPage() {
     }
 
     setIsSaving(true)
+    const uploadOptions = beginUploadProgress('text', textFile)
     try {
       if (view === 'create') {
         const payload = buildTextPayload(textForm, projectCode)
-        const saved = await createText(payload, textFile)
+        const saved = await createText(payload, textFile, uploadOptions)
         toast.success('Text created', `${saved.textCode} has been added to ${projectCode}.`)
         await loadTexts()
 
@@ -1471,7 +1622,7 @@ function EmployeeProjectDetailPage() {
 
       const payload = buildTextPayload(textForm, projectCode)
       delete payload.projectCode
-      const saved = await updateText(currentText.textCode, payload, textFile)
+      const saved = await updateText(currentText.textCode, payload, textFile, uploadOptions)
       toast.success('Text updated', `${saved.textCode} changes were saved.`)
       await loadTexts()
       handleCloseTextForm()
@@ -1487,6 +1638,7 @@ function EmployeeProjectDetailPage() {
       toast.apiError(err, 'Unable to save text')
     } finally {
       setIsSaving(false)
+      setUploadProgress(null)
     }
   }
 
@@ -1670,6 +1822,7 @@ function EmployeeProjectDetailPage() {
               projectCategories={project?.categories || []}
             />
 
+            <UploadProgressPanel progress={uploadProgress} />
             <FormErrorBox error={formError} />
 
             <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
@@ -1882,6 +2035,7 @@ function EmployeeProjectDetailPage() {
               projectCategories={project?.categories || []}
             />
 
+            <UploadProgressPanel progress={uploadProgress} />
             <FormErrorBox error={formError} />
 
             <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
@@ -2087,6 +2241,7 @@ function EmployeeProjectDetailPage() {
               projectCategories={project?.categories || []}
             />
 
+            <UploadProgressPanel progress={uploadProgress} />
             <FormErrorBox error={formError} />
 
             <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
@@ -2319,6 +2474,7 @@ function EmployeeProjectDetailPage() {
               projectCategories={project?.categories || []}
             />
 
+            <UploadProgressPanel progress={uploadProgress} />
             <FormErrorBox error={formError} />
 
             <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-2 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">

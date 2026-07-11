@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api-client'
+import { multipartUploadConfig } from '@/lib/multipart-upload'
 
 // Backward-compatible: returns just the row array.
 export async function getImages() {
@@ -31,25 +32,21 @@ export async function getImage(code) {
   return data
 }
 
-export async function createImage(payload, file) {
+export async function createImage(payload, file, uploadOptions) {
   const formData = new FormData()
   formData.append('data', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
   if (file) formData.append('file', file)
 
-  const { data } = await apiClient.post('/image', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const { data } = await apiClient.post('/image', formData, multipartUploadConfig(uploadOptions))
   return data
 }
 
-export async function updateImage(code, payload, file) {
+export async function updateImage(code, payload, file, uploadOptions) {
   const formData = new FormData()
   formData.append('data', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
   if (file) formData.append('file', file)
 
-  const { data } = await apiClient.patch(`/image/${code}`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const { data } = await apiClient.patch(`/image/${code}`, formData, multipartUploadConfig(uploadOptions))
   return data
 }
 

@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api-client'
+import { multipartUploadConfig } from '@/lib/multipart-upload'
 
 // Backward-compatible: returns just the row array.
 export async function getAudios() {
@@ -30,25 +31,21 @@ export async function getAudio(code) {
   return data
 }
 
-export async function createAudio(payload, file) {
+export async function createAudio(payload, file, uploadOptions) {
   const formData = new FormData()
   formData.append('data', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
   if (file) formData.append('file', file)
 
-  const { data } = await apiClient.post('/audio', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const { data } = await apiClient.post('/audio', formData, multipartUploadConfig(uploadOptions))
   return data
 }
 
-export async function updateAudio(code, payload, file) {
+export async function updateAudio(code, payload, file, uploadOptions) {
   const formData = new FormData()
   formData.append('data', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
   if (file) formData.append('file', file)
 
-  const { data } = await apiClient.patch(`/audio/${code}`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const { data } = await apiClient.patch(`/audio/${code}`, formData, multipartUploadConfig(uploadOptions))
   return data
 }
 
