@@ -56,11 +56,12 @@ function VideoPlayer({ src, title, subtitle, className, protectedMode = false })
   const [isPip, setIsPip] = useState(false)
   const [isRtl, setIsRtl] = useState(false)
 
-  // Mirror the ambient writing direction so the scrubber fills right→left under
-  // RTL (left→right otherwise) and the seek/hover math matches.
+  // Force controls to behave left→right like typical video players (YouTube).
+  // The app may use RTL for text, but users expect the scrubber and control
+  // layout to be LTR for media playback. We explicitly set `isRtl` to false
+  // so seek math and progress direction follow left→right behavior.
   useLayoutEffect(() => {
-    const el = containerRef.current
-    if (el) setIsRtl(getComputedStyle(el).direction === 'rtl')
+    setIsRtl(false)
   }, [])
 
   // Track isSeeking via ref so the video-element effect doesn't have to depend
