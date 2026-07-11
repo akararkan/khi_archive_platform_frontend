@@ -41,18 +41,22 @@ function App() {
       event.preventDefault()
     }
 
+    const protectedMediaSelector =
+      'video, audio, canvas, .protected-media, .protected-file-viewer, .media-stage, .player-mount, .protected-media-player'
     const preventClipboard = (event) => event.preventDefault()
     const preventSelection = (event) => event.preventDefault()
-    const preventContextMenu = (event) => event.preventDefault()
+    const preventContextMenu = (event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest(protectedMediaSelector)) {
+        event.preventDefault()
+      }
+    }
     const preventProtectedMediaAuxOpen = (event) => {
       if (event.button !== 1) return
       const target = event.target
       if (!(target instanceof Element)) return
-      if (
-        target.closest(
-          'img, video, audio, canvas, .protected-media, .protected-file-viewer, .media-stage, .player-mount, .hero-image-area',
-        )
-      ) {
+      if (target.closest(protectedMediaSelector)) {
         event.preventDefault()
       }
     }
