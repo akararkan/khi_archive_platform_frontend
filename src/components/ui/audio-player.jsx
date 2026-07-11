@@ -16,6 +16,11 @@ import { cn } from '@/lib/utils'
 
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
 
+function stopProtectedMediaEvent(event) {
+  event.preventDefault()
+  event.stopPropagation()
+}
+
 function formatTime(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
   const total = Math.floor(seconds)
@@ -37,6 +42,7 @@ function AudioPlayer({
   onPlayingChange,
   onTimeUpdate,
   onEnded: onEndedProp,
+  protectedMode = false,
 }) {
   const containerRef = useRef(null)
   const audioRef = useRef(null)
@@ -348,16 +354,28 @@ function AudioPlayer({
   return (
     <div
       ref={containerRef}
-      tabIndex={0}
+      tabIndex={protectedMode ? -1 : 0}
+      onAuxClick={protectedMode ? stopProtectedMediaEvent : undefined}
+      onContextMenu={protectedMode ? stopProtectedMediaEvent : undefined}
       dir="ltr"
       className={cn(
         // No overflow-hidden here on purpose — the playback-rate popover opens
         // upward and would be clipped if the container clipped its overflow.
         'group/player relative rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-muted/30 p-4 shadow-sm shadow-black/5 outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring/40 sm:p-5',
+        protectedMode && 'protected-media protected-media-player cursor-default',
         className,
       )}
     >
-      <audio ref={audioRef} src={src} preload="metadata" className="hidden" />
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        controlsList={protectedMode ? 'nodownload noremoteplayback noplaybackrate' : undefined}
+        disableRemotePlayback={protectedMode}
+        onAuxClick={protectedMode ? stopProtectedMediaEvent : undefined}
+        onContextMenu={protectedMode ? stopProtectedMediaEvent : undefined}
+        className="hidden"
+      />
 
       {(title || subtitle) && (
         <div className="mb-4 min-w-0">

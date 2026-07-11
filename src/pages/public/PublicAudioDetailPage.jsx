@@ -82,8 +82,8 @@ function PublicAudioDetailPage() {
   const content = (
     <>
       {audio.audioFileUrl ? (
-        <div className="player-mount" style={{ marginBottom: 22 }}>
-          <AudioPlayer src={audio.audioFileUrl} title={title} subtitle={audio.form || audio.language || ''} />
+        <div className="player-mount protected-media" style={{ marginBottom: 22 }}>
+          <AudioPlayer src={audio.audioFileUrl} title={title} subtitle={audio.form || audio.language || ''} protectedMode />
         </div>
       ) : (
         <div className="media-unavailable">{DETAIL.fileUnavailable}</div>

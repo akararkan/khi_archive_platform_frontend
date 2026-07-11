@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
+import { BookOpen, ChevronLeft, ChevronRight, FileText as FileTextIcon } from 'lucide-react'
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
@@ -29,24 +30,26 @@ function toList(v, cap = 12) {
   return arr.map((s) => String(s).trim()).filter(Boolean).slice(0, cap)
 }
 
+function stopProtectedMediaEvent(event) {
+  event.preventDefault()
+  event.stopPropagation()
+}
+
+function getSpreadStartPage(page, pageCount) {
+  const safeCount = Math.max(1, pageCount || 1)
+  const safePage = Math.min(safeCount, Math.max(1, Number(page) || 1))
+  return safePage % 2 === 0 ? Math.max(1, safePage - 1) : safePage
+}
+
 function TextPdfPageImagesViewer({ fileUrl, title }) {
   const [pages, setPages] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [activePage, setActivePage] = useState(1)
+  const [viewMode, setViewMode] = useState('spread')
+  const pageCount = pages.length
 
   useEffect(() => {
-    setActivePage(1)
-  }, [fileUrl])
-
-  useEffect(() => {
-    if (!fileUrl) {
-      setPages([])
-      setLoading(false)
-      setError('')
-      return undefined
-    }
-
     let canceled = false
     const abortController = new AbortController()
     let loadingTask = null
@@ -109,44 +112,98 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
     }
   }, [fileUrl])
 
-  const pageCount = pages.length
-  const leftPage = pages[activePage - 1]
-  const rightPage = pages[activePage]
-  const hasSpread = pageCount > 1
-
-  const visiblePages = pageCount === 0 ? [] : hasSpread ? [leftPage, rightPage].filter(Boolean) : [leftPage]
+  const isSpread = viewMode === 'spread' && pageCount > 1
+  const maxStartPage = pageCount
+    ? (isSpread ? pageCount - (pageCount % 2 === 0 ? 1 : 0) : pageCount)
+    : 1
+  const normalizedActivePage = pageCount
+    ? Math.min(maxStartPage, isSpread ? getSpreadStartPage(activePage, pageCount) : activePage)
+    : 1
+  const visiblePages = pageCount === 0
+    ? []
+    : isSpread
+      ? [
+        { src: pages[normalizedActivePage - 1], pageNumber: normalizedActivePage },
+        { src: pages[normalizedActivePage], pageNumber: normalizedActivePage + 1 },
+      ].filter((page) => page.src)
+      : [{ src: pages[normalizedActivePage - 1], pageNumber: normalizedActivePage }].filter((page) => page.src)
 
   const handlePrevious = () => {
-    setActivePage((current) => Math.max(1, current - 2))
+    setActivePage((current) => {
+      const startPage = isSpread ? getSpreadStartPage(current, pageCount) : current
+      return Math.max(1, startPage - (isSpread ? 2 : 1))
+    })
   }
 
   const handleNext = () => {
-    setActivePage((current) => Math.min(pageCount - (pageCount % 2 === 0 ? 1 : 0), current + 2))
+    setActivePage((current) => {
+      const startPage = isSpread ? getSpreadStartPage(current, pageCount) : current
+      return Math.min(maxStartPage, startPage + (isSpread ? 2 : 1))
+    })
   }
 
   const handlePageChange = (event) => {
     const page = Number(event.target.value)
-    setActivePage(page)
+    setActivePage(isSpread ? getSpreadStartPage(page, pageCount) : page)
+  }
+
+  const handleViewModeChange = (mode) => {
+    setViewMode(mode)
+    setActivePage((current) => {
+      if (mode === 'spread') return getSpreadStartPage(current, pageCount)
+      return Math.min(Math.max(1, current), pageCount || 1)
+    })
   }
 
   return (
-    <div className="protected-file-viewer">
+    <div
+      className="protected-file-viewer protected-media"
+      onAuxClick={stopProtectedMediaEvent}
+      onContextMenu={stopProtectedMediaEvent}
+    >
       {loading ? (
-        <div className="media-unavailable">Loading document images…</div>
+        <div className="document-viewer-status">Loading document images...</div>
       ) : error ? (
-        <div className="media-unavailable">{error}</div>
+        <div className="document-viewer-status error">{error}</div>
       ) : visiblePages.length ? (
         <>
           <div className="protected-file-viewer-header">
-            <div className="protected-file-viewer-controls">
-              <button type="button" className="viewer-nav-button" onClick={handlePrevious} disabled={activePage <= 1}>
-                ‹
-              </button>
-              <button type="button" className="viewer-nav-button" onClick={handleNext} disabled={activePage >= pageCount - (pageCount % 2 === 0 ? 1 : 0)}>
-                ›
-              </button>
-              <div className="viewer-page-indicator">
-                Page {activePage}{hasSpread && pageCount > activePage ? `–${Math.min(activePage + 1, pageCount)}` : ''} of {pageCount}
+            <div className="viewer-page-indicator" aria-live="polite">
+              <FileTextIcon aria-hidden="true" />
+              <span>
+                Page {normalizedActivePage}{isSpread && pageCount > normalizedActivePage ? `-${Math.min(normalizedActivePage + 1, pageCount)}` : ''} of {pageCount}
+              </span>
+            </div>
+            <div className="viewer-toolbar">
+              {pageCount > 1 ? (
+                <div className="viewer-mode-toggle" role="group" aria-label="Page layout">
+                  <button
+                    type="button"
+                    className={`viewer-mode-button${!isSpread ? ' active' : ''}`}
+                    onClick={() => handleViewModeChange('single')}
+                    aria-pressed={!isSpread}
+                    title="Single page"
+                  >
+                    <FileTextIcon aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className={`viewer-mode-button${isSpread ? ' active' : ''}`}
+                    onClick={() => handleViewModeChange('spread')}
+                    aria-pressed={isSpread}
+                    title="Two pages"
+                  >
+                    <BookOpen aria-hidden="true" />
+                  </button>
+                </div>
+              ) : null}
+              <div className="protected-file-viewer-controls">
+                <button type="button" className="viewer-nav-button" onClick={handlePrevious} disabled={normalizedActivePage <= 1} aria-label="Previous page">
+                  <ChevronRight aria-hidden="true" />
+                </button>
+                <button type="button" className="viewer-nav-button" onClick={handleNext} disabled={normalizedActivePage >= maxStartPage} aria-label="Next page">
+                  <ChevronLeft aria-hidden="true" />
+                </button>
               </div>
             </div>
             <input
@@ -154,26 +211,34 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
               min="1"
               max={pageCount}
               step="1"
-              value={activePage}
+              value={normalizedActivePage}
               onChange={handlePageChange}
               className="viewer-page-slider"
+              aria-label="Document page"
             />
           </div>
-          <div className="protected-file-grid">
-            {visiblePages.map((src, index) => (
-              <div
-                key={`pdf-page-${activePage + index}`}
-                className="protected-file-page"
-                data-page={`Page ${activePage + index}`}
-                style={{ backgroundImage: `url(${src})` }}
-                role="img"
-                aria-label={`${title} – Page ${activePage + index}`}
-              />
-            ))}
+          <div className="protected-file-stage">
+            <div className={`protected-file-grid ${isSpread ? 'is-spread' : 'is-single'}`}>
+              {visiblePages.map(({ src, pageNumber }) => (
+                <figure
+                  key={`pdf-page-${pageNumber}`}
+                  className="protected-file-page"
+                  data-page={`Page ${pageNumber}`}
+                >
+                  <img
+                    src={src}
+                    alt={`${title} - Page ${pageNumber}`}
+                    draggable={false}
+                    onAuxClick={stopProtectedMediaEvent}
+                    onContextMenu={stopProtectedMediaEvent}
+                  />
+                </figure>
+              ))}
+            </div>
           </div>
         </>
       ) : (
-        <div className="media-unavailable">Preview is not available for this file type.</div>
+        <div className="document-viewer-status">Preview is not available for this file type.</div>
       )}
     </div>
   )
@@ -224,7 +289,7 @@ function PublicTextDetailPage() {
     <>
       {fileUrl ? (
         isPdf ? (
-          <TextPdfPageImagesViewer fileUrl={fileUrl} title={title} />
+          <TextPdfPageImagesViewer key={fileUrl} fileUrl={fileUrl} title={title} />
         ) : (
           <div className="media-unavailable">Preview is not available for this file type.</div>
         )

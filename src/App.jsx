@@ -43,6 +43,19 @@ function App() {
 
     const preventClipboard = (event) => event.preventDefault()
     const preventSelection = (event) => event.preventDefault()
+    const preventContextMenu = (event) => event.preventDefault()
+    const preventProtectedMediaAuxOpen = (event) => {
+      if (event.button !== 1) return
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (
+        target.closest(
+          'img, video, audio, canvas, .protected-media, .protected-file-viewer, .media-stage, .player-mount, .hero-image-area',
+        )
+      ) {
+        event.preventDefault()
+      }
+    }
     const preventForbiddenKeys = (event) => {
       const key = event.key?.toLowerCase()
       const isCmd = event.metaKey || event.ctrlKey
@@ -80,6 +93,8 @@ function App() {
     document.addEventListener('copy', preventClipboard, true)
     document.addEventListener('cut', preventClipboard, true)
     document.addEventListener('paste', preventClipboard, true)
+    document.addEventListener('contextmenu', preventContextMenu, true)
+    document.addEventListener('auxclick', preventProtectedMediaAuxOpen, true)
     document.addEventListener('selectstart', preventSelection, true)
     document.addEventListener('dragstart', preventDrag, true)
     window.addEventListener('beforeprint', preventBeforePrint)
@@ -94,6 +109,8 @@ function App() {
       document.removeEventListener('copy', preventClipboard, true)
       document.removeEventListener('cut', preventClipboard, true)
       document.removeEventListener('paste', preventClipboard, true)
+      document.removeEventListener('contextmenu', preventContextMenu, true)
+      document.removeEventListener('auxclick', preventProtectedMediaAuxOpen, true)
       document.removeEventListener('selectstart', preventSelection, true)
       document.removeEventListener('dragstart', preventDrag, true)
       window.removeEventListener('beforeprint', preventBeforePrint)

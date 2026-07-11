@@ -77,8 +77,8 @@ function PublicVideoDetailPage() {
   const content = (
     <>
       {video.videoFileUrl ? (
-        <div className="player-mount" style={{ marginBottom: 22 }}>
-          <VideoPlayer src={video.videoFileUrl} title={title} subtitle={video.event || video.location || video.language || ''} />
+        <div className="player-mount protected-media" style={{ marginBottom: 22 }}>
+          <VideoPlayer src={video.videoFileUrl} title={title} subtitle={video.event || video.location || video.language || ''} protectedMode />
         </div>
       ) : (
         <div className="media-unavailable">{DETAIL.fileUnavailable}</div>

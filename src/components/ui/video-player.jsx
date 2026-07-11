@@ -19,6 +19,11 @@ import { cn } from '@/lib/utils'
 
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
 
+function stopProtectedMediaEvent(event) {
+  event.preventDefault()
+  event.stopPropagation()
+}
+
 function formatTime(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
   const total = Math.floor(seconds)
@@ -29,7 +34,7 @@ function formatTime(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-function VideoPlayer({ src, title, subtitle, className }) {
+function VideoPlayer({ src, title, subtitle, className, protectedMode = false }) {
   const containerRef = useRef(null)
   const videoRef = useRef(null)
   const scrubberRef = useRef(null)
@@ -346,9 +351,12 @@ function VideoPlayer({ src, title, subtitle, className }) {
   return (
     <div
       ref={containerRef}
-      tabIndex={0}
+      tabIndex={protectedMode ? -1 : 0}
+      onAuxClick={protectedMode ? stopProtectedMediaEvent : undefined}
+      onContextMenu={protectedMode ? stopProtectedMediaEvent : undefined}
       className={cn(
         'group/player relative rounded-2xl border bg-card shadow-sm shadow-black/5 outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring/40',
+        protectedMode && 'protected-media protected-media-player cursor-default',
         className,
       )}
     >
@@ -370,7 +378,12 @@ function VideoPlayer({ src, title, subtitle, className }) {
           src={src}
           preload="metadata"
           playsInline
+          controlsList={protectedMode ? 'nodownload noremoteplayback' : undefined}
+          disablePictureInPicture={protectedMode}
+          disableRemotePlayback={protectedMode}
+          onAuxClick={protectedMode ? stopProtectedMediaEvent : undefined}
           onClick={togglePlay}
+          onContextMenu={protectedMode ? stopProtectedMediaEvent : undefined}
           className="size-full object-contain"
         />
         {!ready && src ? (
@@ -538,9 +551,11 @@ function VideoPlayer({ src, title, subtitle, className }) {
 
             <VolumeControl volume={volume} muted={muted} onToggleMute={() => setMuted((m) => !m)} onChange={(next) => { setVolume(next); setMuted(false) }} />
 
-            <ChipButton active={isPip} onClick={togglePip} ariaLabel="Picture in picture" title="Picture-in-picture">
-              <PictureInPicture className="size-3.5" />
-            </ChipButton>
+            {protectedMode ? null : (
+              <ChipButton active={isPip} onClick={togglePip} ariaLabel="Picture in picture" title="Picture-in-picture">
+                <PictureInPicture className="size-3.5" />
+              </ChipButton>
+            )}
             <ChipButton active={isFullscreen} onClick={toggleFullscreen} ariaLabel={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'} title="Fullscreen (F)">
               {isFullscreen ? <Minimize className="size-3.5" /> : <Maximize className="size-3.5" />}
             </ChipButton>

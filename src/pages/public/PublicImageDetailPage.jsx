@@ -13,7 +13,7 @@ import {
 } from '@/components/khi/KhiDetail'
 import {
   IconPerson, IconProject, IconCalendar, IconRegion, IconImage, IconLayers,
-  IconMic, IconExternal, IconPlus,
+  IconMic, IconPlus,
 } from '@/components/khi/icons'
 import { guestImages } from '@/services/guest'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
@@ -22,6 +22,11 @@ function toList(v, cap = 12) {
   if (!v) return []
   const arr = Array.isArray(v) ? v : String(v).split(/[,،;]/)
   return arr.map((s) => String(s).trim()).filter(Boolean).slice(0, cap)
+}
+
+function stopProtectedMediaEvent(event) {
+  event.preventDefault()
+  event.stopPropagation()
 }
 
 function PublicImageDetailPage() {
@@ -76,11 +81,17 @@ function PublicImageDetailPage() {
   const content = (
     <>
       {fileUrl ? (
-        <div className="media-stage image">
+        <div
+          className="media-stage image protected-media"
+          onAuxClick={stopProtectedMediaEvent}
+          onContextMenu={stopProtectedMediaEvent}
+        >
           <img
             src={fileUrl}
             alt={title}
             draggable={false}
+            onAuxClick={stopProtectedMediaEvent}
+            onContextMenu={stopProtectedMediaEvent}
           />
         </div>
       ) : (
