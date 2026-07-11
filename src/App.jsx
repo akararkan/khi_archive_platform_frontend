@@ -41,8 +41,12 @@ function App() {
       event.preventDefault()
     }
 
+    // Everything that exposes public archive media, including the thumbnails
+    // and portraits shown throughout the catalogue. This effect only exists
+    // while a /public route is mounted, so staff workspaces keep their normal
+    // context menus and media interactions.
     const protectedMediaSelector =
-      'video, audio, canvas, .protected-media, .protected-file-viewer, .media-stage, .player-mount, .protected-media-player'
+      'img, picture, video, audio, canvas, .protected-media, .protected-file-viewer, .media-stage, .player-mount, .protected-media-player'
     const preventClipboard = (event) => event.preventDefault()
     const preventSelection = (event) => event.preventDefault()
     const preventContextMenu = (event) => {
@@ -97,13 +101,10 @@ function App() {
     document.addEventListener('copy', preventClipboard, true)
     document.addEventListener('cut', preventClipboard, true)
     document.addEventListener('paste', preventClipboard, true)
-    // Only suppress context menu / middle-click open for the public
-    // homepage and individual public item pages (images/texts/videos/audios/etc.).
-    const protectMediaRoute = pathname === '/public' || /^\/public\/(images|texts|videos|audios|physical-media|projects|persons)(?:\/|$)/.test(pathname)
-    if (protectMediaRoute) {
-      document.addEventListener('contextmenu', preventContextMenu, true)
-      document.addEventListener('auxclick', preventProtectedMediaAuxOpen, true)
-    }
+    // Cover every public catalogue route, including /public/browse and all
+    // entity detail pages. The surrounding publicRoute guard is the boundary.
+    document.addEventListener('contextmenu', preventContextMenu, true)
+    document.addEventListener('auxclick', preventProtectedMediaAuxOpen, true)
     document.addEventListener('selectstart', preventSelection, true)
     document.addEventListener('dragstart', preventDrag, true)
     window.addEventListener('beforeprint', preventBeforePrint)
@@ -118,10 +119,8 @@ function App() {
       document.removeEventListener('copy', preventClipboard, true)
       document.removeEventListener('cut', preventClipboard, true)
       document.removeEventListener('paste', preventClipboard, true)
-      if (protectMediaRoute) {
-        document.removeEventListener('contextmenu', preventContextMenu, true)
-        document.removeEventListener('auxclick', preventProtectedMediaAuxOpen, true)
-      }
+      document.removeEventListener('contextmenu', preventContextMenu, true)
+      document.removeEventListener('auxclick', preventProtectedMediaAuxOpen, true)
       document.removeEventListener('selectstart', preventSelection, true)
       document.removeEventListener('dragstart', preventDrag, true)
       window.removeEventListener('beforeprint', preventBeforePrint)

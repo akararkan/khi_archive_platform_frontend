@@ -10,7 +10,7 @@ import KhiHeader from '@/components/khi/KhiHeader'
 // and catalogue sections live in the routed views.
 export function KhiPublicLayout() {
   return (
-    <div className="khi-root" dir="rtl" lang="ckb">
+    <div className="khi-root public-protected" dir="rtl" lang="ckb">
       <KhiHeader />
       <Outlet />
     </div>

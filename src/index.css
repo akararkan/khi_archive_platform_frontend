@@ -215,7 +215,7 @@
   }
 
   @media print {
-    html, body, #root {
+    .public-protected {
       visibility: hidden !important;
       display: none !important;
       height: 0 !important;

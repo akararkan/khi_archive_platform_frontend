@@ -85,9 +85,7 @@ function ImagePreview({ src, alt }) {
           <img
             src={src}
             alt={alt || 'preview'}
-            draggable={false}
-            onContextMenu={(event) => event.preventDefault()}
-            onDragStart={(event) => event.preventDefault()}
+            onError={() => setHasError(true)}
             className="max-h-[60vh] w-auto max-w-full object-contain"
           />
         )}
