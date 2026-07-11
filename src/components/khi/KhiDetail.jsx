@@ -75,51 +75,24 @@ export function KhiActions({ actions = [] }) {
   )
 }
 
-// ── The record / medallion disc ──────────────────────────────────────────────
-// `frame` swaps the circular medallion for a rectangular photo frame that shows
-// the picture at its own aspect ratio (no circular crop, no distortion) — used
-// for the IMAGE detail hero so a photograph reads as a photograph.
+// ── The hero visual ──────────────────────────────────────────────────────────
+// Public media details should respect the real archive asset first. Audio,
+// video, image, and text pages therefore use a clean image surface with no
+// generated frame, badge, or decorative overlay. The older illustrated frames
+// remain below for project/category/person pages.
 export function KhiDetailDisc({ kind, image, alt, badge, vinyl = false, initials, frame = false }) {
   const BadgeIcon = KIND_BADGE_ICON[kind] || IconMic
 
-  if (kind === 'video') {
+  if (['audio', 'video', 'image', 'text'].includes(kind)) {
     return (
-      <div className="hero-image-area video-visual">
-        <div className="cinema-frame">
-          <span className="film-edge top" aria-hidden="true" />
-          <span className="film-edge bottom" aria-hidden="true" />
-          <div className="cinema-screen">
-            {image ? (
-              <img src={image} alt={alt || ''} loading="lazy" />
-            ) : (
-              <span className="record-ph"><BadgeIcon width="70" height="70" /></span>
-            )}
-            <span className="cinema-play" aria-hidden="true"><IconVideo width="24" height="24" /></span>
-          </div>
-        </div>
-        {badge ? (
-          <span className="mic-badge"><BadgeIcon width="18" height="18" /> {badge}</span>
-        ) : null}
-      </div>
-    )
-  }
-
-  if (kind === 'text') {
-    return (
-      <div className="hero-image-area text-visual">
-        <div className="document-frame">
-          <span className="doc-shadow" aria-hidden="true" />
-          <div className="document-page">
-            {image ? <img src={image} alt={alt || ''} loading="lazy" /> : null}
-            <span className="doc-mark"><IconText width="38" height="38" /></span>
-            <span className="doc-line wide" />
-            <span className="doc-line" />
-            <span className="doc-line short" />
-          </div>
-        </div>
-        {badge ? (
-          <span className="mic-badge"><BadgeIcon width="18" height="18" /> {badge}</span>
-        ) : null}
+      <div className={`hero-image-area media-asset-area kind-${kind}${image ? ' has-image' : ' is-empty'}`}>
+        {image ? (
+          <img className="media-asset-image" src={image} alt={alt || ''} loading="lazy" />
+        ) : (
+          <span className="media-asset-empty">
+            <BadgeIcon width="58" height="58" />
+          </span>
+        )}
       </div>
     )
   }

@@ -198,7 +198,7 @@
   body {
     font-family: var(--font-sans);
     }
-  html, body, #root, * {
+  .public-protected * {
     -webkit-user-select: none !important;
     -moz-user-select: none !important;
     -ms-user-select: none !important;
@@ -206,10 +206,10 @@
     -webkit-touch-callout: none !important;
     -webkit-user-drag: none !important;
   }
-  input, textarea, select, button, a {
+  .public-protected input, .public-protected textarea, .public-protected select, .public-protected button, .public-protected a {
     user-select: text !important;
   }
-  img, video, canvas, svg {
+  .public-protected img, .public-protected video, .public-protected canvas, .public-protected svg {
     -webkit-user-drag: none !important;
     user-drag: none !important;
   }

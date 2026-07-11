@@ -727,6 +727,42 @@
 .khi-root .detail-hero.kind-audio .record-frame::before{content:"";position:absolute;inset:28px;border-radius:50%;border:1px solid rgba(231,211,160,.2)}
 .khi-root .detail-hero.kind-audio .record-image::after{background:repeating-radial-gradient(circle,rgba(255,255,255,.08) 0 1px,transparent 1px 9px)}
 
+.khi-root .media-asset-area{
+  min-height:min(560px,64vh);
+  padding:0;
+  align-self:stretch;
+  isolation:isolate;
+}
+.khi-root .media-asset-area.has-image{
+  align-content:center;
+}
+.khi-root .media-asset-image{
+  display:block;
+  width:auto;
+  height:auto;
+  max-width:min(100%,620px);
+  max-height:min(560px,70vh);
+  object-fit:contain;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+.khi-root .media-asset-empty{
+  display:grid;
+  width:148px;
+  height:148px;
+  place-items:center;
+  border-radius:28px;
+  background:rgba(255,255,255,.68);
+  color:var(--pine);
+}
+.khi-root .detail-hero.kind-audio .media-asset-empty,
+.khi-root .detail-hero.kind-video .media-asset-empty{
+  background:rgba(255,255,255,.1);
+  color:var(--gold-soft);
+}
+
 .khi-root .detail-hero.kind-video{
   background:
     radial-gradient(92% 86% at 74% 12%,rgba(185,28,28,.2),transparent 52%),
@@ -754,11 +790,19 @@
 .khi-root .detail-hero.kind-image{padding-top:26px;background:
   radial-gradient(70% 86% at 22% 0%,rgba(22,101,52,.12),transparent 52%),
   linear-gradient(135deg,#f7fbf6 0%,#fff 48%,#eef6ef 100%)}
-.khi-root .detail-hero.kind-image .hero-grid{grid-template-columns:.76fr 1.24fr}
+.khi-root .detail-hero.kind-image .hero-grid{grid-template-columns:.92fr 1.08fr}
 .khi-root .detail-hero.kind-image .photo-frame{max-width:min(620px,86vw);border-radius:18px;background:#111;border-color:#262626;box-shadow:0 42px 88px -34px rgba(0,0,0,.72),0 0 0 12px #fff}
 .khi-root .detail-hero.kind-image .photo-frame::before{content:"";position:absolute;inset:-22px;border-radius:24px;border:1px solid rgba(22,101,52,.14);pointer-events:none}
 .khi-root .detail-hero.kind-image .photo-frame img{max-height:min(520px,68vh);border-radius:8px;background:#050505}
-.khi-root .detail-hero.kind-image ~ .media-stage.image{border-radius:8px;background:#050505;border-color:#111;box-shadow:0 30px 84px -42px rgba(0,0,0,.8)}
+.khi-root .detail-hero.kind-image ~ .media-stage.image{
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+.khi-root .detail-hero.kind-image ~ .media-stage.image img{
+  background:transparent;
+}
 
 .khi-root .detail-hero.kind-text{
   background:

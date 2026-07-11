@@ -244,6 +244,13 @@ const UPLOAD_KIND_LABELS = {
   image: 'Image',
   text: 'Document',
 }
+const UPLOAD_HISTORY_LIMIT = 8
+
+function pruneUploadJobs(jobs) {
+  const running = jobs.filter((job) => job.status === 'running')
+  const settled = jobs.filter((job) => job.status !== 'running').slice(0, UPLOAD_HISTORY_LIMIT)
+  return [...running, ...settled]
+}
 
 function formatFileWeight(bytes) {
   const value = Number(bytes)
@@ -261,12 +268,146 @@ function formatFileWeight(bytes) {
   return `${size.toFixed(precision)} ${units[unitIndex]}`
 }
 
+function getUploadPercent(progress) {
+  const total = progress.total || progress.fileSize || 0
+  const loaded = total ? Math.min(progress.loaded || 0, total) : (progress.loaded || 0)
+  return Math.max(0, Math.min(100, Math.round(progress.percent || (total ? (loaded / total) * 100 : 0))))
+}
+
+function getUploadStatusText(job, percent) {
+  if (job.status === 'success') return job.code ? `Saved as ${job.code}` : 'Saved'
+  if (job.status === 'error') return 'Needs attention'
+  if (job.stage === 'finalizing' || percent >= 100) return 'Saving record'
+  return 'Uploading'
+}
+
+function UploadProcessPanel({ jobs, onClearDone }) {
+  if (!jobs?.length) return null
+
+  const activeCount = jobs.filter((job) => job.status === 'running').length
+  const settledCount = jobs.length - activeCount
+
+  return (
+    <Card className="overflow-hidden border-primary/15 bg-card shadow-sm shadow-black/5">
+      <CardHeader className="border-b border-border bg-primary/[0.025] pb-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+              <UploadCloud className="size-4.5" />
+            </span>
+            <div className="space-y-1">
+              <CardTitle className="text-base font-semibold">Upload process</CardTitle>
+              <CardDescription className="text-xs">
+                {activeCount > 0
+                  ? `${activeCount} active ${activeCount === 1 ? 'file' : 'files'}`
+                  : 'All uploads are settled'}
+              </CardDescription>
+            </div>
+          </div>
+          {settledCount > 0 ? (
+            <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={onClearDone}>
+              <X className="size-3.5" />
+              Clear done
+            </Button>
+          ) : null}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 pt-4">
+        {jobs.map((job) => {
+          const total = job.total || job.fileSize || 0
+          const loaded = total ? Math.min(job.loaded || 0, total) : (job.loaded || 0)
+          const percent = getUploadPercent(job)
+          const elapsedSeconds = job.startedAt ? Math.max(1, ((job.updatedAt || job.startedAt) - job.startedAt) / 1000) : 1
+          const speed = loaded > 0 && job.status === 'running' ? loaded / elapsedSeconds : 0
+          const label = UPLOAD_KIND_LABELS[job.kind] || 'File'
+          const statusText = getUploadStatusText(job, percent)
+
+          return (
+            <div
+              key={job.id}
+              className={cn(
+                'rounded-lg border bg-background/85 p-3 shadow-sm',
+                job.status === 'success'
+                  ? 'border-emerald-500/25 bg-emerald-500/[0.035]'
+                  : job.status === 'error'
+                  ? 'border-destructive/25 bg-destructive/[0.035]'
+                  : 'border-border',
+              )}
+            >
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">{label}</p>
+                      <span
+                        className={cn(
+                          'rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]',
+                          job.status === 'success'
+                            ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                            : job.status === 'error'
+                            ? 'border-destructive/25 bg-destructive/10 text-destructive'
+                            : 'border-primary/15 bg-primary/10 text-primary',
+                        )}
+                      >
+                        {statusText}
+                      </span>
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground" title={job.fileName}>
+                      {job.fileName}
+                    </p>
+                  </div>
+                  <span className="rounded-md border border-primary/15 bg-card px-2 py-1 font-mono text-xs font-semibold tabular-nums text-primary">
+                    {percent}%
+                  </span>
+                </div>
+
+                <Slider
+                  value={[percent]}
+                  min={0}
+                  max={100}
+                  step={1}
+                  ariaLabel={`${label} upload process`}
+                  className="pointer-events-none"
+                  trackClassName="h-2.5 bg-muted"
+                  indicatorClassName={cn(
+                    job.status === 'error'
+                      ? 'bg-destructive'
+                      : job.status === 'success'
+                      ? 'bg-emerald-500'
+                      : 'bg-gradient-to-r from-emerald-500 via-amber-500 to-primary',
+                  )}
+                  thumbClassName="size-4 border-background bg-primary shadow-md"
+                />
+
+                <div className="grid gap-2 text-[11px] text-muted-foreground sm:grid-cols-3">
+                  <span className="inline-flex min-w-0 items-center gap-1.5">
+                    <HardDrive className="size-3.5 shrink-0 text-primary" />
+                    <span className="truncate">
+                      {formatFileWeight(loaded)} / {formatFileWeight(total)}
+                    </span>
+                  </span>
+                  <span className="font-mono tabular-nums">
+                    {speed > 0 ? `${formatFileWeight(speed)}/s` : statusText}
+                  </span>
+                  <span className="truncate text-right sm:text-left" title={job.code || job.error || undefined}>
+                    {job.code || job.error || (job.status === 'running' ? 'Running in background' : '')}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </CardContent>
+    </Card>
+  )
+}
+
 function UploadProgressPanel({ progress }) {
   if (!progress) return null
 
   const total = progress.total || progress.fileSize || 0
   const loaded = total ? Math.min(progress.loaded || 0, total) : (progress.loaded || 0)
-  const percent = Math.max(0, Math.min(100, Math.round(progress.percent || (total ? (loaded / total) * 100 : 0))))
+  const percent = getUploadPercent(progress)
   const elapsedSeconds = progress.startedAt ? Math.max(1, (progress.updatedAt - progress.startedAt) / 1000) : 1
   const speed = loaded > 0 ? loaded / elapsedSeconds : 0
   const label = UPLOAD_KIND_LABELS[progress.kind] || 'File'
@@ -381,6 +522,7 @@ function EmployeeProjectDetailPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [uploadProgress, setUploadProgress] = useState(null)
+  const [uploadJobs, setUploadJobs] = useState([])
 
   // Audios saved in this create-session (resets when the form closes). Lets us
   // show "you've added N audios so far" so the user has clear feedback when they
@@ -402,6 +544,82 @@ function EmployeeProjectDetailPage() {
   // file has been picked while we were probing, the stale result is
   // discarded so it can't overwrite the new file's auto-filled values.
   const metaSessionRef = useRef(0)
+
+  const updateUploadJob = useCallback((jobId, patchOrUpdater) => {
+    setUploadJobs((currentJobs) =>
+      pruneUploadJobs(
+        currentJobs.map((job) => {
+          if (job.id !== jobId) return job
+          const patch =
+            typeof patchOrUpdater === 'function' ? patchOrUpdater(job) : patchOrUpdater
+          if (!patch) return job
+          return {
+            ...job,
+            ...patch,
+            updatedAt: patch.updatedAt ?? Date.now(),
+          }
+        }),
+      ),
+    )
+  }, [])
+
+  const createUploadJob = useCallback((kind, file) => {
+    const now = Date.now()
+    const total = file?.size || 0
+    const job = {
+      id: `${kind}-${now}-${Math.random().toString(36).slice(2)}`,
+      kind,
+      fileName: file?.name || `${UPLOAD_KIND_LABELS[kind] || 'File'} upload`,
+      fileSize: total,
+      loaded: 0,
+      total,
+      percent: 0,
+      stage: 'uploading',
+      status: 'running',
+      code: '',
+      error: '',
+      startedAt: now,
+      updatedAt: now,
+    }
+    setUploadJobs((currentJobs) => pruneUploadJobs([job, ...currentJobs]))
+    return job
+  }, [])
+
+  const createUploadJobOptions = useCallback(
+    (jobId, kind, file) => {
+      if (!file) return undefined
+
+      const fallbackTotal = file.size || 0
+      return {
+        onUploadProgress: (event) => {
+          updateUploadJob(jobId, (currentJob) => {
+            const loaded = Number(event.loaded) || 0
+            const eventTotal = Number(event.total) || currentJob.total || fallbackTotal
+            const percent = eventTotal > 0 ? Math.min(100, (loaded / eventTotal) * 100) : 0
+            return {
+              kind,
+              fileName: file.name,
+              fileSize: fallbackTotal,
+              loaded,
+              total: eventTotal,
+              percent,
+              stage: percent >= 99.9 ? 'finalizing' : 'uploading',
+            }
+          })
+        },
+      }
+    },
+    [updateUploadJob],
+  )
+
+  const clearSettledUploadJobs = useCallback(() => {
+    setUploadJobs((currentJobs) => currentJobs.filter((job) => job.status === 'running'))
+  }, [])
+
+  const activeUploadCount = useMemo(
+    () => uploadJobs.filter((job) => job.status === 'running').length,
+    [uploadJobs],
+  )
 
   const beginUploadProgress = useCallback((kind, file) => {
     if (!file) {
@@ -445,7 +663,7 @@ function EmployeeProjectDetailPage() {
   }, [])
 
   useEffect(() => {
-    if (!isSaving) return undefined
+    if (!isSaving && activeUploadCount === 0) return undefined
 
     const warnBeforeLeave = (event) => {
       event.preventDefault()
@@ -454,7 +672,7 @@ function EmployeeProjectDetailPage() {
 
     window.addEventListener('beforeunload', warnBeforeLeave)
     return () => window.removeEventListener('beforeunload', warnBeforeLeave)
-  }, [isSaving])
+  }, [activeUploadCount, isSaving])
 
   // Audio search/details/remove/delete
   const [searchTerm, setSearchTerm] = useState('')
@@ -591,6 +809,69 @@ function EmployeeProjectDetailPage() {
       setIsLoadingTexts(false)
     }
   }, [projectCode, toast])
+
+  const startBackgroundCreateUpload = useCallback(
+    ({
+      kind,
+      file,
+      payload,
+      createRecord,
+      refreshRecords,
+      getCode,
+      startTitle,
+      successTitle,
+      failureTitle,
+      refreshErrorTitle,
+      onSuccess,
+    }) => {
+      const job = createUploadJob(kind, file)
+      const uploadOptions = createUploadJobOptions(job.id, kind, file)
+
+      toast.success(startTitle, `${job.fileName} is running in the upload process.`)
+
+      void (async () => {
+        try {
+          const saved = await createRecord(payload, file, uploadOptions)
+          const code = getCode(saved)
+
+          updateUploadJob(job.id, {
+            status: 'success',
+            stage: 'done',
+            percent: 100,
+            loaded: job.total,
+            total: job.total,
+            code,
+            error: '',
+          })
+          toast.success(
+            successTitle,
+            code ? `${code} has been added to ${projectCode}.` : `${job.fileName} has been added to ${projectCode}.`,
+          )
+
+          if (typeof onSuccess === 'function') {
+            onSuccess(saved)
+          }
+
+          try {
+            await refreshRecords()
+          } catch (refreshErr) {
+            toast.apiError(refreshErr, refreshErrorTitle)
+          }
+        } catch (err) {
+          const formatted = formatApiError(err, failureTitle)
+          updateUploadJob(job.id, {
+            status: 'error',
+            stage: 'error',
+            error: formatted,
+          })
+          toast.apiError(err, failureTitle)
+        }
+      })()
+
+      return job
+    },
+    [createUploadJob, createUploadJobOptions, projectCode, toast, updateUploadJob],
+  )
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -1069,42 +1350,48 @@ function EmployeeProjectDetailPage() {
       return
     }
 
-    setIsSaving(true)
-    const uploadOptions = beginUploadProgress('audio', audioFile)
-    try {
-      if (view === 'create') {
-        const payload = buildAudioPayload(form, projectCode)
-        const saved = await createAudio(payload, audioFile, uploadOptions)
-        toast.success('Audio created', `${saved.audioCode} has been added to ${projectCode}.`)
-        await loadAudios()
+    if (view === 'create') {
+      const submitMode = submitModeRef.current
+      const payload = buildAudioPayload(form, projectCode)
 
-        if (submitModeRef.current === 'add-another') {
-          // Reset just the variable parts of the form — keep the version/copy
-          // numbers as a hint about where the user was so they can adjust.
-          setSavedThisSession((prev) => [...prev, saved.audioCode])
-          setForm((prev) => ({
-            ...createInitialAudioForm(),
-            audioVersion: prev.audioVersion,
-            versionNumber: prev.versionNumber,
-            copyNumber: String((Number(prev.copyNumber) || 1) + 1),
-          }))
-          setAudioFile(null)
-          setFormError('')
-          submitModeRef.current = 'finish'
-          setPendingSubmitMode('finish')
-          lastAutoFilledRef.current = {}
-          // stay in 'create' view
-          // scroll back to the top so the user can see the success banner
-          if (typeof window !== 'undefined') {
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-          }
-          return
+      startBackgroundCreateUpload({
+        kind: 'audio',
+        file: audioFile,
+        payload,
+        createRecord: createAudio,
+        refreshRecords: loadAudios,
+        getCode: (saved) => saved?.audioCode,
+        startTitle: 'Audio upload started',
+        successTitle: 'Audio created',
+        failureTitle: 'Unable to save audio',
+        refreshErrorTitle: 'Could not refresh audios',
+      })
+
+      if (submitMode === 'add-another') {
+        setForm((prev) => ({
+          ...createInitialAudioForm(),
+          audioVersion: prev.audioVersion,
+          versionNumber: prev.versionNumber,
+          copyNumber: String((Number(prev.copyNumber) || 1) + 1),
+        }))
+        setAudioFile(null)
+        setFormError('')
+        submitModeRef.current = 'finish'
+        setPendingSubmitMode('finish')
+        lastAutoFilledRef.current = {}
+        if (typeof window !== 'undefined') {
+          window.scrollTo({ top: 0, behavior: 'smooth' })
         }
-
-        handleCloseAudioForm()
         return
       }
 
+      handleCloseAudioForm()
+      return
+    }
+
+    setIsSaving(true)
+    const uploadOptions = beginUploadProgress('audio', audioFile)
+    try {
       const payload = buildAudioPayload(form, projectCode)
       // Backend forbids changing the project on update — the audio's project is
       // already fixed.
@@ -1244,38 +1531,48 @@ function EmployeeProjectDetailPage() {
       return
     }
 
-    setIsSaving(true)
-    const uploadOptions = beginUploadProgress('video', videoFile)
-    try {
-      if (view === 'create') {
-        const payload = buildVideoPayload(videoForm, projectCode)
-        const saved = await createVideo(payload, videoFile, uploadOptions)
-        toast.success('Video created', `${saved.videoCode} has been added to ${projectCode}.`)
-        await loadVideos()
+    if (view === 'create') {
+      const submitMode = submitModeRef.current
+      const payload = buildVideoPayload(videoForm, projectCode)
 
-        if (submitModeRef.current === 'add-another') {
-          setSavedVideosThisSession((prev) => [...prev, saved.videoCode])
-          setVideoForm((prev) => ({
-            ...createInitialVideoForm(),
-            videoVersion: prev.videoVersion,
-            versionNumber: prev.versionNumber,
-            copyNumber: String((Number(prev.copyNumber) || 1) + 1),
-          }))
-          setVideoFile(null)
-          setFormError('')
-          submitModeRef.current = 'finish'
-          setPendingSubmitMode('finish')
-          lastAutoFilledRef.current = {}
-          if (typeof window !== 'undefined') {
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-          }
-          return
+      startBackgroundCreateUpload({
+        kind: 'video',
+        file: videoFile,
+        payload,
+        createRecord: createVideo,
+        refreshRecords: loadVideos,
+        getCode: (saved) => saved?.videoCode,
+        startTitle: 'Video upload started',
+        successTitle: 'Video created',
+        failureTitle: 'Unable to save video',
+        refreshErrorTitle: 'Could not refresh videos',
+      })
+
+      if (submitMode === 'add-another') {
+        setVideoForm((prev) => ({
+          ...createInitialVideoForm(),
+          videoVersion: prev.videoVersion,
+          versionNumber: prev.versionNumber,
+          copyNumber: String((Number(prev.copyNumber) || 1) + 1),
+        }))
+        setVideoFile(null)
+        setFormError('')
+        submitModeRef.current = 'finish'
+        setPendingSubmitMode('finish')
+        lastAutoFilledRef.current = {}
+        if (typeof window !== 'undefined') {
+          window.scrollTo({ top: 0, behavior: 'smooth' })
         }
-
-        handleCloseVideoForm()
         return
       }
 
+      handleCloseVideoForm()
+      return
+    }
+
+    setIsSaving(true)
+    const uploadOptions = beginUploadProgress('video', videoFile)
+    try {
       const payload = buildVideoPayload(videoForm, projectCode)
       // projectCode is immutable on update — backend silently ignores it.
       delete payload.projectCode
@@ -1411,38 +1708,48 @@ function EmployeeProjectDetailPage() {
       return
     }
 
-    setIsSaving(true)
-    const uploadOptions = beginUploadProgress('image', imageFile)
-    try {
-      if (view === 'create') {
-        const payload = buildImagePayload(imageForm, projectCode)
-        const saved = await createImage(payload, imageFile, uploadOptions)
-        toast.success('Image created', `${saved.imageCode} has been added to ${projectCode}.`)
-        await loadImages()
+    if (view === 'create') {
+      const submitMode = submitModeRef.current
+      const payload = buildImagePayload(imageForm, projectCode)
 
-        if (submitModeRef.current === 'add-another') {
-          setSavedImagesThisSession((prev) => [...prev, saved.imageCode])
-          setImageForm((prev) => ({
-            ...createInitialImageForm(),
-            imageVersion: prev.imageVersion,
-            versionNumber: prev.versionNumber,
-            copyNumber: String((Number(prev.copyNumber) || 1) + 1),
-          }))
-          setImageFile(null)
-          setFormError('')
-          submitModeRef.current = 'finish'
-          setPendingSubmitMode('finish')
-          lastAutoFilledRef.current = {}
-          if (typeof window !== 'undefined') {
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-          }
-          return
+      startBackgroundCreateUpload({
+        kind: 'image',
+        file: imageFile,
+        payload,
+        createRecord: createImage,
+        refreshRecords: loadImages,
+        getCode: (saved) => saved?.imageCode,
+        startTitle: 'Image upload started',
+        successTitle: 'Image created',
+        failureTitle: 'Unable to save image',
+        refreshErrorTitle: 'Could not refresh images',
+      })
+
+      if (submitMode === 'add-another') {
+        setImageForm((prev) => ({
+          ...createInitialImageForm(),
+          imageVersion: prev.imageVersion,
+          versionNumber: prev.versionNumber,
+          copyNumber: String((Number(prev.copyNumber) || 1) + 1),
+        }))
+        setImageFile(null)
+        setFormError('')
+        submitModeRef.current = 'finish'
+        setPendingSubmitMode('finish')
+        lastAutoFilledRef.current = {}
+        if (typeof window !== 'undefined') {
+          window.scrollTo({ top: 0, behavior: 'smooth' })
         }
-
-        handleCloseImageForm()
         return
       }
 
+      handleCloseImageForm()
+      return
+    }
+
+    setIsSaving(true)
+    const uploadOptions = beginUploadProgress('image', imageFile)
+    try {
       const payload = buildImagePayload(imageForm, projectCode)
       delete payload.projectCode
       const saved = await updateImage(currentImage.imageCode, payload, imageFile, uploadOptions)
@@ -1588,38 +1895,48 @@ function EmployeeProjectDetailPage() {
       return
     }
 
-    setIsSaving(true)
-    const uploadOptions = beginUploadProgress('text', textFile)
-    try {
-      if (view === 'create') {
-        const payload = buildTextPayload(textForm, projectCode)
-        const saved = await createText(payload, textFile, uploadOptions)
-        toast.success('Text created', `${saved.textCode} has been added to ${projectCode}.`)
-        await loadTexts()
+    if (view === 'create') {
+      const submitMode = submitModeRef.current
+      const payload = buildTextPayload(textForm, projectCode)
 
-        if (submitModeRef.current === 'add-another') {
-          setSavedTextsThisSession((prev) => [...prev, saved.textCode])
-          setTextForm((prev) => ({
-            ...createInitialTextForm(),
-            textVersion: prev.textVersion,
-            versionNumber: prev.versionNumber,
-            copyNumber: String((Number(prev.copyNumber) || 1) + 1),
-          }))
-          setTextFile(null)
-          setFormError('')
-          submitModeRef.current = 'finish'
-          setPendingSubmitMode('finish')
-          lastAutoFilledRef.current = {}
-          if (typeof window !== 'undefined') {
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-          }
-          return
+      startBackgroundCreateUpload({
+        kind: 'text',
+        file: textFile,
+        payload,
+        createRecord: createText,
+        refreshRecords: loadTexts,
+        getCode: (saved) => saved?.textCode,
+        startTitle: 'Text upload started',
+        successTitle: 'Text created',
+        failureTitle: 'Unable to save text',
+        refreshErrorTitle: 'Could not refresh texts',
+      })
+
+      if (submitMode === 'add-another') {
+        setTextForm((prev) => ({
+          ...createInitialTextForm(),
+          textVersion: prev.textVersion,
+          versionNumber: prev.versionNumber,
+          copyNumber: String((Number(prev.copyNumber) || 1) + 1),
+        }))
+        setTextFile(null)
+        setFormError('')
+        submitModeRef.current = 'finish'
+        setPendingSubmitMode('finish')
+        lastAutoFilledRef.current = {}
+        if (typeof window !== 'undefined') {
+          window.scrollTo({ top: 0, behavior: 'smooth' })
         }
-
-        handleCloseTextForm()
         return
       }
 
+      handleCloseTextForm()
+      return
+    }
+
+    setIsSaving(true)
+    const uploadOptions = beginUploadProgress('text', textFile)
+    try {
       const payload = buildTextPayload(textForm, projectCode)
       delete payload.projectCode
       const saved = await updateText(currentText.textCode, payload, textFile, uploadOptions)
@@ -1822,6 +2139,7 @@ function EmployeeProjectDetailPage() {
               projectCategories={project?.categories || []}
             />
 
+            <UploadProcessPanel jobs={uploadJobs} onClearDone={clearSettledUploadJobs} />
             <UploadProgressPanel progress={uploadProgress} />
             <FormErrorBox error={formError} />
 
@@ -2035,6 +2353,7 @@ function EmployeeProjectDetailPage() {
               projectCategories={project?.categories || []}
             />
 
+            <UploadProcessPanel jobs={uploadJobs} onClearDone={clearSettledUploadJobs} />
             <UploadProgressPanel progress={uploadProgress} />
             <FormErrorBox error={formError} />
 
@@ -2241,6 +2560,7 @@ function EmployeeProjectDetailPage() {
               projectCategories={project?.categories || []}
             />
 
+            <UploadProcessPanel jobs={uploadJobs} onClearDone={clearSettledUploadJobs} />
             <UploadProgressPanel progress={uploadProgress} />
             <FormErrorBox error={formError} />
 
@@ -2474,6 +2794,7 @@ function EmployeeProjectDetailPage() {
               projectCategories={project?.categories || []}
             />
 
+            <UploadProcessPanel jobs={uploadJobs} onClearDone={clearSettledUploadJobs} />
             <UploadProgressPanel progress={uploadProgress} />
             <FormErrorBox error={formError} />
 
@@ -2695,6 +3016,8 @@ function EmployeeProjectDetailPage() {
         imageCount={visibleImages.length}
         textCount={visibleTexts.length}
       />
+
+      <UploadProcessPanel jobs={uploadJobs} onClearDone={clearSettledUploadJobs} />
 
       {mediaType === 'audio' ? (
         <EntityToolbar
