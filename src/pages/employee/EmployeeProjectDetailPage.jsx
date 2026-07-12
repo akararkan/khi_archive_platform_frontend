@@ -119,6 +119,11 @@ import {
 import { TagsInput } from '@/components/ui/tags-input'
 import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
 import { KeywordSuggestInput } from '@/components/ui/keyword-suggest-input'
+// File acceptance patterns for folder pickers (used to filter folder contents)
+const AUDIO_FILE_PATTERN = /\.(wav|mp3|flac|ogg|m4a|aac|aiff|aif|wma|opus)$/i
+const VIDEO_FILE_PATTERN = /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg|wmv|flv|3gp|ogv)$/i
+const IMAGE_FILE_PATTERN = /\.(jpe?g|png|gif|tiff?|bmp|webp|heic|heif|raw|cr2|cr3|nef|arw|dng|svg)$/i
+const TEXT_FILE_PATTERN = /\.(pdf|docx?|odt|rtf|txt|md|tex|epub|mobi|xml|html?|csv|tsv)$/i
 import { useToast } from '@/hooks/use-toast'
 import { FormErrorBox } from '@/components/ui/form-error'
 import { SingleMediaFilePicker } from '@/components/ui/single-media-file-picker'
@@ -2129,9 +2134,11 @@ function EmployeeProjectDetailPage() {
                   file={imageFile}
                   onFileChange={handleImageFilePicked}
                   mediaLabel="image"
-                  acceptedFormats="Any image file format is accepted. Preview availability depends on browser support."
+                  accept={"image/*,.tif,.tiff,.heic,.heif,.raw,.cr2,.cr3,.nef,.arw,.dng"}
+                  acceptedFormats={"JPG, PNG, TIFF, RAW…"}
                   isEdit={isEdit}
                   icon={ImageIcon}
+                  isAcceptedFile={(f) => Boolean((f.type && f.type.startsWith('image/')) || IMAGE_FILE_PATTERN.test(f.name))}
                 />
               </CardContent>
             </Card>
@@ -2341,9 +2348,11 @@ function EmployeeProjectDetailPage() {
                   file={textFile}
                   onFileChange={handleTextFilePicked}
                   mediaLabel="document"
-                  acceptedFormats="Any document file format is accepted."
+                  accept={".pdf,.doc,.docx,.odt,.rtf,.txt,.md,.tex,.epub,.mobi,.xml,.html,.htm,.csv,.tsv,application/pdf,text/*"}
+                  acceptedFormats={"PDF, DOCX, TXT, MD, EPUB…"}
                   isEdit={isEdit}
                   icon={FileText}
+                  isAcceptedFile={(f) => Boolean(TEXT_FILE_PATTERN.test(f.name) || (f.type && (f.type.startsWith('text/') || f.type === 'application/pdf' || f.type.includes('word') || f.type.includes('opendocument'))))}
                 />
               </CardContent>
             </Card>
@@ -2565,9 +2574,11 @@ function EmployeeProjectDetailPage() {
                   file={videoFile}
                   onFileChange={handleVideoFilePicked}
                   mediaLabel="video"
-                  acceptedFormats="Any video file format is accepted."
+                  accept={"video/*,.mp4,.mov,.mkv,.webm,.avi,.m4v,.mpg,.mpeg,.wmv,.flv,.3gp,.ogv"}
+                  acceptedFormats={"MP4, MOV, MKV, WEBM…"}
                   isEdit={isEdit}
                   icon={VideoIcon}
+                  isAcceptedFile={(f) => Boolean((f.type && f.type.startsWith('video/')) || VIDEO_FILE_PATTERN.test(f.name))}
                 />
               </CardContent>
             </Card>
@@ -2797,9 +2808,11 @@ function EmployeeProjectDetailPage() {
                   file={audioFile}
                   onFileChange={handleAudioFilePicked}
                   mediaLabel="audio"
-                  acceptedFormats="Any audio file format is accepted."
+                  accept={"audio/*,.wav,.mp3,.flac,.ogg,.m4a,.aac,.aiff,.aif,.wma,.opus"}
+                  acceptedFormats={"WAV, MP3, FLAC, OGG…"}
                   isEdit={isEdit}
                   icon={FileAudio}
+                  isAcceptedFile={(f) => Boolean((f.type && f.type.startsWith('audio/')) || AUDIO_FILE_PATTERN.test(f.name))}
                 />
               </CardContent>
             </Card>
