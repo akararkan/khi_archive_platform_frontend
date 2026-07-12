@@ -4389,8 +4389,8 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <AudioFieldLabel htmlFor="fullName">Full Name</AudioFieldLabel>
-            <Input id="fullName" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+            <AudioFieldLabel htmlFor="fileName" fieldKey="fileName">File Name</AudioFieldLabel>
+            <Input id="fileName" value={form.fileName} onChange={(e) => setForm({ ...form, fileName: e.target.value })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="originTitle">Origin Title</AudioFieldLabel>
