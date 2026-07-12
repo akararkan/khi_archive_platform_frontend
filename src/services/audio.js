@@ -14,7 +14,7 @@ export async function getAudiosPage({ page = 0, size = 100, signal } = {}) {
 }
 
 // Backend two-phase fuzzy search (pg_trgm) across audio_code, all titles,
-// full_name, form, language, description, transcription, lyrics, contributors,
+// file_name, form, language, description, transcription, lyrics, contributors,
 // and child collections (subjects, genres, tags, keywords). Pass projectCode
 // to scope results server-side. Pass an AbortSignal to cancel the request
 // when the user keeps typing.

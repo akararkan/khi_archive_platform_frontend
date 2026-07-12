@@ -164,7 +164,7 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="space-y-5 pt-5">
           <div className="space-y-1.5">
             <VideoFieldLabel htmlFor="description">Description</VideoFieldLabel>
-            <textarea id="description" className={TEXTAREA_CLASS} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <textarea id="description" className={TEXTAREA_CLASS} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} dir="rtl" lang="ckb" />
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">

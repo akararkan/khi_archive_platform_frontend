@@ -65,6 +65,10 @@ export function createInitialTextForm() {
     copyNumber: '1',
 
     fileName: '',
+    // Kept in form state so an ordinary metadata edit round-trips the stored
+    // cover URL. The selected replacement image itself remains a separate File
+    // and is sent in the multipart `coverImage` part.
+    coverImageUrl: '',
     originalTitle: '',
     alternativeTitle: '',
     titleInCentralKurdish: '',
@@ -141,6 +145,7 @@ export function buildTextPayload(form, projectCode) {
     copyNumber: form.copyNumber ? Number(form.copyNumber) : null,
 
     fileName: trimOrNull(form.fileName),
+    coverImageUrl: trimOrNull(form.coverImageUrl),
     originalTitle: trimOrNull(form.originalTitle),
     alternativeTitle: trimOrNull(form.alternativeTitle),
     titleInCentralKurdish: trimOrNull(form.titleInCentralKurdish),
@@ -217,6 +222,7 @@ export function populateTextFormFromText(text) {
     copyNumber: text.copyNumber != null ? String(text.copyNumber) : '1',
 
     fileName: text.fileName || '',
+    coverImageUrl: text.coverImageUrl || '',
     originalTitle: text.originalTitle || '',
     alternativeTitle: text.alternativeTitle || '',
     titleInCentralKurdish: text.titleInCentralKurdish || '',

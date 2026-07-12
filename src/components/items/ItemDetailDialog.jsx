@@ -17,6 +17,7 @@ const SKIP_PAYLOAD_KEYS = new Set([
   'person',
   'categories',
   'projectVisibleToPublic',
+  'coverImageUrl',
 ])
 
 // Turn the per-type DTO into a flat list of [label, value] scalar rows so we
@@ -75,7 +76,7 @@ export function ItemDetailDialog({ item, onClose, onEdit }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setImgFailed(false)
-  }, [item?.type, item?.code])
+  }, [item?.type, item?.code, item?.fileUrl, item?.coverImageUrl, item?.text?.coverImageUrl])
 
   useEffect(() => {
     if (!item) return undefined
@@ -92,7 +93,13 @@ export function ItemDetailDialog({ item, onClose, onEdit }) {
   const HeaderIcon = meta.icon
   const payload = getItemPayload(item)
   const fields = flattenPayload(payload)
-  const showImagePreview = item.type === 'IMAGE' && item.fileUrl && !imgFailed
+  const previewUrl = item.type === 'IMAGE'
+    ? item.fileUrl
+    : item.type === 'TEXT'
+      ? item.coverImageUrl || payload?.coverImageUrl
+      : null
+  const showImagePreview = previewUrl && !imgFailed
+  const showTextCover = item.type === 'TEXT'
   const categories = Array.isArray(item.categoryCodes) ? item.categoryCodes.filter(Boolean) : []
 
   return (
@@ -137,12 +144,29 @@ export function ItemDetailDialog({ item, onClose, onEdit }) {
         {/* Body */}
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
           {showImagePreview ? (
-            <img
-              src={item.fileUrl}
-              alt={item.title || item.code}
-              onError={() => setImgFailed(true)}
-              className="max-h-72 w-full rounded-2xl border border-border bg-muted object-contain"
-            />
+            showTextCover ? (
+              <div className="flex justify-center overflow-hidden rounded-2xl border border-amber-900/10 bg-gradient-to-br from-amber-50 via-background to-muted/40 p-5 dark:from-amber-950/20">
+                <div className="relative aspect-[2/3] w-40 max-w-[60%]">
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-1 translate-x-2.5 translate-y-2.5 rounded-xl border border-amber-900/15 bg-amber-100/80 shadow-sm dark:bg-amber-950/30"
+                  />
+                  <img
+                    src={previewUrl}
+                    alt={`${item.title || item.code} cover`}
+                    onError={() => setImgFailed(true)}
+                    className="relative size-full rounded-xl border border-border bg-white object-contain shadow-2xl shadow-black/20"
+                  />
+                </div>
+              </div>
+            ) : (
+              <img
+                src={previewUrl}
+                alt={item.title || item.code}
+                onError={() => setImgFailed(true)}
+                className="max-h-72 w-full rounded-2xl border border-border bg-muted object-contain"
+              />
+            )
           ) : null}
 
           <section className="rounded-2xl border border-border bg-background p-4">

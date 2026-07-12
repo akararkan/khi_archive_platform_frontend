@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { Check, Copy, X } from 'lucide-react'
 
 import { useAnchoredPosition } from '@/hooks/use-anchored-position'
 import { cn } from '@/lib/utils'
 
 /**
  * Chip-style tag input.
- * - Type and press Enter, or use a separator (`,` `;` `،`) or Tab, to commit a
- *   chip. Enter ALWAYS commits the typed draft (and, when `suggest` is enabled,
- *   picks the highlighted suggestion instead). Enter never submits the
- *   surrounding form — the entity is saved via its own button, so Enter inside a
- *   multi-value field only ever adds a value.
+ * - Type and press Enter, or use a separator (`,` `;` `،`), to commit a chip.
+ *   Tab follows the browser's normal focus order; the resulting blur commits the
+ *   draft before focus reaches the next control. Enter ALWAYS commits the typed
+ *   draft (and, when `suggest` is enabled, picks the highlighted suggestion
+ *   instead). Enter never submits the surrounding form — the entity is saved via
+ *   its own button, so Enter inside a multi-value field only ever adds a value.
  * - Backspace on empty input removes the last chip
  * - Pasting "a, b, c" splits into multiple chips
  * - Blurring the field also commits whatever's in the draft
@@ -27,7 +28,43 @@ import { cn } from '@/lib/utils'
  *               (e.g. canonicalizeTag). Default: trim only.
  *   maxLength?  caps the input length (tags are capped at 64 server-side).
  *   suggestLimit? rows to request (default 10).
+ *   copyable?   shows a button that copies every committed value as a
+ *               comma-separated list (default false).
  */
+async function writeClipboardText(text) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      // Fall through for browsers or contexts that deny Clipboard API access.
+    }
+  }
+
+  if (typeof document === 'undefined' || !document.body) return false
+
+  const previousFocus = document.activeElement
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.inset = '0'
+  textarea.style.opacity = '0'
+  textarea.style.pointerEvents = 'none'
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+
+  try {
+    return document.execCommand('copy')
+  } catch {
+    return false
+  } finally {
+    textarea.remove()
+    if (previousFocus instanceof HTMLElement) previousFocus.focus()
+  }
+}
+
 function TagsInput({
   value = [],
   onChange,
@@ -40,15 +77,18 @@ function TagsInput({
   transform,
   maxLength,
   suggestLimit = 10,
+  copyable = false,
 }) {
   const [draft, setDraft] = useState('')
   const [suggestions, setSuggestions] = useState([])
+  const [copied, setCopied] = useState(false)
   // -1 = nothing pre-highlighted, so Enter commits the TYPED text (creates a
   // new tag). Arrowing down moves into the suggestion list.
   const [activeIndex, setActiveIndex] = useState(-1)
   const inputRef = useRef(null)
   const rootRef = useRef(null)
   const listRef = useRef(null)
+  const copyResetTimerRef = useRef(null)
 
   const normalize = transform || ((s) => s.trim())
 
@@ -100,6 +140,25 @@ function TagsInput({
   const removeAt = (index) => {
     onChange(value.filter((_, i) => i !== index))
   }
+
+  const handleCopyAll = async (event) => {
+    event.stopPropagation()
+    if (disabled || value.length === 0) return
+
+    const didCopy = await writeClipboardText(value.join(', '))
+    if (!didCopy) return
+
+    setCopied(true)
+    window.clearTimeout(copyResetTimerRef.current)
+    copyResetTimerRef.current = window.setTimeout(() => setCopied(false), 1600)
+  }
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(copyResetTimerRef.current)
+    },
+    [],
+  )
 
   // Debounced suggestion fetch. Aborts in-flight requests on rapid keystrokes.
   // setState happens only inside the async callback (never synchronously in the
@@ -181,9 +240,8 @@ function TagsInput({
       if (draft.trim()) commit(draft)
       return
     }
-    if (event.key === ',' || event.key === ';' || event.key === '،' || event.key === 'Tab') {
+    if (event.key === ',' || event.key === ';' || event.key === '،') {
       if (!draft.trim()) return
-      if (event.key === 'Tab' && event.shiftKey) return
       event.preventDefault()
       commit(draft)
     } else if (event.key === 'Backspace' && !draft && value.length > 0) {
@@ -208,7 +266,11 @@ function TagsInput({
     <div
       ref={rootRef}
       role="group"
-      onClick={() => inputRef.current?.focus()}
+      onClick={(event) => {
+        const target = event.target
+        if (target instanceof Element && target.closest('[data-tags-input-static]')) return
+        inputRef.current?.focus()
+      }}
       className={cn(
         'flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-lg border border-input bg-background px-2 py-1.5 text-sm shadow-sm transition-colors',
         'focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30',
@@ -219,9 +281,10 @@ function TagsInput({
       {value.map((tag, index) => (
         <span
           key={`${tag}-${index}`}
+          data-tags-input-static
           className="group/chip inline-flex items-center gap-0.5 rounded-md border border-border bg-muted/60 py-0.5 pl-2 pr-0.5 text-xs font-medium text-foreground animate-in fade-in-0 zoom-in-95 duration-150"
         >
-          <span className="max-w-[20ch] truncate">{tag}</span>
+          <span className="max-w-[20ch] cursor-text select-text truncate">{tag}</span>
           <button
             type="button"
             onClick={(event) => {
@@ -255,6 +318,21 @@ function TagsInput({
         autoComplete={suggest ? 'off' : undefined}
         className="flex-1 min-w-[10ch] bg-transparent px-1 py-0.5 text-sm outline-none placeholder:text-muted-foreground/70"
       />
+
+      {copyable && value.length > 0 ? (
+        <button
+          type="button"
+          data-tags-input-static
+          disabled={disabled}
+          onClick={handleCopyAll}
+          className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+          aria-label={copied ? 'Copied all values' : 'Copy all values'}
+          title={copied ? 'Copied' : 'Copy all'}
+        >
+          {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+          <span>{copied ? 'Copied' : 'Copy all'}</span>
+        </button>
+      ) : null}
 
       {showSuggest
         ? createPortal(

@@ -14,6 +14,7 @@ function TagSuggestInput(props) {
       transform={canonicalizeTag}
       maxLength={MAX_TAG_LENGTH}
       placeholder="Type to search tags…"
+      copyable
       {...props}
     />
   )

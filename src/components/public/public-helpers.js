@@ -21,9 +21,9 @@ function cleanTitleValue(value) {
 
 // Returns the most-readable title for any media DTO regardless of which
 // of the backend's title field names it actually carries. The backend
-// uses different names per kind (audio uses originTitle / alterTitle /
-// fullName, video uses originalTitle / alternativeTitle, text/image
-// follow video, and feed/search rows can expose a normalised `title`).
+// uses different names per kind (audio uses originTitle / alterTitle,
+// video uses originalTitle / alternativeTitle, all four use fileName,
+// and feed/search rows can expose a normalised `title`).
 // Reading them all here means every detail page, card, and breadcrumb
 // gets a consistent best-available title and never falls
 // through to the technical code on a record that has titles set under
@@ -42,7 +42,7 @@ function pickMediaTitle(item) {
       cleanTitleValue(item.originalTitle),
       cleanTitleValue(item.originTitle),
       cleanTitleValue(item.titleOriginal),
-      cleanTitleValue(item.fullName),
+      cleanTitleValue(item.fileName),
       cleanTitleValue(item.alternativeTitle),
       cleanTitleValue(item.alterTitle),
       cleanTitleValue(item.title),

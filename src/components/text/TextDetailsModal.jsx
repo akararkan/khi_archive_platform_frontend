@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { FileText, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { BookOpen, FileText, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { CodeBadge } from '@/components/ui/code-badge'
@@ -92,6 +92,37 @@ function TextFilePreview({ src, ext }) {
   )
 }
 
+function TextCoverArtwork({ src, title }) {
+  const [failed, setFailed] = useState(false)
+
+  if (!src || failed) {
+    return (
+      <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border bg-background text-muted-foreground shadow-sm">
+        <FileText className="size-5" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative aspect-[2/3] w-20 shrink-0 sm:w-24">
+      <span
+        aria-hidden="true"
+        className="absolute inset-1 translate-x-2 translate-y-2 rounded-lg border border-amber-900/15 bg-amber-100/80 shadow-sm dark:bg-amber-950/30"
+      />
+      <img
+        src={src}
+        alt={`${title} cover`}
+        onError={() => setFailed(true)}
+        className="relative size-full rounded-lg border border-border bg-white object-contain shadow-xl shadow-black/15"
+      />
+      <span className="absolute bottom-1.5 left-1.5 grid size-6 place-items-center rounded-full border border-white/70 bg-black/65 text-white shadow-sm backdrop-blur-sm">
+        <BookOpen className="size-3.5" />
+        <span className="sr-only">Document cover</span>
+      </span>
+    </div>
+  )
+}
+
 function TextDetailsModal({ text, open, onOpenChange, searchQuery }) {
   const isAdmin = useIsAdmin()
 
@@ -178,9 +209,7 @@ function TextDetailsModal({ text, open, onOpenChange, searchQuery }) {
 
         <div className="relative shrink-0 border-b bg-gradient-to-b from-muted/70 via-muted/20 to-transparent px-6 py-6 sm:px-8 sm:py-7">
           <div className="flex items-start gap-4 pr-10">
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border bg-background text-muted-foreground shadow-sm">
-              <FileText className="size-5" />
-            </div>
+            <TextCoverArtwork key={text.coverImageUrl || 'no-cover'} src={text.coverImageUrl} title={String(title)} />
             <div className="min-w-0 space-y-2">
               {text.textCode && (
                 <div className="flex flex-wrap items-center gap-2">

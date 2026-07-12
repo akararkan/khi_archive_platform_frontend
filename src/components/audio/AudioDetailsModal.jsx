@@ -101,7 +101,7 @@ function AudioDetailsModal({ audio, open, onOpenChange, searchQuery }) {
   if (!open || !audio) return null
 
   const title =
-    audio.originTitle || audio.alterTitle || audio.centralKurdishTitle || audio.romanizedTitle || audio.fullName || audio.audioCode
+    audio.originTitle || audio.alterTitle || audio.centralKurdishTitle || audio.romanizedTitle || audio.fileName || audio.audioCode
 
   const projectChip = audio.projectCode
     ? { label: audio.projectName || audio.projectCode, code: audio.projectCode }
@@ -110,7 +110,7 @@ function AudioDetailsModal({ audio, open, onOpenChange, searchQuery }) {
     ? { label: audio.personName || audio.personCode, code: audio.personCode }
     : null
 
-  const hasTitles = hasAny(audio, ['originTitle', 'alterTitle', 'centralKurdishTitle', 'romanizedTitle', 'fullName'])
+  const hasTitles = hasAny(audio, ['originTitle', 'alterTitle', 'centralKurdishTitle', 'romanizedTitle', 'fileName'])
   const hasMusic = hasAny(audio, ['form', 'genre', 'typeOfBasta', 'typeOfMaqam', 'typeOfComposition', 'typeOfPerformance', 'lyrics', 'poet'])
   const hasCredits = hasAny(audio, ['speaker', 'producer', 'composer', 'contributors'])
   const hasLanguage = hasAny(audio, ['language', 'dialect'])
@@ -239,7 +239,7 @@ function AudioDetailsModal({ audio, open, onOpenChange, searchQuery }) {
                   <Field label="Alternate Title" value={audio.alterTitle} />
                   <Field label="Central Kurdish Title" value={audio.centralKurdishTitle} />
                   <Field label="Romanized Title" value={audio.romanizedTitle} />
-                  <Field label="Full Name" value={audio.fullName} />
+                  <Field label="File Name" value={audio.fileName} />
                 </div>
               </Section>
             )}

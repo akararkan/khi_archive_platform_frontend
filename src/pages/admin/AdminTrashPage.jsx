@@ -98,7 +98,7 @@ const ENTITIES = {
       'This permanently deletes the audio record and removes the file from S3. This cannot be undone.',
     project: (r) => ({
       code: r.audioCode,
-      title: r.originTitle || r.alterTitle || r.fullName || r.audioCode,
+      title: r.originTitle || r.alterTitle || r.fileName || r.audioCode,
       subtitle: r.projectName || r.projectCode || null,
     }),
   },

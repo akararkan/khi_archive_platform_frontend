@@ -63,7 +63,7 @@ export function createInitialAudioForm() {
     versionNumber: '1',
     copyNumber: '1',
 
-    fullName: '',
+    fileName: '',
     originTitle: '',
     alterTitle: '',
     centralKurdishTitle: '',
@@ -145,7 +145,7 @@ export function buildAudioPayload(form, projectCode) {
     versionNumber: form.versionNumber ? Number(form.versionNumber) : null,
     copyNumber: form.copyNumber ? Number(form.copyNumber) : null,
 
-    fullName: trimOrNull(form.fullName),
+    fileName: trimOrNull(form.fileName),
     originTitle: trimOrNull(form.originTitle),
     alterTitle: trimOrNull(form.alterTitle),
     centralKurdishTitle: trimOrNull(form.centralKurdishTitle),
@@ -227,7 +227,7 @@ export function populateAudioFormFromAudio(audio) {
     versionNumber: audio.versionNumber != null ? String(audio.versionNumber) : '1',
     copyNumber: audio.copyNumber != null ? String(audio.copyNumber) : '1',
 
-    fullName: audio.fullName || '',
+    fileName: audio.fileName || '',
     originTitle: audio.originTitle || '',
     alterTitle: audio.alterTitle || '',
     centralKurdishTitle: audio.centralKurdishTitle || '',
@@ -315,6 +315,7 @@ export function deriveAudioAutoFieldsFromFile(file) {
   const { path, volumeName, directory: directoryName } = getFileSourcePath(file)
 
   return {
+    fileName: name,
     fileExtension: ext,
     fileSize: formatFileSize(file.size),
     // Never overwrite manually entered storage information with empty values

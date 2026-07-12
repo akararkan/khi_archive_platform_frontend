@@ -31,19 +31,21 @@ export async function getText(code) {
   return data
 }
 
-export async function createText(payload, file, uploadOptions) {
+export async function createText(payload, file, coverImage, uploadOptions) {
   const formData = new FormData()
   formData.append('data', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
   if (file) formData.append('file', file)
+  if (coverImage) formData.append('coverImage', coverImage)
 
   const { data } = await apiClient.post('/text', formData, multipartUploadConfig(uploadOptions))
   return data
 }
 
-export async function updateText(code, payload, file, uploadOptions) {
+export async function updateText(code, payload, file, coverImage, uploadOptions) {
   const formData = new FormData()
   formData.append('data', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
   if (file) formData.append('file', file)
+  if (coverImage) formData.append('coverImage', coverImage)
 
   const { data } = await apiClient.patch(`/text/${code}`, formData, multipartUploadConfig(uploadOptions))
   return data

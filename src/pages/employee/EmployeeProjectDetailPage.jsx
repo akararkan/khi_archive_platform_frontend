@@ -32,6 +32,7 @@ import { ImageFormSections } from '@/components/image/ImageFormSections'
 import { TextDetailsModal } from '@/components/text/TextDetailsModal'
 import { TextFilterPanel } from '@/components/text/TextFilterPanel'
 import { TextFormSections } from '@/components/text/TextFormSections'
+import { TextCoverImagePicker } from '@/components/text/TextCoverImagePicker'
 import { VideoDetailsModal } from '@/components/video/VideoDetailsModal'
 import { VideoFilterPanel } from '@/components/video/VideoFilterPanel'
 import { VideoFormSections } from '@/components/video/VideoFormSections'
@@ -190,27 +191,6 @@ import {
   textMetadataToForm,
   videoMetadataToForm,
 } from '@/lib/media-metadata'
-
-const AUDIO_FILE_PATTERN = /\.(wav|mp3|flac|ogg|m4a|aac|aiff|aif|wma|opus)$/i
-const VIDEO_FILE_PATTERN = /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg|wmv|flv|3gp|ogv)$/i
-const IMAGE_FILE_PATTERN = /\.(jpe?g|png|gif|tiff?|bmp|webp|heic|heif|raw|cr2|cr3|nef|arw|dng|svg)$/i
-const TEXT_FILE_PATTERN = /\.(pdf|docx?|odt|rtf|txt|md|tex|epub|mobi|xml|html?|csv|tsv)$/i
-
-const isAudioFile = (file) =>
-  Boolean((file.type && file.type.startsWith('audio/')) || AUDIO_FILE_PATTERN.test(file.name))
-const isVideoFile = (file) =>
-  Boolean((file.type && file.type.startsWith('video/')) || VIDEO_FILE_PATTERN.test(file.name))
-const isImageFile = (file) =>
-  Boolean((file.type && file.type.startsWith('image/')) || IMAGE_FILE_PATTERN.test(file.name))
-const isTextFile = (file) =>
-  Boolean(
-    TEXT_FILE_PATTERN.test(file.name) ||
-      (file.type &&
-        (file.type.startsWith('text/') ||
-          file.type === 'application/pdf' ||
-          file.type.includes('word') ||
-          file.type.includes('opendocument'))),
-  )
 
 // Merge auto-extracted fields into the form. A field gets overwritten
 // only when (a) the user hasn't typed anything there yet, or (b) the
@@ -514,6 +494,7 @@ function EmployeeProjectDetailPage() {
   const [currentText, setCurrentText] = useState(null)
   const [textForm, setTextForm] = useState(createInitialTextForm)
   const [textFile, setTextFile] = useState(null)
+  const [textCoverImage, setTextCoverImage] = useState(null)
 
   // ── Shared form-view state ─────────────────────────────────
   // The form is single-instance: only one media-type form is open at a time
@@ -1292,6 +1273,7 @@ function EmployeeProjectDetailPage() {
             next[key] = Array.isArray(value) ? [] : ''
           }
         }
+        next.fileName = currentAudio?.fileName || ''
         return next
       })
       lastAutoFilledRef.current = {}
@@ -1301,7 +1283,10 @@ function EmployeeProjectDetailPage() {
 
     const auto = deriveAudioAutoFieldsFromFile(file)
     setAudioFile(file)
-    setForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
+    setForm((prev) => ({
+      ...mergeAutoFilled(prev, auto, lastAutoFilledRef.current),
+      fileName: file.name || '',
+    }))
     lastAutoFilledRef.current = auto
 
     // Async: read embedded ID3 metadata + playback duration. Maps to
@@ -1484,6 +1469,7 @@ function EmployeeProjectDetailPage() {
             next[key] = Array.isArray(value) ? [] : ''
           }
         }
+        next.fileName = currentVideo?.fileName || ''
         return next
       })
       lastAutoFilledRef.current = {}
@@ -1493,7 +1479,10 @@ function EmployeeProjectDetailPage() {
 
     const auto = deriveVideoAutoFieldsFromFile(file)
     setVideoFile(file)
-    setVideoForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
+    setVideoForm((prev) => ({
+      ...mergeAutoFilled(prev, auto, lastAutoFilledRef.current),
+      fileName: file.name || '',
+    }))
     lastAutoFilledRef.current = auto
 
     // Async: read duration + dimensions via a hidden <video> element.
@@ -1660,6 +1649,7 @@ function EmployeeProjectDetailPage() {
             next[key] = Array.isArray(value) ? [] : ''
           }
         }
+        next.fileName = currentImage?.fileName || ''
         return next
       })
       lastAutoFilledRef.current = {}
@@ -1669,7 +1659,10 @@ function EmployeeProjectDetailPage() {
 
     const auto = deriveImageAutoFieldsFromFile(file)
     setImageFile(file)
-    setImageForm((prev) => mergeAutoFilled(prev, auto, lastAutoFilledRef.current))
+    setImageForm((prev) => ({
+      ...mergeAutoFilled(prev, auto, lastAutoFilledRef.current),
+      fileName: file.name || '',
+    }))
     lastAutoFilledRef.current = auto
 
     // Async: read natural dimensions via Image() — fills dimension /
@@ -1796,6 +1789,7 @@ function EmployeeProjectDetailPage() {
     setCurrentText(null)
     setTextForm(createInitialTextForm())
     setTextFile(null)
+    setTextCoverImage(null)
     setFormError('')
     setSavedTextsThisSession([])
     submitModeRef.current = 'finish'
@@ -1808,6 +1802,7 @@ function EmployeeProjectDetailPage() {
     setCurrentText(text)
     setTextForm(populateTextFormFromText(text))
     setTextFile(null)
+    setTextCoverImage(null)
     setFormError('')
     setSavedTextsThisSession([])
     submitModeRef.current = 'finish'
@@ -1820,6 +1815,7 @@ function EmployeeProjectDetailPage() {
     setView('list')
     setCurrentText(null)
     setTextFile(null)
+    setTextCoverImage(null)
     setFormError('')
     setSavedTextsThisSession([])
     lastAutoFilledRef.current = {}
@@ -1836,6 +1832,7 @@ function EmployeeProjectDetailPage() {
             next[key] = Array.isArray(value) ? [] : ''
           }
         }
+        next.fileName = currentText?.fileName || ''
         return next
       })
       lastAutoFilledRef.current = {}
@@ -1903,7 +1900,8 @@ function EmployeeProjectDetailPage() {
         kind: 'text',
         file: textFile,
         payload,
-        createRecord: createText,
+        createRecord: (nextPayload, nextFile, uploadOptions) =>
+          createText(nextPayload, nextFile, textCoverImage, uploadOptions),
         refreshRecords: loadTexts,
         getCode: (saved) => saved?.textCode,
         startTitle: 'Text upload started',
@@ -1920,6 +1918,7 @@ function EmployeeProjectDetailPage() {
           copyNumber: String((Number(prev.copyNumber) || 1) + 1),
         }))
         setTextFile(null)
+        setTextCoverImage(null)
         setFormError('')
         submitModeRef.current = 'finish'
         setPendingSubmitMode('finish')
@@ -1935,11 +1934,17 @@ function EmployeeProjectDetailPage() {
     }
 
     setIsSaving(true)
-    const uploadOptions = beginUploadProgress('text', textFile)
+    const uploadOptions = beginUploadProgress('text', textFile || textCoverImage)
     try {
       const payload = buildTextPayload(textForm, projectCode)
       delete payload.projectCode
-      const saved = await updateText(currentText.textCode, payload, textFile, uploadOptions)
+      const saved = await updateText(
+        currentText.textCode,
+        payload,
+        textFile,
+        textCoverImage,
+        uploadOptions,
+      )
       toast.success('Text updated', `${saved.textCode} changes were saved.`)
       await loadTexts()
       handleCloseTextForm()
@@ -2124,11 +2129,9 @@ function EmployeeProjectDetailPage() {
                   file={imageFile}
                   onFileChange={handleImageFilePicked}
                   mediaLabel="image"
-                  accept="image/*,.tif,.tiff,.heic,.heif,.raw,.cr2,.cr3,.nef,.arw,.dng"
-                  acceptedFormats="JPG, PNG, TIFF, RAW…"
+                  acceptedFormats="Any image file format is accepted. Preview availability depends on browser support."
                   isEdit={isEdit}
                   icon={ImageIcon}
-                  isAcceptedFile={isImageFile}
                 />
               </CardContent>
             </Card>
@@ -2338,11 +2341,28 @@ function EmployeeProjectDetailPage() {
                   file={textFile}
                   onFileChange={handleTextFilePicked}
                   mediaLabel="document"
-                  accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.md,.tex,.epub,.mobi,.xml,.html,.htm,.csv,.tsv,application/pdf,text/*"
-                  acceptedFormats="PDF, DOCX, TXT, MD, EPUB…"
+                  acceptedFormats="Any document file format is accepted."
                   isEdit={isEdit}
                   icon={FileText}
-                  isAcceptedFile={isTextFile}
+                />
+              </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border bg-gradient-to-r from-amber-500/[0.06] via-card to-indigo-500/[0.05] pb-4">
+                <CardTitle className="text-base font-semibold">Book / Document Cover</CardTitle>
+                <CardDescription className="text-xs">
+                  Optional — add a cover for public cards and the opening section of the text page.
+                  The original document remains separate.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-5">
+                <TextCoverImagePicker
+                  id="textCoverImage"
+                  file={textCoverImage}
+                  currentCoverUrl={textForm.coverImageUrl || currentText?.coverImageUrl}
+                  onFileChange={setTextCoverImage}
+                  isEdit={isEdit}
                 />
               </CardContent>
             </Card>
@@ -2545,11 +2565,9 @@ function EmployeeProjectDetailPage() {
                   file={videoFile}
                   onFileChange={handleVideoFilePicked}
                   mediaLabel="video"
-                  accept="video/*,.mp4,.mov,.mkv,.webm,.avi,.m4v,.mpg,.mpeg,.wmv,.flv,.3gp,.ogv"
-                  acceptedFormats="MP4, MOV, MKV, WEBM…"
+                  acceptedFormats="Any video file format is accepted."
                   isEdit={isEdit}
                   icon={VideoIcon}
-                  isAcceptedFile={isVideoFile}
                 />
               </CardContent>
             </Card>
@@ -2779,11 +2797,9 @@ function EmployeeProjectDetailPage() {
                   file={audioFile}
                   onFileChange={handleAudioFilePicked}
                   mediaLabel="audio"
-                  accept="audio/*,.wav,.mp3,.flac,.ogg,.m4a,.aac,.aiff,.aif,.wma,.opus"
-                  acceptedFormats="WAV, MP3, FLAC, OGG…"
+                  acceptedFormats="Any audio file format is accepted."
                   isEdit={isEdit}
                   icon={FileAudio}
-                  isAcceptedFile={isAudioFile}
                 />
               </CardContent>
             </Card>

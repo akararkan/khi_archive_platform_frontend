@@ -139,8 +139,17 @@ export function AudioFormSections({ form, setForm, projectCategories = [] }) {
         </CardHeader>
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <AudioFieldLabel htmlFor="fullName">Full Name</AudioFieldLabel>
-            <Input id="fullName" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+            <AudioFieldLabel htmlFor="fileName">File Name</AudioFieldLabel>
+            <Input
+              id="fileName"
+              value={form.fileName}
+              readOnly
+              placeholder="Filled automatically from the selected file"
+              className="bg-muted/40 text-muted-foreground"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Filled automatically from the selected audio file.
+            </p>
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="originTitle">Origin Title</AudioFieldLabel>
@@ -173,7 +182,7 @@ export function AudioFormSections({ form, setForm, projectCategories = [] }) {
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="description">Description</AudioFieldLabel>
-            <textarea id="description" className={TEXTAREA_CLASS} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <textarea id="description" className={`${TEXTAREA_CLASS} text-right`} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} dir="rtl" lang="ckb" />
           </div>
         </CardContent>
       </Card>
