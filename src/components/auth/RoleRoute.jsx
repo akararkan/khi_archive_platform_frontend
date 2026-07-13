@@ -55,9 +55,10 @@ function RoleRoute({ allowedRole }) {
         : allowedRole === 'teacher'
           ? 'Loading teacher workspace'
           : allowedRole === 'guest'
-            ? 'Loading account'
+            ? 'بارکردنی هەژمار'
             : 'Loading employee workspace'
-    return <PageLoader title={workspaceTitle} description="Checking access." />
+    const description = allowedRole === 'guest' ? 'پشکنینی دەستڕاگەیشتن.' : 'Checking access.'
+    return <PageLoader title={workspaceTitle} description={description} />
   }
 
   return <Outlet />

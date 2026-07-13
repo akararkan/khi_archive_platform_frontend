@@ -84,10 +84,12 @@ const STRENGTH = [
 
 // A 4-segment strength meter shown under the new-password field. Renders nothing
 // until the user starts typing.
-function PasswordStrength({ value }) {
+function PasswordStrength({ value, labels }) {
   if (!value) return null
   const score = scorePassword(value)
   const meta = STRENGTH[score]
+  const strengthLabel = labels?.levels?.[score] || meta.label
+  const prefix = labels?.prefix || 'Password strength:'
   return (
     <div className="space-y-1.5 pt-0.5">
       <div className="flex gap-1.5" aria-hidden="true">
@@ -102,7 +104,7 @@ function PasswordStrength({ value }) {
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        Password strength: <span className="font-medium text-foreground">{meta.label}</span>
+        {prefix} <span className="font-medium text-foreground">{strengthLabel}</span>
       </p>
     </div>
   )

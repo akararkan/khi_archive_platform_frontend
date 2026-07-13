@@ -39,9 +39,9 @@ import {
 } from '@/services/user-profile'
 
 function getInitials(name, username) {
-  const source = (name || username || 'User').trim()
+  const source = (name || username || 'هەژمار').trim()
   const parts = source.split(/\s+/).filter(Boolean)
-  return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('') || 'U'
+  return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('') || 'هـ'
 }
 
 // The live region is always mounted (and `empty:hidden` so it takes no layout
@@ -65,6 +65,11 @@ function Banner({ kind, children }) {
       ) : null}
     </div>
   )
+}
+
+const KU_PASSWORD_STRENGTH = {
+  prefix: 'هێزی وشەی نهێنی:',
+  levels: ['زۆر کورتە', 'لاوازە', 'مامناوەندە', 'باشە', 'بەهێزە'],
 }
 
 // Self-contained account workspace. Unlike the admin/employee profile (which
@@ -125,7 +130,7 @@ function AccountProfilePage() {
         if (cancelled) return
         applyProfile(data)
       } catch (error) {
-        if (!cancelled) setLoadError(formatApiError(error, 'Unable to load your account right now.'))
+        if (!cancelled) setLoadError(formatApiError(error, 'ئێستا ناتوانرێت هەژمارەکەت باربکرێت.'))
       } finally {
         if (!cancelled) setIsLoading(false)
       }
@@ -151,15 +156,16 @@ function AccountProfilePage() {
     ''
   const hasProfileImage = Boolean(displayImage) && !imageLoadError
   const initials = getInitials(profile?.name, profile?.username)
-  const profileName = profile?.name || profile?.username || 'My account'
-  const profileStatus = profile?.isActivated ? 'Active' : 'Inactive'
+  const profileName = profile?.name || profile?.username || 'هەژمارەکەم'
+  const profileStatus = profile?.isActivated ? 'چالاک' : 'چاوەڕێی چالاککردنەوە'
+  const roleLabel = isGuest ? 'میوان' : role
 
   // Only the human-facing essentials — the technical fields (User ID, Role,
   // Status, Provider, Created/Updated, Password expiry) are intentionally
   // hidden here; role + status already show as badges in the hero above.
   const accountStats = [
-    { label: 'Username', value: profile?.username || 'Not available' },
-    { label: 'Email', value: profile?.email || 'Not available' },
+    { label: 'ناوی بەکارهێنەر', value: profile?.username || 'بەردەست نییە', dir: profile?.username ? 'ltr' : 'rtl' },
+    { label: 'ئیمەیڵ', value: profile?.email || 'بەردەست نییە', dir: profile?.email ? 'ltr' : 'rtl' },
   ]
 
   const handleProfileChange = (event) => {
@@ -191,9 +197,9 @@ function AccountProfilePage() {
         email: profileForm.email,
       })
       applyProfile(data)
-      setProfileMessage('Profile updated successfully.')
+      setProfileMessage('پرۆفایلەکەت بەسەرکەوتوویی نوێکرایەوە.')
     } catch (error) {
-      setProfileSaveError(formatApiError(error, 'Unable to update your profile.'))
+      setProfileSaveError(formatApiError(error, 'نەتوانرا پرۆفایلەکەت نوێبکرێتەوە.'))
     } finally {
       setIsSavingProfile(false)
     }
@@ -205,7 +211,7 @@ function AccountProfilePage() {
     setPasswordMessage('')
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordError('New password and confirmation must match.')
+      setPasswordError('وشەی نهێنی نوێ و پشتڕاستکردنەوە دەبێت وەک یەک بن.')
       return
     }
 
@@ -214,7 +220,7 @@ function AccountProfilePage() {
     try {
       await changeMyPassword(passwordForm)
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
-      setPasswordMessage('Password changed successfully. It is valid for the next 90 days.')
+      setPasswordMessage('وشەی نهێنی بەسەرکەوتوویی گۆڕدرا. بۆ ٩٠ ڕۆژی داهاتوو کارا دەبێت.')
       // Refresh so the "Password expiry" stat reflects the new +90-day window.
       // Update only the displayed profile/cache — NOT profileForm — so any
       // unsaved edits in the (separate, simultaneously-visible) General
@@ -227,7 +233,7 @@ function AccountProfilePage() {
         /* non-fatal — the password change itself already succeeded */
       }
     } catch (error) {
-      setPasswordError(formatApiError(error, 'Unable to change your password.'))
+      setPasswordError(formatApiError(error, 'نەتوانرا وشەی نهێنی بگۆڕدرێت.'))
     } finally {
       setIsSavingPassword(false)
     }
@@ -245,9 +251,9 @@ function AccountProfilePage() {
     try {
       const data = await uploadMyProfileImage(file)
       applyProfile(data)
-      setImageMessage('Profile photo updated.')
+      setImageMessage('وێنەی پرۆفایل نوێکرایەوە.')
     } catch (error) {
-      setImageError(formatApiError(error, 'Unable to upload the image.'))
+      setImageError(formatApiError(error, 'نەتوانرا وێنەکە باربکرێت.'))
     } finally {
       setIsUpdatingImage(false)
       // Always clear the value (not just on success) so re-selecting the SAME
@@ -265,9 +271,9 @@ function AccountProfilePage() {
     try {
       const data = await removeMyProfileImage()
       applyProfile(data)
-      setImageMessage('Profile photo removed.')
+      setImageMessage('وێنەی پرۆفایل سڕایەوە.')
     } catch (error) {
-      setImageError(formatApiError(error, 'Unable to remove the image.'))
+      setImageError(formatApiError(error, 'نەتوانرا وێنەکە بسڕدرێتەوە.'))
     } finally {
       setIsRemovingImage(false)
     }
@@ -283,7 +289,7 @@ function AccountProfilePage() {
       clearCurrentProfile()
       navigate('/public', { replace: true })
     } catch (error) {
-      setDeleteError(formatApiError(error, 'Unable to delete your account right now.'))
+      setDeleteError(formatApiError(error, 'ئێستا ناتوانرێت هەژمارەکەت بسڕدرێتەوە.'))
       setIsDeleting(false)
       setConfirmDeleteOpen(false)
     }
@@ -294,21 +300,25 @@ function AccountProfilePage() {
     passwordForm.newPassword === passwordForm.confirmPassword
 
   return (
-    <div className="min-h-dvh bg-[linear-gradient(180deg,var(--background),color-mix(in_oklab,var(--muted)_48%,var(--background)))]">
+    <div
+      lang="ckb"
+      dir="rtl"
+      className="min-h-dvh bg-[linear-gradient(180deg,var(--background),color-mix(in_oklab,var(--muted)_48%,var(--background)))]"
+    >
       <header className="sticky top-0 z-20 border-b border-border/70 bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-3 sm:px-6">
           <KhiLogo className="size-11 shadow-sm" priority />
           <div className="min-w-0 flex-1">
-            <p className="font-heading text-sm font-semibold tracking-tight text-foreground">KHI Archive</p>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Guest profile</p>
+            <p className="font-heading text-sm font-semibold tracking-tight text-foreground">ئەرشیفی KHI</p>
+            <p className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground">پرۆفایلی میوان</p>
           </div>
           <Link to="/public" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-2')}>
             <Library className="size-4" />
-            <span className="hidden sm:inline">Browse the archive</span>
+            <span className="hidden sm:inline">گەڕان لە ئەرشیف</span>
           </Link>
           <Button variant="ghost" size="sm" className="gap-2" onClick={handleSignOut}>
             <LogOut className="size-4" />
-            <span className="hidden sm:inline">Sign out</span>
+            <span className="hidden sm:inline">چوونەدەرەوە</span>
           </Button>
         </div>
       </header>
@@ -345,7 +355,7 @@ function AccountProfilePage() {
               <FormErrorBox error={loadError} />
               <Button type="button" variant="outline" className="gap-2" onClick={handleSignOut}>
                 <LogOut className="size-4" />
-                Sign in again
+                دووبارە بچۆ ژوورەوە
               </Button>
             </CardContent>
           </Card>
@@ -378,14 +388,14 @@ function AccountProfilePage() {
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/65">Guest archive account</p>
+                      <p className="text-xs font-semibold tracking-[0.08em] text-white/65">هەژماری میوانی ئەرشیف</p>
                       <h1 className="font-heading text-3xl font-semibold tracking-tight text-white sm:text-4xl">{profileName}</h1>
                       <p className="max-w-2xl text-sm leading-6 text-white/72">
-                        A dedicated profile page for your public archive account.
+                        پەڕەی تایبەت بۆ بەڕێوەبردنی هەژماری گشتیی ئەرشیفەکەت.
                       </p>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-white">
-                          {role}
+                          {roleLabel}
                         </span>
                         <span
                           className={cn(
@@ -398,7 +408,7 @@ function AccountProfilePage() {
                           {profileStatus}
                         </span>
                         {profile?.email ? (
-                          <span className="inline-flex max-w-full items-center truncate rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white/72">
+                          <span dir="ltr" className="inline-flex max-w-full items-center truncate rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white/72">
                             {profile.email}
                           </span>
                         ) : null}
@@ -415,7 +425,7 @@ function AccountProfilePage() {
                         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/50">
                           {item.label}
                         </p>
-                        <p className="mt-1 truncate text-sm font-semibold text-white">{item.value}</p>
+                        <p dir={item.dir} className="mt-1 truncate text-sm font-semibold text-white">{item.value}</p>
                       </div>
                     ))}
                   </div>
@@ -430,9 +440,9 @@ function AccountProfilePage() {
                   <CardHeader className="border-b border-border pb-4">
                     <div className="flex items-center gap-2">
                       <Upload className="size-4 text-muted-foreground" />
-                      <CardTitle className="text-base font-semibold">Profile photo</CardTitle>
+                      <CardTitle className="text-base font-semibold">وێنەی پرۆفایل</CardTitle>
                     </div>
-                    <CardDescription>JPEG, PNG, GIF, or WebP up to 5&nbsp;MB.</CardDescription>
+                    <CardDescription>JPEG، PNG، GIF یان WebP تا ٥ مێگابایت.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-5 pt-5">
                     <div className="mx-auto flex size-44 items-center justify-center overflow-hidden rounded-[2rem] border border-border bg-muted/40 font-heading text-5xl font-semibold text-muted-foreground shadow-inner sm:size-56">
@@ -455,7 +465,7 @@ function AccountProfilePage() {
                         ) : (
                           <Upload className="size-4 text-muted-foreground" />
                         )}
-                        {isUpdatingImage ? 'Uploading…' : 'Upload new'}
+                        {isUpdatingImage ? 'بارکردن…' : 'وێنەی نوێ باربکە'}
                         <input accept="image/*" className="sr-only" type="file" onChange={handleImageUpload} />
                       </label>
 
@@ -471,7 +481,7 @@ function AccountProfilePage() {
                         ) : (
                           <Trash2 className="size-4" />
                         )}
-                        Remove
+                        سڕینەوە
                       </Button>
                     </div>
 
@@ -483,8 +493,8 @@ function AccountProfilePage() {
                 {/* account details */}
                 <Card className="overflow-hidden border-border/80 bg-card/95 shadow-sm shadow-black/5 backdrop-blur">
                   <CardHeader className="border-b border-border pb-4">
-                    <CardTitle className="text-base font-semibold">Account details</CardTitle>
-                    <CardDescription>Your guest account identity.</CardDescription>
+                    <CardTitle className="text-base font-semibold">زانیاری هەژمار</CardTitle>
+                    <CardDescription>ناسنامەی هەژماری میوانەکەت.</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-5">
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
@@ -496,18 +506,18 @@ function AccountProfilePage() {
                           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                             {item.label}
                           </p>
-                          <p className="truncate text-sm font-medium text-foreground">{item.value}</p>
+                          <p dir={item.dir} className="truncate text-sm font-medium text-foreground">{item.value}</p>
                         </div>
                       ))}
                       <div className="flex flex-col gap-1 rounded-xl border bg-muted/20 px-4 py-3">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                          Role
+                          ڕۆڵ
                         </p>
-                        <p className="truncate text-sm font-medium text-foreground">{role}</p>
+                        <p className="truncate text-sm font-medium text-foreground">{roleLabel}</p>
                       </div>
                       <div className="flex flex-col gap-1 rounded-xl border bg-muted/20 px-4 py-3">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                          Status
+                          دۆخ
                         </p>
                         <p className="truncate text-sm font-medium text-foreground">{profileStatus}</p>
                       </div>
@@ -522,16 +532,16 @@ function AccountProfilePage() {
                   <CardHeader className="border-b border-border pb-4">
                     <div className="flex items-center gap-2">
                       <UserRound className="size-4 text-muted-foreground" />
-                      <CardTitle className="text-base font-semibold">General information</CardTitle>
+                      <CardTitle className="text-base font-semibold">زانیاری گشتی</CardTitle>
                     </div>
-                    <CardDescription>Update your name, username, and email.</CardDescription>
+                    <CardDescription>ناو، ناوی بەکارهێنەر و ئیمەیڵت نوێبکەرەوە.</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-5">
                     <form className="space-y-4" onSubmit={handleProfileSubmit}>
                       <IconField
                         id="name"
                         name="name"
-                        label="Full name"
+                        label="ناوی تەواو"
                         icon={User}
                         autoComplete="name"
                         maxLength={120}
@@ -541,29 +551,33 @@ function AccountProfilePage() {
                       <IconField
                         id="username"
                         name="username"
-                        label="Username"
+                        label="ناوی بەکارهێنەر"
                         icon={AtSign}
                         autoComplete="username"
                         minLength={3}
                         maxLength={80}
                         pattern="[A-Za-z0-9_]+"
-                        title="Use only letters, numbers, and underscores"
+                        title="تەنها پیت، ژمارە و هێمای ژێرهێڵ بەکاربهێنە"
+                        dir="ltr"
+                        className="text-left"
                         value={profileForm.username}
                         onChange={handleProfileChange}
                       />
                       <IconField
                         id="email"
                         name="email"
-                        label="Email"
+                        label="ئیمەیڵ"
                         icon={Mail}
                         type="email"
                         autoComplete="email"
                         maxLength={160}
+                        dir="ltr"
+                        className="text-left"
                         value={profileForm.email}
                         onChange={handleProfileChange}
                         hint={
                           isGuest
-                            ? 'As a guest, your email must be a real, reachable address — bogus domains are rejected.'
+                            ? 'وەک میوان، ئیمەیڵەکەت دەبێت ڕاست و گەیشتوو بێت؛ دۆمەینی ساختە ڕەتدەکرێتەوە.'
                             : undefined
                         }
                       />
@@ -577,7 +591,7 @@ function AccountProfilePage() {
                         ) : (
                           <Save className="size-4" />
                         )}
-                        Save changes
+                        پاشەکەوتکردنی گۆڕانکارییەکان
                       </Button>
                     </form>
                   </CardContent>
@@ -588,11 +602,11 @@ function AccountProfilePage() {
                   <CardHeader className="border-b border-border pb-4">
                     <div className="flex items-center gap-2">
                       <KeyRound className="size-4 text-muted-foreground" />
-                      <CardTitle className="text-base font-semibold">Change password</CardTitle>
+                      <CardTitle className="text-base font-semibold">گۆڕینی وشەی نهێنی</CardTitle>
                     </div>
                     <CardDescription>
-                      Enter your current password, then a new one. This is the only way to change your
-                      password — if you have forgotten it, ask an administrator to reset it.
+                      وشەی نهێنی ئێستا بنووسە، پاشان وشەیەکی نوێ. ئەگەر لەبیرت چووە،
+                      داوای یارمەتی لە بەڕێوەبەر بکە.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-5">
@@ -600,7 +614,7 @@ function AccountProfilePage() {
                       <PasswordField
                         id="currentPassword"
                         name="currentPassword"
-                        label="Current password"
+                        label="وشەی نهێنی ئێستا"
                         icon={KeyRound}
                         autoComplete="current-password"
                         value={passwordForm.currentPassword}
@@ -611,7 +625,7 @@ function AccountProfilePage() {
                         <PasswordField
                           id="newPassword"
                           name="newPassword"
-                          label="New password"
+                          label="وشەی نهێنی نوێ"
                           icon={KeyRound}
                           autoComplete="new-password"
                           minLength={6}
@@ -620,13 +634,13 @@ function AccountProfilePage() {
                           onChange={handlePasswordChange}
                           required
                         />
-                        <PasswordStrength value={passwordForm.newPassword} />
+                        <PasswordStrength value={passwordForm.newPassword} labels={KU_PASSWORD_STRENGTH} />
                       </div>
                       <div className="space-y-1.5">
                         <PasswordField
                           id="confirmPassword"
                           name="confirmPassword"
-                          label="Confirm new password"
+                          label="پشتڕاستکردنەوەی وشەی نهێنی نوێ"
                           icon={KeyRound}
                           autoComplete="new-password"
                           minLength={6}
@@ -645,7 +659,7 @@ function AccountProfilePage() {
                               }
                             >
                               {passwordsMatch ? <CheckCircle2 className="size-3.5" /> : null}
-                              {passwordsMatch ? 'Passwords match' : "Passwords don't match yet"}
+                              {passwordsMatch ? 'وشە نهێنییەکان وەک یەکن' : 'هێشتا وەک یەک نین'}
                             </p>
                           ) : null}
                         </div>
@@ -660,7 +674,7 @@ function AccountProfilePage() {
                         ) : (
                           <KeyRound className="size-4" />
                         )}
-                        Change password
+                        گۆڕینی وشەی نهێنی
                       </Button>
                     </form>
                   </CardContent>
@@ -671,10 +685,11 @@ function AccountProfilePage() {
                   <CardHeader className="border-b border-destructive/20 pb-4">
                     <div className="flex items-center gap-2">
                       <Trash2 className="size-4 text-destructive" />
-                      <CardTitle className="text-base font-semibold text-destructive">Delete account</CardTitle>
+                      <CardTitle className="text-base font-semibold text-destructive">سڕینەوەی هەژمار</CardTitle>
                     </div>
                     <CardDescription>
-                      Permanently remove your account, sessions, and profile photo. This cannot be undone.
+                      هەژمار، دانیشتنەکان و وێنەی پرۆفایل بە هەمیشەیی دەسڕدرێنەوە.
+                      ئەمە ناگەڕێتەوە.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4 pt-5">
@@ -689,7 +704,7 @@ function AccountProfilePage() {
                       }}
                     >
                       <Trash2 className="size-4" />
-                      Delete my account
+                      هەژمارەکەم بسڕەوە
                     </Button>
                   </CardContent>
                 </Card>
@@ -701,11 +716,12 @@ function AccountProfilePage() {
 
       <TypedConfirmDialog
         open={confirmDeleteOpen}
-        title="Delete your account?"
-        description="This permanently deletes your account, ends all sessions, and removes your profile photo. This action cannot be undone."
+        title="هەژمارەکەت بسڕدرێتەوە؟"
+        description="ئەم کارە هەژمارەکەت، هەموو دانیشتنەکان و وێنەی پرۆفایل بە هەمیشەیی دەسڕێتەوە. ئەمە ناگەڕێتەوە."
         codeToConfirm={profile?.username || ''}
-        promptLabel="Type your username to confirm"
-        confirmLabel="Delete account"
+        promptLabel="ناوی بەکارهێنەرەکەت بنووسە بۆ پشتڕاستکردنەوە"
+        confirmLabel="سڕینەوەی هەژمار"
+        cancelLabel="پاشگەزبوونەوە"
         caseSensitive={false}
         isProcessing={isDeleting}
         onConfirm={handleDeleteAccount}

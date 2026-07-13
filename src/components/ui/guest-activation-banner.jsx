@@ -25,13 +25,12 @@ function GuestActivationBanner({ role, className }) {
         <ShieldAlert className="size-5" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold">Your account is awaiting admin activation.</p>
+        <p className="font-semibold">هەژمارەکەت چاوەڕێی چالاککردنی بەڕێوەبەرە.</p>
         <p className="mt-0.5 text-xs leading-relaxed text-amber-900/80 dark:text-amber-100/80">
-          You can sign in, but you don&rsquo;t have any permissions yet — most pages
-          will look empty or return errors until an admin grants you the
-          permissions you need (e.g. <span className="font-mono">audio:read</span>,{' '}
-          <span className="font-mono">category:create</span>). Granting any
-          permission will also promote your account from Guest to Employee.
+          دەتوانیت بچیتە ژوورەوە، بەڵام هێشتا هیچ مۆڵەتێکت نییە. تا بەڕێوەبەر
+          مۆڵەتی پێویستت پێ نەدات، زۆربەی لاپەڕەکان بەتاڵ دەردەکەون یان هەڵە
+          دەگەڕێننەوە. پێدانی هەر مۆڵەتێک هەژمارەکەت لە میوانەوە دەگۆڕێت بۆ
+          کارمەند.
         </p>
       </div>
     </div>

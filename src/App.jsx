@@ -6,10 +6,9 @@ import { AppearanceTweaker } from '@/components/ui/appearance-tweaker'
 
 function App() {
   const { pathname } = useLocation()
-  // The guest (public) and teacher surfaces wear the warm "Living Archive" skin
-  // and get their own background-tone slider instead of the full appearance
-  // tweaker, so we hide the tweaker there.
-  const hideTweaker = pathname.startsWith('/public') || pathname.startsWith('/teacher')
+  // The appearance tweaker belongs to internal dashboard workspaces only.
+  // Public, guest account, auth, and teacher surfaces keep their own fixed skin.
+  const showTweaker = pathname.startsWith('/admin') || pathname.startsWith('/employee')
   const publicRoute = pathname.startsWith('/public')
   const [isScreenLocked, setIsScreenLocked] = useState(false)
 
@@ -135,7 +134,7 @@ function App() {
       {/* Remembers per-route scroll position across navigations. */}
       <ScrollMemory />
       <Outlet />
-      {hideTweaker ? null : <AppearanceTweaker />}
+      {showTweaker ? <AppearanceTweaker /> : null}
       {publicRoute && isScreenLocked ? <div className="screen-locked-overlay" aria-hidden="true" /> : null}
     </main>
   )
