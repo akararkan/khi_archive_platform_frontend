@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Check,
   Gauge,
@@ -54,15 +54,10 @@ function VideoPlayer({ src, title, subtitle, className, protectedMode = false })
   const [hover, setHover] = useState(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isPip, setIsPip] = useState(false)
-  const [isRtl, setIsRtl] = useState(false)
-
-  // Force controls to behave left→right like typical video players (YouTube).
-  // The app may use RTL for text, but users expect the scrubber and control
-  // layout to be LTR for media playback. We explicitly set `isRtl` to false
-  // so seek math and progress direction follow left→right behavior.
-  useLayoutEffect(() => {
-    setIsRtl(false)
-  }, [])
+  // The player root is pinned to dir="ltr", matching the audio player. Keep a
+  // single constant for scrubber math so elapsed time always grows left→right
+  // inside the RTL public catalogue.
+  const isRtl = false
 
   // Track isSeeking via ref so the video-element effect doesn't have to depend
   // on it (otherwise tearing down + resetting state would happen on every click).
@@ -353,6 +348,7 @@ function VideoPlayer({ src, title, subtitle, className, protectedMode = false })
     <div
       ref={containerRef}
       tabIndex={protectedMode ? -1 : 0}
+      dir="ltr"
       onAuxClick={protectedMode ? stopProtectedMediaEvent : undefined}
       onContextMenu={protectedMode ? stopProtectedMediaEvent : undefined}
       className={cn(
