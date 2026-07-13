@@ -221,6 +221,7 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
     setIsSaving(true)
     try {
       const payload = cfg.build(form, item.projectCode)
+      const coverImageFile = item.type === 'TEXT' ? coverImage : undefined
       // The project is fixed once a record exists — backend forbids re-parenting.
       delete payload.projectCode
       // Pass coverImage for text updates (multipart part `coverImage`)
@@ -228,7 +229,7 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
         item.code,
         payload,
         file,
-        item.type === 'TEXT' ? coverImage : undefined,
+        coverImageFile,
       )
       toast.success(
         `${meta.label} updated`,
@@ -271,6 +272,15 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
       ) : (
         <>
           <form id="item-edit-form" onSubmit={handleSubmit} className="space-y-5">
+            {item.type === 'TEXT' ? (
+              <TextCoverImagePicker
+                id={`item-${item.type.toLowerCase()}-cover`}
+                file={coverImage}
+                currentUrl={form.coverImageUrl || item.coverImageUrl || (item.text && item.text.coverImageUrl) || ''}
+                onFileChange={setCoverImage}
+              />
+            ) : null}
+
             <FormSections form={form} setForm={setForm} projectCategories={projectCategories} />
 
             {/* Optional file replacement */}
@@ -307,29 +317,25 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
               </CardContent>
             </Card>
 
-            {item.type === 'TEXT' ? (
-              <TextCoverImagePicker
-                id={`item-${item.type.toLowerCase()}-cover`}
-                file={coverImage}
-                currentUrl={form.coverImageUrl || item.coverImageUrl || (item.text && item.text.coverImageUrl) || ''}
-                onFileChange={setCoverImage}
-              />
-            ) : null}
-
             {formError ? <FormErrorBox error={formError} /> : null}
           </form>
 
-          <Card className="border-border bg-card shadow-sm shadow-black/5">
-            <CardFooter className="flex items-center justify-end gap-2 px-6 py-4">
-              <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
-                Cancel
-              </Button>
-              <Button type="submit" form="item-edit-form" disabled={isSaving} className="gap-2">
-                {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
-                {isSaving ? 'Saving…' : 'Save changes'}
-              </Button>
-            </CardFooter>
-          </Card>
+          <div className="sticky bottom-3 z-40 sm:bottom-4">
+            <Card className="overflow-hidden rounded-2xl border border-border/70 bg-background/90 shadow-[0_22px_70px_-32px_rgba(15,23,42,0.55)] backdrop-blur-xl">
+              <CardFooter className="flex flex-col-reverse gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <p className="text-xs text-muted-foreground">Your changes stay handy at the bottom while you scroll.</p>
+                <div className="flex items-center justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" form="item-edit-form" disabled={isSaving} className="gap-2">
+                    {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+                    {isSaving ? 'Saving…' : 'Save changes'}
+                  </Button>
+                </div>
+              </CardFooter>
+            </Card>
+          </div>
         </>
       )}
     </EmployeeEntityPage>

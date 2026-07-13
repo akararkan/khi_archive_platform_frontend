@@ -1900,13 +1900,14 @@ function EmployeeProjectDetailPage() {
     if (view === 'create') {
       const submitMode = submitModeRef.current
       const payload = buildTextPayload(textForm, projectCode)
+      const coverImageFile = textCoverImage
 
       startBackgroundCreateUpload({
         kind: 'text',
         file: textFile,
         payload,
         createRecord: (nextPayload, nextFile, uploadOptions) =>
-          createText(nextPayload, nextFile, textCoverImage, uploadOptions),
+          createText(nextPayload, nextFile, coverImageFile, uploadOptions),
         refreshRecords: loadTexts,
         getCode: (saved) => saved?.textCode,
         startTitle: 'Text upload started',
@@ -1942,12 +1943,13 @@ function EmployeeProjectDetailPage() {
     const uploadOptions = beginUploadProgress('text', textFile || textCoverImage)
     try {
       const payload = buildTextPayload(textForm, projectCode)
+      const coverImageFile = textCoverImage
       delete payload.projectCode
       const saved = await updateText(
         currentText.textCode,
         payload,
         textFile,
-        textCoverImage,
+        coverImageFile,
         uploadOptions,
       )
       toast.success('Text updated', `${saved.textCode} changes were saved.`)
@@ -2049,6 +2051,25 @@ function EmployeeProjectDetailPage() {
                 </div>
               </div>
             ) : null}
+
+            <Card className="overflow-hidden border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border bg-gradient-to-r from-amber-500/[0.06] via-card to-indigo-500/[0.05] pb-4">
+                <CardTitle className="text-base font-semibold">Book / Document Cover</CardTitle>
+                <CardDescription className="text-xs">
+                  Optional — add a cover for public cards and the opening section of the text page.
+                  The original document remains separate.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-5">
+                <TextCoverImagePicker
+                  id="textCoverImage"
+                  file={textCoverImage}
+                  currentCoverUrl={textForm.coverImageUrl || currentText?.coverImageUrl}
+                  onFileChange={setTextCoverImage}
+                  isEdit={isEdit}
+                />
+              </CardContent>
+            </Card>
 
             <Card className="border-border bg-card shadow-sm shadow-black/5">
               <CardHeader className="border-b border-border pb-4">
@@ -2353,25 +2374,6 @@ function EmployeeProjectDetailPage() {
                   isEdit={isEdit}
                   icon={FileText}
                   isAcceptedFile={(f) => Boolean(TEXT_FILE_PATTERN.test(f.name) || (f.type && (f.type.startsWith('text/') || f.type === 'application/pdf' || f.type.includes('word') || f.type.includes('opendocument'))))}
-                />
-              </CardContent>
-            </Card>
-
-            <Card className="overflow-hidden border-border bg-card shadow-sm shadow-black/5">
-              <CardHeader className="border-b border-border bg-gradient-to-r from-amber-500/[0.06] via-card to-indigo-500/[0.05] pb-4">
-                <CardTitle className="text-base font-semibold">Book / Document Cover</CardTitle>
-                <CardDescription className="text-xs">
-                  Optional — add a cover for public cards and the opening section of the text page.
-                  The original document remains separate.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-5">
-                <TextCoverImagePicker
-                  id="textCoverImage"
-                  file={textCoverImage}
-                  currentCoverUrl={textForm.coverImageUrl || currentText?.coverImageUrl}
-                  onFileChange={setTextCoverImage}
-                  isEdit={isEdit}
                 />
               </CardContent>
             </Card>
