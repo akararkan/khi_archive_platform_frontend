@@ -1,7 +1,16 @@
 import React from 'react'
 
-import { DETAIL } from '@/components/khi/khi-data'
-import { IconLayers } from '@/components/khi/icons'
+import {
+  IconAudio,
+  IconBook,
+  IconImage,
+  IconLanguage,
+  IconLayers,
+  IconMic,
+  IconTag,
+  IconText,
+  IconVideo,
+} from '@/components/khi/icons'
 
 const EMPTY_VALUE = '—'
 
@@ -188,6 +197,127 @@ const PUBLIC_MEDIA_FIELDS = {
   ],
 }
 
+const FIELD_GROUPS = {
+  image: [
+    {
+      title: 'Titles (ناونیشان)',
+      icon: IconText,
+      fields: ['originalTitle', 'titleInCentralKurdish', 'romanizedTitle'],
+    },
+    {
+      title: 'Subject & Form (بابەت و فۆڕم)',
+      icon: IconImage,
+      fields: ['subject', 'form', 'genre', 'event', 'location', 'personShownInImage', 'colorOfImage', 'whereThisImageUsed'],
+    },
+    {
+      title: 'Credits (بەشداربووان)',
+      icon: IconMic,
+      fields: ['creatorArtistPhotographer', 'contributor', 'audience'],
+    },
+    {
+      title: 'Story & Provenance (چیرۆک و سەرچاوە)',
+      icon: IconLayers,
+      fields: ['provenance', 'photostory'],
+    },
+    {
+      title: 'Rights & Ownership (ماف و خاوەندارێتی)',
+      icon: IconTag,
+      fields: ['copyright', 'rightOwner', 'usageRights', 'owner', 'publisher'],
+    },
+  ],
+  audio: [
+    {
+      title: 'Titles (ناونیشان)',
+      icon: IconText,
+      fields: ['originTitle', 'centralKurdishTitle', 'romanizedTitle'],
+    },
+    {
+      title: 'Music & Form (مۆسیقا و فۆڕم)',
+      icon: IconAudio,
+      fields: ['form', 'typeOfBasta', 'typeOfMaqam', 'genre', 'typeOfComposition', 'typeOfPerformance'],
+    },
+    {
+      title: 'Content (ناوەڕۆک)',
+      icon: IconText,
+      fields: ['abstractText', 'lyrics'],
+    },
+    {
+      title: 'Credits (بەشداربووان)',
+      icon: IconMic,
+      fields: ['speaker', 'producer', 'composer', 'contributors', 'poet', 'audience'],
+    },
+    {
+      title: 'Language & Place (زمان و شوێن)',
+      icon: IconLanguage,
+      fields: ['language', 'dialect', 'recordingVenue', 'city', 'region'],
+    },
+    {
+      title: 'Rights & Ownership (ماف و خاوەندارێتی)',
+      icon: IconTag,
+      fields: ['provenance', 'copyright', 'rightOwner', 'usageRights', 'owner', 'publisher'],
+    },
+  ],
+  video: [
+    {
+      title: 'Titles (ناونیشان)',
+      icon: IconText,
+      fields: ['originalTitle', 'alternativeTitle', 'titleInCentralKurdish', 'romanizedTitle'],
+    },
+    {
+      title: 'Subject & Form (بابەت و فۆڕم)',
+      icon: IconVideo,
+      fields: ['subject', 'genre', 'event', 'location', 'personShownInVideo', 'colorOfVideo', 'whereThisVideoUsed'],
+    },
+    {
+      title: 'Language (زمان)',
+      icon: IconLanguage,
+      fields: ['language', 'dialect', 'subtitle'],
+    },
+    {
+      title: 'Credits (بەشداربووان)',
+      icon: IconMic,
+      fields: ['creatorArtistDirector', 'producer', 'contributor', 'audience'],
+    },
+    {
+      title: 'Rights & Ownership (ماف و خاوەندارێتی)',
+      icon: IconTag,
+      fields: ['copyright', 'rightOwner', 'usageRights', 'owner', 'publisher'],
+    },
+  ],
+  text: [
+    {
+      title: 'Titles (ناونیشان)',
+      icon: IconText,
+      fields: ['originalTitle', 'titleInCentralKurdish', 'romanizedTitle'],
+    },
+    {
+      title: 'Document (بەڵگەنامە)',
+      icon: IconBook,
+      fields: ['subject', 'genre', 'documentType', 'script', 'isbn', 'assignmentNumber', 'edition', 'volume', 'series'],
+    },
+    {
+      title: 'Content (ناوەڕۆک)',
+      icon: IconText,
+      fields: ['transcription'],
+    },
+    {
+      title: 'Language (زمان)',
+      icon: IconLanguage,
+      fields: ['language', 'dialect'],
+    },
+    {
+      title: 'Credits (بەشداربووان)',
+      icon: IconMic,
+      fields: ['author', 'contributors', 'printingHouse', 'audience'],
+    },
+    {
+      title: 'Rights & Ownership (ماف و خاوەندارێتی)',
+      icon: IconTag,
+      fields: ['provenance', 'copyright', 'rightOwner', 'usageRights', 'owner', 'publisher'],
+    },
+  ],
+}
+
 const FIELD_ALIASES = {
   centralKurdishTitle: ['centralKurdishTitle', 'titleInCentralKurdish'],
   contributor: ['contributor', 'contributors'],
@@ -272,25 +402,33 @@ function PublicFieldValue({ value }) {
 }
 
 function KhiPublicMediaFields({ kind, item }) {
-  const fields = (PUBLIC_MEDIA_FIELDS[kind] || []).filter((field) => !SHOWN_IN_HERO_FIELDS.has(field))
-  if (!fields.length) return null
+  const groups = FIELD_GROUPS[kind] || []
+  if (!groups.length) return null
 
   return (
-    <div className="meta-panel media-full-fields">
-      <p className="meta-panel-title">
-        <IconLayers width="16" height="16" />
-        <span dir="ltr">Fields</span>
-        <span>({DETAIL.details})</span>
-      </p>
-      <dl className="meta-rows">
-        {fields.map((field) => (
-          <div className={`meta-row full-field-row${LONG_FIELDS.has(field) ? ' is-long' : ''}`} key={field}>
-            <dt><BilingualFieldLabel field={field} /></dt>
-            <dd><PublicFieldValue value={valueFrom(item, field)} /></dd>
+    <>
+      {groups.map((group) => {
+        const fields = group.fields.filter((field) => !SHOWN_IN_HERO_FIELDS.has(field))
+        if (!fields.length) return null
+        const Icon = group.icon || IconLayers
+        return (
+          <div className="meta-panel media-field-group" key={group.title}>
+            <p className="meta-panel-title">
+              <Icon width="16" height="16" />
+              <span>{group.title}</span>
+            </p>
+            <dl className="meta-rows">
+              {fields.map((field) => (
+                <div className={`meta-row full-field-row${LONG_FIELDS.has(field) ? ' is-long' : ''}`} key={field}>
+                  <dt><BilingualFieldLabel field={field} /></dt>
+                  <dd><PublicFieldValue value={valueFrom(item, field)} /></dd>
+                </div>
+              ))}
+            </dl>
           </div>
-        ))}
-      </dl>
-    </div>
+        )
+      })}
+    </>
   )
 }
 
