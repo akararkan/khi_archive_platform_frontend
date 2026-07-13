@@ -876,28 +876,23 @@
 .khi-root .detail-hero.kind-video .hero-grid,
 .khi-root .detail-hero.kind-text .hero-grid{grid-template-columns:1fr .86fr}
 .khi-root .detail-hero.kind-text .media-asset-area{
-  min-height:min(520px,62vh);
-  padding:18px;
+  min-height:320px;
+  padding:0;
+  align-self:center;
 }
 .khi-root .detail-hero.kind-text .media-asset-area.has-image::before{
-  content:"";
-  position:absolute;
-  z-index:-1;
-  width:min(420px,72%);
-  height:min(520px,76%);
-  border:1px solid rgba(44,84,72,.12);
-  border-radius:24px;
-  background:#eef6ef;
-  transform:translate(18px,18px) rotate(-2deg);
-  box-shadow:0 28px 70px -48px rgba(31,58,49,.55);
+  display:none;
 }
 .khi-root .detail-hero.kind-text .media-asset-image{
-  max-width:min(520px,88vw);
-  max-height:min(540px,68vh);
-  border:1px solid rgba(31,58,49,.14);
-  border-radius:22px;
-  background:#fff;
-  box-shadow:0 34px 82px -46px rgba(31,58,49,.64),0 1px 0 rgba(255,255,255,.92);
+  width:min(440px,82vw);
+  height:300px;
+  max-width:none;
+  max-height:none;
+  object-fit:contain;
+  border:0;
+  border-radius:14px;
+  background:transparent;
+  box-shadow:none;
 }
 .khi-root .detail-hero.kind-audio .media-asset-empty,
 .khi-root .detail-hero.kind-video .media-asset-empty,
