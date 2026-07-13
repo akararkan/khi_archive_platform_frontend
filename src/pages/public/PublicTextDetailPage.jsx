@@ -7,7 +7,7 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import {
-  formatPublicDate, mediaThumbHref, pickMediaTitle, extractPersonFromItem,
+  formatPublicDate, pickMediaTitle, extractPersonFromItem,
 } from '@/components/public/public-helpers'
 import { DETAIL, yearNum } from '@/components/khi/khi-data'
 import KhiMediaDetail from '@/components/khi/KhiMediaDetail'
@@ -356,7 +356,7 @@ function PublicTextDetailPage() {
           title={title}
           subtitle={original}
           description={text.description || text.summary}
-          image={mediaThumbHref(text)}
+          image={text.coverImageUrl || null}
           tags={toList(text.tags)}
           breadcrumbItems={[
             { to: '/public', label: DETAIL.home },

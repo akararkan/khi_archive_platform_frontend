@@ -55,14 +55,16 @@ function TextCoverImagePicker({
   id = 'text-cover-image',
   file,
   currentUrl,
+  currentCoverUrl,
   onFileChange,
   disabled = false,
   className,
 }) {
   const inputRef = useRef(null)
+  const savedCoverUrl = currentUrl || currentCoverUrl || ''
   const previewUrl = useMemo(
-    () => (file ? URL.createObjectURL(file) : currentUrl || ''),
-    [currentUrl, file],
+    () => (file ? URL.createObjectURL(file) : savedCoverUrl),
+    [savedCoverUrl, file],
   )
 
   useEffect(() => {
@@ -107,7 +109,7 @@ function TextCoverImagePicker({
             <p className="text-sm font-semibold text-foreground">
               {file
                 ? 'A new cover is ready to upload'
-                : currentUrl
+                : savedCoverUrl
                   ? 'The saved cover will be kept'
                   : 'Add a cover to make this record easier to recognise'}
             </p>
@@ -145,7 +147,7 @@ function TextCoverImagePicker({
                 disabled={disabled}
               >
                 <RotateCcw className="size-4" />
-                {currentUrl ? 'Keep current cover' : 'Clear selection'}
+                {savedCoverUrl ? 'Keep current cover' : 'Clear selection'}
               </Button>
             ) : null}
           </div>

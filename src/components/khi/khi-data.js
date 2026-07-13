@@ -552,8 +552,9 @@ export function cardFromItem(item, typeKey) {
     decade: yearOf(item),
     dateLabel: dateLabelOf(item),
     duration: durationOf(item),
-    // Per-type rows use imageFileUrl; tolerate normalized rows with `fileUrl`.
-    image: kind === 'image' ? (mediaThumbHref(item) || item.fileUrl || null) : null,
+    // Per-type image rows use imageFileUrl. Text rows must only use the
+    // separate book/document cover, never textFileUrl/fileUrl.
+    image: kind === 'image' ? (mediaThumbHref(item) || item.fileUrl || null) : kind === 'text' ? item.coverImageUrl || null : null,
     tags: tagsOf(item),
     matchedOn: Array.isArray(item.matchedOn) ? item.matchedOn : null,
     ...trend,

@@ -81,7 +81,11 @@ export default function KhiMediaPreview({ record }) {
     )
   }
 
-  // text / manuscript — a tasteful aged-page sheet
+  if (kind === 'text' && image) {
+    return naturalImage
+  }
+
+  // text / manuscript — a tasteful aged-page sheet fallback
   return (
     <div className="m-text">
       <div className="page">

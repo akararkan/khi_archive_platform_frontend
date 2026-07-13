@@ -3358,7 +3358,7 @@ function EmployeeProjectDetailPage() {
                     audio.originTitle ||
                     audio.alterTitle ||
                     audio.romanizedTitle ||
-                    audio.fullName ||
+                    audio.fileName ||
                     audio.audioCode
                   return (
                     <TableRow
