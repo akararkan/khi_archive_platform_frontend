@@ -21,7 +21,7 @@ function Waveform() {
 // tasteful generated art. All variants fill the same cover, so cards stay
 // uniform.
 export default function KhiMediaPreview({ record }) {
-  const { kind, duration, image, title } = record
+  const { kind, duration, image, title, videoSrc } = record
   const naturalImage = image ? (
     <div className="natural-cover">
       <img className="cover-backdrop" src={image} alt="" aria-hidden="true" loading="lazy" />
@@ -32,6 +32,21 @@ export default function KhiMediaPreview({ record }) {
     <div className="natural-cover video-cover">
       <img className="cover-backdrop" src={image} alt="" aria-hidden="true" loading="lazy" />
       <img className="cover-img" src={image} alt={title || ''} loading="lazy" />
+      <span className="vig" aria-hidden="true" />
+      {duration ? <span className="duration">{duration}</span> : null}
+      <span className="play ring" aria-hidden="true"><IconPlay /></span>
+    </div>
+  ) : null
+  const videoFramePreview = videoSrc ? (
+    <div className="natural-cover video-cover video-frame-cover">
+      <video
+        className="cover-img"
+        src={`${videoSrc}#t=0.1`}
+        preload="metadata"
+        muted
+        playsInline
+        aria-label={title || ''}
+      />
       <span className="vig" aria-hidden="true" />
       {duration ? <span className="duration">{duration}</span> : null}
       <span className="play ring" aria-hidden="true"><IconPlay /></span>
@@ -52,6 +67,7 @@ export default function KhiMediaPreview({ record }) {
 
   if (kind === 'video') {
     if (videoThumbnail) return videoThumbnail
+    if (videoFramePreview) return videoFramePreview
 
     return (
       <div className="m-video">
