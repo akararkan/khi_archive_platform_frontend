@@ -1049,6 +1049,16 @@
 .khi-root .meta-row{display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;align-items:start}
 .khi-root .meta-row dt{color:var(--muted);font-size:12.5px;font-weight:700;padding-top:2px}
 .khi-root .meta-row dd{margin:0;color:var(--ink);font-size:14.5px;min-width:0;word-break:break-word}
+.khi-root .media-full-fields{grid-column:1/-1}
+.khi-root .media-full-fields .meta-row{grid-template-columns:minmax(190px,.44fr) minmax(0,1fr);gap:16px}
+.khi-root .full-field-label{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 6px;line-height:1.45}
+.khi-root .full-field-label-en{font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:800;color:var(--pine);direction:ltr;word-break:break-word}
+.khi-root .full-field-label-ku{font-size:12px;color:var(--muted)}
+.khi-root .full-field-empty{color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.khi-root .full-field-text{white-space:pre-line;line-height:1.8}
+.khi-root .full-field-pills{display:flex;flex-wrap:wrap;gap:7px}
+.khi-root .full-field-pill{display:inline-flex;align-items:center;max-width:100%;border:1px solid var(--line);border-radius:999px;background:var(--paper-3);padding:5px 10px;font-size:12.5px;font-weight:700;color:var(--ink-soft);word-break:break-word}
+@media(max-width:720px){.khi-root .media-full-fields .meta-row{grid-template-columns:1fr;gap:5px}.khi-root .full-field-label-en{font-size:11px}}
 .khi-root .meta-link{color:var(--pine);font-weight:600;text-decoration:underline;text-decoration-color:rgba(44,84,72,.3);text-underline-offset:3px}
 .khi-root .meta-link:hover{text-decoration-color:var(--pine)}
 .khi-root .meta-pills{display:flex;flex-wrap:wrap;gap:7px}

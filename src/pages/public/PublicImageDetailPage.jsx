@@ -3,13 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import {
-  formatPublicDate, pickMediaTitle, extractPersonFromItem,
+  pickMediaTitle, extractPersonFromItem,
 } from '@/components/public/public-helpers'
 import { DETAIL, yearNum } from '@/components/khi/khi-data'
 import KhiMediaDetail from '@/components/khi/KhiMediaDetail'
+import { KhiPublicMediaFields } from '@/components/khi/KhiPublicMediaFields'
 import {
-  KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaPanelIf, KhiMetaRow,
-  KhiPillRow, KhiSearchValue, KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
+  KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaRow,
+  KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
 } from '@/components/khi/KhiDetail'
 import {
   IconPerson, IconProject, IconCalendar, IconRegion, IconImage, IconLayers,
@@ -107,27 +108,8 @@ function PublicImageDetailPage() {
         <KhiMetaRow label={DETAIL.project} value={projectCode}><KhiProjectLink project={image.project || { projectCode: image.projectCode, projectName: image.projectName }} /></KhiMetaRow>
         <KhiMetaRow label={DETAIL.person} value={person?.personCode}><KhiPersonLink person={person} fallbackName={person?.name} /></KhiMetaRow>
         <KhiMetaRow label={DETAIL.categories} value={image.categories}><KhiCategoryLinks categories={image.categories} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.subject} value={image.subject || image.subjects}><KhiPillRow values={image.subject || image.subjects} search /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.audience} value={image.audience}><KhiSearchValue value={image.audience} /></KhiMetaRow>
       </KhiMetaPanel>
-
-      <KhiMetaPanelIf obj={image} icon={IconImage} title={DETAIL.subjectForm} keys={['form', 'event', 'location', 'genre', 'personShownInImage']}>
-        <KhiMetaRow label={DETAIL.form} value={image.form}><KhiSearchValue value={image.form} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.event} value={image.event}><KhiSearchValue value={image.event} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.location} value={image.location}><KhiSearchValue value={image.location} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.genre} value={image.genre}><KhiPillRow values={image.genre} search /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.peopleShown} value={image.personShownInImage}><KhiSearchValue value={image.personShownInImage} /></KhiMetaRow>
-      </KhiMetaPanelIf>
-
-      <KhiMetaPanelIf obj={image} icon={IconMic} title={DETAIL.credits} keys={['creatorArtistPhotographer', 'contributors', 'contributor']}>
-        <KhiMetaRow label={DETAIL.photographer} value={image.creatorArtistPhotographer}><KhiSearchValue value={image.creatorArtistPhotographer} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.contributors} value={image.contributors || image.contributor}><KhiPillRow values={image.contributors || image.contributor} search /></KhiMetaRow>
-      </KhiMetaPanelIf>
-
-      <KhiMetaPanelIf obj={image} icon={IconCalendar} title={DETAIL.dates} keys={['imageDate', 'recordedAt', 'publisher']}>
-        <KhiMetaRow label={DETAIL.date}>{formatPublicDate(image.imageDate || image.recordedAt)}</KhiMetaRow>
-        <KhiMetaRow label={DETAIL.publisher} value={image.publisher}><KhiSearchValue value={image.publisher} /></KhiMetaRow>
-      </KhiMetaPanelIf>
+      <KhiPublicMediaFields kind="image" item={image} />
     </>
   )
 

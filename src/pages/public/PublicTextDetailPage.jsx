@@ -7,13 +7,14 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import {
-  formatPublicDate, pickMediaTitle, extractPersonFromItem,
+  pickMediaTitle, extractPersonFromItem,
 } from '@/components/public/public-helpers'
 import { DETAIL, yearNum } from '@/components/khi/khi-data'
 import KhiMediaDetail from '@/components/khi/KhiMediaDetail'
+import { KhiPublicMediaFields } from '@/components/khi/KhiPublicMediaFields'
 import {
-  KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaPanelIf, KhiMetaRow,
-  KhiPillRow, KhiSearchValue, KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
+  KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaRow,
+  KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
 } from '@/components/khi/KhiDetail'
 import {
   IconPerson, IconProject, IconBook, IconLanguage, IconCalendar, IconLayers,
@@ -316,34 +317,8 @@ function PublicTextDetailPage() {
         <KhiMetaRow label={DETAIL.project} value={projectCode}><KhiProjectLink project={text.project || { projectCode: text.projectCode, projectName: text.projectName }} /></KhiMetaRow>
         <KhiMetaRow label={DETAIL.person} value={person?.personCode}><KhiPersonLink person={person} fallbackName={person?.name} /></KhiMetaRow>
         <KhiMetaRow label={DETAIL.categories} value={text.categories}><KhiCategoryLinks categories={text.categories} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.subject} value={text.subject || text.subjects}><KhiPillRow values={text.subject || text.subjects} search /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.audience} value={text.audience}><KhiSearchValue value={text.audience} /></KhiMetaRow>
       </KhiMetaPanel>
-
-      <KhiMetaPanelIf obj={text} icon={IconBook} title={DETAIL.document} keys={['documentType', 'genre', 'script', 'series', 'publisher', 'printingHouse', 'isbn']}>
-        <KhiMetaRow label={DETAIL.documentType} value={text.documentType}><KhiSearchValue value={text.documentType} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.genre} value={text.genre}><KhiPillRow values={text.genre} search /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.script} value={text.script}><KhiSearchValue value={text.script} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.series} value={text.series}><KhiSearchValue value={text.series} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.publisher} value={text.publisher}><KhiSearchValue value={text.publisher} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.printingHouse} value={text.printingHouse}><KhiSearchValue value={text.printingHouse} /></KhiMetaRow>
-        <KhiMetaRow label="ISBN" value={text.isbn}>{text.isbn}</KhiMetaRow>
-      </KhiMetaPanelIf>
-
-      <KhiMetaPanelIf obj={text} icon={IconMic} title={DETAIL.credits} keys={['author', 'contributors', 'contributor']}>
-        <KhiMetaRow label={DETAIL.author} value={text.author}><KhiSearchValue value={text.author} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.contributors} value={text.contributors || text.contributor}><KhiPillRow values={text.contributors || text.contributor} search /></KhiMetaRow>
-      </KhiMetaPanelIf>
-
-      <KhiMetaPanelIf obj={text} icon={IconLanguage} title={DETAIL.langPlace} keys={['language', 'dialect']}>
-        <KhiMetaRow label={DETAIL.language} value={text.language}><KhiSearchValue value={text.language} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.dialect} value={text.dialect}><KhiSearchValue value={text.dialect} /></KhiMetaRow>
-      </KhiMetaPanelIf>
-
-      <KhiMetaPanelIf obj={text} icon={IconCalendar} title={DETAIL.dates} keys={['printDate', 'documentDate', 'dateCreated']}>
-        <KhiMetaRow label={DETAIL.date}>{formatPublicDate(text.documentDate || text.printDate)}</KhiMetaRow>
-        <KhiMetaRow label={DETAIL.recorded}>{formatPublicDate(text.dateCreated)}</KhiMetaRow>
-      </KhiMetaPanelIf>
+      <KhiPublicMediaFields kind="text" item={text} />
     </>
   )
 

@@ -4,17 +4,18 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { VideoPlayer } from '@/components/ui/video-player'
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import {
-  formatPublicDate, mediaThumbHref, pickMediaTitle, extractPersonFromItem,
+  mediaThumbHref, pickMediaTitle, extractPersonFromItem,
 } from '@/components/public/public-helpers'
 import { DETAIL, yearNum } from '@/components/khi/khi-data'
 import KhiMediaDetail from '@/components/khi/KhiMediaDetail'
+import { KhiPublicMediaFields } from '@/components/khi/KhiPublicMediaFields'
 import {
-  KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaPanelIf, KhiMetaRow,
-  KhiPillRow, KhiSearchValue, KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
+  KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaRow,
+  KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
 } from '@/components/khi/KhiDetail'
 import {
   IconPerson, IconProject, IconCalendar, IconLanguage, IconRegion, IconClock,
-  IconLayers, IconVideo, IconMic, IconText, IconPlus,
+  IconLayers, IconText, IconPlus,
 } from '@/components/khi/icons'
 import { guestVideos } from '@/services/guest'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
@@ -93,36 +94,8 @@ function PublicVideoDetailPage() {
         <KhiMetaRow label={DETAIL.project} value={projectCode}><KhiProjectLink project={video.project || { projectCode: video.projectCode, projectName: video.projectName }} /></KhiMetaRow>
         <KhiMetaRow label={DETAIL.person} value={person?.personCode}><KhiPersonLink person={person} fallbackName={person?.name} /></KhiMetaRow>
         <KhiMetaRow label={DETAIL.categories} value={video.categories}><KhiCategoryLinks categories={video.categories} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.subject} value={video.subject}><KhiPillRow values={video.subject} search /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.audience} value={video.audience}><KhiSearchValue value={video.audience} /></KhiMetaRow>
       </KhiMetaPanel>
-
-      <KhiMetaPanelIf obj={video} icon={IconVideo} title={DETAIL.subjectForm} keys={['event', 'location', 'genre', 'personShownInVideo', 'colorOfVideo', 'whereThisVideoUsed']}>
-        <KhiMetaRow label={DETAIL.event} value={video.event}><KhiSearchValue value={video.event} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.location} value={video.location}><KhiSearchValue value={video.location} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.genre} value={video.genre}><KhiPillRow values={video.genre} search /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.peopleShown} value={video.personShownInVideo}><KhiSearchValue value={video.personShownInVideo} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.color} value={video.colorOfVideo}><KhiPillRow values={video.colorOfVideo} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.usedIn} value={video.whereThisVideoUsed}><KhiPillRow values={video.whereThisVideoUsed} /></KhiMetaRow>
-      </KhiMetaPanelIf>
-
-      <KhiMetaPanelIf obj={video} icon={IconMic} title={DETAIL.credits} keys={['creatorArtistDirector', 'producer', 'contributors', 'contributor', 'subtitle']}>
-        <KhiMetaRow label={DETAIL.director} value={video.creatorArtistDirector}><KhiSearchValue value={video.creatorArtistDirector} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.producer} value={video.producer}><KhiSearchValue value={video.producer} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.contributors} value={video.contributors || video.contributor}><KhiPillRow values={video.contributors || video.contributor} search /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.subtitle} value={video.subtitle}><KhiSearchValue value={video.subtitle} /></KhiMetaRow>
-      </KhiMetaPanelIf>
-
-      <KhiMetaPanelIf obj={video} icon={IconLanguage} title={DETAIL.langPlace} keys={['language', 'dialect']}>
-        <KhiMetaRow label={DETAIL.language} value={video.language}><KhiSearchValue value={video.language} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.dialect} value={video.dialect}><KhiSearchValue value={video.dialect} /></KhiMetaRow>
-      </KhiMetaPanelIf>
-
-      <KhiMetaPanelIf obj={video} icon={IconCalendar} title={DETAIL.dates} keys={['recordedAt', 'recordingDate', 'dateCreated', 'publisher']}>
-        <KhiMetaRow label={DETAIL.recorded}>{formatPublicDate(video.recordedAt || video.recordingDate)}</KhiMetaRow>
-        <KhiMetaRow label={DETAIL.date}>{formatPublicDate(video.dateCreated)}</KhiMetaRow>
-        <KhiMetaRow label={DETAIL.publisher} value={video.publisher}><KhiSearchValue value={video.publisher} /></KhiMetaRow>
-      </KhiMetaPanelIf>
+      <KhiPublicMediaFields kind="video" item={video} />
     </>
   )
 

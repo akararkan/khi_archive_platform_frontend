@@ -4,17 +4,18 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { AudioPlayer } from '@/components/ui/audio-player'
 import { HelpUsDialog } from '@/components/public/HelpUsDialog'
 import {
-  formatPublicDate, mediaThumbHref, pickMediaTitle, extractPersonFromItem, personImageSrc,
+  mediaThumbHref, pickMediaTitle, extractPersonFromItem, personImageSrc,
 } from '@/components/public/public-helpers'
 import { DETAIL, yearNum } from '@/components/khi/khi-data'
 import KhiMediaDetail from '@/components/khi/KhiMediaDetail'
+import { KhiPublicMediaFields } from '@/components/khi/KhiPublicMediaFields'
 import {
-  KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaPanelIf, KhiMetaRow,
-  KhiPillRow, KhiSearchValue, KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
+  KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaRow,
+  KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
 } from '@/components/khi/KhiDetail'
 import {
   IconPerson, IconProject, IconCategory, IconAudio, IconLanguage, IconRegion,
-  IconCalendar, IconClock, IconLayers, IconMic, IconText, IconQuote, IconPlus,
+  IconCalendar, IconClock, IconLayers, IconText, IconQuote, IconPlus,
 } from '@/components/khi/icons'
 import { guestAudios } from '@/services/guest'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
@@ -99,40 +100,8 @@ function PublicAudioDetailPage() {
         <KhiMetaRow label={DETAIL.project} value={projectCode}><KhiProjectLink project={audio.project || { projectCode: audio.projectCode, projectName: audio.projectName }} /></KhiMetaRow>
         <KhiMetaRow label={DETAIL.person} value={person?.personCode}><KhiPersonLink person={person} fallbackName={person?.name} /></KhiMetaRow>
         <KhiMetaRow label={DETAIL.categories} value={audio.categories}><KhiCategoryLinks categories={audio.categories} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.subject} value={audio.subjects || audio.subject}><KhiPillRow values={audio.subjects || audio.subject} search /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.audience} value={audio.audience}><KhiSearchValue value={audio.audience} /></KhiMetaRow>
       </KhiMetaPanel>
-
-      <KhiMetaPanelIf obj={audio} icon={IconAudio} title={DETAIL.musicForm} keys={['form', 'typeOfMaqam', 'typeOfBasta', 'typeOfComposition', 'typeOfPerformance', 'poet', 'genre']}>
-        <KhiMetaRow label={DETAIL.form} value={audio.form}><KhiSearchValue value={audio.form} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.typeOfMaqam} value={audio.typeOfMaqam}><KhiSearchValue value={audio.typeOfMaqam} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.typeOfBasta} value={audio.typeOfBasta}><KhiSearchValue value={audio.typeOfBasta} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.typeOfComposition} value={audio.typeOfComposition}><KhiSearchValue value={audio.typeOfComposition} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.typeOfPerformance} value={audio.typeOfPerformance}><KhiSearchValue value={audio.typeOfPerformance} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.poet} value={audio.poet}><KhiSearchValue value={audio.poet} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.genre} value={audio.genre}><KhiPillRow values={audio.genre} search /></KhiMetaRow>
-      </KhiMetaPanelIf>
-
-      <KhiMetaPanelIf obj={audio} icon={IconMic} title={DETAIL.credits} keys={['singer', 'speaker', 'composer', 'producer', 'contributors', 'contributor']}>
-        <KhiMetaRow label={DETAIL.singer} value={audio.singer}><KhiSearchValue value={audio.singer} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.speaker} value={audio.speaker}><KhiSearchValue value={audio.speaker} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.composer} value={audio.composer}><KhiSearchValue value={audio.composer} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.producer} value={audio.producer}><KhiSearchValue value={audio.producer} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.contributors} value={audio.contributors || audio.contributor}><KhiPillRow values={audio.contributors || audio.contributor} search /></KhiMetaRow>
-      </KhiMetaPanelIf>
-
-      <KhiMetaPanelIf obj={audio} icon={IconRegion} title={DETAIL.langPlace} keys={['language', 'dialect', 'recordingVenue', 'city', 'region']}>
-        <KhiMetaRow label={DETAIL.language} value={audio.language}><KhiSearchValue value={audio.language} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.dialect} value={audio.dialect}><KhiSearchValue value={audio.dialect} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.location} value={audio.recordingVenue}><KhiSearchValue value={audio.recordingVenue} /></KhiMetaRow>
-        <KhiMetaRow label={DETAIL.region} value={audio.city || audio.region}><KhiSearchValue value={audio.city || audio.region} /></KhiMetaRow>
-      </KhiMetaPanelIf>
-
-      <KhiMetaPanelIf obj={audio} icon={IconCalendar} title={DETAIL.dates} keys={['recordedAt', 'recordingDate', 'dateCreated', 'publisher']}>
-        <KhiMetaRow label={DETAIL.recorded}>{formatPublicDate(audio.recordedAt || audio.recordingDate)}</KhiMetaRow>
-        <KhiMetaRow label={DETAIL.date}>{formatPublicDate(audio.dateCreated)}</KhiMetaRow>
-        <KhiMetaRow label={DETAIL.publisher} value={audio.publisher}><KhiSearchValue value={audio.publisher} /></KhiMetaRow>
-      </KhiMetaPanelIf>
+      <KhiPublicMediaFields kind="audio" item={audio} />
     </>
   )
 
