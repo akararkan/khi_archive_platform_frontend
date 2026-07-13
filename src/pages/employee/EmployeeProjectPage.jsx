@@ -220,16 +220,15 @@ function ProjectCategoryChips({ project, query }) {
 
 function ProjectCountChips({ project }) {
   const counts = projectMediaCounts(project)
-  if (counts.length === 0) return <span className="text-sm text-muted-foreground">0 media</span>
+  const total = counts.reduce((sum, count) => sum + count.value, 0)
   return (
-    <div className="flex flex-wrap gap-1">
-      {counts.map((count) => (
-        <span key={count.key} className="inline-flex items-center rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium text-foreground/80">
-          <span className="font-mono text-[10px] text-muted-foreground">{count.value}</span>
-          {count.label}
-        </span>
-      ))}
-    </div>
+    <span className={cn(
+      'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium',
+      total > 0 ? 'bg-background text-foreground/80' : 'bg-muted/30 text-muted-foreground',
+    )}>
+      <span className="font-mono text-[11px] font-semibold tabular-nums">{total}</span>
+      media
+    </span>
   )
 }
 
@@ -1097,9 +1096,9 @@ function EmployeeProjectPage() {
                 <TableHead className="w-[320px]">Project</TableHead>
                 <TableHead className="w-[200px]">Person</TableHead>
                 <TableHead className="w-[260px]">Categories</TableHead>
-                <TableHead className="w-[240px]">Media</TableHead>
+                <TableHead className="w-[130px]">Media</TableHead>
                 <TableHead className="w-[130px]">Visibility</TableHead>
-                <TableHead className="w-[200px] text-right">Actions</TableHead>
+                <TableHead className="w-[190px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1169,48 +1168,53 @@ function EmployeeProjectPage() {
                           }
                         />
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-7 gap-1 px-2 text-xs"
-                            onClick={() => navigate(`${sectionBase}/project/${project.projectCode}`)}
-                          >
-                            <Eye className="size-3.5" />
-                            Open
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            className="text-muted-foreground hover:text-foreground"
-                            onClick={() => setDetailsTarget(project)}
-                            title="Quick details"
-                          >
-                            <FolderOpen className="size-3.5" />
-                            <span className="sr-only">Details</span>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            className="text-muted-foreground hover:text-foreground"
-                            onClick={() => handleOpenEdit(project)}
-                            title="Edit project"
-                          >
-                            <Pencil className="size-3.5" />
-                            <span className="sr-only">Edit</span>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => setDeleteTarget(project)}
-                            title="Send to trash"
-                          >
-                            <Trash2 className="size-3.5" />
-                            <span className="sr-only">Send to trash</span>
-                          </Button>
+                      <TableCell className="text-right align-middle">
+                        <div className="flex flex-col items-end gap-1.5">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1.5 px-2.5 text-xs font-semibold"
+                              onClick={() => navigate(`${sectionBase}/project/${project.projectCode}`)}
+                            >
+                              <Eye className="size-3.5" />
+                              Open
+                            </Button>
+                            <span className="admin-print-record-target inline-flex" data-admin-print-target />
+                          </div>
+                          <div className="flex items-center justify-end gap-0.5 rounded-full border border-border/70 bg-muted/30 px-1 py-0.5">
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              className="text-muted-foreground hover:bg-background hover:text-foreground"
+                              onClick={() => setDetailsTarget(project)}
+                              title="Quick details"
+                            >
+                              <FolderOpen className="size-3.5" />
+                              <span className="sr-only">Details</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              className="text-muted-foreground hover:bg-background hover:text-foreground"
+                              onClick={() => handleOpenEdit(project)}
+                              title="Edit project"
+                            >
+                              <Pencil className="size-3.5" />
+                              <span className="sr-only">Edit</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              className="text-destructive/70 hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => setDeleteTarget(project)}
+                              title="Send to trash"
+                            >
+                              <Trash2 className="size-3.5" />
+                              <span className="sr-only">Send to trash</span>
+                            </Button>
+                          </div>
                         </div>
                       </TableCell>
                     </TableRow>

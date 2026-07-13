@@ -111,7 +111,6 @@ export default function KhiCard({ record, index = 0, query = '' }) {
         ) : null}
 
         <div className="card-foot">
-          <span className={`kind-mini kind-${kind}`}>{kindLabel}</span>
           <CountChips counts={counts} />
           <span className="card-open">{UI.showMore}</span>
         </div>

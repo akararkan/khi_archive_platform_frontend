@@ -15,6 +15,14 @@ const PAPER_FORMATS = [
 
 const PAPER_SIZE_STORAGE_KEY = 'khi-admin-print-paper-format'
 
+function getInitialPaperFormat() {
+  if (typeof window === 'undefined') return 'A4 landscape'
+  const stored = window.localStorage.getItem(PAPER_SIZE_STORAGE_KEY)
+  return stored && PAPER_FORMATS.some((format) => format.value === stored)
+    ? stored
+    : 'A4 landscape'
+}
+
 const PRINTABLE_ADMIN_PATHS = [
   '/admin/category',
   '/admin/person',
@@ -571,14 +579,7 @@ function AdminPrintManager({ children }) {
   const location = useLocation()
   const surfaceRef = useRef(null)
   const printable = isPrintablePath(location.pathname)
-  const [paperFormat, setPaperFormat] = useState('A4 landscape')
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(PAPER_SIZE_STORAGE_KEY)
-    if (stored && PAPER_FORMATS.some((format) => format.value === stored)) {
-      setPaperFormat(stored)
-    }
-  }, [])
+  const [paperFormat, setPaperFormat] = useState(getInitialPaperFormat)
 
   useEffect(() => {
     window.localStorage.setItem(PAPER_SIZE_STORAGE_KEY, paperFormat)
@@ -622,6 +623,7 @@ function AdminPrintManager({ children }) {
         }
 
         const hostCell = row.cells[row.cells.length - 1]
+        const host = hostCell.querySelector('[data-admin-print-target]') || hostCell
         const button = document.createElement('button')
         button.type = 'button'
         button.dataset.adminPrintRecord = 'true'
@@ -651,7 +653,7 @@ function AdminPrintManager({ children }) {
         }
 
         button.addEventListener('click', onClick)
-        hostCell.append(button)
+        host.append(button)
         cleanups.set(row, () => {
           button.removeEventListener('click', onClick)
           button.remove()
@@ -668,7 +670,7 @@ function AdminPrintManager({ children }) {
       cleanups.forEach((cleanup) => cleanup())
       cleanups.clear()
     }
-  }, [location.pathname, printable])
+  }, [location.pathname, paperFormat, printable])
 
   return (
     <>

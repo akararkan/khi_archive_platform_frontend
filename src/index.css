@@ -465,6 +465,10 @@
   box-shadow: 0 8px 18px -12px #173d30;
 }
 
+.admin-print-record-target .admin-print-record-button {
+  margin-inline-start: 0;
+}
+
 .admin-print-record-icon {
   display: grid;
   width: 1.45rem;
