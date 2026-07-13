@@ -5,6 +5,18 @@ import { IconLayers } from '@/components/khi/icons'
 
 const EMPTY_VALUE = '—'
 
+const LONG_FIELDS = new Set([
+  'abstractText',
+  'copyright',
+  'lyrics',
+  'photostory',
+  'provenance',
+  'transcription',
+  'usageRights',
+])
+
+const SHOWN_IN_HERO_FIELDS = new Set(['description'])
+
 const FIELD_LABELS_KU = {
   abstractText: 'کورتەی دەق',
   alternativeTitle: 'ناونیشانی جێگرەوە',
@@ -260,19 +272,19 @@ function PublicFieldValue({ value }) {
 }
 
 function KhiPublicMediaFields({ kind, item }) {
-  const fields = PUBLIC_MEDIA_FIELDS[kind] || []
+  const fields = (PUBLIC_MEDIA_FIELDS[kind] || []).filter((field) => !SHOWN_IN_HERO_FIELDS.has(field))
   if (!fields.length) return null
 
   return (
     <div className="meta-panel media-full-fields">
       <p className="meta-panel-title">
         <IconLayers width="16" height="16" />
-        <span dir="ltr">All fields</span>
+        <span dir="ltr">Fields</span>
         <span>({DETAIL.details})</span>
       </p>
       <dl className="meta-rows">
         {fields.map((field) => (
-          <div className="meta-row full-field-row" key={field}>
+          <div className={`meta-row full-field-row${LONG_FIELDS.has(field) ? ' is-long' : ''}`} key={field}>
             <dt><BilingualFieldLabel field={field} /></dt>
             <dd><PublicFieldValue value={valueFrom(item, field)} /></dd>
           </div>
