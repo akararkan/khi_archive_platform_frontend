@@ -22,6 +22,7 @@ export default function KhiHeader() {
   const accountArea = isAuthed ? getAccountArea(profile?.role) : 'guest'
   const dashboardPath = isAuthed && profile ? getAccountHomePath(profile) : null
   const showDashboard = dashboardPath && ['admin', 'employee', 'teacher'].includes(accountArea)
+  const showGuestAccount = isAuthed && profile && accountArea === 'guest'
   const accountName = profile?.name || profile?.username || UI.profile
   const accountUsername = profile?.username
   const accountImage = profile?.profileImageSource || resolveProfileImageSource(profile)
@@ -113,24 +114,37 @@ export default function KhiHeader() {
               {showDashboard && (
                 <Link className="btn btn-ghost" to={dashboardPath}><IconDashboard /><span>{UI.dashboard}</span></Link>
               )}
-              <button
-                ref={profileButtonRef}
-                type="button"
-                className="account-identity"
-                aria-haspopup="dialog"
-                aria-expanded={profileOpen}
-                onClick={toggleProfileMenu}
-              >
-                <span className="account-avatar">
-                  {accountImage ? <img src={accountImage} alt="" /> : accountInitial}
-                </span>
-                <span className="account-copy">
-                  <strong>{accountName}</strong>
-                  <small>{accountUsername ? `@${accountUsername}` : UI.profile}</small>
-                </span>
-                <IconChevron className={`account-identity-chevron${profileOpen ? ' open' : ''}`} />
-              </button>
-              {profileOpen ? (
+              {showGuestAccount ? (
+                <Link className="account-identity" to="/account">
+                  <span className="account-avatar">
+                    {accountImage ? <img src={accountImage} alt="" /> : accountInitial}
+                  </span>
+                  <span className="account-copy">
+                    <strong>{accountName}</strong>
+                    <small>{accountUsername ? `@${accountUsername}` : UI.profile}</small>
+                  </span>
+                  <IconPerson className="account-identity-chevron" />
+                </Link>
+              ) : (
+                <button
+                  ref={profileButtonRef}
+                  type="button"
+                  className="account-identity"
+                  aria-haspopup="dialog"
+                  aria-expanded={profileOpen}
+                  onClick={toggleProfileMenu}
+                >
+                  <span className="account-avatar">
+                    {accountImage ? <img src={accountImage} alt="" /> : accountInitial}
+                  </span>
+                  <span className="account-copy">
+                    <strong>{accountName}</strong>
+                    <small>{accountUsername ? `@${accountUsername}` : UI.profile}</small>
+                  </span>
+                  <IconChevron className={`account-identity-chevron${profileOpen ? ' open' : ''}`} />
+                </button>
+              )}
+              {profileOpen && !showGuestAccount ? (
                 <div ref={profileMenuRef} className="account-dropdown" role="dialog" aria-label="Account menu">
                   <div className="account-dropdown-hero">
                     <div className="account-avatar account-dropdown-avatar">

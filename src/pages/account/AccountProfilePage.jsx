@@ -5,10 +5,10 @@ import {
   CheckCircle2,
   KeyRound,
   Library,
+  LogOut,
   Loader2,
   Mail,
   Save,
-  ShieldCheck,
   Trash2,
   Upload,
   User,
@@ -294,31 +294,26 @@ function AccountProfilePage() {
     passwordForm.newPassword === passwordForm.confirmPassword
 
   return (
-    // GUESTs get the warm "Living Archive" heritage skin (see .khi-guest-skin
-    // in index.css) instead of the internal-dashboard palette — this is their
-    // only home, and it should feel like the public surface they arrived from.
-    <div className={cn('min-h-dvh bg-background', isGuest && 'khi-guest-skin')}>
-      {/* slim top chrome — the account page is its own surface, not nested in a
-          role workspace, so it brings a minimal brand bar + global actions. */}
-      <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
-          <KhiLogo className="size-10 shadow-sm" priority />
+    <div className="min-h-dvh bg-[linear-gradient(180deg,var(--background),color-mix(in_oklab,var(--muted)_48%,var(--background)))]">
+      <header className="sticky top-0 z-20 border-b border-border/70 bg-background/85 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-3 sm:px-6">
+          <KhiLogo className="size-11 shadow-sm" priority />
           <div className="min-w-0 flex-1">
             <p className="font-heading text-sm font-semibold tracking-tight text-foreground">KHI Archive</p>
-            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">My account</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Guest profile</p>
           </div>
           <Link to="/public" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-2')}>
             <Library className="size-4" />
             <span className="hidden sm:inline">Browse the archive</span>
           </Link>
           <Button variant="ghost" size="sm" className="gap-2" onClick={handleSignOut}>
-            <ShieldCheck className="size-4" />
+            <LogOut className="size-4" />
             <span className="hidden sm:inline">Sign out</span>
           </Button>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         {isLoading ? (
           <div className="space-y-6">
             <Card className="border-border bg-card shadow-sm shadow-black/5">
@@ -349,7 +344,7 @@ function AccountProfilePage() {
             <CardContent className="space-y-4 px-6 py-8">
               <FormErrorBox error={loadError} />
               <Button type="button" variant="outline" className="gap-2" onClick={handleSignOut}>
-                <ShieldCheck className="size-4" />
+                <LogOut className="size-4" />
                 Sign in again
               </Button>
             </CardContent>
@@ -358,17 +353,93 @@ function AccountProfilePage() {
           <div className="space-y-6">
             <GuestActivationBanner role={role} />
 
-            {/* hero */}
-            <Card className="relative overflow-hidden border-border bg-card shadow-sm shadow-black/5">
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-primary/5 to-transparent" />
+            <Card className="relative overflow-hidden border-0 bg-[linear-gradient(135deg,#0f2f26,#1f5b47_58%,#10241d)] text-primary-foreground shadow-2xl shadow-primary/20">
               <CardContent className="relative p-6 sm:p-8">
-                <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                  <div className="relative shrink-0">
-                    <div className="flex size-24 items-center justify-center overflow-hidden rounded-2xl border-4 border-background bg-muted font-heading text-3xl font-semibold text-foreground shadow-md">
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+                  <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                    <div className="relative shrink-0">
+                      <div className="flex size-28 items-center justify-center overflow-hidden rounded-3xl border border-white/25 bg-white/10 font-heading text-4xl font-semibold text-white shadow-2xl shadow-black/25 backdrop-blur">
+                        {hasProfileImage ? (
+                          <img
+                            alt={profileName}
+                            className="size-full bg-white/10 object-cover"
+                            src={displayImage}
+                            onError={() => setImageLoadError(true)}
+                          />
+                        ) : (
+                          <span>{initials}</span>
+                        )}
+                      </div>
+                      {profile?.isActivated ? (
+                        <span className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-white">
+                          <CheckCircle2 className="size-4" />
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/65">Guest archive account</p>
+                      <h1 className="font-heading text-3xl font-semibold tracking-tight text-white sm:text-4xl">{profileName}</h1>
+                      <p className="max-w-2xl text-sm leading-6 text-white/72">
+                        A dedicated profile page for your public archive account.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-white">
+                          {role}
+                        </span>
+                        <span
+                          className={cn(
+                            'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                            profile?.isActivated
+                              ? 'border-emerald-200/35 bg-emerald-300/15 text-emerald-50'
+                              : 'border-white/20 bg-white/10 text-white/72',
+                          )}
+                        >
+                          {profileStatus}
+                        </span>
+                        {profile?.email ? (
+                          <span className="inline-flex max-w-full items-center truncate rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white/72">
+                            {profile.email}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                    {accountStats.map((item) => (
+                      <div
+                        key={item.label}
+                        className="rounded-2xl border border-white/12 bg-white/[0.08] px-4 py-3 backdrop-blur"
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/50">
+                          {item.label}
+                        </p>
+                        <p className="mt-1 truncate text-sm font-semibold text-white">{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-6 xl:grid-cols-[minmax(320px,0.85fr)_minmax(0,1.15fr)]">
+              <aside className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+                {/* photo */}
+                <Card className="overflow-hidden border-border/80 bg-card/95 shadow-sm shadow-black/5 backdrop-blur">
+                  <CardHeader className="border-b border-border pb-4">
+                    <div className="flex items-center gap-2">
+                      <Upload className="size-4 text-muted-foreground" />
+                      <CardTitle className="text-base font-semibold">Profile photo</CardTitle>
+                    </div>
+                    <CardDescription>JPEG, PNG, GIF, or WebP up to 5&nbsp;MB.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-5 pt-5">
+                    <div className="mx-auto flex size-44 items-center justify-center overflow-hidden rounded-[2rem] border border-border bg-muted/40 font-heading text-5xl font-semibold text-muted-foreground shadow-inner sm:size-56">
                       {hasProfileImage ? (
                         <img
                           alt={profileName}
-                          className="size-full bg-muted object-contain"
+                          className="size-full object-cover"
                           src={displayImage}
                           onError={() => setImageLoadError(true)}
                         />
@@ -376,67 +447,78 @@ function AccountProfilePage() {
                         <span>{initials}</span>
                       )}
                     </div>
-                    {profile?.isActivated ? (
-                      <span className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full border-2 border-card bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle2 className="size-4" />
-                      </span>
-                    ) : null}
-                  </div>
 
-                  <div className="space-y-2">
-                    <h1 className="font-heading text-2xl font-semibold tracking-tight">{profileName}</h1>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center rounded-full border bg-muted/50 px-2.5 py-0.5 text-xs font-semibold text-foreground">
-                        {role}
-                      </span>
-                      <span
-                        className={cn(
-                          'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
-                          profile?.isActivated
-                            ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                            : 'border-border bg-background text-muted-foreground',
+                    <div className="flex flex-col gap-2 sm:flex-row xl:flex-col 2xl:flex-row">
+                      <label className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted sm:flex-1">
+                        {isUpdatingImage ? (
+                          <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                        ) : (
+                          <Upload className="size-4 text-muted-foreground" />
                         )}
-                      >
-                        {profileStatus}
-                      </span>
-                      {profile?.email ? (
-                        <span className="inline-flex items-center rounded-full border bg-background px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                          {profile.email}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                        {isUpdatingImage ? 'Uploading…' : 'Upload new'}
+                        <input accept="image/*" className="sr-only" type="file" onChange={handleImageUpload} />
+                      </label>
 
-            <div className="grid gap-6 xl:grid-cols-[1fr_400px]">
-              {/* account details */}
-              <Card className="h-fit border-border bg-card shadow-sm shadow-black/5">
-                <CardHeader className="border-b border-border pb-4">
-                  <CardTitle className="text-base font-semibold">Account details</CardTitle>
-                  <CardDescription>A complete overview of your account.</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-5">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {accountStats.map((item) => (
-                      <div
-                        key={item.label}
-                        className="flex flex-col gap-1 rounded-xl border bg-muted/20 px-4 py-3"
+                      <Button
+                        className="w-full gap-2 2xl:w-auto"
+                        variant="outline"
+                        type="button"
+                        disabled={isRemovingImage || !displayImage}
+                        onClick={handleImageRemove}
                       >
+                        {isRemovingImage ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-4" />
+                        )}
+                        Remove
+                      </Button>
+                    </div>
+
+                    <Banner kind="success">{imageMessage}</Banner>
+                    <FormErrorBox error={imageError} />
+                  </CardContent>
+                </Card>
+
+                {/* account details */}
+                <Card className="overflow-hidden border-border/80 bg-card/95 shadow-sm shadow-black/5 backdrop-blur">
+                  <CardHeader className="border-b border-border pb-4">
+                    <CardTitle className="text-base font-semibold">Account details</CardTitle>
+                    <CardDescription>Your guest account identity.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-5">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                      {accountStats.map((item) => (
+                        <div
+                          key={item.label}
+                          className="flex flex-col gap-1 rounded-xl border bg-muted/20 px-4 py-3"
+                        >
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            {item.label}
+                          </p>
+                          <p className="truncate text-sm font-medium text-foreground">{item.value}</p>
+                        </div>
+                      ))}
+                      <div className="flex flex-col gap-1 rounded-xl border bg-muted/20 px-4 py-3">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                          {item.label}
+                          Role
                         </p>
-                        <p className="truncate text-sm font-medium text-foreground">{item.value}</p>
+                        <p className="truncate text-sm font-medium text-foreground">{role}</p>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      <div className="flex flex-col gap-1 rounded-xl border bg-muted/20 px-4 py-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          Status
+                        </p>
+                        <p className="truncate text-sm font-medium text-foreground">{profileStatus}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </aside>
 
               <div className="space-y-6">
                 {/* general info */}
-                <Card className="border-border bg-card shadow-sm shadow-black/5">
+                <Card className="border-border bg-card/95 shadow-sm shadow-black/5">
                   <CardHeader className="border-b border-border pb-4">
                     <div className="flex items-center gap-2">
                       <UserRound className="size-4 text-muted-foreground" />
@@ -501,50 +583,8 @@ function AccountProfilePage() {
                   </CardContent>
                 </Card>
 
-                {/* photo */}
-                <Card className="border-border bg-card shadow-sm shadow-black/5">
-                  <CardHeader className="border-b border-border pb-4">
-                    <div className="flex items-center gap-2">
-                      <Upload className="size-4 text-muted-foreground" />
-                      <CardTitle className="text-base font-semibold">Profile photo</CardTitle>
-                    </div>
-                    <CardDescription>JPEG, PNG, GIF, or WebP up to 5&nbsp;MB.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4 pt-5">
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <label className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted sm:flex-1">
-                        {isUpdatingImage ? (
-                          <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                        ) : (
-                          <Upload className="size-4 text-muted-foreground" />
-                        )}
-                        {isUpdatingImage ? 'Uploading…' : 'Upload new'}
-                        <input accept="image/*" className="sr-only" type="file" onChange={handleImageUpload} />
-                      </label>
-
-                      <Button
-                        className="w-full gap-2 sm:w-auto"
-                        variant="outline"
-                        type="button"
-                        disabled={isRemovingImage || !displayImage}
-                        onClick={handleImageRemove}
-                      >
-                        {isRemovingImage ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="size-4" />
-                        )}
-                        Remove
-                      </Button>
-                    </div>
-
-                    <Banner kind="success">{imageMessage}</Banner>
-                    <FormErrorBox error={imageError} />
-                  </CardContent>
-                </Card>
-
                 {/* security */}
-                <Card className="border-border bg-card shadow-sm shadow-black/5">
+                <Card className="border-border bg-card/95 shadow-sm shadow-black/5">
                   <CardHeader className="border-b border-border pb-4">
                     <div className="flex items-center gap-2">
                       <KeyRound className="size-4 text-muted-foreground" />
@@ -627,7 +667,7 @@ function AccountProfilePage() {
                 </Card>
 
                 {/* danger zone */}
-                <Card className="border-destructive/30 bg-card shadow-sm shadow-black/5">
+                <Card className="border-destructive/30 bg-card/95 shadow-sm shadow-black/5">
                   <CardHeader className="border-b border-destructive/20 pb-4">
                     <div className="flex items-center gap-2">
                       <Trash2 className="size-4 text-destructive" />

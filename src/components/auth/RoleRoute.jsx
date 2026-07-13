@@ -54,7 +54,9 @@ function RoleRoute({ allowedRole }) {
         ? 'Loading admin workspace'
         : allowedRole === 'teacher'
           ? 'Loading teacher workspace'
-          : 'Loading employee workspace'
+          : allowedRole === 'guest'
+            ? 'Loading account'
+            : 'Loading employee workspace'
     return <PageLoader title={workspaceTitle} description="Checking access." />
   }
 

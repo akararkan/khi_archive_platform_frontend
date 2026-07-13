@@ -15,9 +15,9 @@ function getAccountHomePath(profile) {
   if (area === 'admin')    return '/admin/dashboard'
   if (area === 'employee') return '/employee/profile'
   if (area === 'teacher')  return '/teacher'
-  // Self-registered GUESTs have no role workspace — keep them on the
-  // public catalogue and surface profile info inside the header dropdown.
-  return '/public'
+  // Self-registered GUESTs have no role workspace, but they still get a
+  // dedicated account page for profile, photo, password, and account actions.
+  return '/account'
 }
 
 export { getAccountArea, getAccountHomePath, normalizeRole }
