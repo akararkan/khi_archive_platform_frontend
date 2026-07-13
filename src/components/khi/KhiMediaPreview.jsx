@@ -28,6 +28,15 @@ export default function KhiMediaPreview({ record }) {
       <img className="cover-img" src={image} alt={title || ''} loading="lazy" />
     </div>
   ) : null
+  const videoThumbnail = image ? (
+    <div className="natural-cover video-cover">
+      <img className="cover-backdrop" src={image} alt="" aria-hidden="true" loading="lazy" />
+      <img className="cover-img" src={image} alt={title || ''} loading="lazy" />
+      <span className="vig" aria-hidden="true" />
+      {duration ? <span className="duration">{duration}</span> : null}
+      <span className="play ring" aria-hidden="true"><IconPlay /></span>
+    </div>
+  ) : null
 
   if (kind === 'audio') {
     return (
@@ -42,6 +51,8 @@ export default function KhiMediaPreview({ record }) {
   }
 
   if (kind === 'video') {
+    if (videoThumbnail) return videoThumbnail
+
     return (
       <div className="m-video">
         <div className="filmstrip" />

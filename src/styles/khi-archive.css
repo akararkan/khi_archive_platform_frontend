@@ -323,6 +323,12 @@
 .khi-root .card .media .natural-cover{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;background:var(--paper-3);isolation:isolate}
 .khi-root .card .media .cover-backdrop{position:absolute;z-index:-1;inset:-18px;width:calc(100% + 36px);height:calc(100% + 36px);object-fit:cover;filter:blur(20px) saturate(.72);opacity:.42;transform:scale(1.08)}
 .khi-root .card .media .cover-img{position:absolute;inset:0;width:100%;height:100%;padding:10px;object-fit:contain;filter:drop-shadow(0 8px 13px rgba(15,29,23,.22))}
+.khi-root .card .media .video-cover{background:#10241d}
+.khi-root .card .media .video-cover .cover-backdrop{filter:blur(16px) saturate(.86);opacity:.38}
+.khi-root .card .media .video-cover .cover-img{padding:0;object-fit:cover;filter:none}
+.khi-root .card .media .video-cover .vig{position:absolute;inset:0;z-index:2;background:linear-gradient(180deg,rgba(9,22,17,.04),rgba(9,22,17,.58));pointer-events:none}
+.khi-root .card .media .video-cover .play{left:50%;top:50%;bottom:auto;z-index:4;transform:translate(-50%,-50%)}
+.khi-root .card:hover .media .video-cover .play{transform:translate(-50%,-50%) scale(1.1)}
 .khi-root .card .acc{position:absolute;top:13px;right:13px;z-index:3;font-size:10px;background:rgba(20,38,32,.72);color:var(--gold-soft);padding:5px 9px;border-radius:7px;backdrop-filter:blur(4px);border:1px solid rgba(231,211,160,.25)}
 .khi-root .card .type-badge{position:absolute;top:13px;left:13px;z-index:3;display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;background:rgba(251,246,234,.92);color:var(--pine);padding:5px 10px;border-radius:8px;backdrop-filter:blur(4px);border:1px solid var(--line-2)}
 .khi-root .card .type-badge.kind-image{background:rgba(220,252,231,.94);color:#166534;border-color:rgba(22,101,52,.24)}
@@ -334,19 +340,19 @@
 .khi-root .card .trend-badge svg{width:13px;height:13px}
 /* ── AUDIO container ── a lit pine stage with a glowing gold equalizer ──────── */
 .khi-root .m-audio{position:absolute;inset:0;overflow:hidden;background:
-  radial-gradient(130% 95% at 50% 8%,rgba(214,178,94,.18),transparent 56%),
-  linear-gradient(165deg,#28503f 0%,#1c372d 55%,var(--pine-deep) 100%)}
+  radial-gradient(130% 95% at 50% 8%,rgba(78,132,108,.22),transparent 56%),
+  linear-gradient(165deg,#2b5546 0%,#1e3b31 55%,#10241d 100%)}
 .khi-root .m-audio::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
   background:repeating-linear-gradient(118deg,rgba(255,255,255,.03) 0 2px,transparent 2px 7px)}
 .khi-root .m-audio .halo{position:absolute;left:50%;top:50%;width:160%;height:170%;transform:translate(-50%,-50%);
-  pointer-events:none;background:radial-gradient(circle,rgba(214,178,94,.2),transparent 60%);transition:opacity .4s}
+  pointer-events:none;background:radial-gradient(circle,rgba(219,232,222,.22),transparent 60%);transition:opacity .4s}
 .khi-root .card:hover .m-audio .halo{opacity:1.15}
 .khi-root .m-audio .base-line{position:absolute;left:22px;right:22px;top:50%;height:1px;z-index:1;
   background:linear-gradient(90deg,transparent,rgba(231,211,160,.4),transparent)}
 .khi-root .wave{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:3px;padding:0 22px;z-index:2}
 .khi-root .wave .bar{width:4px;border-radius:4px;flex:1;max-width:6px;transform-origin:center;opacity:.92;
-  background:linear-gradient(to top,var(--pine-2) 0%,#4f8d74 42%,var(--gold-bright) 100%);
-  box-shadow:0 0 10px rgba(214,178,94,.14)}
+  background:linear-gradient(to top,#5f9a82 0%,#9dc3ad 52%,#eef6ef 100%);
+  box-shadow:0 0 10px rgba(219,232,222,.16)}
 .khi-root .card:hover .wave .bar{animation:khi-pulse 1.15s ease-in-out infinite}
 @keyframes khi-pulse{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.4)}}
 
@@ -365,19 +371,19 @@
 
 /* ── VIDEO container ── a cinematic frame: perforated strips, vignette, scrubber ── */
 .khi-root .m-video{position:absolute;inset:0;overflow:hidden;background:
-  radial-gradient(120% 85% at 50% 40%,rgba(214,178,94,.15),transparent 60%),
-  linear-gradient(145deg,#3e3527 0%,#2a2319 55%,#181309 100%)}
-.khi-root .m-video .frame{position:absolute;inset:0;background:radial-gradient(circle at 50% 42%,rgba(214,178,94,.22),transparent 60%)}
+  radial-gradient(120% 85% at 50% 40%,rgba(78,132,108,.18),transparent 60%),
+  linear-gradient(145deg,#264d3f 0%,#1e3b31 55%,#10241d 100%)}
+.khi-root .m-video .frame{position:absolute;inset:0;background:radial-gradient(circle at 50% 42%,rgba(219,232,222,.22),transparent 60%)}
 .khi-root .m-video .vig{position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(125% 125% at 50% 50%,transparent 50%,rgba(0,0,0,.5) 100%)}
-.khi-root .filmstrip{position:absolute;top:0;left:0;right:0;height:16px;z-index:3;background:rgba(10,8,5,.88)}
+.khi-root .filmstrip{position:absolute;top:0;left:0;right:0;height:16px;z-index:3;background:rgba(9,22,17,.84)}
 .khi-root .filmstrip::after{content:"";position:absolute;inset:4px 6px;border-radius:2px;
-  background:repeating-linear-gradient(90deg,transparent 0 6px,rgba(244,236,220,.26) 6px 12px,transparent 12px 18px)}
+  background:repeating-linear-gradient(90deg,transparent 0 6px,rgba(245,250,246,.26) 6px 12px,transparent 12px 18px)}
 .khi-root .filmstrip.bottom{top:auto;bottom:0}
 .khi-root .m-video .scrub{position:absolute;left:18px;right:18px;bottom:24px;height:3px;border-radius:3px;
   background:rgba(244,236,220,.22);z-index:4}
 .khi-root .m-video .scrub i{position:absolute;left:0;top:0;bottom:0;width:36%;border-radius:3px;
-  background:var(--gold-bright);box-shadow:0 0 8px rgba(214,178,94,.55)}
+  background:#dbe8de;box-shadow:0 0 8px rgba(219,232,222,.45)}
 .khi-root .card:hover .m-video .scrub i{width:64%;transition:width 1.3s cubic-bezier(.2,.7,.2,1)}
 
 /* ── IMAGE placeholder (only when a record carries no photo) ─────────────────── */
@@ -822,6 +828,86 @@
 .khi-root .detail-hero.kind-text ~ .content-card{background:#fffdf8;border-color:#ead9b8}
 .khi-root .detail-hero.kind-text ~ .media-stage{background:#f5ead1;border-color:#d8c197}
 
+.khi-root .detail-hero.kind-audio,
+.khi-root .detail-hero.kind-video,
+.khi-root .detail-hero.kind-text{
+  background:
+    radial-gradient(80% 86% at 14% 0%,rgba(44,84,72,.11),transparent 58%),
+    radial-gradient(70% 76% at 98% 18%,rgba(78,132,108,.08),transparent 54%),
+    linear-gradient(180deg,#f8fbf8 0%,#fff 76%);
+  border:1px solid #dbe7de;
+  box-shadow:0 28px 76px -54px rgba(31,58,49,.38);
+}
+.khi-root .detail-hero.kind-audio .detail-crumb,
+.khi-root .detail-hero.kind-audio .detail-crumb a,
+.khi-root .detail-hero.kind-video .detail-crumb,
+.khi-root .detail-hero.kind-video .detail-crumb a,
+.khi-root .detail-hero.kind-text .detail-crumb,
+.khi-root .detail-hero.kind-text .detail-crumb a{color:var(--muted)}
+.khi-root .detail-hero.kind-audio .detail-crumb strong,
+.khi-root .detail-hero.kind-video .detail-crumb strong,
+.khi-root .detail-hero.kind-text .detail-crumb strong,
+.khi-root .detail-hero.kind-audio .hero-content h1,
+.khi-root .detail-hero.kind-video .hero-content h1,
+.khi-root .detail-hero.kind-text .hero-content h1{color:var(--ink)}
+.khi-root .detail-hero.kind-audio .hero-content h2,
+.khi-root .detail-hero.kind-video .hero-content h2,
+.khi-root .detail-hero.kind-text .hero-content h2{color:var(--pine)}
+.khi-root .detail-hero.kind-audio .hero-desc,
+.khi-root .detail-hero.kind-video .hero-desc,
+.khi-root .detail-hero.kind-text .hero-desc{color:var(--ink-soft)}
+.khi-root .detail-hero.kind-audio .type-pill,
+.khi-root .detail-hero.kind-video .type-pill,
+.khi-root .detail-hero.kind-text .type-pill{
+  background:#fff;
+  border-color:#dbe7de;
+  color:var(--pine);
+}
+.khi-root .detail-hero.kind-audio .hero-tag,
+.khi-root .detail-hero.kind-video .hero-tag,
+.khi-root .detail-hero.kind-text .hero-tag{
+  background:#f8fbf8;
+  border-color:#dbe7de;
+  color:var(--ink-soft);
+}
+.khi-root .detail-hero.kind-audio .hero-tag:hover,
+.khi-root .detail-hero.kind-video .hero-tag:hover,
+.khi-root .detail-hero.kind-text .hero-tag:hover{background:#fff;color:var(--pine);border-color:#b8cabb}
+.khi-root .detail-hero.kind-video .hero-grid,
+.khi-root .detail-hero.kind-text .hero-grid{grid-template-columns:1fr .86fr}
+.khi-root .detail-hero.kind-text .media-asset-area{
+  min-height:min(520px,62vh);
+  padding:18px;
+}
+.khi-root .detail-hero.kind-text .media-asset-area.has-image::before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  width:min(420px,72%);
+  height:min(520px,76%);
+  border:1px solid rgba(44,84,72,.12);
+  border-radius:24px;
+  background:#eef6ef;
+  transform:translate(18px,18px) rotate(-2deg);
+  box-shadow:0 28px 70px -48px rgba(31,58,49,.55);
+}
+.khi-root .detail-hero.kind-text .media-asset-image{
+  max-width:min(520px,88vw);
+  max-height:min(540px,68vh);
+  border:1px solid rgba(31,58,49,.14);
+  border-radius:22px;
+  background:#fff;
+  box-shadow:0 34px 82px -46px rgba(31,58,49,.64),0 1px 0 rgba(255,255,255,.92);
+}
+.khi-root .detail-hero.kind-audio .media-asset-empty,
+.khi-root .detail-hero.kind-video .media-asset-empty,
+.khi-root .detail-hero.kind-text .media-asset-empty{
+  background:#eef6ef;
+  color:var(--pine);
+}
+.khi-root .detail-hero.kind-text ~ .content-card{background:#fff;border-color:#dbe7de}
+.khi-root .detail-hero.kind-text ~ .media-stage{background:#f8fbf8;border-color:#dbe7de}
+
 .khi-root .detail-hero.kind-project{
   background:
     radial-gradient(80% 70% at 80% 14%,rgba(44,84,72,.14),transparent 54%),
@@ -1015,10 +1101,7 @@
   padding:clamp(16px,2.2vw,26px);
   border:1px solid var(--line);
   border-radius:24px;
-  background:
-    linear-gradient(90deg,rgba(31,58,49,.035) 0 1px,transparent 1px 100%),
-    linear-gradient(180deg,#f8fbf7 0%,#fff 54%,#f7faf6 100%);
-  background-size:30px 100%,auto;
+  background:linear-gradient(180deg,#f8fbf8 0%,#fff 56%,#f6faf7 100%);
   box-shadow:0 34px 86px -58px rgba(20,38,32,.56),inset 0 1px 0 rgba(255,255,255,.9);
   cursor:default;
   user-select:none!important;
@@ -1074,7 +1157,7 @@
   justify-self:start;
   letter-spacing:.02em;
 }
-.khi-root .viewer-page-indicator svg{width:17px;height:17px;color:var(--gold)}
+.khi-root .viewer-page-indicator svg{width:17px;height:17px;color:var(--pine)}
 .khi-root .viewer-toolbar{
   display:flex;
   align-items:center;
@@ -1140,7 +1223,7 @@
   appearance:none;
   -webkit-appearance:none;
   border-radius:999px;
-  background:linear-gradient(90deg,#dde8db,#f1e3bf,#d9e4d6);
+  background:linear-gradient(90deg,#dbe8de,#c8dccd,#dbe8de);
   cursor:default;
   outline:none;
 }
@@ -1170,7 +1253,7 @@
   padding:clamp(18px,3vw,38px);
   border:1px solid rgba(207,217,205,.9);
   border-radius:22px;
-  background:linear-gradient(180deg,#edf4ec 0%,#fafdf9 42%,#fff 100%);
+  background:linear-gradient(180deg,#eef6ef 0%,#fafdf9 42%,#fff 100%);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.82);
 }
 .khi-root .protected-file-grid{
@@ -1209,7 +1292,7 @@
   padding:clamp(8px,1vw,12px);
   border:1px solid rgba(31,58,49,.13);
   border-radius:16px;
-  background:linear-gradient(180deg,#fff,#f8f5ed);
+  background:#fff;
   box-shadow:0 28px 64px -38px rgba(20,38,32,.48),0 1px 0 rgba(255,255,255,.86);
   cursor:default;
   pointer-events:none;
@@ -1222,10 +1305,10 @@
   inset-inline-start:12px;
   z-index:3;
   padding:5px 10px;
-  border:1px solid rgba(231,211,160,.25);
+  border:1px solid rgba(219,232,222,.28);
   border-radius:999px;
   background:rgba(20,38,32,.76);
-  color:#fffdf6;
+  color:#fff;
   font-family:'IBM Plex Mono',monospace;
   font-size:10px;
   font-weight:700;
