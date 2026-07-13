@@ -59,7 +59,11 @@ export async function getItemsPage({
   if (sortBy) params.sortBy = sortBy
   if (sortDirection) params.sortDirection = sortDirection
 
-  const { data } = await apiClient.get('/items', { params, signal })
+  const { data } = await apiClient.get('/items', {
+    params,
+    paramsSerializer: { indexes: null },
+    signal,
+  })
   return data
 }
 

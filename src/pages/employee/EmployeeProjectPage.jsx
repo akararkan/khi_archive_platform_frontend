@@ -64,8 +64,10 @@ import {
   setProjectVisibility,
   updateProject,
 } from '@/services/project'
+import { getItemsPage } from '@/services/items'
 
 const PROJECTS_PAGE_SIZE = 100
+const PROJECT_MEDIA_COUNT_PAGE_SIZE = 500
 const PROJECT_CODE_PREFIX_PATTERN = /^[A-Z0-9_-]+$/
 const PROJECT_CODE_SUFFIX_RE = /-PROJ-(\d{6})$/i
 const PROJECT_CODE_FULL_PATTERN = /^[A-Z0-9_-]+-PROJ-\d{6}$/
@@ -90,6 +92,71 @@ function projectMediaCounts(project) {
     { key: 'image', label: 'image', value: Number(project?.imageCount) || 0 },
     { key: 'text', label: 'text', value: Number(project?.textCount) || 0 },
   ].filter((entry) => entry.value > 0)
+}
+
+function createEmptyMediaCounts() {
+  return { audioCount: 0, videoCount: 0, imageCount: 0, textCount: 0 }
+}
+
+function mediaCountKey(type) {
+  const normalized = String(type || '').toUpperCase()
+  if (normalized === 'AUDIO') return 'audioCount'
+  if (normalized === 'VIDEO') return 'videoCount'
+  if (normalized === 'IMAGE') return 'imageCount'
+  if (normalized === 'TEXT') return 'textCount'
+  return null
+}
+
+async function getMediaCountsForProjects(projectCodes) {
+  const codes = [...new Set((projectCodes || []).filter(Boolean))]
+  const countsByProject = new Map(codes.map((code) => [code, createEmptyMediaCounts()]))
+  if (codes.length === 0) return countsByProject
+
+  let itemPage = 0
+  let totalItemPages = 1
+
+  do {
+    const pageData = await getItemsPage({
+      projectCodes: codes,
+      page: itemPage,
+      size: PROJECT_MEDIA_COUNT_PAGE_SIZE,
+    })
+    const rows = Array.isArray(pageData?.content) ? pageData.content : []
+
+    for (const item of rows) {
+      const projectCode = item?.projectCode || item?.project?.projectCode
+      const countKey = mediaCountKey(item?.type)
+      if (!projectCode || !countKey) continue
+      const counts = countsByProject.get(projectCode) || createEmptyMediaCounts()
+      counts[countKey] += 1
+      countsByProject.set(projectCode, counts)
+    }
+
+    const reportedTotalPages = Number(pageData?.totalPages)
+    if (Number.isFinite(reportedTotalPages) && reportedTotalPages > 0) {
+      totalItemPages = reportedTotalPages
+    } else {
+      totalItemPages = rows.length < PROJECT_MEDIA_COUNT_PAGE_SIZE ? itemPage + 1 : itemPage + 2
+    }
+    itemPage += 1
+  } while (itemPage < totalItemPages)
+
+  return countsByProject
+}
+
+async function addMediaCountsToProjects(projectRows) {
+  const rows = Array.isArray(projectRows) ? projectRows : []
+  if (rows.length === 0) return rows
+  let countsByProject
+  try {
+    countsByProject = await getMediaCountsForProjects(rows.map((project) => project.projectCode))
+  } catch {
+    return rows
+  }
+  return rows.map((project) => ({
+    ...project,
+    ...(countsByProject.get(project.projectCode) || createEmptyMediaCounts()),
+  }))
 }
 
 function isTrendingProject(project) {
@@ -309,12 +376,14 @@ function EmployeeProjectPage() {
           // the full list and let the client-side filter handle it. Pagination
           // bar hides (totalPages=0) because there's nothing to paginate.
           const data = await getProjects()
-          setProjects(data || [])
+          const rows = await addMediaCountsToProjects(data || [])
+          setProjects(rows)
           setTotalPages(0)
-          setTotalElements((data || []).length)
+          setTotalElements(rows.length)
         } else {
           const pageData = await getProjectsPage({ page, size: PROJECTS_PAGE_SIZE })
-          setProjects(pageData?.content || [])
+          const rows = await addMediaCountsToProjects(pageData?.content || [])
+          setProjects(rows)
           setTotalPages(pageData?.totalPages || 0)
           setTotalElements(pageData?.totalElements || 0)
         }
