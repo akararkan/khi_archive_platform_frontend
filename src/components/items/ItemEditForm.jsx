@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { FormErrorBox } from '@/components/ui/form-error'
 import { SingleMediaFilePicker } from '@/components/ui/single-media-file-picker'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TextCoverImagePicker } from '@/components/text/TextCoverImagePicker'
 import { useToast } from '@/hooks/use-toast'
 import { formatApiError, isStaleVersionError } from '@/lib/get-error-message'
 import { getItemPayload, getTypeMeta } from '@/components/items/item-helpers'
@@ -135,6 +136,7 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
   const [formError, setFormError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [file, setFile] = useState(null)
+  const [coverImage, setCoverImage] = useState(null)
   const [projectCategories, setProjectCategories] = useState([])
   const metadataSessionRef = useRef(0)
 
@@ -221,7 +223,13 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
       const payload = cfg.build(form, item.projectCode)
       // The project is fixed once a record exists — backend forbids re-parenting.
       delete payload.projectCode
-      const saved = await cfg.update(item.code, payload, file)
+      // Pass coverImage for text updates (multipart part `coverImage`)
+      const saved = await cfg.update(
+        item.code,
+        payload,
+        file,
+        item.type === 'TEXT' ? coverImage : undefined,
+      )
       toast.success(
         `${meta.label} updated`,
         `${saved?.[`${cfg.label}Code`] || item.code} changes were saved.`,
@@ -298,6 +306,15 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
                 />
               </CardContent>
             </Card>
+
+            {item.type === 'TEXT' ? (
+              <TextCoverImagePicker
+                id={`item-${item.type.toLowerCase()}-cover`}
+                file={coverImage}
+                currentUrl={form.coverImageUrl || item.coverImageUrl || (item.text && item.text.coverImageUrl) || ''}
+                onFileChange={setCoverImage}
+              />
+            ) : null}
 
             {formError ? <FormErrorBox error={formError} /> : null}
           </form>
