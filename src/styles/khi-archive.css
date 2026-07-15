@@ -1041,25 +1041,43 @@
   background:radial-gradient(circle at 50% 34%,#6f604d 0 15px,transparent 16px),linear-gradient(#c8b997,#9f875e)}
 
 /* ── Curated meta panels ────────────────────────────────────────────────── */
-.khi-root .detail-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:18px;margin-bottom:26px}
-.khi-root .meta-panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px 22px;box-shadow:0 18px 42px -30px rgba(58,44,27,.45)}
-.khi-root .meta-panel-title{display:flex;align-items:center;gap:9px;margin:0 0 14px;font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--gold)}
-.khi-root .meta-panel-title svg{color:var(--pine)}
-.khi-root .meta-rows{margin:0;display:flex;flex-direction:column;gap:12px}
+.khi-root .detail-meta-section{margin:38px 0 26px}
+.khi-root .detail-meta-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:22px;padding:0 4px 18px;border-bottom:1px solid var(--line)}
+.khi-root .detail-meta-heading h2{margin:4px 0 0;font-family:'Amiri','Vazirmatn',serif;font-size:clamp(25px,2.3vw,34px);line-height:1.25;color:var(--ink)}
+.khi-root .detail-meta-heading p{max-width:480px;margin:0;color:var(--muted);font-size:13.5px;line-height:1.8;text-align:left}
+.khi-root .detail-meta-eyebrow{display:block;color:var(--gold);font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:.15em;direction:ltr}
+.khi-root .detail-meta{column-width:310px;column-gap:18px;margin-bottom:26px}
+.khi-root .meta-panel{position:relative;display:inline-block;width:100%;margin:0 0 18px;overflow:hidden;break-inside:avoid;background:#fff;border:1px solid #dbe4da;border-radius:20px;padding:0 18px 17px;box-shadow:0 14px 34px -28px rgba(31,58,49,.58);transition:border-color .2s,box-shadow .2s,transform .2s}
+.khi-root .meta-panel:hover{border-color:#c5d4c6;box-shadow:0 24px 48px -32px rgba(31,58,49,.52);transform:translateY(-1px)}
+.khi-root .meta-panel::before{content:"";position:absolute;inset-inline:0;top:0;height:3px;background:linear-gradient(90deg,var(--gold-bright),var(--pine-2))}
+.khi-root .meta-panel-title{display:flex;align-items:center;gap:11px;min-height:66px;margin:0 -18px 10px;padding:12px 16px;border-bottom:1px solid #e7ece5;background:linear-gradient(135deg,#fbfcfa,#f4f8f3);color:var(--ink)}
+.khi-root .meta-panel-title-icon{display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;border:1px solid #d7e2d7;border-radius:10px;background:#fff;color:var(--pine);box-shadow:0 5px 14px -10px rgba(31,58,49,.8)}
+.khi-root .meta-panel-title > svg{width:18px;height:18px;flex:0 0 18px;color:var(--pine)}
+.khi-root .meta-panel-title-copy{display:flex;min-width:0;flex:1;flex-direction:column;gap:2px;line-height:1.25}
+.khi-root .meta-panel-title-main{color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.khi-root .meta-panel-title-local{color:var(--gold);font-size:11.5px;font-weight:800}
+.khi-root .meta-panel-count{display:grid;place-items:center;min-width:26px;height:26px;padding:0 6px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;direction:ltr}
+.khi-root .meta-rows{margin:0;display:flex;flex-direction:column;gap:0}
+.khi-root .meta-panel:not(.media-field-group) .meta-rows{gap:12px;padding-top:6px}
 .khi-root .meta-row{display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;align-items:start}
 .khi-root .meta-row dt{color:var(--muted);font-size:12.5px;font-weight:700;padding-top:2px}
 .khi-root .meta-row dd{margin:0;color:var(--ink);font-size:14.5px;min-width:0;word-break:break-word}
 .khi-root .full-field-label{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 6px;line-height:1.45}
 .khi-root .full-field-label-en{font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:800;color:var(--pine);direction:ltr;word-break:break-word}
 .khi-root .full-field-label-ku{font-size:12px;color:var(--muted)}
-.khi-root .full-field-empty{color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.khi-root .full-field-empty{color:#9ba49a;font-family:'IBM Plex Mono',monospace}
 .khi-root .full-field-text{white-space:pre-line;line-height:1.8}
 .khi-root .full-field-pills{display:flex;flex-wrap:wrap;gap:7px}
 .khi-root .full-field-pill{display:inline-flex;align-items:center;max-width:100%;border:1px solid var(--line);border-radius:999px;background:var(--paper-3);padding:5px 10px;font-size:12.5px;font-weight:700;color:var(--ink-soft);word-break:break-word}
-.khi-root .media-field-group .meta-row{grid-template-columns:minmax(145px,.44fr) minmax(0,1fr)}
-.khi-root .media-field-group .meta-row.is-long{grid-template-columns:1fr;gap:5px}
+.khi-root .media-field-group .meta-row{grid-template-columns:minmax(0,1fr);gap:7px;padding:13px 3px;border-bottom:1px solid #edf0ec}
+.khi-root .media-field-group .meta-row:last-child{border-bottom:0}
+.khi-root .media-field-group .meta-row dt{padding:0}
+.khi-root .media-field-group .meta-row dd{font-size:14px;font-weight:600;line-height:1.75}
+.khi-root .media-field-group .meta-row.is-empty-value{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding-block:9px;opacity:.66}
+.khi-root .media-field-group .meta-row.is-empty-value dd{font-size:12px}
+.khi-root .media-field-group .meta-row.is-long{grid-template-columns:1fr;gap:7px}
 .khi-root .media-field-group .meta-row.is-long dt{padding-top:0}
-@media(max-width:720px){.khi-root .full-field-label-en{font-size:11px}}
+@media(max-width:720px){.khi-root .detail-meta-heading{align-items:flex-start;flex-direction:column;gap:8px}.khi-root .detail-meta-heading p{text-align:right}.khi-root .detail-meta{column-width:auto;column-count:1}.khi-root .full-field-label-en{font-size:11px}}
 .khi-root .meta-link{color:var(--pine);font-weight:600;text-decoration:underline;text-decoration-color:rgba(44,84,72,.3);text-underline-offset:3px}
 .khi-root .meta-link:hover{text-decoration-color:var(--pine)}
 .khi-root .meta-pills{display:flex;flex-wrap:wrap;gap:7px}

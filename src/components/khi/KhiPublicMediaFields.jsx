@@ -24,7 +24,14 @@ const LONG_FIELDS = new Set([
   'usageRights',
 ])
 
-const SHOWN_IN_HERO_FIELDS = new Set(['description'])
+// Keep a long value in one deliberate place. The hero and content cards are
+// easier to read than repeating the same prose inside the metadata sections.
+const DISPLAYED_OUTSIDE_FIELDS = {
+  image: new Set(['description', 'photostory']),
+  audio: new Set(['description', 'lyrics']),
+  video: new Set(['description']),
+  text: new Set(['description']),
+}
 
 const FIELD_LABELS_KU = {
   abstractText: 'کورتەی دەق',
@@ -215,9 +222,9 @@ const FIELD_GROUPS = {
       fields: ['creatorArtistPhotographer', 'contributor', 'audience'],
     },
     {
-      title: 'Story & Provenance (چیرۆک و سەرچاوە)',
+      title: 'Provenance (سەرچاوە)',
       icon: IconLayers,
-      fields: ['provenance', 'photostory'],
+      fields: ['provenance'],
     },
     {
       title: 'Rights & Ownership (ماف و خاوەندارێتی)',
@@ -237,9 +244,9 @@ const FIELD_GROUPS = {
       fields: ['form', 'typeOfBasta', 'typeOfMaqam', 'genre', 'typeOfComposition', 'typeOfPerformance'],
     },
     {
-      title: 'Content (ناوەڕۆک)',
+      title: 'Abstract (کورتەی ناوەڕۆک)',
       icon: IconText,
-      fields: ['abstractText', 'lyrics'],
+      fields: ['abstractText'],
     },
     {
       title: 'Credits (بەشداربووان)',
@@ -386,6 +393,17 @@ function BilingualFieldLabel({ field }) {
   )
 }
 
+function BilingualGroupTitle({ title }) {
+  const match = String(title || '').match(/^(.+?)\s*\((.+)\)$/)
+  if (!match) return <span className="meta-panel-title-main">{title}</span>
+  return (
+    <span className="meta-panel-title-copy">
+      <span dir="ltr" className="meta-panel-title-main">{match[1]}</span>
+      <span className="meta-panel-title-local">{match[2]}</span>
+    </span>
+  )
+}
+
 function PublicFieldValue({ value }) {
   const values = normalizeValue(value)
   if (!values.length) return <span className="full-field-empty">{EMPTY_VALUE}</span>
@@ -403,27 +421,32 @@ function PublicFieldValue({ value }) {
 
 function KhiPublicMediaFields({ kind, item }) {
   const groups = FIELD_GROUPS[kind] || []
+  const displayedOutside = DISPLAYED_OUTSIDE_FIELDS[kind] || new Set()
   if (!groups.length) return null
 
   return (
     <>
       {groups.map((group) => {
-        const fields = group.fields.filter((field) => !SHOWN_IN_HERO_FIELDS.has(field))
+        const fields = group.fields.filter((field) => !displayedOutside.has(field))
         if (!fields.length) return null
         const Icon = group.icon || IconLayers
         return (
           <div className="meta-panel media-field-group" key={group.title}>
             <p className="meta-panel-title">
-              <Icon width="16" height="16" />
-              <span>{group.title}</span>
+              <span className="meta-panel-title-icon"><Icon width="17" height="17" /></span>
+              <BilingualGroupTitle title={group.title} />
+              <span className="meta-panel-count" aria-label={`${fields.length} fields`}>{fields.length}</span>
             </p>
             <dl className="meta-rows">
-              {fields.map((field) => (
-                <div className={`meta-row full-field-row${LONG_FIELDS.has(field) ? ' is-long' : ''}`} key={field}>
-                  <dt><BilingualFieldLabel field={field} /></dt>
-                  <dd><PublicFieldValue value={valueFrom(item, field)} /></dd>
-                </div>
-              ))}
+              {fields.map((field) => {
+                const value = valueFrom(item, field)
+                return (
+                  <div className={`meta-row full-field-row${LONG_FIELDS.has(field) ? ' is-long' : ''}${isEmptyValue(value) ? ' is-empty-value' : ''}`} key={field}>
+                    <dt><BilingualFieldLabel field={field} /></dt>
+                    <dd><PublicFieldValue value={value} /></dd>
+                  </div>
+                )
+              })}
             </dl>
           </div>
         )

@@ -29,7 +29,18 @@ export default function KhiMediaDetail({
       />
       <KhiInfoGrid items={infoCards} />
       {content}
-      {meta ? <div className="detail-meta">{meta}</div> : null}
+      {meta ? (
+        <section className="detail-meta-section" aria-labelledby="record-details-title">
+          <header className="detail-meta-heading">
+            <div>
+              <span className="detail-meta-eyebrow">ARCHIVE METADATA</span>
+              <h2 id="record-details-title">وردەکاریی تۆمار</h2>
+            </div>
+            <p>زانیاریی تەواوی ناساندن، ناوەڕۆک و مافەکانی ئەم تۆمارە</p>
+          </header>
+          <div className="detail-meta">{meta}</div>
+        </section>
+      ) : null}
     </>
   )
 }
