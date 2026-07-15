@@ -2052,25 +2052,6 @@ function EmployeeProjectDetailPage() {
               </div>
             ) : null}
 
-            <Card className="overflow-hidden border-border bg-card shadow-sm shadow-black/5">
-              <CardHeader className="border-b border-border bg-gradient-to-r from-amber-500/[0.06] via-card to-indigo-500/[0.05] pb-4">
-                <CardTitle className="text-base font-semibold">Book / Document Cover</CardTitle>
-                <CardDescription className="text-xs">
-                  Optional — add a cover for public cards and the opening section of the text page.
-                  The original document remains separate.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-5">
-                <TextCoverImagePicker
-                  id="textCoverImage"
-                  file={textCoverImage}
-                  currentCoverUrl={textForm.coverImageUrl || currentText?.coverImageUrl}
-                  onFileChange={setTextCoverImage}
-                  isEdit={isEdit}
-                />
-              </CardContent>
-            </Card>
-
             <Card className="border-border bg-card shadow-sm shadow-black/5">
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="text-base font-semibold">Identity</CardTitle>
@@ -2277,6 +2258,25 @@ function EmployeeProjectDetailPage() {
                 </div>
               </div>
             ) : null}
+
+            <Card className="overflow-hidden border-border bg-card shadow-sm shadow-black/5">
+              <CardHeader className="border-b border-border bg-gradient-to-r from-amber-500/[0.06] via-card to-indigo-500/[0.05] pb-4">
+                <CardTitle className="text-base font-semibold">Book / Document Cover</CardTitle>
+                <CardDescription className="text-xs">
+                  Optional — add a cover for public cards and the opening section of the text page.
+                  The original document remains separate.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-5">
+                <TextCoverImagePicker
+                  id="textCoverImage"
+                  file={textCoverImage}
+                  currentCoverUrl={textForm.coverImageUrl || currentText?.coverImageUrl}
+                  onFileChange={setTextCoverImage}
+                  isEdit={isEdit}
+                />
+              </CardContent>
+            </Card>
 
             <Card className="border-border bg-card shadow-sm shadow-black/5">
               <CardHeader className="border-b border-border pb-4">
