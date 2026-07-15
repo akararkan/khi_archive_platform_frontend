@@ -266,6 +266,18 @@ function normalizedProjectCodeInput(value) {
   return formatProjectCodeInput(value)
 }
 
+// Keep in-progress separators while the user is typing. Final cleanup still
+// happens through normalizedProjectCodeInput when validating/submitting.
+function projectCodeDraftInput(value) {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^A-Z0-9_-]/g, '')
+    .slice(0, 72)
+}
+
 function isFullProjectCode(value) {
   return PROJECT_CODE_FULL_PATTERN.test(normalizedProjectCodeInput(value))
 }
@@ -507,8 +519,9 @@ function EmployeeProjectPage() {
       isVisibleToPublic: form.isVisibleToPublic === true,
     }
     if (form.personKind === PERSON_KIND_NONE) {
-      const codeInput = isProjectCodeManual
-        ? normalizedProjectCodeInput(form.projectCode).trim()
+      const manualCode = normalizedProjectCodeInput(form.projectCode).trim()
+      const codeInput = isProjectCodeManual && manualCode
+        ? manualCode
         : projectCodePrefix(form.projectName)
       payload.projectCode = buildProjectCodeFromInput(codeInput, existingProjects)
     }
@@ -552,8 +565,9 @@ function EmployeeProjectPage() {
       return
     }
     if (view === 'create' && form.personKind === PERSON_KIND_NONE) {
-      const projectCodeInputValue = isProjectCodeManual
-        ? normalizedProjectCodeInput(form.projectCode).trim()
+      const manualCode = normalizedProjectCodeInput(form.projectCode).trim()
+      const projectCodeInputValue = isProjectCodeManual && manualCode
+        ? manualCode
         : projectCodePrefix(form.projectName)
       if (PROJECT_CODE_MARKER_RE.test(projectCodeInputValue) && !isFullProjectCode(projectCodeInputValue)) {
         setFormError('Full project codes must end with -PROJ- followed by six digits, for example DENG-PROJ-000004.')
@@ -690,12 +704,11 @@ function EmployeeProjectPage() {
         : ''
     const projectCodeInput = isEdit
       ? String(currentProject?.projectCode || '')
-      : isProjectCodeManual
-      ? normalizedProjectCodeInput(form.projectCode)
-      : suggestedProjectCode
+      : projectCodeDraftInput(form.projectCode)
+    const effectiveProjectCodeInput = projectCodeInput || suggestedProjectCode
     const savedProjectCodePreview =
-      showProjectCodeField && projectCodeInput
-        ? buildProjectCodeFromInput(projectCodeInput, projects)
+      showProjectCodeField && effectiveProjectCodeInput
+        ? buildProjectCodeFromInput(effectiveProjectCodeInput, projects)
         : ''
     return (
       <EmployeeEntityPage
@@ -801,11 +814,13 @@ function EmployeeProjectPage() {
                         value={projectCodeInput || ''}
                         onChange={(e) => {
                           setIsProjectCodeManual(true)
-                          setForm({ ...form, projectCode: normalizedProjectCodeInput(e.target.value) })
+                          setForm((f) => ({ ...f, projectCode: projectCodeDraftInput(e.target.value) }))
                         }}
-                        placeholder="DENG-PROJ-000004"
+                        placeholder={suggestedProjectCode || 'DENG-PROJ-000004'}
                         disabled={isEdit}
                         readOnly={isEdit}
+                        autoComplete="off"
+                        spellCheck={false}
                         className="font-mono text-sm font-semibold"
                       />
                       {!isEdit ? (
@@ -815,8 +830,8 @@ function EmployeeProjectPage() {
                           className="shrink-0 gap-2"
                           disabled={!suggestedProjectCode}
                           onClick={() => {
-                            setIsProjectCodeManual(false)
-                            setForm((f) => ({ ...f, projectCode: '' }))
+                            setIsProjectCodeManual(true)
+                            setForm((f) => ({ ...f, projectCode: suggestedProjectCode }))
                           }}
                         >
                           <RefreshCw className="size-3.5" />
@@ -828,7 +843,7 @@ function EmployeeProjectPage() {
                       {isEdit
                         ? 'Locked after creation.'
                         : savedProjectCodePreview
-                        ? `The frontend will send ${savedProjectCodePreview}. The backend stores it as-is; media codes use only the prefix before -PROJ-.`
+                        ? `${projectCodeInput ? 'Your code' : 'Suggested code'}: ${savedProjectCodePreview}. You can type a full code or only a prefix; the backend stores the final code as-is.`
                         : 'Only no-person projects send projectCode from the frontend. Type a full code, or type a prefix and use the generated preview.'}
                     </p>
                   </div>
