@@ -87,7 +87,7 @@ export default function KhiHeader() {
           <KhiLogo className="mark" priority />
           <span className="txt">
             <b>{UI.brand}</b>
-            <span>{UI.brandSub}</span>
+            {/* <span>{UI.brandSub}</span> */}
           </span>
         </Link>
 
