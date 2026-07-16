@@ -11,8 +11,25 @@ import {
   IconText,
   IconVideo,
 } from '@/components/khi/icons'
+import { audioFieldsMetadata } from '@/lib/audio-fields-metadata'
+import { imageFieldsMetadata } from '@/lib/image-fields-metadata'
+import { textFieldsMetadata } from '@/lib/text-fields-metadata'
+import { videoFieldsMetadata } from '@/lib/video-fields-metadata'
+import {
+  buildCompleteMediaFieldGroups,
+  isEmptyValue,
+  safeStringify,
+  valueFrom,
+} from '@/components/items/full-media-inventory'
 
 const EMPTY_VALUE = '—'
+
+const FIELD_METADATA_BY_KIND = {
+  audio: audioFieldsMetadata,
+  image: imageFieldsMetadata,
+  text: textFieldsMetadata,
+  video: videoFieldsMetadata,
+}
 
 const LONG_FIELDS = new Set([
   'abstractText',
@@ -22,6 +39,18 @@ const LONG_FIELDS = new Set([
   'provenance',
   'transcription',
   'usageRights',
+  'archiveLocalNote',
+  'audioFileNote',
+  'autoPath',
+  'bodyText',
+  'categories',
+  'categoryCodes',
+  'note',
+  'pathInExternal',
+  'pathInExternalVolume',
+  'project',
+  'person',
+  'summary',
 ])
 
 // Keep a long value in one deliberate place. The hero and content cards are
@@ -325,27 +354,317 @@ const FIELD_GROUPS = {
   ],
 }
 
+// The public catalogue intentionally uses the compact groups above. Staff need
+// a different contract: every field that can be edited in the four media forms
+// must remain visible, including empty values. Keep these lists explicit rather
+// than deriving them from the metadata maps; a few backend/form keys have legacy
+// aliases that are not represented by those maps (for example video `tags`).
+const FULL_MEDIA_FIELD_GROUPS = {
+  audio: [
+    {
+      title: 'Record Identity (ناسنامەی تۆمار)',
+      icon: IconAudio,
+      fields: ['audioCode', 'audioVersion', 'versionNumber', 'copyNumber', 'fileName', 'audioFileUrl'],
+    },
+    {
+      title: 'Titles (ناونیشان)',
+      icon: IconText,
+      fields: ['originTitle', 'alterTitle', 'centralKurdishTitle', 'romanizedTitle'],
+    },
+    {
+      title: 'Content (ناوەڕۆک)',
+      icon: IconText,
+      fields: ['abstractText', 'description', 'transcription', 'lyrics'],
+    },
+    {
+      title: 'Music & Form (مۆسیقا و فۆڕم)',
+      icon: IconAudio,
+      fields: ['form', 'genre', 'typeOfBasta', 'typeOfMaqam', 'typeOfComposition', 'typeOfPerformance', 'poet'],
+    },
+    {
+      title: 'Credits (بەشداربووان)',
+      icon: IconMic,
+      fields: ['speaker', 'producer', 'composer', 'contributors'],
+    },
+    {
+      title: 'Language & Place (زمان و شوێن)',
+      icon: IconLanguage,
+      fields: ['language', 'dialect', 'recordingVenue', 'city', 'region'],
+    },
+    {
+      title: 'Dates (بەروارەکان)',
+      icon: IconLayers,
+      fields: ['dateCreated', 'datePublished', 'dateModified'],
+    },
+    {
+      title: 'Classification (پۆلێنکردن)',
+      icon: IconTag,
+      fields: ['audience', 'tags', 'keywords'],
+    },
+    {
+      title: 'Physical Archive (ئەرشیفی فیزیکی)',
+      icon: IconLayers,
+      fields: ['physicalAvailability', 'physicalLabel', 'locationArchive', 'degitizedBy', 'degitizationEquipment'],
+    },
+    {
+      title: 'Technical (تەکنیکی)',
+      icon: IconAudio,
+      fields: ['audioChannel', 'fileExtension', 'fileSize', 'bitRate', 'bitDepth', 'sampleRate', 'audioQualityOutOf10'],
+    },
+    {
+      title: 'Storage (هەڵگرتن)',
+      icon: IconLayers,
+      fields: ['volumeName', 'directoryName', 'pathInExternal', 'autoPath', 'audioFileNote'],
+    },
+    {
+      title: 'Rights & Provenance (ماف و سەرچاوە)',
+      icon: IconTag,
+      fields: [
+        'copyright', 'rightOwner', 'dateCopyrighted', 'availability', 'licenseType',
+        'usageRights', 'owner', 'publisher', 'provenance', 'accrualMethod',
+        'lccClassification', 'archiveLocalNote',
+      ],
+    },
+  ],
+  image: [
+    {
+      title: 'Record Identity (ناسنامەی تۆمار)',
+      icon: IconImage,
+      fields: ['imageCode', 'imageVersion', 'versionNumber', 'copyNumber', 'fileName', 'imageFileUrl'],
+    },
+    {
+      title: 'Titles (ناونیشان)',
+      icon: IconText,
+      fields: ['originalTitle', 'alternativeTitle', 'titleInCentralKurdish', 'romanizedTitle'],
+    },
+    {
+      title: 'Subject & Form (بابەت و فۆڕم)',
+      icon: IconImage,
+      fields: ['description', 'subject', 'form', 'genre', 'event', 'location'],
+    },
+    {
+      title: 'Image Details (وردەکاریی وێنە)',
+      icon: IconImage,
+      fields: ['personShownInImage', 'colorOfImage', 'whereThisImageUsed', 'photostory'],
+    },
+    {
+      title: 'Equipment (ئامێرەکان)',
+      icon: IconLayers,
+      fields: ['manufacturer', 'model', 'lens'],
+    },
+    {
+      title: 'Credits (بەشداربووان)',
+      icon: IconMic,
+      fields: ['creatorArtistPhotographer', 'contributor', 'audience'],
+    },
+    {
+      title: 'Technical (تەکنیکی)',
+      icon: IconImage,
+      fields: ['fileSize', 'extension', 'orientation', 'dimension', 'bitDepth', 'dpi'],
+    },
+    {
+      title: 'Classification (پۆلێنکردن)',
+      icon: IconTag,
+      fields: ['tags', 'keywords'],
+    },
+    {
+      title: 'Dates (بەروارەکان)',
+      icon: IconLayers,
+      fields: ['dateCreated', 'dateModified', 'datePublished'],
+    },
+    {
+      title: 'Storage (هەڵگرتن)',
+      icon: IconLayers,
+      fields: ['volumeName', 'directory', 'pathInExternalVolume', 'autoPath'],
+    },
+    {
+      title: 'Archival (ئەرشیفی)',
+      icon: IconLayers,
+      fields: [
+        'accrualMethod', 'provenance', 'imageStatus', 'archiveCataloging',
+        'physicalAvailability', 'physicalLabel', 'locationInArchiveRoom',
+        'lccClassification', 'note',
+      ],
+    },
+    {
+      title: 'Rights & Ownership (ماف و خاوەندارێتی)',
+      icon: IconTag,
+      fields: [
+        'copyright', 'rightOwner', 'dateCopyrighted', 'licenseType', 'usageRights',
+        'availability', 'owner', 'publisher',
+      ],
+    },
+  ],
+  video: [
+    {
+      title: 'Record Identity (ناسنامەی تۆمار)',
+      icon: IconVideo,
+      fields: ['videoCode', 'videoVersion', 'versionNumber', 'copyNumber', 'fileName', 'videoFileUrl'],
+    },
+    {
+      title: 'Titles (ناونیشان)',
+      icon: IconText,
+      fields: ['originalTitle', 'alternativeTitle', 'titleInCentralKurdish', 'romanizedTitle'],
+    },
+    {
+      title: 'Subject & Form (بابەت و فۆڕم)',
+      icon: IconVideo,
+      fields: ['description', 'subject', 'genre', 'event', 'location'],
+    },
+    {
+      title: 'Video Details (وردەکاریی ڤیدیۆ)',
+      icon: IconVideo,
+      fields: ['personShownInVideo', 'colorOfVideo', 'whereThisVideoUsed'],
+    },
+    {
+      title: 'Language (زمان)',
+      icon: IconLanguage,
+      fields: ['language', 'dialect', 'subtitle'],
+    },
+    {
+      title: 'Credits (بەشداربووان)',
+      icon: IconMic,
+      fields: ['creatorArtistDirector', 'producer', 'contributor', 'audience'],
+    },
+    {
+      title: 'Technical (تەکنیکی)',
+      icon: IconVideo,
+      fields: [
+        'fileSize', 'extension', 'orientation', 'dimension', 'resolution', 'duration',
+        'bitDepth', 'frameRate', 'overallBitRate', 'videoCodec', 'audioCodec', 'audioChannels',
+      ],
+    },
+    {
+      title: 'Classification (پۆلێنکردن)',
+      icon: IconTag,
+      fields: ['tags', 'keywords'],
+    },
+    {
+      title: 'Dates (بەروارەکان)',
+      icon: IconLayers,
+      fields: ['dateCreated', 'dateModified', 'datePublished'],
+    },
+    {
+      title: 'Storage (هەڵگرتن)',
+      icon: IconLayers,
+      fields: ['volumeName', 'directory', 'pathInExternalVolume', 'autoPath'],
+    },
+    {
+      title: 'Archival (ئەرشیفی)',
+      icon: IconLayers,
+      fields: [
+        'accrualMethod', 'provenance', 'videoStatus', 'archiveCataloging',
+        'physicalAvailability', 'physicalLabel', 'locationInArchiveRoom',
+        'lccClassification', 'note',
+      ],
+    },
+    {
+      title: 'Rights & Ownership (ماف و خاوەندارێتی)',
+      icon: IconTag,
+      fields: [
+        'copyright', 'rightOwner', 'dateCopyrighted', 'licenseType', 'usageRights',
+        'availability', 'owner', 'publisher',
+      ],
+    },
+  ],
+  text: [
+    {
+      title: 'Record Identity (ناسنامەی تۆمار)',
+      icon: IconBook,
+      fields: ['textCode', 'textVersion', 'versionNumber', 'copyNumber', 'fileName', 'textFileUrl', 'coverImageUrl'],
+    },
+    {
+      title: 'Titles (ناونیشان)',
+      icon: IconText,
+      fields: ['originalTitle', 'alternativeTitle', 'titleInCentralKurdish', 'romanizedTitle'],
+    },
+    {
+      title: 'Document (بەڵگەنامە)',
+      icon: IconBook,
+      fields: ['description', 'documentType', 'subject', 'genre', 'script', 'transcription', 'isbn', 'assignmentNumber', 'edition', 'volume', 'series'],
+    },
+    {
+      title: 'Language (زمان)',
+      icon: IconLanguage,
+      fields: ['language', 'dialect'],
+    },
+    {
+      title: 'Credits (بەشداربووان)',
+      icon: IconMic,
+      fields: ['author', 'contributors', 'printingHouse', 'audience'],
+    },
+    {
+      title: 'Physical & Technical (فیزیکی و تەکنیکی)',
+      icon: IconBook,
+      fields: ['fileSize', 'extension', 'orientation', 'pageCount', 'size', 'physicalDimensions'],
+    },
+    {
+      title: 'Classification (پۆلێنکردن)',
+      icon: IconTag,
+      fields: ['tags', 'keywords'],
+    },
+    {
+      title: 'Dates (بەروارەکان)',
+      icon: IconLayers,
+      fields: ['dateCreated', 'printDate', 'dateModified', 'datePublished'],
+    },
+    {
+      title: 'Storage (هەڵگرتن)',
+      icon: IconLayers,
+      fields: ['volumeName', 'directory', 'pathInExternalVolume', 'autoPath'],
+    },
+    {
+      title: 'Archival (ئەرشیفی)',
+      icon: IconLayers,
+      fields: [
+        'accrualMethod', 'provenance', 'textStatus', 'archiveCataloging',
+        'physicalAvailability', 'physicalLabel', 'locationInArchiveRoom',
+        'lccClassification', 'note',
+      ],
+    },
+    {
+      title: 'Rights & Ownership (ماف و خاوەندارێتی)',
+      icon: IconTag,
+      fields: [
+        'copyright', 'rightOwner', 'dateCopyrighted', 'licenseType', 'usageRights',
+        'availability', 'owner', 'publisher',
+      ],
+    },
+  ],
+}
+
+const FULL_SHARED_FIELD_GROUPS = [
+  {
+    title: 'Relationships (پەیوەندییەکان)',
+    icon: IconLayers,
+    fields: [
+      'project', 'projectCode', 'projectName', 'person', 'personCode', 'personName',
+      'categories', 'categoryCodes',
+    ],
+  },
+  {
+    title: 'Visibility & Access (دیاربوون و دەستڕاگەیشتن)',
+    icon: IconTag,
+    fields: ['isPublic', 'projectVisibleToPublic', 'isVisibleToPublic', 'visibleToPublic', 'fileUrl'],
+  },
+  {
+    title: 'Audit (پشکنین)',
+    icon: IconLayers,
+    fields: [
+      'version', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy',
+      'removedAt', 'removedBy', 'deletedAt', 'deletedBy',
+    ],
+  },
+]
+
 const FIELD_ALIASES = {
   centralKurdishTitle: ['centralKurdishTitle', 'titleInCentralKurdish'],
   contributor: ['contributor', 'contributors'],
   contributors: ['contributors', 'contributor'],
+  keywords: ['keywords', 'videoKeywords'],
   originTitle: ['originTitle', 'originalTitle'],
   subject: ['subject', 'subjects'],
-}
-
-function isEmptyValue(value) {
-  if (value == null || value === '' || value === false) return true
-  if (Array.isArray(value)) return value.length === 0 || value.every(isEmptyValue)
-  return false
-}
-
-function valueFrom(item, key) {
-  const keys = FIELD_ALIASES[key] || [key]
-  for (const candidate of keys) {
-    const value = item?.[candidate]
-    if (!isEmptyValue(value)) return value
-  }
-  return null
+  tags: ['tags', 'videoTags'],
 }
 
 function objectLabel(value) {
@@ -367,24 +686,35 @@ function objectLabel(value) {
   )
 }
 
-function normalizeValue(value) {
+function normalizeValue(value, { detailed = false } = {}) {
   if (isEmptyValue(value)) return []
   if (Array.isArray(value)) {
     return value
-      .map((entry) => normalizeValue(entry))
+      .map((entry) => normalizeValue(entry, { detailed }))
       .flat()
       .filter(Boolean)
   }
   if (typeof value === 'object') {
+    if (detailed) return [safeStringify(value, 2)]
     const label = objectLabel(value)
-    return label ? [String(label)] : [JSON.stringify(value)]
+    return label ? [String(label)] : [safeStringify(value)]
   }
   if (typeof value === 'boolean') return [value ? 'بەڵێ' : 'نەخێر']
   return [String(value)]
 }
 
-function BilingualFieldLabel({ field }) {
-  const ku = FIELD_LABELS_KU[field] || field
+function metadataTitle(kind, field) {
+  const metadata = FIELD_METADATA_BY_KIND[kind] || {}
+  const metadataKey = kind === 'video' && field === 'tags'
+    ? 'videoTags'
+    : kind === 'video' && field === 'keywords'
+      ? 'videoKeywords'
+      : field
+  return metadata[metadataKey]?.title || null
+}
+
+function BilingualFieldLabel({ field, kind }) {
+  const ku = FIELD_LABELS_KU[field] || metadataTitle(kind, field) || field
   return (
     <span className="full-field-label">
       <span dir="ltr" className="full-field-label-en">{field}</span>
@@ -404,8 +734,8 @@ function BilingualGroupTitle({ title }) {
   )
 }
 
-function PublicFieldValue({ value }) {
-  const values = normalizeValue(value)
+function PublicFieldValue({ value, detailed = false }) {
+  const values = normalizeValue(value, { detailed })
   if (!values.length) return <span className="full-field-empty">{EMPTY_VALUE}</span>
   if (values.length > 1) {
     return (
@@ -419,15 +749,22 @@ function PublicFieldValue({ value }) {
   return <span className="full-field-text">{values[0]}</span>
 }
 
-function KhiPublicMediaFields({ kind, item }) {
-  const groups = FIELD_GROUPS[kind] || []
-  const displayedOutside = DISPLAYED_OUTSIDE_FIELDS[kind] || new Set()
+function KhiPublicMediaFields({ kind, item, full = false }) {
+  const normalizedKind = String(kind || '').trim().toLowerCase()
+  const groups = full
+    ? buildCompleteMediaFieldGroups(normalizedKind, item, {
+        aliases: FIELD_ALIASES,
+        fieldGroups: FULL_MEDIA_FIELD_GROUPS,
+        sharedGroups: FULL_SHARED_FIELD_GROUPS,
+      })
+    : FIELD_GROUPS[normalizedKind] || []
+  const displayedOutside = DISPLAYED_OUTSIDE_FIELDS[normalizedKind] || new Set()
   if (!groups.length) return null
 
   return (
     <>
       {groups.map((group) => {
-        const fields = group.fields.filter((field) => !displayedOutside.has(field))
+        const fields = group.fields.filter((field) => full || !displayedOutside.has(field))
         if (!fields.length) return null
         const Icon = group.icon || IconLayers
         return (
@@ -439,11 +776,16 @@ function KhiPublicMediaFields({ kind, item }) {
             </p>
             <dl className="meta-rows">
               {fields.map((field) => {
-                const value = valueFrom(item, field)
+                const value = valueFrom(item, field, { aliases: FIELD_ALIASES, keepEmpty: full })
+                const isLong = LONG_FIELDS.has(field) || (
+                  !isEmptyValue(value) && (
+                    typeof value === 'object' || String(value).length > 160
+                  )
+                )
                 return (
-                  <div className={`meta-row full-field-row${LONG_FIELDS.has(field) ? ' is-long' : ''}${isEmptyValue(value) ? ' is-empty-value' : ''}`} key={field}>
-                    <dt><BilingualFieldLabel field={field} /></dt>
-                    <dd><PublicFieldValue value={value} /></dd>
+                  <div className={`meta-row full-field-row${isLong ? ' is-long' : ''}${isEmptyValue(value) ? ' is-empty-value' : ''}`} key={field}>
+                    <dt><BilingualFieldLabel field={field} kind={normalizedKind} /></dt>
+                    <dd><PublicFieldValue value={value} detailed={full} /></dd>
                   </div>
                 )
               })}
@@ -455,4 +797,10 @@ function KhiPublicMediaFields({ kind, item }) {
   )
 }
 
-export { KhiPublicMediaFields, PUBLIC_MEDIA_FIELDS }
+export {
+  FIELD_ALIASES,
+  FULL_MEDIA_FIELD_GROUPS,
+  FULL_SHARED_FIELD_GROUPS,
+  KhiPublicMediaFields,
+  PUBLIC_MEDIA_FIELDS,
+}

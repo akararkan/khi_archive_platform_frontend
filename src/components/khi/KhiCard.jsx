@@ -6,6 +6,8 @@ import KhiMediaPreview from './KhiMediaPreview'
 import { IconAll, TYPE_ICON } from './icons'
 import { TYPE_LABELS, UI } from './khi-data'
 
+const PREVIEW_LABELED_KINDS = new Set(['audio', 'video', 'text', 'image', 'project'])
+
 function Avatar({ person }) {
   if (!person) return null
   const initials = (person.name || '·').trim().split(/\s+/).slice(0, 2).map((p) => p.charAt(0)).join('')
@@ -60,7 +62,6 @@ export default function KhiCard({ record, index = 0, query = '' }) {
   const publicDate = dateLabel || decade || null
   const context = creator ? (projectName || collection || region) : (region || collection || projectName)
   const hasMeta = creator || publicDate || context
-  const kindLabel = TYPE_LABELS[kind] || kind
 
   return (
     <Link
@@ -69,7 +70,7 @@ export default function KhiCard({ record, index = 0, query = '' }) {
       style={{ animationDelay: `${(0.05 + (index % 12) * 0.04).toFixed(2)}s` }}
     >
       <div className="media">
-        {TypeIcon ? (
+        {TypeIcon && !PREVIEW_LABELED_KINDS.has(kind) ? (
           <span className={`type-badge kind-${kind}`}><TypeIcon /> {TYPE_LABELS[kind] || kind}</span>
         ) : null}
         {record.trending ? (

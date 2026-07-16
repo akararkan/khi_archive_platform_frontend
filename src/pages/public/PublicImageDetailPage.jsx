@@ -17,6 +17,8 @@ import {
   IconMic, IconPlus,
 } from '@/components/khi/icons'
 import { guestImages } from '@/services/guest'
+import { getStaffMediaOne } from '@/services/staff-public-catalog'
+import { usePublicAccess } from '@/hooks/use-public-access'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 function toList(v, cap = 12) {
@@ -38,6 +40,7 @@ function PublicImageDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [helpOpen, setHelpOpen] = useState(false)
+  const { isStaff, ready: accessReady } = usePublicAccess()
 
   useEffect(() => {
     if (routeCode && !isEncodedPublicCode(routeCode)) {
@@ -46,17 +49,20 @@ function PublicImageDetailPage() {
   }, [navigate, routeCode])
 
   useEffect(() => {
+    if (!accessReady) return undefined
     const ctrl = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     setError('')
-    guestImages
-      .one(code, { signal: ctrl.signal })
+    const request = isStaff
+      ? getStaffMediaOne('image', code, { signal: ctrl.signal })
+      : guestImages.one(code, { signal: ctrl.signal })
+    request
       .then((d) => { if (!ctrl.signal.aborted) setImage(d || null) })
       .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError('Could not load this image.') })
       .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     return () => ctrl.abort()
-  }, [code])
+  }, [accessReady, code, isStaff])
 
   const person = useMemo(() => extractPersonFromItem(image), [image])
 
@@ -109,7 +115,7 @@ function PublicImageDetailPage() {
         <KhiMetaRow label={DETAIL.person} value={person?.personCode}><KhiPersonLink person={person} fallbackName={person?.name} /></KhiMetaRow>
         <KhiMetaRow label={DETAIL.categories} value={image.categories}><KhiCategoryLinks categories={image.categories} /></KhiMetaRow>
       </KhiMetaPanel>
-      <KhiPublicMediaFields kind="image" item={image} />
+      <KhiPublicMediaFields kind="image" item={image} full={isStaff} />
     </>
   )
 

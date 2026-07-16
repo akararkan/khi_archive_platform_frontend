@@ -26,8 +26,8 @@ export async function searchAudios(q, { limit, projectCode, signal } = {}) {
   return data
 }
 
-export async function getAudio(code) {
-  const { data } = await apiClient.get(`/audio/${code}`)
+export async function getAudio(code, { signal } = {}) {
+  const { data } = await apiClient.get(`/audio/${code}`, { signal })
   return data
 }
 

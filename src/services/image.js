@@ -27,8 +27,8 @@ export async function searchImages(q, { limit, projectCode, signal } = {}) {
   return data
 }
 
-export async function getImage(code) {
-  const { data } = await apiClient.get(`/image/${code}`)
+export async function getImage(code, { signal } = {}) {
+  const { data } = await apiClient.get(`/image/${code}`, { signal })
   return data
 }
 

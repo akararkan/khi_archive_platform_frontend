@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BookOpen, FileText, X } from 'lucide-react'
 
+import { CompleteMediaInventory } from '@/components/items/CompleteMediaInventory'
 import { Button } from '@/components/ui/button'
 import { CodeBadge } from '@/components/ui/code-badge'
 import { Highlight, HighlightProvider } from '@/components/ui/highlight'
@@ -461,6 +462,8 @@ function TextDetailsModal({ text, open, onOpenChange, searchQuery }) {
                 </div>
               </details>
             )}
+
+            <CompleteMediaInventory item={text} kind="text" />
           </div>
         </div>
         </HighlightProvider>

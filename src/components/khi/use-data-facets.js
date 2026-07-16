@@ -24,12 +24,13 @@ function tally(map, raw) {
   map.set(v, (map.get(v) || 0) + 1)
 }
 
-export function useDataFacets(type) {
+export function useDataFacets(type, apiOverride = null) {
   const [facets, setFacets] = useState({})
 
   useEffect(() => {
     const defs = type?.dataFacets
-    if (!defs || !defs.length || typeof type.api !== 'function') {
+    const api = apiOverride || type?.api
+    if (!defs || !defs.length || typeof api !== 'function') {
       // Reset when leaving a media scope (mixed grid / entity scopes have no data facets).
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFacets({})
@@ -44,7 +45,7 @@ export function useDataFacets(type) {
       let totalPages = 1
 
       while (alive && !ctrl.signal.aborted && page < totalPages && page < MAX_PAGES) {
-        const res = await type.api({
+        const res = await api({
           page,
           size: FETCH_SIZE,
           signal: ctrl.signal,
@@ -94,7 +95,7 @@ export function useDataFacets(type) {
       alive = false
       ctrl.abort()
     }
-  }, [type])
+  }, [type, apiOverride])
 
   return facets
 }

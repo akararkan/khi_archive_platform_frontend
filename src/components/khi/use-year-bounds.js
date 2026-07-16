@@ -83,7 +83,7 @@ function probeYear(res) {
 
 // type: the active TYPE registry entry (has `.api` + `.showDateRange`).
 // facets: the global /guest/facets payload (may be null while loading).
-export function useYearBounds(type, facets) {
+export function useYearBounds(type, facets, apiOverride = null) {
   const fallback = useMemo(() => ({ min: FIRST_FALLBACK, max: currentYear() }), [])
   const [probed, setProbed] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -95,7 +95,8 @@ export function useYearBounds(type, facets) {
   const [settled, setSettled] = useState(false)
 
   const enabled = Boolean(type?.showDateRange)
-  const canProbe = typeof type?.api === 'function'
+  const api = apiOverride || type?.api
+  const canProbe = typeof api === 'function'
   const typeKey = type?.key
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -110,8 +111,8 @@ export function useYearBounds(type, facets) {
     setLoading(true)
     const base = { page: 0, size: 1, sortBy: 'date' }
     Promise.all([
-      type.api({ ...base, sortDirection: 'asc' }).catch(() => null),
-      type.api({ ...base, sortDirection: 'desc' }).catch(() => null),
+      api({ ...base, sortDirection: 'asc' }).catch(() => null),
+      api({ ...base, sortDirection: 'desc' }).catch(() => null),
     ])
       .then(([oldest, newest]) => {
         if (cancelled) return
@@ -122,8 +123,7 @@ export function useYearBounds(type, facets) {
       })
       .finally(() => { if (!cancelled) { setLoading(false); setSettled(true) } })
     return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, canProbe, typeKey])
+  }, [enabled, canProbe, typeKey, api])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   return useMemo(() => {

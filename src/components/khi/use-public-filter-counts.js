@@ -10,6 +10,7 @@ import {
   guestVideos,
 } from '@/services/guest'
 import { extractPersonFromItem, personImageSrc } from '@/components/public/public-helpers'
+import { getStaffBrowsePage, getStaffMediaPage } from '@/services/staff-public-catalog'
 
 const MEDIA_KINDS = ['image', 'audio', 'video', 'text']
 const ENTITY_KINDS = ['person', 'project', 'category']
@@ -218,7 +219,7 @@ function activeMediaKinds(typeKey, selectedMediaTypes) {
   return []
 }
 
-export function usePublicFilterCounts(typeKey, selectedMediaTypes = []) {
+export function usePublicFilterCounts(typeKey, selectedMediaTypes = [], staff = false) {
   const mediaKey = selectedMediaTypes.join(',')
   const [state, setState] = useState({ counts: {}, facets: {} })
 
@@ -227,9 +228,15 @@ export function usePublicFilterCounts(typeKey, selectedMediaTypes = []) {
     let alive = true
 
     async function run() {
+      const mediaApis = staff
+        ? Object.fromEntries(MEDIA_KINDS.map((kind) => [kind, (params) => getStaffMediaPage([kind], params)]))
+        : MEDIA_APIS
+      const entityApis = staff
+        ? Object.fromEntries(ENTITY_KINDS.map((kind) => [kind, (params) => getStaffBrowsePage(kind, params)]))
+        : ENTITY_APIS
       const countEntries = [
-        ...MEDIA_KINDS.map((kind) => [kind, MEDIA_APIS[kind]]),
-        ...ENTITY_KINDS.map((kind) => [kind, ENTITY_APIS[kind]]),
+        ...MEDIA_KINDS.map((kind) => [kind, mediaApis[kind]]),
+        ...ENTITY_KINDS.map((kind) => [kind, entityApis[kind]]),
       ]
 
       const settledCounts = await Promise.allSettled(
@@ -249,16 +256,16 @@ export function usePublicFilterCounts(typeKey, selectedMediaTypes = []) {
       const mediaKinds = activeMediaKinds(typeKey, selectedKinds)
       if (mediaKinds.length > 0) {
         const settledItems = await Promise.allSettled(
-          mediaKinds.map((kind) => fetchAll(MEDIA_APIS[kind], ctrl.signal)),
+          mediaKinds.map((kind) => fetchAll(mediaApis[kind], ctrl.signal)),
         )
         if (!alive || ctrl.signal.aborted) return
         facets = tallyMediaFacets(
           settledItems.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
         )
       } else if (typeKey === 'project') {
-        facets = tallyProjectFacets(await fetchAll(ENTITY_APIS.project, ctrl.signal))
+        facets = tallyProjectFacets(await fetchAll(entityApis.project, ctrl.signal))
       } else if (typeKey === 'person') {
-        facets = tallyPersonFacets(await fetchAll(ENTITY_APIS.person, ctrl.signal))
+        facets = tallyPersonFacets(await fetchAll(entityApis.person, ctrl.signal))
       }
 
       if (alive && !ctrl.signal.aborted) setState({ counts, facets })
@@ -272,7 +279,7 @@ export function usePublicFilterCounts(typeKey, selectedMediaTypes = []) {
       alive = false
       ctrl.abort()
     }
-  }, [typeKey, mediaKey])
+  }, [typeKey, mediaKey, staff])
 
   return useMemo(() => state, [state])
 }

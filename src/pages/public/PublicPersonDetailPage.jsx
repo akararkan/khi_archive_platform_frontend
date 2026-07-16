@@ -15,6 +15,8 @@ import {
   IconPerson, IconMic, IconRegion, IconCalendar, IconTag, IconProject,
 } from '@/components/khi/icons'
 import { guestPerson, guestPersonProjects } from '@/services/guest'
+import { getStaffPerson, getStaffPersonProjects } from '@/services/staff-public-catalog'
+import { usePublicAccess } from '@/hooks/use-public-access'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 const PAGE_SIZE = 24
@@ -44,6 +46,7 @@ function PublicPersonDetailPage() {
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [projectsLoadingMore, setProjectsLoadingMore] = useState(false)
   const projectQueryRef = useRef('')
+  const { isStaff, ready: accessReady } = usePublicAccess()
 
   useEffect(() => {
     if (routeCode && !isEncodedPublicCode(routeCode)) {
@@ -52,18 +55,23 @@ function PublicPersonDetailPage() {
   }, [navigate, routeCode])
 
   useEffect(() => {
+    if (!accessReady) return undefined
     const ctrl = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     setError('')
-    guestPerson(code, { signal: ctrl.signal })
+    const request = isStaff
+      ? getStaffPerson(code, { signal: ctrl.signal })
+      : guestPerson(code, { signal: ctrl.signal })
+    request
       .then((d) => { if (!ctrl.signal.aborted) setPerson(d || null) })
       .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError('Could not load this person.') })
       .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     return () => ctrl.abort()
-  }, [code])
+  }, [accessReady, code, isStaff])
 
   useEffect(() => {
+    if (!accessReady) return undefined
     const ctrl = new AbortController()
     const fresh = projectQueryRef.current !== code
     projectQueryRef.current = code
@@ -71,7 +79,11 @@ function PublicPersonDetailPage() {
     const append = targetPage > 0
     if (append) setProjectsLoadingMore(true)
     else setProjectsLoading(true)
-    guestPersonProjects(code, { page: targetPage, size: PAGE_SIZE, signal: ctrl.signal })
+    const options = { page: targetPage, size: PAGE_SIZE, signal: ctrl.signal }
+    const request = isStaff
+      ? getStaffPersonProjects(code, options)
+      : guestPersonProjects(code, options)
+    request
       .then((d) => {
         if (ctrl.signal.aborted) return
         const content = d?.content || []
@@ -90,7 +102,7 @@ function PublicPersonDetailPage() {
         }
       })
     return () => ctrl.abort()
-  }, [code, projectPage])
+  }, [accessReady, code, isStaff, projectPage])
 
   const roles = useMemo(() => toList(person?.personType), [person])
 

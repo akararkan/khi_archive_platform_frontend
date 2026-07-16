@@ -29,13 +29,39 @@ export async function guestFeed(params = {}) {
   return data
 }
 
-// Autocomplete suggestions across every entity. Keep `limit` small (~10) for
-// header search dropdowns.
+// Autocomplete suggestions across every entity. The backend's legacy
+// `/guest/suggest` route does not consistently apply project visibility, so the
+// UI derives suggestions from `/guest/search`, whose sections use the same
+// guest-safe visibility policy as the catalogue. This prevents a hidden title
+// or code from leaking through autocomplete.
 export async function guestSuggest({ q, limit, signal } = {}) {
-  const params = { q }
-  if (typeof limit === 'number' && limit > 0) params.limit = limit
-  const { data } = await apiClient.get('/guest/suggest', { params, signal })
-  return data
+  const safeLimit = typeof limit === 'number' && limit > 0 ? limit : 8
+  const data = await guestGlobalSearch({ q, perSection: Math.max(2, Math.ceil(safeLimit / 2)), signal })
+  const definitions = [
+    ['person', 'persons', ['fullName', 'personName', 'name', 'title'], ['personCode', 'code']],
+    ['project', 'projects', ['projectName', 'name', 'title'], ['projectCode', 'code']],
+    ['audio', 'audios', ['centralKurdishTitle', 'originTitle', 'originalTitle', 'title', 'fileName'], ['audioCode', 'code']],
+    ['video', 'videos', ['titleInCentralKurdish', 'originalTitle', 'title', 'fileName'], ['videoCode', 'code']],
+    ['text', 'texts', ['titleInCentralKurdish', 'originalTitle', 'title', 'fileName'], ['textCode', 'code']],
+    ['image', 'images', ['titleInCentralKurdish', 'originalTitle', 'title', 'fileName'], ['imageCode', 'code']],
+    ['category', 'categories', ['categoryName', 'name', 'title'], ['categoryCode', 'code']],
+  ]
+  const first = (item, keys) => keys.map((key) => item?.[key]).find((value) => value != null && value !== '')
+  const groups = definitions.map(([kind, section, valueKeys, codeKeys]) => {
+    const raw = data?.[section]
+    const rows = Array.isArray(raw) ? raw : (raw?.content || raw?.items || [])
+    return rows.map((item) => ({ kind, value: first(item, valueKeys), code: first(item, codeKeys) }))
+      .filter((item) => item.value && item.code)
+  })
+  const suggestions = []
+  const depth = Math.max(0, ...groups.map((group) => group.length))
+  for (let index = 0; index < depth && suggestions.length < safeLimit; index += 1) {
+    for (const group of groups) {
+      if (group[index]) suggestions.push(group[index])
+      if (suggestions.length >= safeLimit) break
+    }
+  }
+  return suggestions
 }
 
 // Sidebar checkbox counts (media-type, categories, persons, languages,

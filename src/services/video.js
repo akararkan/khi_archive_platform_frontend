@@ -26,8 +26,8 @@ export async function searchVideos(q, { limit, projectCode, signal } = {}) {
   return data
 }
 
-export async function getVideo(code) {
-  const { data } = await apiClient.get(`/video/${code}`)
+export async function getVideo(code, { signal } = {}) {
+  const { data } = await apiClient.get(`/video/${code}`, { signal })
   return data
 }
 

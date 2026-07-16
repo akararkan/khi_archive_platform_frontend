@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { AudioLines, X } from 'lucide-react'
 
 import { AudioPlayer } from '@/components/ui/audio-player'
+import { CompleteMediaInventory } from '@/components/items/CompleteMediaInventory'
 import { Button } from '@/components/ui/button'
 import { CodeBadge } from '@/components/ui/code-badge'
 import { Highlight, HighlightProvider } from '@/components/ui/highlight'
@@ -462,6 +463,8 @@ function AudioDetailsModal({ audio, open, onOpenChange, searchQuery }) {
                 </div>
               </details>
             )}
+
+            <CompleteMediaInventory item={audio} kind="audio" />
           </div>
         </div>
         </HighlightProvider>

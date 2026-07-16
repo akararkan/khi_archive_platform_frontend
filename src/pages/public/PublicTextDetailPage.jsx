@@ -21,6 +21,8 @@ import {
   IconText, IconMic, IconQuote, IconPlus,
 } from '@/components/khi/icons'
 import { guestTexts } from '@/services/guest'
+import { getStaffMediaOne } from '@/services/staff-public-catalog'
+import { usePublicAccess } from '@/hooks/use-public-access'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl
@@ -253,6 +255,7 @@ function PublicTextDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [helpOpen, setHelpOpen] = useState(false)
+  const { isStaff, ready: accessReady } = usePublicAccess()
 
   useEffect(() => {
     if (routeCode && !isEncodedPublicCode(routeCode)) {
@@ -261,17 +264,20 @@ function PublicTextDetailPage() {
   }, [navigate, routeCode])
 
   useEffect(() => {
+    if (!accessReady) return undefined
     const ctrl = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     setError('')
-    guestTexts
-      .one(code, { signal: ctrl.signal })
+    const request = isStaff
+      ? getStaffMediaOne('text', code, { signal: ctrl.signal })
+      : guestTexts.one(code, { signal: ctrl.signal })
+    request
       .then((d) => { if (!ctrl.signal.aborted) setText(d || null) })
       .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError('Could not load this text.') })
       .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     return () => ctrl.abort()
-  }, [code])
+  }, [accessReady, code, isStaff])
 
   const person = useMemo(() => extractPersonFromItem(text), [text])
 
@@ -318,7 +324,7 @@ function PublicTextDetailPage() {
         <KhiMetaRow label={DETAIL.person} value={person?.personCode}><KhiPersonLink person={person} fallbackName={person?.name} /></KhiMetaRow>
         <KhiMetaRow label={DETAIL.categories} value={text.categories}><KhiCategoryLinks categories={text.categories} /></KhiMetaRow>
       </KhiMetaPanel>
-      <KhiPublicMediaFields kind="text" item={text} />
+      <KhiPublicMediaFields kind="text" item={text} full={isStaff} />
     </>
   )
 

@@ -4,6 +4,8 @@ import { useSearchParams } from 'react-router-dom'
 import { HighlightProvider } from '@/components/ui/highlight'
 import { readMediaTypeCount, decodeSelectedFacets } from '@/components/public/public-helpers'
 import { guestAudios, guestFacets, guestImages, guestTexts, guestVideos } from '@/services/guest'
+import { getStaffBrowsePage, getStaffMediaPage } from '@/services/staff-public-catalog'
+import { usePublicAccess } from '@/hooks/use-public-access'
 import KhiSidebar from '@/components/khi/KhiSidebar'
 import KhiToolbar from '@/components/khi/KhiToolbar'
 import KhiCard from '@/components/khi/KhiCard'
@@ -46,8 +48,18 @@ function emptyMediaPage(page, size) {
   }
 }
 
-async function loadPublicMediaSections(params, selectedKinds) {
+async function loadPublicMediaSections(params, selectedKinds, staff = false) {
   const selected = new Set(selectedKinds.length ? selectedKinds : MEDIA_KINDS)
+  if (staff) {
+    const kinds = MEDIA_KINDS.filter((kind) => selected.has(kind))
+    const page = await getStaffMediaPage(kinds, params)
+    return {
+      items: page?.content || [],
+      totalElements: Number(page?.totalElements) || 0,
+      totalPages: Number(page?.totalPages) || 0,
+      number: Number(page?.number) || 0,
+    }
+  }
   const entries = await Promise.all(
     MEDIA_KINDS.map(async (kind) => {
       if (!selected.has(kind)) return [kind, emptyMediaPage(params.page, params.size)]
@@ -91,6 +103,7 @@ function SkeletonGrid() {
 
 export function KhiBrowsePage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const { isStaff, ready: accessReady } = usePublicAccess()
   const resultsRef = useRef(null)
   // Filter rail visibility. Open by default on desktop; closed (drawer) on
   // phones/tablets so it never blocks the catalogue on first paint.
@@ -151,17 +164,21 @@ export function KhiBrowsePage() {
   }, [searchParams, type.textFilters])
 
   const [facets, setFacets] = useState(null)
+  const staffTypeApi = useMemo(
+    () => (isStaff ? (params) => getStaffBrowsePage(typeKey, params) : null),
+    [isStaff, typeKey],
+  )
   // Entity-specific checkbox options, tallied from the live archive for the
   // active media scope (empty for the mixed media grid / entity scopes). Merged
   // on top of the server facets so FacetGroup renders both from one object.
-  const dataFacets = useDataFacets(type)
-  const publicFilterCounts = usePublicFilterCounts(typeKey, selectedMediaTypes)
+  const dataFacets = useDataFacets(type, staffTypeApi)
+  const publicFilterCounts = usePublicFilterCounts(typeKey, selectedMediaTypes, isStaff)
   const allFacets = useMemo(
     () => ({ ...(facets || {}), ...(publicFilterCounts.facets || {}), ...dataFacets }),
     [facets, publicFilterCounts.facets, dataFacets],
   )
   // Oldest → newest YEAR span for the date filter bounds, derived from live data.
-  const yearBounds = useYearBounds(type, facets)
+  const yearBounds = useYearBounds(type, facets, staffTypeApi)
   // Accumulating result list: a fresh query replaces it; "Show more" appends the
   // next API page. `meta` mirrors the Spring Page envelope (number/totalPages/
   // totalElements). `page` is the highest page index loaded so far.
@@ -219,7 +236,8 @@ export function KhiBrowsePage() {
   const mediaKey = selectedMediaTypes.join(',')
   // Identifies the query independent of paging. When it changes we start over at
   // page 0 and REPLACE the list; while it's stable, bumping `page` APPENDS.
-  const queryKey = `${typeKey}|${q}|${sortBy}|${sortDir}|${dateFrom}|${dateTo}|${selectedKey}|${textKey}|${mediaKey}|${reload}`
+  const accessKey = accessReady ? (isStaff ? 'staff' : 'guest') : 'pending'
+  const queryKey = `${typeKey}|${q}|${sortBy}|${sortDir}|${dateFrom}|${dateTo}|${selectedKey}|${textKey}|${mediaKey}|${accessKey}|${reload}`
 
   /* eslint-disable react-hooks/set-state-in-effect */
   // A new query resets paging to 0 (the fetch below then replaces the list).
@@ -227,6 +245,7 @@ export function KhiBrowsePage() {
 
   const queryKeyRef = useRef('')
   useEffect(() => {
+    if (!accessReady) return undefined
     const ctrl = new AbortController()
     // On a query change the page state may still hold a stale value for one
     // render; force page 0 so we never append the wrong page to a fresh list.
@@ -249,8 +268,8 @@ export function KhiBrowsePage() {
       params[group.paramKey] = list
     }
     const request = typeKey === 'all'
-      ? loadPublicMediaSections(params, selectedMediaTypes)
-      : type.api(params)
+      ? loadPublicMediaSections(params, selectedMediaTypes, isStaff)
+      : (isStaff ? getStaffBrowsePage(typeKey, params) : type.api(params))
 
     request
       .then((res) => {
@@ -269,7 +288,7 @@ export function KhiBrowsePage() {
       .finally(() => { if (!ctrl.signal.aborted) { setLoading(false); setLoadingMore(false) } })
     return () => ctrl.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryKey, page, pageSize])
+  }, [queryKey, page, pageSize, accessReady, isStaff])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // On a NEW query (not when appending), reset the internal scroll so the user

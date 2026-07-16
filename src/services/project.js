@@ -69,8 +69,8 @@ export async function getProjectsPage({ page = 0, size = 100, signal } = {}) {
   return normalizeProjectPage(data)
 }
 
-export async function getProject(code) {
-  const { data } = await apiClient.get(`/project/${code}`)
+export async function getProject(code, { signal } = {}) {
+  const { data } = await apiClient.get(`/project/${code}`, { signal })
   return normalizeProject(data)
 }
 

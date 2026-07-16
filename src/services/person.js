@@ -102,8 +102,8 @@ export async function searchPersons(q, { limit, signal } = {}) {
   return data
 }
 
-export async function getPerson(code) {
-  const { data } = await apiClient.get(`/person/${code}`)
+export async function getPerson(code, { signal } = {}) {
+  const { data } = await apiClient.get(`/person/${code}`, { signal })
   return data
 }
 

@@ -19,6 +19,8 @@ import {
 import { Highlight, HighlightProvider } from '@/components/ui/highlight'
 import { cn } from '@/lib/utils'
 import { guestSuggest, guestTrending } from '@/services/guest'
+import { getStaffSuggestions } from '@/services/staff-public-catalog'
+import { usePublicAccess } from '@/hooks/use-public-access'
 import { publicDetailPath } from '@/components/public/public-route-id'
 
 // ── SearchCommand ───────────────────────────────────────────────────────
@@ -157,6 +159,7 @@ function SearchCommand({ className, autoFocus = false }) {
   const navigate = useNavigate()
   const inputRef = useRef(null)
   const containerRef = useRef(null)
+  const { isStaff, ready: accessReady } = usePublicAccess()
 
   const urlQuery = useUrlQuery()
   const [value, setValue] = useState(urlQuery)
@@ -226,10 +229,14 @@ function SearchCommand({ className, autoFocus = false }) {
       setSuggestQuery('')
       return undefined
     }
+    if (!accessReady) return undefined
     const ctrl = new AbortController()
     setSuggestLoading(true)
     const t = setTimeout(() => {
-      guestSuggest({ q: trimmed, limit: SUGGEST_LIMIT, signal: ctrl.signal })
+      const request = isStaff
+        ? getStaffSuggestions({ q: trimmed, limit: SUGGEST_LIMIT, signal: ctrl.signal })
+        : guestSuggest({ q: trimmed, limit: SUGGEST_LIMIT, signal: ctrl.signal })
+      request
         .then((data) => {
           if (ctrl.signal.aborted) return
           const list = Array.isArray(data) ? data : []
@@ -249,7 +256,7 @@ function SearchCommand({ className, autoFocus = false }) {
       clearTimeout(t)
       ctrl.abort()
     }
-  }, [value])
+  }, [accessReady, isStaff, value])
 
   const grouped = useMemo(() => groupSuggestions(suggestions), [suggestions])
   const flatRows = useMemo(() => flattenGroups(grouped), [grouped])

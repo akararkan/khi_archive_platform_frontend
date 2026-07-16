@@ -26,8 +26,8 @@ export async function searchTexts(q, { limit, projectCode, signal } = {}) {
   return data
 }
 
-export async function getText(code) {
-  const { data } = await apiClient.get(`/text/${code}`)
+export async function getText(code, { signal } = {}) {
+  const { data } = await apiClient.get(`/text/${code}`, { signal })
   return data
 }
 

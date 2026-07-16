@@ -18,6 +18,8 @@ import {
   IconCalendar, IconClock, IconLayers, IconText, IconQuote, IconPlus,
 } from '@/components/khi/icons'
 import { guestAudios } from '@/services/guest'
+import { getStaffMediaOne } from '@/services/staff-public-catalog'
+import { usePublicAccess } from '@/hooks/use-public-access'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 // Normalise a list-ish value (array | comma/semicolon/Arabic-comma string).
@@ -35,6 +37,7 @@ function PublicAudioDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [helpOpen, setHelpOpen] = useState(false)
+  const { isStaff, ready: accessReady } = usePublicAccess()
 
   useEffect(() => {
     if (routeCode && !isEncodedPublicCode(routeCode)) {
@@ -43,17 +46,20 @@ function PublicAudioDetailPage() {
   }, [navigate, routeCode])
 
   useEffect(() => {
+    if (!accessReady) return undefined
     const ctrl = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     setError('')
-    guestAudios
-      .one(code, { signal: ctrl.signal })
+    const request = isStaff
+      ? getStaffMediaOne('audio', code, { signal: ctrl.signal })
+      : guestAudios.one(code, { signal: ctrl.signal })
+    request
       .then((d) => { if (!ctrl.signal.aborted) setAudio(d || null) })
       .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError('Could not load this audio.') })
       .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     return () => ctrl.abort()
-  }, [code])
+  }, [accessReady, code, isStaff])
 
   const person = useMemo(() => extractPersonFromItem(audio), [audio])
 
@@ -101,7 +107,7 @@ function PublicAudioDetailPage() {
         <KhiMetaRow label={DETAIL.person} value={person?.personCode}><KhiPersonLink person={person} fallbackName={person?.name} /></KhiMetaRow>
         <KhiMetaRow label={DETAIL.categories} value={audio.categories}><KhiCategoryLinks categories={audio.categories} /></KhiMetaRow>
       </KhiMetaPanel>
-      <KhiPublicMediaFields kind="audio" item={audio} />
+      <KhiPublicMediaFields kind="audio" item={audio} full={isStaff} />
     </>
   )
 

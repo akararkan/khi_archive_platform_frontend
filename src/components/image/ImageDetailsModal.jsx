@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Image as ImageIcon, X } from 'lucide-react'
 
+import { CompleteMediaInventory } from '@/components/items/CompleteMediaInventory'
 import { Button } from '@/components/ui/button'
 import { CodeBadge } from '@/components/ui/code-badge'
 import { Highlight, HighlightProvider } from '@/components/ui/highlight'
@@ -429,6 +430,8 @@ function ImageDetailsModal({ image, open, onOpenChange, searchQuery }) {
                 </div>
               </details>
             )}
+
+            <CompleteMediaInventory item={image} kind="image" />
           </div>
         </div>
         </HighlightProvider>

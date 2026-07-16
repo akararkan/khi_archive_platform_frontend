@@ -14,6 +14,8 @@ import {
   IconCategory, IconCalendar, IconProject,
 } from '@/components/khi/icons'
 import { guestProject, guestProjectMedia } from '@/services/guest'
+import { getStaffProject, getStaffProjectMedia } from '@/services/staff-public-catalog'
+import { usePublicAccess } from '@/hooks/use-public-access'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 const TABS = [
@@ -51,6 +53,7 @@ function PublicProjectDetailPage() {
   const [tab, setTab] = useState('all')
   const [media, setMedia] = useState(null)
   const [mediaLoading, setMediaLoading] = useState(true)
+  const { isStaff, ready: accessReady } = usePublicAccess()
 
   useEffect(() => {
     if (routeCode && !isEncodedPublicCode(routeCode)) {
@@ -59,27 +62,36 @@ function PublicProjectDetailPage() {
   }, [navigate, routeCode])
 
   useEffect(() => {
+    if (!accessReady) return undefined
     const ctrl = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     setError('')
-    guestProject(code, { signal: ctrl.signal })
+    const request = isStaff
+      ? getStaffProject(code, { signal: ctrl.signal })
+      : guestProject(code, { signal: ctrl.signal })
+    request
       .then((d) => { if (!ctrl.signal.aborted) setProject(d || null) })
       .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError('Could not load this project.') })
       .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     return () => ctrl.abort()
-  }, [code])
+  }, [accessReady, code, isStaff])
 
   useEffect(() => {
+    if (!accessReady) return undefined
     const ctrl = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMediaLoading(true)
-    guestProjectMedia(code, { type: tab === 'all' ? 'all' : tab, signal: ctrl.signal })
+    const options = { type: tab === 'all' ? 'all' : tab, signal: ctrl.signal }
+    const request = isStaff
+      ? getStaffProjectMedia(code, options)
+      : guestProjectMedia(code, options)
+    request
       .then((d) => { if (!ctrl.signal.aborted) setMedia(d || null) })
       .catch(() => {})
       .finally(() => { if (!ctrl.signal.aborted) setMediaLoading(false) })
     return () => ctrl.abort()
-  }, [code, tab])
+  }, [accessReady, code, isStaff, tab])
 
   const person = useMemo(() => extractPersonFromItem(project), [project])
 

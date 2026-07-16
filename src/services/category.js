@@ -60,8 +60,8 @@ export async function searchCategories(q, { limit, signal } = {}) {
   return data
 }
 
-export async function getCategory(code) {
-  const { data } = await apiClient.get(`/category/${code}`)
+export async function getCategory(code, { signal } = {}) {
+  const { data } = await apiClient.get(`/category/${code}`, { signal })
   return data
 }
 

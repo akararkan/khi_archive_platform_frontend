@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Video as VideoIcon, X } from 'lucide-react'
 
+import { CompleteMediaInventory } from '@/components/items/CompleteMediaInventory'
 import { Button } from '@/components/ui/button'
 import { CodeBadge } from '@/components/ui/code-badge'
 import { Highlight, HighlightProvider } from '@/components/ui/highlight'
@@ -419,6 +420,8 @@ function VideoDetailsModal({ video, open, onOpenChange, searchQuery }) {
                 </div>
               </details>
             )}
+
+            <CompleteMediaInventory item={video} kind="video" />
           </div>
         </div>
         </HighlightProvider>

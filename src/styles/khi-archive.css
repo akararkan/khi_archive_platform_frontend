@@ -316,13 +316,16 @@
 .khi-root .empty .clear-all{margin-inline-start:8px;color:var(--clay);font-weight:800}
 
 .khi-root .khi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(292px,1fr));gap:20px}
-.khi-root .card{background:var(--paper-2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .35s,border-color .35s;position:relative;display:flex;flex-direction:column;text-decoration:none;color:inherit}
+.khi-root .card{background:var(--paper-2);border:1px solid var(--line);border-radius:18px;overflow:hidden;transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .35s,border-color .35s;position:relative;display:flex;flex-direction:column;text-decoration:none;color:inherit;isolation:isolate}
 .khi-root .card:hover{transform:translateY(-6px);box-shadow:0 22px 44px -18px var(--shadow);border-color:var(--line-2)}
+.khi-root .card:focus-visible{outline:3px solid var(--gold-bright);outline-offset:3px;border-color:var(--pine-2);box-shadow:0 0 0 2px #fff,0 18px 42px -20px var(--shadow)}
 /* Every cover is the SAME fixed ratio, so all cards are equal height. */
-.khi-root .card .media{position:relative;aspect-ratio:4 / 3;overflow:hidden;background:var(--paper-3)}
-.khi-root .card .media .natural-cover{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;background:var(--paper-3);isolation:isolate}
-.khi-root .card .media .cover-backdrop{position:absolute;z-index:-1;inset:-18px;width:calc(100% + 36px);height:calc(100% + 36px);object-fit:cover;filter:blur(20px) saturate(.72);opacity:.42;transform:scale(1.08)}
-.khi-root .card .media .cover-img{position:absolute;inset:0;width:100%;height:100%;padding:10px;object-fit:contain;filter:drop-shadow(0 8px 13px rgba(15,29,23,.22))}
+.khi-root .card .media{position:relative;aspect-ratio:4 / 3;overflow:hidden;background:linear-gradient(145deg,#f8f3e7,#e9dec4);isolation:isolate}
+.khi-root .card .media .natural-cover{position:absolute;inset:8px;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(141,145,116,.72);border-radius:18px;background:#1f4035;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 10px 24px -18px rgba(13,31,24,.82);isolation:isolate}
+.khi-root .card .media .natural-cover::after{content:"";position:absolute;inset:0;z-index:4;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(255,250,231,.08);pointer-events:none}
+.khi-root .card .media .cover-backdrop{position:absolute;z-index:0;inset:-18px;width:calc(100% + 36px);height:calc(100% + 36px);object-fit:cover;filter:blur(20px) saturate(.72);opacity:.5;transform:scale(1.08)}
+.khi-root .card .media .cover-img{position:absolute;z-index:1;inset:0;width:100%;height:100%;padding:10px;object-fit:contain;filter:drop-shadow(0 8px 13px rgba(15,29,23,.22))}
+.khi-root .card .media .archive-real-shade{position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(180deg,rgba(19,44,35,.02),rgba(10,27,20,.18))}
 .khi-root .card .media .video-cover{background:#10241d}
 .khi-root .card .media .video-cover .cover-backdrop{filter:blur(16px) saturate(.86);opacity:.38}
 .khi-root .card .media .video-cover .cover-img{padding:0;object-fit:cover;filter:none}
@@ -339,76 +342,89 @@
 .khi-root .card .type-badge svg{width:13px;height:13px}
 .khi-root .card .trend-badge{position:absolute;top:13px;right:13px;z-index:3;display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:800;background:rgba(20,38,32,.86);color:var(--gold-soft);padding:5px 10px;border-radius:8px;backdrop-filter:blur(4px);border:1px solid rgba(231,211,160,.32)}
 .khi-root .card .trend-badge svg{width:13px;height:13px}
-/* ── AUDIO container ── a lit pine stage with a glowing gold equalizer ──────── */
-.khi-root .m-audio{position:absolute;inset:0;overflow:hidden;background:
-  radial-gradient(130% 95% at 50% 8%,rgba(78,132,108,.22),transparent 56%),
-  linear-gradient(165deg,#2b5546 0%,#1e3b31 55%,#10241d 100%)}
-.khi-root .m-audio::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
-  background:repeating-linear-gradient(118deg,rgba(255,255,255,.03) 0 2px,transparent 2px 7px)}
-.khi-root .m-audio .halo{position:absolute;left:50%;top:50%;width:160%;height:170%;transform:translate(-50%,-50%);
-  pointer-events:none;background:radial-gradient(circle,rgba(219,232,222,.22),transparent 60%);transition:opacity .4s}
-.khi-root .card:hover .m-audio .halo{opacity:1.15}
-.khi-root .m-audio .base-line{position:absolute;left:22px;right:22px;top:50%;height:1px;z-index:1;
-  background:linear-gradient(90deg,transparent,rgba(231,211,160,.4),transparent)}
-.khi-root .wave{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:3px;padding:0 22px;z-index:2}
-.khi-root .wave .bar{width:4px;border-radius:4px;flex:1;max-width:6px;transform-origin:center;opacity:.92;
-  background:linear-gradient(to top,#5f9a82 0%,#9dc3ad 52%,#eef6ef 100%);
-  box-shadow:0 0 10px rgba(219,232,222,.16)}
+/* ── Archival thumbnail family ───────────────────────────────────────────────
+   The supplied project artwork is treated as a small archive board: pine felt,
+   olive catalogue rails, cream media slips and restrained gold details. The
+   same vocabulary carries through generated audio/video/image/text covers. */
+.khi-root :is(.m-project,.m-audio,.m-video,.m-image,.m-text){position:absolute;inset:8px;overflow:hidden;border:1px solid rgba(141,145,116,.72);border-radius:18px;background:
+  radial-gradient(120% 100% at 50% -10%,rgba(81,125,105,.2),transparent 58%),
+  linear-gradient(155deg,#294d42 0%,#1f4035 58%,#173229 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 -22px 50px rgba(8,25,18,.1),0 10px 24px -18px rgba(13,31,24,.82);isolation:isolate}
+.khi-root :is(.m-project,.m-audio,.m-video,.m-image,.m-text)::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.42;background:
+  repeating-linear-gradient(118deg,rgba(255,255,255,.025) 0 2px,transparent 2px 7px),
+  radial-gradient(circle at 22% 18%,rgba(255,255,255,.08),transparent 35%)}
+.khi-root .archive-rails{position:absolute;inset:0;z-index:0;pointer-events:none}
+.khi-root .archive-rails i{position:absolute;inset-inline:7.5%;height:7px;border-radius:999px;background:linear-gradient(180deg,#91967d,#7d846c);box-shadow:0 1px 0 rgba(255,255,255,.08),0 5px 13px rgba(8,25,18,.12)}
+.khi-root .archive-rails i:nth-child(1){top:23%}
+.khi-root .archive-rails i:nth-child(2){top:49%}
+.khi-root .archive-rails i:nth-child(3){top:75%}
+.khi-root .archive-tile{position:absolute;z-index:3;display:grid;place-items:center;aspect-ratio:1;border:1px solid rgba(255,255,255,.72);border-radius:21%;background:linear-gradient(145deg,#fffaf0,#f6ecd5);color:#21463a;box-shadow:0 14px 24px -13px rgba(3,20,14,.74),inset 0 1px 0 #fff;transition:transform .45s cubic-bezier(.2,.7,.2,1),box-shadow .45s}
+.khi-root .archive-tile svg{width:39%;height:39%;filter:drop-shadow(0 1px 0 rgba(255,255,255,.8))}
+.khi-root .archive-cover-label{position:absolute;left:50%;bottom:10px;z-index:7;transform:translateX(-50%);display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:38px;padding:7px 15px;border:1px solid rgba(255,255,255,.06);border-radius:14px;background:rgba(39,82,69,.96);box-shadow:0 12px 24px -14px rgba(4,22,16,.78),inset 0 1px 0 rgba(255,255,255,.07);color:#fff9e9;font-size:13px;font-weight:800;line-height:1;white-space:nowrap;backdrop-filter:blur(8px);direction:rtl}
+.khi-root .archive-cover-label svg{width:19px;height:19px;flex:0 0 19px;color:var(--gold-bright)}
+.khi-root .archive-cover-label.kind-project{min-height:42px;padding-inline:18px;font-size:14px}
+
+/* Project: the reference composition, made responsive rather than baked into a
+   raster. A real project image, when supplied by the API, lives in the photo
+   slip without replacing the recognisable archive-board identity. */
+.khi-root .m-project .archive-tile{width:20%}
+.khi-root .m-project .project-text-tile{left:14%;top:42%;transform:rotate(-4deg)}
+.khi-root .m-project .project-audio-tile{left:46%;top:17%;transform:rotate(-6deg)}
+.khi-root .m-project .project-image-tile{right:13%;top:31%;transform:rotate(5deg)}
+.khi-root .m-project .project-image-tile img{width:100%;height:100%;padding:5px;border-radius:20%;object-fit:cover}
+.khi-root .card:hover .m-project .project-text-tile{transform:translateY(-3px) rotate(-2deg)}
+.khi-root .card:hover .m-project .project-audio-tile{transform:translateY(-4px) rotate(-3deg)}
+.khi-root .card:hover .m-project .project-image-tile{transform:translateY(-3px) rotate(2deg)}
+
+/* Audio: a microphone catalogue slip floats above a deterministic waveform. */
+.khi-root .m-audio .halo{position:absolute;left:50%;top:50%;z-index:1;width:150%;height:160%;transform:translate(-50%,-50%);pointer-events:none;background:radial-gradient(circle,rgba(219,232,222,.19),transparent 59%);transition:opacity .4s}
+.khi-root .card:hover .m-audio .halo{opacity:1.2}
+.khi-root .m-audio .base-line{position:absolute;left:9%;right:9%;top:57%;height:1px;z-index:1;background:linear-gradient(90deg,transparent,rgba(247,235,204,.48),transparent)}
+.khi-root .m-audio .audio-symbol{left:50%;top:15%;width:19%;transform:translateX(-50%) rotate(-4deg)}
+.khi-root .card:hover .m-audio .audio-symbol{transform:translate(-50%,-3px) rotate(-1deg)}
+.khi-root .wave{position:absolute;inset:42% 0 25%;z-index:2;display:flex;align-items:center;justify-content:center;gap:3px;padding:0 9%}
+.khi-root .wave .bar{width:4px;border-radius:4px;flex:1;max-width:6px;transform-origin:center;opacity:.9;background:linear-gradient(to top,#90a286 0%,#d8d1ac 52%,#fff9e8 100%);box-shadow:0 0 10px rgba(231,211,160,.14)}
 .khi-root .card:hover .wave .bar{animation:khi-pulse 1.15s ease-in-out infinite}
 @keyframes khi-pulse{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.4)}}
 
 /* Play medallion — shared by audio + video; video adds a pulsing ring. */
-.khi-root .play{position:absolute;left:16px;bottom:16px;z-index:5;width:50px;height:50px;border-radius:50%;
-  background:var(--gold-bright);color:var(--pine-deep);display:grid;place-items:center;
-  box-shadow:0 8px 22px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.55);transition:.28s cubic-bezier(.2,.7,.2,1)}
-.khi-root .play svg{width:20px;height:20px;margin-right:2px}
-.khi-root .card:hover .play{transform:scale(1.12);background:#fff;box-shadow:0 12px 30px rgba(0,0,0,.42)}
-.khi-root .play.ring::before{content:"";position:absolute;inset:-7px;border-radius:50%;
-  border:1.5px solid rgba(231,211,160,.6);opacity:0;transition:opacity .3s}
+.khi-root .play{position:absolute;left:14px;bottom:13px;z-index:6;width:44px;height:44px;border-radius:50%;background:var(--gold-bright);color:var(--pine-deep);display:grid;place-items:center;box-shadow:0 8px 22px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.55);transition:.28s cubic-bezier(.2,.7,.2,1)}
+.khi-root .play svg{width:18px;height:18px;margin-right:2px}
+.khi-root .card:hover .play{transform:scale(1.1);background:#fff;box-shadow:0 12px 30px rgba(0,0,0,.42)}
+.khi-root .play.ring::before{content:"";position:absolute;inset:-7px;border-radius:50%;border:1.5px solid rgba(231,211,160,.6);opacity:0;transition:opacity .3s}
 .khi-root .card:hover .play.ring::before{opacity:1;animation:khi-ring 1.7s ease-out infinite}
 @keyframes khi-ring{0%{transform:scale(.82);opacity:.7}100%{transform:scale(1.34);opacity:0}}
+.khi-root .duration{position:absolute;right:14px;bottom:15px;z-index:6;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--cream);background:rgba(20,38,32,.72);padding:4px 8px;border:1px solid rgba(255,255,255,.1);border-radius:8px;backdrop-filter:blur(4px);direction:ltr}
 
-.khi-root .duration{position:absolute;right:16px;bottom:16px;z-index:5;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--cream);background:rgba(20,38,32,.65);padding:4px 9px;border-radius:7px;backdrop-filter:blur(3px);direction:ltr}
-
-/* ── VIDEO container ── a cinematic frame: perforated strips, vignette, scrubber ── */
-.khi-root .m-video{position:absolute;inset:0;overflow:hidden;background:
-  radial-gradient(120% 85% at 50% 40%,rgba(78,132,108,.18),transparent 60%),
-  linear-gradient(145deg,#264d3f 0%,#1e3b31 55%,#10241d 100%)}
-.khi-root .m-video .frame{position:absolute;inset:0;background:radial-gradient(circle at 50% 42%,rgba(219,232,222,.22),transparent 60%)}
-.khi-root .m-video .vig{position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(125% 125% at 50% 50%,transparent 50%,rgba(0,0,0,.5) 100%)}
-.khi-root .filmstrip{position:absolute;top:0;left:0;right:0;height:16px;z-index:3;background:rgba(9,22,17,.84)}
-.khi-root .filmstrip::after{content:"";position:absolute;inset:4px 6px;border-radius:2px;
-  background:repeating-linear-gradient(90deg,transparent 0 6px,rgba(245,250,246,.26) 6px 12px,transparent 12px 18px)}
+/* Video: real posters remain full-frame; the no-poster state becomes an archive
+   board with a floating film slip and a quiet transport line. */
+.khi-root .m-video .frame{position:absolute;inset:0;z-index:1;background:radial-gradient(circle at 50% 42%,rgba(219,232,222,.2),transparent 60%)}
+.khi-root .m-video .video-symbol{left:50%;top:26%;width:25%;transform:translateX(-50%) rotate(3deg)}
+.khi-root .card:hover .m-video .video-symbol{transform:translate(-50%,-3px) rotate(0)}
+.khi-root .m-video .vig{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(125% 125% at 50% 50%,transparent 50%,rgba(0,0,0,.42) 100%)}
+.khi-root .filmstrip{position:absolute;top:0;left:0;right:0;height:13px;z-index:3;background:rgba(9,22,17,.65)}
+.khi-root .filmstrip::after{content:"";position:absolute;inset:3px 6px;border-radius:2px;background:repeating-linear-gradient(90deg,transparent 0 6px,rgba(245,250,246,.24) 6px 12px,transparent 12px 18px)}
 .khi-root .filmstrip.bottom{top:auto;bottom:0}
-.khi-root .m-video .scrub{position:absolute;left:18px;right:18px;bottom:24px;height:3px;border-radius:3px;
-  background:rgba(244,236,220,.22);z-index:4}
-.khi-root .m-video .scrub i{position:absolute;left:0;top:0;bottom:0;width:36%;border-radius:3px;
-  background:#dbe8de;box-shadow:0 0 8px rgba(219,232,222,.45)}
-.khi-root .card:hover .m-video .scrub i{width:64%;transition:width 1.3s cubic-bezier(.2,.7,.2,1)}
+.khi-root .m-video .scrub{position:absolute;left:10%;right:10%;bottom:58px;height:3px;border-radius:3px;background:rgba(244,236,220,.2);z-index:4}
+.khi-root .m-video .scrub i{position:absolute;left:0;top:0;bottom:0;width:36%;border-radius:3px;background:#dbe8de;box-shadow:0 0 8px rgba(219,232,222,.4);transition:width 1.3s cubic-bezier(.2,.7,.2,1)}
+.khi-root .card:hover .m-video .scrub i{width:64%}
 
-/* ── IMAGE placeholder (only when a record carries no photo) ─────────────────── */
-.khi-root .m-image{position:absolute;inset:0;background:linear-gradient(135deg,#cdb88d,#9c7d50)}
-.khi-root .m-image .ph{position:absolute;inset:14px;border:1px solid rgba(251,246,234,.45);border-radius:8px;background:repeating-linear-gradient(135deg,rgba(251,246,234,.1) 0 10px,transparent 10px 20px);display:grid;place-items:center}
-.khi-root .m-image .ph svg{width:46px;height:46px;color:rgba(251,246,234,.7)}
+/* Image: use the photograph itself when present; otherwise show a generous
+   cream photo slip rather than a generic broken-image square. */
+.khi-root .m-image .image-symbol{left:50%;top:27%;width:29%;transform:translateX(-50%) rotate(4deg)}
+.khi-root .card:hover .m-image .image-symbol{transform:translate(-50%,-3px) rotate(1deg)}
+.khi-root .m-image .ph{position:absolute;inset:14px;z-index:2;border:1px solid rgba(251,246,234,.28);border-radius:12px;background:rgba(255,250,235,.08);display:grid;place-items:center}
+.khi-root .m-image .ph svg{width:46px;height:46px;color:rgba(251,246,234,.74)}
 
-/* ── TEXT container ── an aged manuscript sheet with drop-cap + corner fold ───── */
-.khi-root .m-text{position:absolute;inset:0;overflow:hidden;background:
-  linear-gradient(160deg,#e9dabb 0%,#ddcaa4 60%,#d2bd96 100%)}
-.khi-root .m-text::before{content:"";position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(120% 80% at 82% 4%,rgba(255,255,255,.5),transparent 52%)}
-.khi-root .m-text .page{position:absolute;inset:14px 16px;border-radius:4px;overflow:hidden;
-  background:linear-gradient(180deg,#fcf7eb,#f3e8cf);border:1px solid rgba(176,136,51,.3);
-  box-shadow:0 12px 26px -16px rgba(20,38,32,.6),inset 0 0 0 1px rgba(255,255,255,.5);transition:transform .5s cubic-bezier(.2,.7,.2,1)}
-.khi-root .card:hover .m-text .page{transform:translateY(-3px)}
-.khi-root .m-text .page::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:11px;
-  background:linear-gradient(90deg,rgba(31,58,49,.18),transparent)}
-.khi-root .m-text .fold{position:absolute;top:0;inset-inline-end:0;width:26px;height:26px;z-index:2;
-  background:linear-gradient(225deg,#e6d6b4 0 50%,transparent 50%);
-  border-inline-start:1px solid rgba(176,136,51,.32);border-bottom:1px solid rgba(176,136,51,.32)}
-.khi-root .m-text .doc{position:absolute;inset:0;padding:20px 22px;display:flex;flex-direction:column;gap:9px;justify-content:center}
-.khi-root .m-text .doc .fl{font-family:'Amiri',serif;font-size:30px;line-height:1;color:var(--pine);opacity:.74;margin-bottom:7px;text-shadow:0 1px 0 rgba(255,255,255,.6)}
-.khi-root .m-text .doc .ln{height:5px;border-radius:3px;background:linear-gradient(90deg,rgba(31,58,49,.24),rgba(31,58,49,.08))}
+/* Text: a contained manuscript sheet preserves the full-page silhouette while
+   the rails and floating label keep it in the same family as the other kinds. */
+.khi-root .m-text .page{position:absolute;z-index:2;top:17px;bottom:49px;left:20%;right:20%;border-radius:9px;overflow:hidden;background:linear-gradient(180deg,#fffaf0,#f3e7cd);border:1px solid rgba(176,136,51,.36);box-shadow:0 16px 28px -16px rgba(4,22,16,.72),inset 0 0 0 1px rgba(255,255,255,.55);transition:transform .5s cubic-bezier(.2,.7,.2,1)}
+.khi-root .card:hover .m-text .page{transform:translateY(-3px) rotate(-.5deg)}
+.khi-root .m-text .page::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:10px;background:linear-gradient(90deg,rgba(31,58,49,.18),transparent)}
+.khi-root .m-text .fold{position:absolute;top:0;inset-inline-end:0;width:24px;height:24px;z-index:2;background:linear-gradient(225deg,#e6d6b4 0 50%,transparent 50%);border-inline-start:1px solid rgba(176,136,51,.32);border-bottom:1px solid rgba(176,136,51,.32)}
+.khi-root .m-text .doc{position:absolute;inset:0;padding:17px 19px;display:flex;flex-direction:column;gap:7px;justify-content:center}
+.khi-root .m-text .doc .fl{font-family:'Amiri',serif;font-size:26px;line-height:1;color:var(--pine);opacity:.78;margin-bottom:4px;text-shadow:0 1px 0 rgba(255,255,255,.6)}
+.khi-root .m-text .doc .ln{height:4px;border-radius:3px;background:linear-gradient(90deg,rgba(31,58,49,.27),rgba(31,58,49,.08))}
 .khi-root .card .body{padding:18px 19px 20px;display:flex;flex-direction:column;flex:1}
 .khi-root .card .coll{font-size:11.5px;color:var(--gold);font-weight:700;display:flex;align-items:center;gap:7px;margin-bottom:10px}
 .khi-root .card .coll svg{width:14px;height:14px;flex-shrink:0}
@@ -475,7 +491,7 @@
 .khi-root .khi-grid.list .card .media{height:auto;width:236px;flex-shrink:0}
 .khi-root .khi-grid.list .card .body{padding:20px 24px;justify-content:center}
 .khi-root .khi-grid.list .card h3{font-size:24px}
-@media(max-width:640px){.khi-root .khi-grid{grid-template-columns:1fr}.khi-root .khi-grid.list .card{flex-direction:column}.khi-root .khi-grid.list .card .media{width:100%;height:160px}}
+@media(max-width:640px){.khi-root .khi-grid{grid-template-columns:1fr}.khi-root .khi-grid.list .card{flex-direction:column}.khi-root .khi-grid.list .card .media{width:100%;height:auto;aspect-ratio:4 / 3}}
 
 /* (FOOTER removed per the redesign.) */
 
@@ -547,18 +563,35 @@
 }
 /* Public catalogue styling stays independent from the teacher tone controls. */
 
-/* ── Photographic covers (image / project / person) ──────────────────────────
-   Every card uses the same uniform frame; a record with a real photograph just
-   fills its fixed-ratio cover with the picture and gets a slow zoom on hover.
-   (The old full-bleed "plate" + featured variants were dropped so the grid
-   stays an even set of equal cards.) */
+/* Real photographic/video covers retain their source artwork and get a very
+   small lift inside the archival frame. */
 .khi-root .card .media .cover-img{transition:transform .7s cubic-bezier(.2,.7,.2,1);will-change:transform}
 .khi-root .card:hover .media .cover-img{transform:scale(1.07)}
 
-/* Honour reduced-motion: no cover zoom. */
+/* Honour reduced-motion across entrance, hover, waveform and transport cues. */
 @media (prefers-reduced-motion: reduce){
-  .khi-root .card .media .cover-img{transition:none}
+  .khi-root .rise{opacity:1;animation:none}
+  .khi-root .card,
+  .khi-root .card .media .cover-img,
+  .khi-root .archive-tile,
+  .khi-root .play,
+  .khi-root .m-text .page,
+  .khi-root .m-video .scrub i{transition:none}
+  .khi-root .card:hover{transform:none}
   .khi-root .card:hover .media .cover-img{transform:none}
+  .khi-root .card:hover .m-project .project-text-tile{transform:rotate(-4deg)}
+  .khi-root .card:hover .m-project .project-audio-tile{transform:rotate(-6deg)}
+  .khi-root .card:hover .m-project .project-image-tile{transform:rotate(5deg)}
+  .khi-root .card:hover .m-audio .audio-symbol{transform:translateX(-50%) rotate(-4deg)}
+  .khi-root .card:hover .m-video .video-symbol{transform:translateX(-50%) rotate(3deg)}
+  .khi-root .card:hover .m-image .image-symbol{transform:translateX(-50%) rotate(4deg)}
+  .khi-root .card:hover .m-text .page{transform:none}
+  .khi-root .card:hover .play{transform:none}
+  .khi-root .card:hover .media .video-cover .play{transform:translate(-50%,-50%)}
+  .khi-root .card:hover .wave .bar,
+  .khi-root .card:hover .play.ring::before{animation:none}
+  .khi-root .card:hover .play.ring::before{opacity:0}
+  .khi-root .card:hover .m-video .scrub i{width:36%}
 }
 
 /* ============================================================

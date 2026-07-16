@@ -18,6 +18,8 @@ import {
   IconLayers, IconText, IconPlus,
 } from '@/components/khi/icons'
 import { guestVideos } from '@/services/guest'
+import { getStaffMediaOne } from '@/services/staff-public-catalog'
+import { usePublicAccess } from '@/hooks/use-public-access'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 function toList(v, cap = 12) {
@@ -34,6 +36,7 @@ function PublicVideoDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [helpOpen, setHelpOpen] = useState(false)
+  const { isStaff, ready: accessReady } = usePublicAccess()
 
   useEffect(() => {
     if (routeCode && !isEncodedPublicCode(routeCode)) {
@@ -42,17 +45,20 @@ function PublicVideoDetailPage() {
   }, [navigate, routeCode])
 
   useEffect(() => {
+    if (!accessReady) return undefined
     const ctrl = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     setError('')
-    guestVideos
-      .one(code, { signal: ctrl.signal })
+    const request = isStaff
+      ? getStaffMediaOne('video', code, { signal: ctrl.signal })
+      : guestVideos.one(code, { signal: ctrl.signal })
+    request
       .then((d) => { if (!ctrl.signal.aborted) setVideo(d || null) })
       .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError('Could not load this video.') })
       .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     return () => ctrl.abort()
-  }, [code])
+  }, [accessReady, code, isStaff])
 
   const person = useMemo(() => extractPersonFromItem(video), [video])
 
@@ -95,7 +101,7 @@ function PublicVideoDetailPage() {
         <KhiMetaRow label={DETAIL.person} value={person?.personCode}><KhiPersonLink person={person} fallbackName={person?.name} /></KhiMetaRow>
         <KhiMetaRow label={DETAIL.categories} value={video.categories}><KhiCategoryLinks categories={video.categories} /></KhiMetaRow>
       </KhiMetaPanel>
-      <KhiPublicMediaFields kind="video" item={video} />
+      <KhiPublicMediaFields kind="video" item={video} full={isStaff} />
     </>
   )
 

@@ -2,48 +2,88 @@ import { useEffect, useState } from 'react'
 import { Calendar, ExternalLink, FolderOpen, Hash, Languages, Pencil, User, X } from 'lucide-react'
 
 import { Button, buttonVariants } from '@/components/ui/button'
-import { CodeBadge } from '@/components/ui/code-badge'
 import { cn } from '@/lib/utils'
 import { humanizeFieldName } from '@/lib/get-error-message'
 import { formatDateTime } from '@/components/maqam/maqam-helpers'
 import { getItemPayload, getTypeMeta } from '@/components/items/item-helpers'
 import { TypeBadge, VisibilityBadges } from '@/components/items/item-badges'
+import {
+  formatCompleteFieldValue,
+  isEmptyValue,
+} from '@/components/items/full-media-inventory'
+import { CompleteMediaInventory } from '@/components/items/CompleteMediaInventory'
 
-// Keys we render in the curated header/overview already, or that are noise in a
-// flat dump (internal bookkeeping, nested objects handled separately).
-const SKIP_PAYLOAD_KEYS = new Set([
-  'version',
+// ItemDTO summary fields are distinct from the nested full media payload. Keep
+// a stable schema so an empty value is still represented, then append any new
+// runtime keys returned by the backend. The four nested payload containers are
+// rendered field-by-field in the complete inventory rather than as one giant
+// duplicated JSON object.
+const ITEM_RECORD_SCHEMA_KEYS = [
+  'type',
+  'code',
+  'title',
   'project',
+  'projectCode',
+  'projectName',
   'person',
+  'personCode',
+  'personName',
   'categories',
-  'projectVisibleToPublic',
+  'categoryCodes',
+  'language',
+  'dialect',
+  'fileUrl',
   'coverImageUrl',
+  'fileExtension',
+  'fileSize',
+  'isPublic',
+  'projectVisibleToPublic',
+  'version',
+  'createdAt',
+  'createdBy',
+  'updatedAt',
+  'updatedBy',
+  'removedAt',
+  'removedBy',
+  'deletedAt',
+  'deletedBy',
+]
+
+const PAYLOAD_CONTAINER_KEYS = new Set([
+  'audio',
+  'image',
+  'text',
+  'video',
 ])
 
-// Turn the per-type DTO into a flat list of [label, value] scalar rows so we
-// can show every original column without hand-mapping four different shapes.
-// Objects are skipped, arrays are comma-joined, booleans become Yes/No.
-function flattenPayload(payload) {
-  const out = []
-  for (const [key, value] of Object.entries(payload || {})) {
-    if (SKIP_PAYLOAD_KEYS.has(key)) continue
-    if (value == null) continue
-    let display
-    if (Array.isArray(value)) {
-      const items = value.filter((v) => v != null && typeof v !== 'object').map((v) => String(v).trim()).filter(Boolean)
-      if (items.length === 0) continue
-      display = items.join(', ')
-    } else if (typeof value === 'object') {
-      continue
-    } else if (typeof value === 'boolean') {
-      display = value ? 'Yes' : 'No'
-    } else {
-      display = String(value).trim()
-      if (!display) continue
-    }
-    out.push({ key, label: humanizeFieldName(key), value: display })
+function buildItemRecordRows(item) {
+  const orderedKeys = [...ITEM_RECORD_SCHEMA_KEYS]
+  const seen = new Set(orderedKeys)
+  for (const key of Object.keys(item || {})) {
+    if (seen.has(key) || PAYLOAD_CONTAINER_KEYS.has(key)) continue
+    seen.add(key)
+    orderedKeys.push(key)
   }
-  return out
+  return orderedKeys.map((key) => ({
+    key,
+    label: humanizeFieldName(key),
+    value: item?.[key],
+  }))
+}
+
+function CompleteField({ label, value }) {
+  const empty = isEmptyValue(value)
+  return (
+    <div className={`min-w-0 space-y-0.5${empty ? ' opacity-60' : ''}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p
+        className={`whitespace-pre-wrap break-words text-sm leading-6 ${empty ? 'font-mono text-muted-foreground' : 'text-foreground'}`}
+        style={{ overflowWrap: 'anywhere' }}
+      >
+        {formatCompleteFieldValue(value)}
+      </p>
+    </div>
+  )
 }
 
 function Row({ icon: Icon, label, children }) {
@@ -92,7 +132,7 @@ export function ItemDetailDialog({ item, onClose, onEdit }) {
   const meta = getTypeMeta(item.type)
   const HeaderIcon = meta.icon
   const payload = getItemPayload(item)
-  const fields = flattenPayload(payload)
+  const recordFields = buildItemRecordRows(item)
   const previewUrl = item.type === 'IMAGE'
     ? item.fileUrl
     : item.type === 'TEXT'
@@ -111,7 +151,7 @@ export function ItemDetailDialog({ item, onClose, onEdit }) {
       role="dialog"
       aria-modal="true"
     >
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-card shadow-2xl ring-1 ring-black/10">
+      <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-card shadow-2xl ring-1 ring-black/10">
         {/* Header */}
         <div className="relative shrink-0 border-b border-border bg-gradient-to-b from-primary/[0.06] to-transparent">
           <div className="flex items-start justify-between gap-4 px-6 py-4">
@@ -202,33 +242,19 @@ export function ItemDetailDialog({ item, onClose, onEdit }) {
             </div>
           </section>
 
-          {fields.length ? (
-            <section className="rounded-2xl border border-border bg-background p-4">
-              <h3 className="mb-3 text-sm font-semibold text-foreground">All details</h3>
-              <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                {fields.map((f) => (
-                  <div key={f.key} className="min-w-0 space-y-0.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{f.label}</p>
-                    <p className="whitespace-pre-line break-words text-sm leading-6 text-foreground" style={{ overflowWrap: 'anywhere' }}>
-                      {f.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ) : null}
+          <CompleteMediaInventory
+            className="rounded-2xl"
+            item={payload}
+            kind={item.type}
+            title="Complete media fields"
+          />
 
           <section className="rounded-2xl border border-border bg-background p-4">
-            <h3 className="mb-3 text-sm font-semibold text-foreground">Record</h3>
-            <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-              <Row label="Code"><CodeBadge code={item.code} size="sm" /></Row>
-              <Row label="File">
-                {item.fileExtension || item.fileSize
-                  ? [item.fileExtension ? `.${String(item.fileExtension).replace(/^\./, '')}` : null, item.fileSize].filter(Boolean).join(' · ')
-                  : '—'}
-              </Row>
-              <Row label="Created by">{item.createdBy || '—'}</Row>
-              <Row label="Updated by">{item.updatedBy || '—'}</Row>
+            <h3 className="mb-3 text-sm font-semibold text-foreground">Complete ItemDTO record</h3>
+            <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+              {recordFields.map((field) => (
+                <CompleteField key={field.key} label={field.label} value={field.value} />
+              ))}
             </div>
           </section>
         </div>

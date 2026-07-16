@@ -10,6 +10,8 @@ import {
 import { CardGridSkeleton } from '@/components/public/PublicShared'
 import { IconCategory, IconProject } from '@/components/khi/icons'
 import { guestCategory, guestCategoryProjects } from '@/services/guest'
+import { getStaffCategory, getStaffCategoryProjects } from '@/services/staff-public-catalog'
+import { usePublicAccess } from '@/hooks/use-public-access'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 
 const PAGE_SIZE = 24
@@ -32,6 +34,7 @@ function PublicCategoryDetailPage() {
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [projectsLoadingMore, setProjectsLoadingMore] = useState(false)
   const projectQueryRef = useRef('')
+  const { isStaff, ready: accessReady } = usePublicAccess()
 
   useEffect(() => {
     if (routeCode && !isEncodedPublicCode(routeCode)) {
@@ -40,18 +43,23 @@ function PublicCategoryDetailPage() {
   }, [navigate, routeCode])
 
   useEffect(() => {
+    if (!accessReady) return undefined
     const ctrl = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     setError('')
-    guestCategory(code, { signal: ctrl.signal })
+    const request = isStaff
+      ? getStaffCategory(code, { signal: ctrl.signal })
+      : guestCategory(code, { signal: ctrl.signal })
+    request
       .then((d) => { if (!ctrl.signal.aborted) setCategory(d || null) })
       .catch((err) => { if (err?.code !== 'ERR_CANCELED') setError('Could not load this category.') })
       .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     return () => ctrl.abort()
-  }, [code])
+  }, [accessReady, code, isStaff])
 
   useEffect(() => {
+    if (!accessReady) return undefined
     const ctrl = new AbortController()
     const fresh = projectQueryRef.current !== code
     projectQueryRef.current = code
@@ -59,7 +67,11 @@ function PublicCategoryDetailPage() {
     const append = targetPage > 0
     if (append) setProjectsLoadingMore(true)
     else setProjectsLoading(true)
-    guestCategoryProjects(code, { page: targetPage, size: PAGE_SIZE, signal: ctrl.signal })
+    const options = { page: targetPage, size: PAGE_SIZE, signal: ctrl.signal }
+    const request = isStaff
+      ? getStaffCategoryProjects(code, options)
+      : guestCategoryProjects(code, options)
+    request
       .then((d) => {
         if (ctrl.signal.aborted) return
         const content = d?.content || []
@@ -78,7 +90,7 @@ function PublicCategoryDetailPage() {
         }
       })
     return () => ctrl.abort()
-  }, [code, projectPage])
+  }, [accessReady, code, isStaff, projectPage])
 
   if (loading || error || !category) {
     return <KhiDetailShell loading={loading} error={error} notFound={!category} />
