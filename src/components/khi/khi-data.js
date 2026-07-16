@@ -60,7 +60,7 @@ export const UI = {
   register: 'تۆمارکردن',
   go: 'گەڕان',
   searchBy: 'بگەڕێ بەپێی:',
-  filter: 'پاڵاوتن',
+  filter: 'فلتەر کردن',
   collection: 'گەنجینەکە',
   results: 'ئەنجامەکان',
   grid: 'خشتە',
