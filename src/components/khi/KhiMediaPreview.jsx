@@ -61,7 +61,9 @@ export default function KhiMediaPreview({ record }) {
   const { kind, duration, image, videoSrc } = record
   const naturalImage = image ? (
     <div className={`natural-cover archive-real-cover kind-${kind}`}>
-      <img className="cover-backdrop" src={image} alt="" aria-hidden="true" loading="lazy" />
+      {kind !== 'image' ? (
+        <img className="cover-backdrop" src={image} alt="" aria-hidden="true" loading="lazy" />
+      ) : null}
       <img className="cover-img" src={image} alt="" loading="lazy" />
       <span className="archive-real-shade" aria-hidden="true" />
       {kind === 'image' ? <CoverLabel kind="image" Icon={IconImage} /> : null}
@@ -101,7 +103,6 @@ export default function KhiMediaPreview({ record }) {
         <ArchiveRails />
         <span className="halo" aria-hidden="true" />
         <span className="base-line" aria-hidden="true" />
-        <span className="archive-tile audio-symbol" aria-hidden="true"><IconMic /></span>
         <Waveform />
         {duration ? <span className="duration">{duration}</span> : null}
         <span className="play" aria-hidden="true"><IconPlay /></span>
@@ -120,7 +121,6 @@ export default function KhiMediaPreview({ record }) {
         <div className="filmstrip" />
         <div className="filmstrip bottom" />
         <div className="frame" />
-        <span className="archive-tile video-symbol" aria-hidden="true"><IconVideo /></span>
         <span className="vig" aria-hidden="true" />
         <span className="scrub" aria-hidden="true"><i /></span>
         {duration ? <span className="duration">{duration}</span> : null}
@@ -134,7 +134,10 @@ export default function KhiMediaPreview({ record }) {
     return image ? naturalImage : (
       <div className="m-image">
         <ArchiveRails />
-        <span className="archive-tile image-symbol" aria-hidden="true"><IconImage /></span>
+        <span className="archive-photo-placeholder" aria-hidden="true">
+          <span className="archive-photo-sun" />
+          <span className="archive-photo-hills" />
+        </span>
         <CoverLabel kind="image" Icon={IconImage} />
       </div>
     )
