@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import { guestImages, guestPersons } from '@/services/guest'
+import { resolveMediaUrl } from '@/lib/media-url'
 import { IconSearch, IconAudio, IconVideo, IconImage, IconText } from './icons'
 import { UI } from './khi-data'
 
@@ -54,7 +55,7 @@ export default function KhiHero({ query, onQuery, onSubmit, onJump }) {
       guestPersons({ page: 0, size: 40, signal: ctrl.signal }).catch(() => null),
     ]).then(([imgs, persons]) => {
       if (cancelled) return
-      const fromImages = (imgs?.content || imgs || []).map((x) => x?.imageFileUrl).filter(Boolean)
+      const fromImages = (imgs?.content || imgs || []).map((x) => resolveMediaUrl(x?.imageFileUrl)).filter(Boolean)
       const fromPersons = (persons?.content || persons || []).map((p) => p?.mediaPortrait).filter(Boolean)
       // Interleave images + portraits, dedupe, cap.
       const merged = []

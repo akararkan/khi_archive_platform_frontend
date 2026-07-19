@@ -20,7 +20,10 @@ import {
 import { guestAudios } from '@/services/guest'
 import { getStaffMediaOne } from '@/services/staff-public-catalog'
 import { usePublicAccess } from '@/hooks/use-public-access'
+import { useHlsFallbackSource } from '@/hooks/use-hls-fallback-source'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
+import { resolveMediaUrl } from '@/lib/media-url'
+import { buildHlsPlaylistPath } from '@/lib/hls-source'
 
 // Normalise a list-ish value (array | comma/semicolon/Arabic-comma string).
 function toList(v, cap = 12) {
@@ -62,6 +65,15 @@ function PublicAudioDetailPage() {
   }, [accessReady, code, isStaff])
 
   const person = useMemo(() => extractPersonFromItem(audio), [audio])
+  const directAudioSrc = resolveMediaUrl(audio?.audioFileUrl)
+  const hlsAudioSrc = audio?.audioCode
+    ? resolveMediaUrl(buildHlsPlaylistPath('audio', audio.audioCode, { guest: !isStaff }))
+    : ''
+  const playbackSrc = useHlsFallbackSource({
+    hlsUrl: hlsAudioSrc,
+    directUrl: directAudioSrc,
+    enabled: Boolean(directAudioSrc),
+  })
 
   if (loading || error || !audio) {
     return <KhiDetailShell loading={loading} error={error} notFound={!audio} />
@@ -88,9 +100,9 @@ function PublicAudioDetailPage() {
 
   const content = (
     <>
-      {audio.audioFileUrl ? (
+      {directAudioSrc ? (
         <div className="player-mount protected-media" style={{ marginBottom: 22 }}>
-          <AudioPlayer src={audio.audioFileUrl} title={title} subtitle={audio.form || audio.language || ''} protectedMode />
+          <AudioPlayer src={playbackSrc} title={title} subtitle={audio.form || audio.language || ''} protectedMode />
         </div>
       ) : (
         <div className="media-unavailable">{DETAIL.fileUnavailable}</div>

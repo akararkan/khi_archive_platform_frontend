@@ -12,6 +12,7 @@ import {
   VolumeX,
 } from 'lucide-react'
 
+import { attachMediaSource } from '@/lib/hls-source'
 import { cn } from '@/lib/utils'
 
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -95,6 +96,12 @@ function AudioPlayer({
     const el = audioRef.current
     if (!el) return undefined
 
+    // Managed imperatively (instead of a JSX `src` attribute) so an `.m3u8`
+    // URL can be handed to hls.js instead of the native `src` — see
+    // lib/hls-source.js. Progressive URLs behave exactly as a plain `src`
+    // assignment would.
+    const detachSource = attachMediaSource(el, src)
+
     // Reset visible state when the source changes.
     setReady(false)
     setCurrent(0)
@@ -159,6 +166,7 @@ function AudioPlayer({
       el.removeEventListener('play', onPlay)
       el.removeEventListener('pause', onPause)
       el.removeEventListener('error', onError)
+      detachSource()
     }
   }, [src])
 
@@ -368,7 +376,6 @@ function AudioPlayer({
     >
       <audio
         ref={audioRef}
-        src={src}
         preload="metadata"
         controlsList={protectedMode ? 'nodownload noremoteplayback noplaybackrate' : undefined}
         disableRemotePlayback={protectedMode}

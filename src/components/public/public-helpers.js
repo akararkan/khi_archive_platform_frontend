@@ -3,6 +3,7 @@
 // neighbouring component files clean.
 
 import { resolveProfileImageSource } from '@/lib/profile-image'
+import { resolveMediaUrl } from '@/lib/media-url'
 
 function pickFirst(...values) {
   for (const v of values) {
@@ -70,13 +71,8 @@ function projectMeta(p) {
 }
 
 function mediaThumbHref(item) {
-  return (
-    item?.imageFileUrl ||
-    item?.thumbnailUrl ||
-    item?.coverImageUrl ||
-    item?.posterUrl ||
-    null
-  )
+  const raw = item?.imageFileUrl || item?.thumbnailUrl || item?.coverImageUrl || item?.posterUrl || null
+  return raw ? resolveMediaUrl(raw) : null
 }
 
 function formatPublicDate(value) {

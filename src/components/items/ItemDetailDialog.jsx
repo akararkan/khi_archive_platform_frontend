@@ -12,6 +12,7 @@ import {
   isEmptyValue,
 } from '@/components/items/full-media-inventory'
 import { CompleteMediaInventory } from '@/components/items/CompleteMediaInventory'
+import { useAuthedMediaUrl } from '@/hooks/use-authed-media-url'
 
 // ItemDTO summary fields are distinct from the nested full media payload. Keep
 // a stable schema so an empty value is still represented, then append any new
@@ -127,17 +128,23 @@ export function ItemDetailDialog({ item, onClose, onEdit }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [item, onClose])
 
+  const rawPreviewUrl = item?.type === 'IMAGE'
+    ? item?.fileUrl
+    : item?.type === 'TEXT'
+      ? item?.coverImageUrl || getItemPayload(item)?.coverImageUrl
+      : null
+  // <img> can't attach the Authorization header the authenticated image
+  // stream endpoint requires, so fetch it as a blob (see AudioDetailsModal /
+  // ImageDetailsModal for the same pattern). Falls back to a direct resolved
+  // URL for fields the backend hasn't migrated to the proxy yet.
+  const { url: previewUrl } = useAuthedMediaUrl(rawPreviewUrl, { enabled: Boolean(rawPreviewUrl) })
+
   if (!item) return null
 
   const meta = getTypeMeta(item.type)
   const HeaderIcon = meta.icon
   const payload = getItemPayload(item)
   const recordFields = buildItemRecordRows(item)
-  const previewUrl = item.type === 'IMAGE'
-    ? item.fileUrl
-    : item.type === 'TEXT'
-      ? item.coverImageUrl || payload?.coverImageUrl
-      : null
   const showImagePreview = previewUrl && !imgFailed
   const showTextCover = item.type === 'TEXT'
   const categories = Array.isArray(item.categoryCodes) ? item.categoryCodes.filter(Boolean) : []

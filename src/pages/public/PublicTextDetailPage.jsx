@@ -24,6 +24,9 @@ import { guestTexts } from '@/services/guest'
 import { getStaffMediaOne } from '@/services/staff-public-catalog'
 import { usePublicAccess } from '@/hooks/use-public-access'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
+import { apiClient } from '@/lib/api-client'
+import { resolveMediaUrl } from '@/lib/media-url'
+import { DeepZoomViewer } from '@/components/ui/deep-zoom-viewer'
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
@@ -63,16 +66,15 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
         setError('')
         setPages([])
 
-        const response = await fetch(fileUrl, {
+        const response = await apiClient.get(resolveMediaUrl(fileUrl), {
           signal: abortController.signal,
-          cache: 'no-store',
+          responseType: 'arraybuffer',
+          // PDFs can be large archival scans; don't let the default 15s
+          // client timeout cut the download off.
+          timeout: 0,
         })
 
-        if (!response.ok) {
-          throw new Error(`Failed to download document: ${response.status}`)
-        }
-
-        const rawData = new Uint8Array(await response.arrayBuffer())
+        const rawData = new Uint8Array(response.data)
         loadingTask = getDocument({ data: rawData })
         const pdf = await loadingTask.promise
         const renderedPages = []
@@ -228,12 +230,10 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
                   className="protected-file-page"
                   data-page={`Page ${pageNumber}`}
                 >
-                  <img
+                  <DeepZoomViewer
                     src={src}
                     alt={`${title} - Page ${pageNumber}`}
-                    draggable={false}
-                    onAuxClick={stopProtectedMediaEvent}
-                    onContextMenu={stopProtectedMediaEvent}
+                    className="h-[70vh] max-h-[82vh] w-full rounded-lg border-0 bg-white shadow-none"
                   />
                 </figure>
               ))}
@@ -288,7 +288,7 @@ function PublicTextDetailPage() {
   const title = pickMediaTitle(text) || DETAIL.none
   const originalCandidate = text.originalTitle || text.titleOriginal || text.titleInCentralKurdish || text.centralKurdishTitle
   const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
-  const fileUrl = text.textFileUrl
+  const fileUrl = resolveMediaUrl(text.textFileUrl)
   const isPdf = fileUrl && /\.pdf($|\?)/i.test(fileUrl)
   const projectCode = text.project?.projectCode || text.projectCode
 
@@ -337,7 +337,7 @@ function PublicTextDetailPage() {
           title={title}
           subtitle={original}
           description={text.description || text.summary}
-          image={text.coverImageUrl || null}
+          image={resolveMediaUrl(text.coverImageUrl) || null}
           tags={toList(text.tags)}
           breadcrumbItems={[
             { to: '/public', label: DETAIL.home },

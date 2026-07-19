@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { BookOpen, FileText, X } from 'lucide-react'
+import { BookOpen, FileText, Loader2, X } from 'lucide-react'
 
 import { CompleteMediaInventory } from '@/components/items/CompleteMediaInventory'
 import { Button } from '@/components/ui/button'
 import { CodeBadge } from '@/components/ui/code-badge'
 import { Highlight, HighlightProvider } from '@/components/ui/highlight'
 import { useIsAdmin } from '@/hooks/use-current-profile'
+import { useAuthedMediaUrl } from '@/hooks/use-authed-media-url'
+import { resolveMediaUrl } from '@/lib/media-url'
 
 function formatInstant(instant) {
   if (!instant) return null
@@ -71,22 +73,28 @@ function hasAny(obj, keys) {
 }
 
 function TextFilePreview({ src, ext }) {
-  if (!src) return null
   const lower = (ext || '').toLowerCase()
   const isPdf = lower === 'pdf'
+  const { url } = useAuthedMediaUrl(src, { enabled: Boolean(src) && isPdf })
+
+  if (!src) return null
 
   return (
     <div className="overflow-hidden rounded-xl border bg-muted/20">
-      {isPdf ? (
+      {!isPdf ? (
+        <div className="flex flex-col items-center gap-3 px-6 py-10 text-center text-muted-foreground">
+          <FileText className="size-8" />
+          <p className="text-sm">Inline preview is not available for this file type.</p>
+        </div>
+      ) : url ? (
         <iframe
-          src={src}
+          src={url}
           title="Text preview"
           className="block h-[60vh] w-full bg-background"
         />
       ) : (
-        <div className="flex flex-col items-center gap-3 px-6 py-10 text-center text-muted-foreground">
-          <FileText className="size-8" />
-          <p className="text-sm">Inline preview is not available for this file type.</p>
+        <div className="flex items-center justify-center gap-2 px-6 py-24 text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
         </div>
       )}
     </div>
@@ -210,7 +218,7 @@ function TextDetailsModal({ text, open, onOpenChange, searchQuery }) {
 
         <div className="relative shrink-0 border-b bg-gradient-to-b from-muted/70 via-muted/20 to-transparent px-6 py-6 sm:px-8 sm:py-7">
           <div className="flex items-start gap-4 pr-10">
-            <TextCoverArtwork key={text.coverImageUrl || 'no-cover'} src={text.coverImageUrl} title={String(title)} />
+            <TextCoverArtwork key={text.coverImageUrl || 'no-cover'} src={resolveMediaUrl(text.coverImageUrl)} title={String(title)} />
             <div className="min-w-0 space-y-2">
               {text.textCode && (
                 <div className="flex flex-wrap items-center gap-2">

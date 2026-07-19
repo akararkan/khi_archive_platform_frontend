@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Image as ImageIcon, X } from 'lucide-react'
+import { Image as ImageIcon, Loader2, X } from 'lucide-react'
 
 import { CompleteMediaInventory } from '@/components/items/CompleteMediaInventory'
 import { Button } from '@/components/ui/button'
 import { CodeBadge } from '@/components/ui/code-badge'
 import { Highlight, HighlightProvider } from '@/components/ui/highlight'
 import { useIsAdmin } from '@/hooks/use-current-profile'
+import { useAuthedMediaUrl } from '@/hooks/use-authed-media-url'
 
 function formatInstant(instant) {
   if (!instant) return null
@@ -72,6 +73,7 @@ function hasAny(obj, keys) {
 
 function ImagePreview({ src, alt }) {
   const [hasError, setHasError] = useState(false)
+  const { url } = useAuthedMediaUrl(src, { enabled: Boolean(src) })
 
   if (!src) return null
   return (
@@ -82,13 +84,17 @@ function ImagePreview({ src, alt }) {
             <ImageIcon className="size-8" />
             <p className="text-xs">Preview failed to load.</p>
           </div>
-        ) : (
+        ) : url ? (
           <img
-            src={src}
+            src={url}
             alt={alt || 'preview'}
             onError={() => setHasError(true)}
             className="max-h-[60vh] w-auto max-w-full object-contain"
           />
+        ) : (
+          <div className="flex items-center justify-center gap-2 px-6 py-24 text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+          </div>
         )}
       </div>
     </div>

@@ -15,6 +15,7 @@ import {
   VolumeX,
 } from 'lucide-react'
 
+import { attachMediaSource } from '@/lib/hls-source'
 import { cn } from '@/lib/utils'
 
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -70,6 +71,12 @@ function VideoPlayer({ src, title, subtitle, className, protectedMode = false })
   useEffect(() => {
     const el = videoRef.current
     if (!el) return undefined
+
+    // Managed imperatively (instead of a JSX `src` attribute) so an `.m3u8`
+    // URL can be handed to hls.js instead of the native `src` — see
+    // lib/hls-source.js. Progressive URLs behave exactly as a plain `src`
+    // assignment would.
+    const detachSource = attachMediaSource(el, src)
 
     setReady(false)
     setCurrent(0)
@@ -127,6 +134,7 @@ function VideoPlayer({ src, title, subtitle, className, protectedMode = false })
       el.removeEventListener('error', onError)
       el.removeEventListener('enterpictureinpicture', onEnterPip)
       el.removeEventListener('leavepictureinpicture', onLeavePip)
+      detachSource()
     }
   }, [src])
 
@@ -372,7 +380,6 @@ function VideoPlayer({ src, title, subtitle, className, protectedMode = false })
       <div className="relative aspect-video w-full overflow-hidden bg-black">
         <video
           ref={videoRef}
-          src={src}
           preload="metadata"
           playsInline
           controlsList={protectedMode ? 'nodownload noremoteplayback' : undefined}

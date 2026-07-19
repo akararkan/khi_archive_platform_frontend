@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { AudioLines, X } from 'lucide-react'
+import { AudioLines, Loader2, X } from 'lucide-react'
 
 import { AudioPlayer } from '@/components/ui/audio-player'
 import { CompleteMediaInventory } from '@/components/items/CompleteMediaInventory'
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { CodeBadge } from '@/components/ui/code-badge'
 import { Highlight, HighlightProvider } from '@/components/ui/highlight'
 import { useIsAdmin } from '@/hooks/use-current-profile'
+import { useAuthedMediaUrl } from '@/hooks/use-authed-media-url'
 
 function formatInstant(instant) {
   if (!instant) return null
@@ -98,6 +99,10 @@ function AudioDetailsModal({ audio, open, onOpenChange, searchQuery }) {
       document.body.style.overflow = original
     }
   }, [open])
+
+  const { url: audioBlobUrl } = useAuthedMediaUrl(audio?.audioFileUrl, {
+    enabled: open && Boolean(audio?.audioFileUrl),
+  })
 
   if (!open || !audio) return null
 
@@ -223,13 +228,20 @@ function AudioDetailsModal({ audio, open, onOpenChange, searchQuery }) {
           <div className="space-y-8">
             {audio.audioFileUrl && (
               <Section title="Playback">
-                <AudioPlayer
-                  src={audio.audioFileUrl}
-                  title={title}
-                  subtitle={[audio.audioVersion, audio.fileExtension, audio.bitRate]
-                    .filter(Boolean)
-                    .join(' • ')}
-                />
+                {audioBlobUrl ? (
+                  <AudioPlayer
+                    src={audioBlobUrl}
+                    title={title}
+                    subtitle={[audio.audioVersion, audio.fileExtension, audio.bitRate]
+                      .filter(Boolean)
+                      .join(' • ')}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center gap-2 rounded-2xl border bg-muted/20 px-6 py-8 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    Loading audio…
+                  </div>
+                )}
               </Section>
             )}
 

@@ -21,6 +21,7 @@ import {
   formatPublicDate,
 } from '@/components/public/public-helpers'
 import { publicDetailPath } from '@/components/public/public-route-id'
+import { resolveMediaUrl } from '@/lib/media-url'
 
 export const PAGE_SIZE = 12
 export const TYPE_PAGE_SIZES = {
@@ -494,7 +495,7 @@ export function cardFromItem(item, typeKey) {
       collection: Array.isArray(item.personType) ? item.personType.join(' · ') : item.personType || null,
       region: item.region || null,
       dateLabel: dateLabelOf(item),
-      image: personImageSrc(item) || item.personMediaPortrait || item.fileUrl || '',
+      image: personImageSrc(item) || item.personMediaPortrait || resolveMediaUrl(item.fileUrl) || '',
       avatarText: personInitials(name),
       tags: tagsOf(item),
       count: item.projectCount || item.totalCount || null,
@@ -519,7 +520,7 @@ export function cardFromItem(item, typeKey) {
       dateLabel: dateLabelOf(item),
       // Per-type project DTOs carry a thumbnail field; older slim rows mirror
       // the cover into `fileUrl`.
-      image: mediaThumbHref(item) || item.fileUrl || null,
+      image: mediaThumbHref(item) || resolveMediaUrl(item.fileUrl) || null,
       ...trend,
     }
   }
@@ -556,13 +557,13 @@ export function cardFromItem(item, typeKey) {
     // thumbnail/poster. Text rows must only use the separate book/document
     // cover, never textFileUrl/fileUrl.
     image: kind === 'image'
-      ? (mediaThumbHref(item) || item.fileUrl || null)
+      ? (mediaThumbHref(item) || resolveMediaUrl(item.fileUrl) || null)
       : kind === 'video'
         ? mediaThumbHref(item) || null
         : kind === 'text'
-          ? item.coverImageUrl || null
+          ? resolveMediaUrl(item.coverImageUrl) || null
           : null,
-    videoSrc: kind === 'video' ? item.videoFileUrl || item.fileUrl || null : null,
+    videoSrc: kind === 'video' ? resolveMediaUrl(item.videoFileUrl || item.fileUrl) || null : null,
     tags: tagsOf(item),
     matchedOn: Array.isArray(item.matchedOn) ? item.matchedOn : null,
     ...trend,

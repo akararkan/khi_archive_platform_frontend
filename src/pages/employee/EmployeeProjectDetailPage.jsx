@@ -129,6 +129,7 @@ import { FormErrorBox } from '@/components/ui/form-error'
 import { SingleMediaFilePicker } from '@/components/ui/single-media-file-picker'
 import { formatApiError, getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
 import { cn } from '@/lib/utils'
+import { resolveMediaUrl } from '@/lib/media-url'
 import {
   createAudio,
   deleteAudio,
@@ -2123,7 +2124,7 @@ function EmployeeProjectDetailPage() {
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current file</p>
                     <div className="overflow-hidden rounded-lg border bg-muted/20">
                       <img
-                        src={currentImage.imageFileUrl}
+                        src={resolveMediaUrl(currentImage.imageFileUrl)}
                         alt={currentImage.originalTitle || currentImage.imageCode}
                         className="block max-h-72 w-auto max-w-full object-contain"
                       />
@@ -2271,7 +2272,7 @@ function EmployeeProjectDetailPage() {
                 <TextCoverImagePicker
                   id="textCoverImage"
                   file={textCoverImage}
-                  currentCoverUrl={textForm.coverImageUrl || currentText?.coverImageUrl}
+                  currentCoverUrl={resolveMediaUrl(textForm.coverImageUrl || currentText?.coverImageUrl)}
                   onFileChange={setTextCoverImage}
                   isEdit={isEdit}
                 />
@@ -2354,7 +2355,7 @@ function EmployeeProjectDetailPage() {
                       </p>
                     </div>
                     <a
-                      href={currentText.textFileUrl}
+                      href={resolveMediaUrl(currentText.textFileUrl)}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:bg-muted"
@@ -2562,7 +2563,7 @@ function EmployeeProjectDetailPage() {
                   <div className="space-y-2">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current file</p>
                     <VideoPlayer
-                      src={currentVideo.videoFileUrl}
+                      src={resolveMediaUrl(currentVideo.videoFileUrl)}
                       title={currentVideo.originalTitle || currentVideo.videoCode}
                       subtitle={[currentVideo.videoVersion, currentVideo.extension, currentVideo.resolution]
                         .filter(Boolean)
@@ -2796,7 +2797,7 @@ function EmployeeProjectDetailPage() {
                       Current file
                     </p>
                     <AudioPlayer
-                      src={currentAudio.audioFileUrl}
+                      src={resolveMediaUrl(currentAudio.audioFileUrl)}
                       title={currentAudio.originTitle || currentAudio.audioCode}
                       subtitle={[currentAudio.audioVersion, currentAudio.fileExtension, currentAudio.bitRate]
                         .filter(Boolean)
@@ -3983,7 +3984,7 @@ function ImageListSection({ isLoading, images, filteredImages, searchQuery, filt
                         title="Open preview"
                       >
                         <img
-                          src={image.imageFileUrl}
+                          src={resolveMediaUrl(image.imageFileUrl)}
                           alt={title}
                           className="h-full w-full object-cover"
                           loading="lazy"

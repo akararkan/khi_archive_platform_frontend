@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Video as VideoIcon, X } from 'lucide-react'
+import { Loader2, Video as VideoIcon, X } from 'lucide-react'
 
 import { CompleteMediaInventory } from '@/components/items/CompleteMediaInventory'
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import { CodeBadge } from '@/components/ui/code-badge'
 import { Highlight, HighlightProvider } from '@/components/ui/highlight'
 import { VideoPlayer } from '@/components/ui/video-player'
 import { useIsAdmin } from '@/hooks/use-current-profile'
+import { useAuthedMediaUrl } from '@/hooks/use-authed-media-url'
 
 function formatInstant(instant) {
   if (!instant) return null
@@ -91,6 +92,10 @@ function VideoDetailsModal({ video, open, onOpenChange, searchQuery }) {
       document.body.style.overflow = original
     }
   }, [open])
+
+  const { url: videoBlobUrl } = useAuthedMediaUrl(video?.videoFileUrl, {
+    enabled: open && Boolean(video?.videoFileUrl),
+  })
 
   if (!open || !video) return null
 
@@ -216,13 +221,20 @@ function VideoDetailsModal({ video, open, onOpenChange, searchQuery }) {
           <div className="space-y-8">
             {video.videoFileUrl && (
               <Section title="Playback">
-                <VideoPlayer
-                  src={video.videoFileUrl}
-                  title={title}
-                  subtitle={[video.videoVersion, video.extension, video.resolution, video.frameRate]
-                    .filter(Boolean)
-                    .join(' • ')}
-                />
+                {videoBlobUrl ? (
+                  <VideoPlayer
+                    src={videoBlobUrl}
+                    title={title}
+                    subtitle={[video.videoVersion, video.extension, video.resolution, video.frameRate]
+                      .filter(Boolean)
+                      .join(' • ')}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center gap-2 rounded-2xl border bg-muted/20 px-6 py-8 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    Loading video…
+                  </div>
+                )}
               </Section>
             )}
 

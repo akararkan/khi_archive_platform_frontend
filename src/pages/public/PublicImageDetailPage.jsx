@@ -20,6 +20,8 @@ import { guestImages } from '@/services/guest'
 import { getStaffMediaOne } from '@/services/staff-public-catalog'
 import { usePublicAccess } from '@/hooks/use-public-access'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
+import { resolveMediaUrl } from '@/lib/media-url'
+import { DeepZoomViewer } from '@/components/ui/deep-zoom-viewer'
 
 function toList(v, cap = 12) {
   if (!v) return []
@@ -73,7 +75,7 @@ function PublicImageDetailPage() {
   const title = pickMediaTitle(image) || DETAIL.none
   const originalCandidate = image.originalTitle || image.titleOriginal || image.titleInCentralKurdish || image.centralKurdishTitle
   const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
-  const fileUrl = image.imageFileUrl
+  const fileUrl = resolveMediaUrl(image.imageFileUrl)
   const projectCode = image.project?.projectCode || image.projectCode
 
   const infoCards = [
@@ -93,12 +95,10 @@ function PublicImageDetailPage() {
           onAuxClick={stopProtectedMediaEvent}
           onContextMenu={stopProtectedMediaEvent}
         >
-          <img
+          <DeepZoomViewer
             src={fileUrl}
             alt={title}
-            draggable={false}
-            onAuxClick={stopProtectedMediaEvent}
-            onContextMenu={stopProtectedMediaEvent}
+            className="h-[70vh] max-h-[78vh] w-full rounded-none border-0 bg-transparent shadow-none"
           />
         </div>
       ) : (

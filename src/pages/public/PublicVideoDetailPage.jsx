@@ -20,7 +20,10 @@ import {
 import { guestVideos } from '@/services/guest'
 import { getStaffMediaOne } from '@/services/staff-public-catalog'
 import { usePublicAccess } from '@/hooks/use-public-access'
+import { useHlsFallbackSource } from '@/hooks/use-hls-fallback-source'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
+import { resolveMediaUrl } from '@/lib/media-url'
+import { buildHlsPlaylistPath } from '@/lib/hls-source'
 
 function toList(v, cap = 12) {
   if (!v) return []
@@ -61,6 +64,15 @@ function PublicVideoDetailPage() {
   }, [accessReady, code, isStaff])
 
   const person = useMemo(() => extractPersonFromItem(video), [video])
+  const directVideoSrc = resolveMediaUrl(video?.videoFileUrl)
+  const hlsVideoSrc = video?.videoCode
+    ? resolveMediaUrl(buildHlsPlaylistPath('video', video.videoCode, { guest: !isStaff }))
+    : ''
+  const playbackSrc = useHlsFallbackSource({
+    hlsUrl: hlsVideoSrc,
+    directUrl: directVideoSrc,
+    enabled: Boolean(directVideoSrc),
+  })
 
   if (loading || error || !video) {
     return <KhiDetailShell loading={loading} error={error} notFound={!video} />
@@ -83,9 +95,9 @@ function PublicVideoDetailPage() {
 
   const content = (
     <>
-      {video.videoFileUrl ? (
+      {directVideoSrc ? (
         <div className="player-mount protected-media" style={{ marginBottom: 22 }}>
-          <VideoPlayer src={video.videoFileUrl} title={title} subtitle={video.event || video.location || video.language || ''} protectedMode />
+          <VideoPlayer src={playbackSrc} title={title} subtitle={video.event || video.location || video.language || ''} protectedMode />
         </div>
       ) : (
         <div className="media-unavailable">{DETAIL.fileUnavailable}</div>
