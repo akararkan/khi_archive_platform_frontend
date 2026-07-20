@@ -125,11 +125,11 @@ const VIDEO_FILE_PATTERN = /\.(mp4|mov|mkv|webm|avi|m4v|mpg|mpeg|wmv|flv|3gp|ogv
 const IMAGE_FILE_PATTERN = /\.(jpe?g|png|gif|tiff?|bmp|webp|heic|heif|raw|cr2|cr3|nef|arw|dng|svg)$/i
 const TEXT_FILE_PATTERN = /\.(pdf|docx?|odt|rtf|txt|md|tex|epub|mobi|xml|html?|csv|tsv)$/i
 import { useToast } from '@/hooks/use-toast'
+import { useAuthedMediaUrl } from '@/hooks/use-authed-media-url'
 import { FormErrorBox } from '@/components/ui/form-error'
 import { SingleMediaFilePicker } from '@/components/ui/single-media-file-picker'
 import { formatApiError, getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
 import { cn } from '@/lib/utils'
-import { resolveMediaUrl } from '@/lib/media-url'
 import {
   createAudio,
   deleteAudio,
@@ -506,6 +506,17 @@ function EmployeeProjectDetailPage() {
   // The form is single-instance: only one media-type form is open at a time
   // (switching tabs while editing closes the form, see handleSwitchMediaType).
   const [view, setView] = useState('list') // list | create | edit
+
+  // Authenticated blob previews for the "current file" shown while editing —
+  // plain <img>/<audio>/<video>/<a> can't send the Bearer token these
+  // protected endpoints require (see FRONTEND_MEDIA_URL_GUIDE.md #3). Hooks
+  // must run unconditionally every render (the edit-only JSX below is inside
+  // conditional early returns for each media tab), so they're hoisted here
+  // rather than called next to their usage.
+  const currentImagePreview = useAuthedMediaUrl(currentImage?.imageFileUrl, { enabled: view === 'edit' })
+  const currentTextFilePreview = useAuthedMediaUrl(currentText?.textFileUrl, { enabled: view === 'edit' })
+  const currentVideoPreview = useAuthedMediaUrl(currentVideo?.videoFileUrl, { enabled: view === 'edit' })
+  const currentAudioPreview = useAuthedMediaUrl(currentAudio?.audioFileUrl, { enabled: view === 'edit' })
   const [isSaving, setIsSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [uploadProgress, setUploadProgress] = useState(null)
@@ -2123,11 +2134,17 @@ function EmployeeProjectDetailPage() {
                   <div className="space-y-2">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current file</p>
                     <div className="overflow-hidden rounded-lg border bg-muted/20">
-                      <img
-                        src={resolveMediaUrl(currentImage.imageFileUrl)}
-                        alt={currentImage.originalTitle || currentImage.imageCode}
-                        className="block max-h-72 w-auto max-w-full object-contain"
-                      />
+                      {currentImagePreview.url ? (
+                        <img
+                          src={currentImagePreview.url}
+                          alt={currentImage.originalTitle || currentImage.imageCode}
+                          className="block max-h-72 w-auto max-w-full object-contain"
+                        />
+                      ) : (
+                        <div className="flex h-40 items-center justify-center text-xs text-muted-foreground">
+                          {currentImagePreview.notFound ? 'Image not available' : 'Loading…'}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : null}
@@ -2272,7 +2289,7 @@ function EmployeeProjectDetailPage() {
                 <TextCoverImagePicker
                   id="textCoverImage"
                   file={textCoverImage}
-                  currentCoverUrl={resolveMediaUrl(textForm.coverImageUrl || currentText?.coverImageUrl)}
+                  currentCoverUrl={textForm.coverImageUrl || currentText?.coverImageUrl}
                   onFileChange={setTextCoverImage}
                   isEdit={isEdit}
                 />
@@ -2354,14 +2371,20 @@ function EmployeeProjectDetailPage() {
                         Current file. Pick a new one below to replace it.
                       </p>
                     </div>
-                    <a
-                      href={resolveMediaUrl(currentText.textFileUrl)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:bg-muted"
-                    >
-                      Open file
-                    </a>
+                    {currentTextFilePreview.url ? (
+                      <a
+                        href={currentTextFilePreview.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:bg-muted"
+                      >
+                        Open file
+                      </a>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">
+                        {currentTextFilePreview.notFound ? 'File not available' : 'Loading…'}
+                      </span>
+                    )}
                   </div>
                 ) : null}
 
@@ -2562,13 +2585,19 @@ function EmployeeProjectDetailPage() {
                 {isEdit && currentVideo?.videoFileUrl ? (
                   <div className="space-y-2">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Current file</p>
-                    <VideoPlayer
-                      src={resolveMediaUrl(currentVideo.videoFileUrl)}
-                      title={currentVideo.originalTitle || currentVideo.videoCode}
-                      subtitle={[currentVideo.videoVersion, currentVideo.extension, currentVideo.resolution]
-                        .filter(Boolean)
-                        .join(' • ')}
-                    />
+                    {currentVideoPreview.url ? (
+                      <VideoPlayer
+                        src={currentVideoPreview.url}
+                        title={currentVideo.originalTitle || currentVideo.videoCode}
+                        subtitle={[currentVideo.videoVersion, currentVideo.extension, currentVideo.resolution]
+                          .filter(Boolean)
+                          .join(' • ')}
+                      />
+                    ) : (
+                      <div className="flex h-40 items-center justify-center rounded-lg border bg-muted/20 text-xs text-muted-foreground">
+                        {currentVideoPreview.notFound ? 'Video not available' : 'Loading…'}
+                      </div>
+                    )}
                   </div>
                 ) : null}
 
@@ -2796,13 +2825,19 @@ function EmployeeProjectDetailPage() {
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       Current file
                     </p>
-                    <AudioPlayer
-                      src={resolveMediaUrl(currentAudio.audioFileUrl)}
-                      title={currentAudio.originTitle || currentAudio.audioCode}
-                      subtitle={[currentAudio.audioVersion, currentAudio.fileExtension, currentAudio.bitRate]
-                        .filter(Boolean)
-                        .join(' • ')}
-                    />
+                    {currentAudioPreview.url ? (
+                      <AudioPlayer
+                        src={currentAudioPreview.url}
+                        title={currentAudio.originTitle || currentAudio.audioCode}
+                        subtitle={[currentAudio.audioVersion, currentAudio.fileExtension, currentAudio.bitRate]
+                          .filter(Boolean)
+                          .join(' • ')}
+                      />
+                    ) : (
+                      <div className="flex h-16 items-center justify-center rounded-lg border bg-muted/20 text-xs text-muted-foreground">
+                        {currentAudioPreview.notFound ? 'Audio not available' : 'Loading…'}
+                      </div>
+                    )}
                   </div>
                 ) : null}
 
@@ -3885,6 +3920,31 @@ function VideoListSection({ isLoading, videos, filteredVideos, searchQuery, filt
   )
 }
 
+// Protected admin thumbnail — plain <img src> can't send the Bearer token
+// `/api/image/{code}/view` requires, so each row fetches its own authed
+// blob. Must be its own component: hooks can't be called inside the list's
+// .map() callback.
+function ImageRowThumbnail({ path, alt, onClick }) {
+  const { url, notFound } = useAuthedMediaUrl(path)
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="block size-12 overflow-hidden rounded-md border bg-muted/40 transition hover:ring-2 hover:ring-primary/30"
+      title="Open preview"
+    >
+      {url ? (
+        <img src={url} alt={alt} className="h-full w-full object-cover" loading="lazy" />
+      ) : (
+        <div className="flex size-full items-center justify-center text-muted-foreground">
+          {notFound ? <ImageIcon className="size-4" /> : <Loader2 className="size-3.5 animate-spin" />}
+        </div>
+      )}
+    </button>
+  )
+}
+
 function ImageListSection({ isLoading, images, filteredImages, searchQuery, filtersOrSortActive, onClearFiltersAndSort, onAdd, onEdit, onDetails, onDelete }) {
   if (isLoading) {
     return (
@@ -3977,19 +4037,7 @@ function ImageListSection({ isLoading, images, filteredImages, searchQuery, filt
                   </TableCell>
                   <TableCell>
                     {image.imageFileUrl ? (
-                      <button
-                        type="button"
-                        onClick={() => onDetails(image)}
-                        className="block size-12 overflow-hidden rounded-md border bg-muted/40 transition hover:ring-2 hover:ring-primary/30"
-                        title="Open preview"
-                      >
-                        <img
-                          src={resolveMediaUrl(image.imageFileUrl)}
-                          alt={title}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      </button>
+                      <ImageRowThumbnail path={image.imageFileUrl} alt={title} onClick={() => onDetails(image)} />
                     ) : (
                       <div className="flex size-12 items-center justify-center rounded-md border bg-muted/40 text-muted-foreground">
                         <ImageIcon className="size-4" />

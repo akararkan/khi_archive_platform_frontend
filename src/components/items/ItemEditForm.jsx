@@ -11,7 +11,6 @@ import { TextCoverImagePicker } from '@/components/text/TextCoverImagePicker'
 import { useToast } from '@/hooks/use-toast'
 import { formatApiError, isStaleVersionError } from '@/lib/get-error-message'
 import { getItemPayload, getTypeMeta } from '@/components/items/item-helpers'
-import { resolveMediaUrl } from '@/lib/media-url'
 
 import { AudioFormSections } from '@/components/audio/AudioFormSections'
 import { VideoFormSections } from '@/components/video/VideoFormSections'
@@ -277,7 +276,7 @@ export function ItemEditForm({ item, onCancel, onSaved }) {
               <TextCoverImagePicker
                 id={`item-${item.type.toLowerCase()}-cover`}
                 file={coverImage}
-                currentUrl={resolveMediaUrl(form.coverImageUrl || item.coverImageUrl || (item.text && item.text.coverImageUrl) || '')}
+                currentUrl={form.coverImageUrl || item.coverImageUrl || (item.text && item.text.coverImageUrl) || ''}
                 onFileChange={setCoverImage}
               />
             ) : null}

@@ -23,6 +23,7 @@ import {
 import { guestTexts } from '@/services/guest'
 import { getStaffMediaOne } from '@/services/staff-public-catalog'
 import { usePublicAccess } from '@/hooks/use-public-access'
+import { useAuthedMediaUrl } from '@/hooks/use-authed-media-url'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 import { apiClient } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
@@ -280,6 +281,10 @@ function PublicTextDetailPage() {
   }, [accessReady, code, isStaff])
 
   const person = useMemo(() => extractPersonFromItem(text), [text])
+  // Staff previewing the public site get an admin-shaped, Bearer-protected
+  // cover URL — a plain <img src> can't authenticate, so fetch it as a blob
+  // instead. Guests keep the already-correct, unauthenticated guest path.
+  const staffCover = useAuthedMediaUrl(text?.coverImageUrl, { enabled: isStaff })
 
   if (loading || error || !text) {
     return <KhiDetailShell loading={loading} error={error} notFound={!text} />
@@ -337,7 +342,7 @@ function PublicTextDetailPage() {
           title={title}
           subtitle={original}
           description={text.description || text.summary}
-          image={resolveMediaUrl(text.coverImageUrl) || null}
+          image={(isStaff ? staffCover.url : resolveMediaUrl(text.coverImageUrl)) || null}
           tags={toList(text.tags)}
           breadcrumbItems={[
             { to: '/public', label: DETAIL.home },

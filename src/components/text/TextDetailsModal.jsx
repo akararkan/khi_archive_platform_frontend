@@ -7,7 +7,6 @@ import { CodeBadge } from '@/components/ui/code-badge'
 import { Highlight, HighlightProvider } from '@/components/ui/highlight'
 import { useIsAdmin } from '@/hooks/use-current-profile'
 import { useAuthedMediaUrl } from '@/hooks/use-authed-media-url'
-import { resolveMediaUrl } from '@/lib/media-url'
 
 function formatInstant(instant) {
   if (!instant) return null
@@ -101,10 +100,11 @@ function TextFilePreview({ src, ext }) {
   )
 }
 
-function TextCoverArtwork({ src, title }) {
+function TextCoverArtwork({ coverPath, title }) {
   const [failed, setFailed] = useState(false)
+  const { url: src } = useAuthedMediaUrl(coverPath, { enabled: Boolean(coverPath) })
 
-  if (!src || failed) {
+  if (!coverPath || !src || failed) {
     return (
       <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border bg-background text-muted-foreground shadow-sm">
         <FileText className="size-5" />
@@ -218,7 +218,7 @@ function TextDetailsModal({ text, open, onOpenChange, searchQuery }) {
 
         <div className="relative shrink-0 border-b bg-gradient-to-b from-muted/70 via-muted/20 to-transparent px-6 py-6 sm:px-8 sm:py-7">
           <div className="flex items-start gap-4 pr-10">
-            <TextCoverArtwork key={text.coverImageUrl || 'no-cover'} src={resolveMediaUrl(text.coverImageUrl)} title={String(title)} />
+            <TextCoverArtwork key={text.coverImageUrl || 'no-cover'} coverPath={text.coverImageUrl} title={String(title)} />
             <div className="min-w-0 space-y-2">
               {text.textCode && (
                 <div className="flex flex-wrap items-center gap-2">

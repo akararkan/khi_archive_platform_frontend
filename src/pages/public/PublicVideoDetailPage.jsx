@@ -20,6 +20,7 @@ import {
 import { guestVideos } from '@/services/guest'
 import { getStaffMediaOne } from '@/services/staff-public-catalog'
 import { usePublicAccess } from '@/hooks/use-public-access'
+import { useAuthedMediaUrl } from '@/hooks/use-authed-media-url'
 import { useHlsFallbackSource } from '@/hooks/use-hls-fallback-source'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 import { resolveMediaUrl } from '@/lib/media-url'
@@ -65,14 +66,21 @@ function PublicVideoDetailPage() {
 
   const person = useMemo(() => extractPersonFromItem(video), [video])
   const directVideoSrc = resolveMediaUrl(video?.videoFileUrl)
-  const hlsVideoSrc = video?.videoCode
-    ? resolveMediaUrl(buildHlsPlaylistPath('video', video.videoCode, { guest: !isStaff }))
+  // Staff previewing the public site get admin-shaped, Bearer-protected
+  // stream URLs — a plain <video src> can't authenticate, so fetch it as a
+  // blob instead (same tradeoff as the admin dashboard: loses native Range
+  // seeking, acceptable for a staff preview). Guests keep the fast,
+  // Range-enabled HLS/progressive path unaffected.
+  const staffVideo = useAuthedMediaUrl(video?.videoFileUrl, { enabled: isStaff })
+  const hlsVideoSrc = !isStaff && video?.videoCode
+    ? resolveMediaUrl(buildHlsPlaylistPath('video', video.videoCode, { guest: true }))
     : ''
-  const playbackSrc = useHlsFallbackSource({
+  const guestPlaybackSrc = useHlsFallbackSource({
     hlsUrl: hlsVideoSrc,
     directUrl: directVideoSrc,
-    enabled: Boolean(directVideoSrc),
+    enabled: !isStaff && Boolean(directVideoSrc),
   })
+  const playbackSrc = isStaff ? staffVideo.url : guestPlaybackSrc
 
   if (loading || error || !video) {
     return <KhiDetailShell loading={loading} error={error} notFound={!video} />
@@ -95,10 +103,12 @@ function PublicVideoDetailPage() {
 
   const content = (
     <>
-      {directVideoSrc ? (
+      {playbackSrc ? (
         <div className="player-mount protected-media" style={{ marginBottom: 22 }}>
           <VideoPlayer src={playbackSrc} title={title} subtitle={video.event || video.location || video.language || ''} protectedMode />
         </div>
+      ) : isStaff && staffVideo.loading ? (
+        <div className="media-unavailable">…</div>
       ) : (
         <div className="media-unavailable">{DETAIL.fileUnavailable}</div>
       )}

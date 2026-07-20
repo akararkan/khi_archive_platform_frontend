@@ -20,6 +20,7 @@ import {
 import { guestAudios } from '@/services/guest'
 import { getStaffMediaOne } from '@/services/staff-public-catalog'
 import { usePublicAccess } from '@/hooks/use-public-access'
+import { useAuthedMediaUrl } from '@/hooks/use-authed-media-url'
 import { useHlsFallbackSource } from '@/hooks/use-hls-fallback-source'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 import { resolveMediaUrl } from '@/lib/media-url'
@@ -66,14 +67,21 @@ function PublicAudioDetailPage() {
 
   const person = useMemo(() => extractPersonFromItem(audio), [audio])
   const directAudioSrc = resolveMediaUrl(audio?.audioFileUrl)
-  const hlsAudioSrc = audio?.audioCode
-    ? resolveMediaUrl(buildHlsPlaylistPath('audio', audio.audioCode, { guest: !isStaff }))
+  // Staff previewing the public site get admin-shaped, Bearer-protected
+  // stream URLs — a plain <audio src> can't authenticate, so fetch it as a
+  // blob instead (same tradeoff as the admin dashboard: loses native Range
+  // seeking, acceptable for a staff preview). Guests keep the fast,
+  // Range-enabled HLS/progressive path unaffected.
+  const staffAudio = useAuthedMediaUrl(audio?.audioFileUrl, { enabled: isStaff })
+  const hlsAudioSrc = !isStaff && audio?.audioCode
+    ? resolveMediaUrl(buildHlsPlaylistPath('audio', audio.audioCode, { guest: true }))
     : ''
-  const playbackSrc = useHlsFallbackSource({
+  const guestPlaybackSrc = useHlsFallbackSource({
     hlsUrl: hlsAudioSrc,
     directUrl: directAudioSrc,
-    enabled: Boolean(directAudioSrc),
+    enabled: !isStaff && Boolean(directAudioSrc),
   })
+  const playbackSrc = isStaff ? staffAudio.url : guestPlaybackSrc
 
   if (loading || error || !audio) {
     return <KhiDetailShell loading={loading} error={error} notFound={!audio} />
@@ -100,10 +108,12 @@ function PublicAudioDetailPage() {
 
   const content = (
     <>
-      {directAudioSrc ? (
+      {playbackSrc ? (
         <div className="player-mount protected-media" style={{ marginBottom: 22 }}>
           <AudioPlayer src={playbackSrc} title={title} subtitle={audio.form || audio.language || ''} protectedMode />
         </div>
+      ) : isStaff && staffAudio.loading ? (
+        <div className="media-unavailable">…</div>
       ) : (
         <div className="media-unavailable">{DETAIL.fileUnavailable}</div>
       )}

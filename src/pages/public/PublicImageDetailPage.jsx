@@ -19,6 +19,7 @@ import {
 import { guestImages } from '@/services/guest'
 import { getStaffMediaOne } from '@/services/staff-public-catalog'
 import { usePublicAccess } from '@/hooks/use-public-access'
+import { useAuthedMediaUrl } from '@/hooks/use-authed-media-url'
 import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/components/public/public-route-id'
 import { resolveMediaUrl } from '@/lib/media-url'
 import { DeepZoomViewer } from '@/components/ui/deep-zoom-viewer'
@@ -67,6 +68,13 @@ function PublicImageDetailPage() {
   }, [accessReady, code, isStaff])
 
   const person = useMemo(() => extractPersonFromItem(image), [image])
+  // Staff previewing the public site get admin-shaped, Bearer-protected URLs
+  // (getStaffMediaOne hits the admin /image/{code} endpoint) — a plain
+  // DeepZoomViewer <img> can't send that header, so fetch it as an authed
+  // blob instead. Guests always get the guest DTO's already-correct,
+  // unauthenticated path, which supports native Range requests — no reason
+  // to trade that away by routing it through a blob fetch too.
+  const staffImage = useAuthedMediaUrl(image?.imageFileUrl, { enabled: isStaff })
 
   if (loading || error || !image) {
     return <KhiDetailShell loading={loading} error={error} notFound={!image} />
@@ -75,7 +83,7 @@ function PublicImageDetailPage() {
   const title = pickMediaTitle(image) || DETAIL.none
   const originalCandidate = image.originalTitle || image.titleOriginal || image.titleInCentralKurdish || image.centralKurdishTitle
   const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
-  const fileUrl = resolveMediaUrl(image.imageFileUrl)
+  const fileUrl = isStaff ? staffImage.url : resolveMediaUrl(image.imageFileUrl)
   const projectCode = image.project?.projectCode || image.projectCode
 
   const infoCards = [
@@ -101,6 +109,8 @@ function PublicImageDetailPage() {
             className="h-[70vh] max-h-[78vh] w-full rounded-none border-0 bg-transparent shadow-none"
           />
         </div>
+      ) : isStaff && staffImage.loading ? (
+        <div className="media-unavailable">…</div>
       ) : (
         <div className="media-unavailable">{DETAIL.fileUnavailable}</div>
       )}
