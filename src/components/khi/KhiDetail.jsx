@@ -2,6 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 
 import { DETAIL, TYPE_PILL } from './khi-data'
+import KhiLogoWatermark from './KhiLogoWatermark'
 import { publicDetailPath } from '@/components/public/public-route-id'
 import {
   IconHome, IconMic, IconVideo, IconImage, IconText, IconProject,
@@ -84,9 +85,19 @@ export function KhiDetailDisc({ kind, image, alt, badge, vinyl = false, initials
   const BadgeIcon = KIND_BADGE_ICON[kind] || IconMic
 
   if (['audio', 'video', 'image', 'text'].includes(kind)) {
+    // Image, video, and book heroes carry the breathing brand watermark over
+    // the artwork; audio has no visual asset to protect. The frame span
+    // shrink-wraps the image so the mark anchors to the artwork box itself,
+    // never the (usually wider) hero grid cell.
+    const watermark = image && kind !== 'audio'
     return (
       <div className={`hero-image-area media-asset-area kind-${kind}${image ? ' has-image' : ' is-empty'}`}>
-        {image ? (
+        {image && watermark ? (
+          <span className="media-asset-frame">
+            <img className="media-asset-image" src={image} alt={alt || ''} loading="lazy" />
+            <KhiLogoWatermark className="hero-mark" />
+          </span>
+        ) : image ? (
           <img className="media-asset-image" src={image} alt={alt || ''} loading="lazy" />
         ) : (
           <span className="media-asset-empty">

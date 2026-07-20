@@ -15,6 +15,7 @@ import {
   VolumeX,
 } from 'lucide-react'
 
+import KhiLogoWatermark from '@/components/khi/KhiLogoWatermark'
 import { attachMediaSource } from '@/lib/hls-source'
 import { cn } from '@/lib/utils'
 
@@ -390,8 +391,9 @@ function VideoPlayer({ src, title, subtitle, className, protectedMode = false })
           onContextMenu={protectedMode ? stopProtectedMediaEvent : undefined}
           className="size-full object-contain"
         />
+        {protectedMode && ready ? <KhiLogoWatermark className="on-dark" /> : null}
         {!ready && src ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40">
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/40">
             <Loader2 className="size-8 animate-spin text-white/80" />
           </div>
         ) : null}
@@ -400,7 +402,7 @@ function VideoPlayer({ src, title, subtitle, className, protectedMode = false })
             type="button"
             onClick={togglePlay}
             aria-label="Play"
-            className="absolute inset-0 flex items-center justify-center bg-black/30 transition-opacity hover:bg-black/40"
+            className="absolute inset-0 z-10 flex items-center justify-center bg-black/30 transition-opacity hover:bg-black/40"
           >
             <span className="flex size-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl shadow-black/50 ring-2 ring-white/20 transition hover:scale-105">
               <Play className="ml-1 size-7" />

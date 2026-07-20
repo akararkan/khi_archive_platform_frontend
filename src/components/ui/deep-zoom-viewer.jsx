@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Loader2, Maximize, Minimize, Plus, Minus, RotateCcw, ImageOff } from 'lucide-react'
 import OpenSeadragon from 'openseadragon'
 
+import KhiLogoWatermark from '@/components/khi/KhiLogoWatermark'
 import { cn } from '@/lib/utils'
 
 function stopProtectedMediaEvent(event) {
@@ -45,6 +46,7 @@ function ControlButton({ onClick, label, children }) {
  * make guest-visible content uncopyable.
  */
 function DeepZoomViewer({ src, tileSources, alt = '', className, protectedMode = true, onError }) {
+  const rootRef = useRef(null)
   const containerRef = useRef(null)
   const viewerRef = useRef(null)
   const [failed, setFailed] = useState(false)
@@ -103,7 +105,7 @@ function DeepZoomViewer({ src, tileSources, alt = '', className, protectedMode =
   }, [src, tileSources])
 
   useEffect(() => {
-    const onFsChange = () => setIsFullscreen(document.fullscreenElement === containerRef.current)
+    const onFsChange = () => setIsFullscreen(document.fullscreenElement === rootRef.current)
     document.addEventListener('fullscreenchange', onFsChange)
     return () => document.removeEventListener('fullscreenchange', onFsChange)
   }, [])
@@ -121,8 +123,11 @@ function DeepZoomViewer({ src, tileSources, alt = '', className, protectedMode =
     viewport.applyConstraints()
   }
   const resetView = () => viewerRef.current?.viewport?.goHome()
+  // Fullscreen the OUTER wrapper (not the OpenSeadragon host div) so the
+  // watermark, loading/failure overlays and the control bar all travel into
+  // fullscreen with the canvas.
   const toggleFullscreen = async () => {
-    const el = containerRef.current
+    const el = rootRef.current
     if (!el) return
     try {
       if (document.fullscreenElement === el) await document.exitFullscreen()
@@ -134,6 +139,7 @@ function DeepZoomViewer({ src, tileSources, alt = '', className, protectedMode =
 
   return (
     <div
+      ref={rootRef}
       className={cn(
         // `pointer-events-auto` is intentional and load-bearing: this viewer
         // is frequently nested inside legacy `.protected-media`/`.media-stage`
@@ -153,6 +159,8 @@ function DeepZoomViewer({ src, tileSources, alt = '', className, protectedMode =
       aria-label={alt}
     >
       <div ref={containerRef} className={cn('size-full', !isFullscreen && 'min-h-[360px]')} />
+
+      {protectedMode && !loading && !failed ? <KhiLogoWatermark /> : null}
 
       {loading && !failed ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-muted/20">
