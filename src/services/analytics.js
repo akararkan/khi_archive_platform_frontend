@@ -158,6 +158,10 @@ export async function getAnalyticsActionCatalog({ signal } = {}) {
 // shape as the rest. Each bucket carries week (Monday date) / label
 // ("2026-W29") / total / created / updated / deleted / restored / purged
 // / viewed / searched / activeUsers. Defaults to 12 weeks server-side.
+// NOTE: the pages currently read weekly/yearly off the overview /
+// per-user payloads (one response powers the 4-way toggle); these two
+// wrappers exist — like getAnalyticsDaily below — for chart-only views
+// that want an independently-filtered series.
 export async function getAnalyticsWeekly({ signal, ...filter } = {}) {
   const { data } = await apiClient.get('/analytics/weekly', {
     params: buildFilterParams(filter),
@@ -209,13 +213,17 @@ export async function getMaqamAnalyticsOverview({ signal } = {}) {
 // Maqam teacher leaderboard (TeacherActivityDTO[]) on its own — assigned
 // records, votes cast/pending, distinct maqam types, listen seconds/
 // sessions, records listened, first-voted / last-listen timestamps.
+// Currently unused: the Maqam tab reads the leaderboard embedded in the
+// overview payload. Kept (like getAnalyticsDaily/Actions/Entities above)
+// so the service mirrors the full backend surface — a standalone or
+// per-teacher drill-down can wire it without touching this file.
 export async function getMaqamAnalyticsTeachers({ signal } = {}) {
   const { data } = await apiClient.get('/analytics/maqam/teachers', { signal })
   return data
 }
 
 // One maqam teacher's activity (TeacherActivityDTO). 404 if the username
-// isn't on any active-record panel.
+// isn't on any active-record panel. Unused for now — see note above.
 export async function getMaqamAnalyticsTeacher(username, { signal } = {}) {
   const { data } = await apiClient.get(
     `/analytics/maqam/teachers/${encodeURIComponent(username)}`,

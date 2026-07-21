@@ -96,7 +96,13 @@ function ReportSection({ icon, title, subtitle, right, children, className }) {
 function MetricTile({ label, value, icon, accent, hint, isLoading }) {
   const Icon = icon
   return (
-    <Card className="border-border bg-card shadow-sm shadow-black/5">
+    <Card
+      className="border-border bg-card shadow-sm shadow-black/5"
+      data-print-stat="true"
+      data-print-label={label}
+      data-print-value={value == null ? '—' : String(value)}
+      data-print-hint={hint || undefined}
+    >
       <CardContent className="flex items-start gap-4 px-5 py-5">
         <div className={cn('flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted/60', accent)}>
           <Icon className="size-5" />
@@ -185,7 +191,7 @@ function InventoryReport({ data, isLoading }) {
 
             {/* Full table: active / trashed / total + a share bar */}
             <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[26rem] text-sm">
+              <table className="w-full min-w-[26rem] text-sm" data-print-title="Inventory by type">
                 <thead className="bg-muted/40">
                   <tr>
                     <th className={TH_LEFT}>Type</th>
@@ -281,6 +287,7 @@ function VisibilityReport({ data, isLoading }) {
                 ]}
                 centerValue={`${percentOf(projectsVisible, projectsTotal).toFixed(0)}%`}
                 centerLabel="Public"
+                printTitle="Project visibility"
               />
               <ChartLegend
                 className="flex-col !items-start gap-2"
@@ -299,7 +306,7 @@ function VisibilityReport({ data, isLoading }) {
             <Skeleton className="h-56 w-full rounded-xl" />
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[30rem] text-sm">
+              <table className="w-full min-w-[30rem] text-sm" data-print-title="Media visibility by type">
                 <thead className="bg-muted/40">
                   <tr>
                     <th className={TH_LEFT}>Type</th>
@@ -367,6 +374,7 @@ function VisibilityReport({ data, isLoading }) {
             {itemsTotal > 0 ? (
               <StackedProgressBar
                 total={itemsTotal}
+                printTitle="Items in visible vs hidden projects"
                 segments={[
                   { key: 'visible', label: 'In visible projects', value: itemsVisible, barClass: 'bg-emerald-500' },
                   { key: 'hidden', label: 'In hidden projects', value: itemsHidden, barClass: 'bg-amber-500' },
@@ -426,6 +434,7 @@ function MaqamReport({ overview, isLoading }) {
               <StackedProgressBar
                 height="h-4"
                 total={activeRecords}
+                printTitle="Maqam classification progress"
                 segments={[
                   { key: 'full', label: 'Fully voted', value: full, barClass: 'bg-emerald-500' },
                   { key: 'partial', label: 'Partially voted', value: partial, barClass: 'bg-amber-500' },
@@ -464,6 +473,7 @@ function MaqamReport({ overview, isLoading }) {
                 ]}
                 centerValue={`${percentOf(consensus, fullyVoted).toFixed(0)}%`}
                 centerLabel="Agree"
+                printTitle="Agreement on fully-voted records"
               />
               <ChartLegend
                 className="flex-col !items-start gap-2"
@@ -495,7 +505,7 @@ function MaqamReport({ overview, isLoading }) {
           {isLoading && !overview ? (
             <Skeleton className="h-40 w-full rounded-xl" />
           ) : (
-            <HBarList items={distItems} emptyLabel="No votes cast yet" />
+            <HBarList items={distItems} emptyLabel="No votes cast yet" printTitle="Maqam-type distribution" />
           )}
         </ReportSection>
       </div>
@@ -508,7 +518,7 @@ function MaqamReport({ overview, isLoading }) {
           <EmptyState icon={Users} title="No teachers assigned" description="Assign teachers to maqam records to see their classification activity here." />
         ) : (
           <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full min-w-[52rem] text-sm">
+            <table className="w-full min-w-[52rem] text-sm" data-print-title="Teacher leaderboard">
               <thead className="bg-muted/40">
                 <tr>
                   <th className={cn(TH_LEFT, 'w-[44px] text-center')}>#</th>

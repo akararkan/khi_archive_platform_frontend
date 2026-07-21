@@ -132,12 +132,47 @@ function prepareTable(sourceTable) {
 }
 
 function tableSectionTitle(table, fallback, index, total) {
+  // Explicit per-table override wins — chart data tables and the analytics
+  // report tables label themselves via data-print-title since their card
+  // headers aren't CardTitle/h2/h3 elements.
+  const explicit = table.dataset?.printTitle?.trim()
+  if (explicit) return explicit
   const cardTitle = table
     .closest('[data-slot="card"]')
     ?.querySelector('[data-slot="card-title"], h2, h3')
     ?.textContent?.trim()
   if (cardTitle) return cardTitle
   return total > 1 ? `${fallback} · Section ${index + 1}` : `${fallback} records`
+}
+
+// Headline KPI tiles (StatCard / MetricTile) annotate themselves with
+// data-print-stat + data-print-label/value/hint. The print report renders
+// them as a stat strip right under the masthead so the page's headline
+// numbers survive into the PDF — charts alone would be lost (SVG is
+// stripped) and their companion data tables carry the detail instead.
+function buildKpiStrip(root) {
+  const tiles = [...root.querySelectorAll('[data-print-stat]')]
+  const items = tiles
+    .map((tile) => ({
+      label: tile.getAttribute('data-print-label')?.trim(),
+      value: tile.getAttribute('data-print-value')?.trim(),
+      hint: tile.getAttribute('data-print-hint')?.trim(),
+    }))
+    .filter((item) => item.label && item.value)
+  if (!items.length) return ''
+  return `
+    <section class="stat-strip">
+      ${items
+        .map(
+          (item) => `
+        <div class="stat-tile">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(item.value)}</strong>
+          ${item.hint ? `<small>${escapeHtml(item.hint)}</small>` : ''}
+        </div>`,
+        )
+        .join('')}
+    </section>`
 }
 
 function buildAllRecordsContent(root, title) {
@@ -267,7 +302,7 @@ function reportDocument({
     <style>
       @page {
         size: ${pageSize};
-        margin: 14mm 12mm 17mm;
+        margin: 16mm 13mm 18mm;
       }
       :root {
         --pine: #173d30;
@@ -286,8 +321,9 @@ function reportDocument({
         margin: 0;
         color: var(--ink);
         background: #fff;
-        font: 11px/1.55 Arial, "Noto Sans Arabic", sans-serif;
+        font: 11.5px/1.6 Arial, "Noto Sans Arabic", sans-serif;
       }
+      p, li, td { orphans: 3; widows: 3; }
       .report-masthead {
         position: relative;
         min-height: 112px;
@@ -382,15 +418,41 @@ function reportDocument({
         text-transform: uppercase;
       }
       .meta-item strong { color: var(--pine); font-size: 10.5px; line-height: 1.45; }
-      .report-section { margin-top: 22px; break-inside: auto; }
+      .stat-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 22px;
+      }
+      .stat-tile {
+        min-height: 58px;
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: linear-gradient(180deg, #fff, #fbfcfb);
+        break-inside: avoid;
+      }
+      .stat-tile span {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--muted);
+        font-size: 7.5px;
+        font-weight: 800;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+      }
+      .stat-tile strong { color: var(--pine); font-size: 17px; line-height: 1.2; }
+      .stat-tile small { display: block; margin-top: 3px; color: var(--muted); font-size: 8px; }
+      .report-section { margin-top: 24px; break-inside: auto; }
       .report-section + .report-section { break-before: page; }
       .section-heading {
         display: flex;
         align-items: end;
         justify-content: space-between;
         gap: 20px;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         padding-inline: 2px;
+        break-after: avoid-page;
       }
       .section-kicker {
         display: block;
@@ -399,7 +461,7 @@ function reportDocument({
         font-weight: 800;
         letter-spacing: .16em;
       }
-      .section-heading h2 { margin: 2px 0 0; color: var(--pine); font-size: 17px; }
+      .section-heading h2 { margin: 3px 0 0; color: var(--pine); font-size: 18px; line-height: 1.3; }
       .section-count {
         padding: 5px 9px;
         border-radius: 999px;
@@ -418,12 +480,13 @@ function reportDocument({
         width: 100%;
         border-collapse: collapse;
         table-layout: auto;
-        font-size: 8.6px;
+        font-size: 9.4px;
       }
+      caption { display: none; }
       thead { display: table-header-group; }
       tr { break-inside: avoid; }
       th, td {
-        padding: 8px 8px;
+        padding: 9px 10px;
         border-inline-start: 1px solid #dce3df;
         border-bottom: 1px solid #dce3df;
         text-align: start;
@@ -436,14 +499,20 @@ function reportDocument({
       th {
         background: var(--pine);
         color: #fffdf5;
-        font-size: 7.5px;
+        font-size: 8px;
         font-weight: 800;
-        letter-spacing: .05em;
+        letter-spacing: .06em;
         text-transform: uppercase;
       }
       tbody tr:nth-child(even) td { background: #f5f8f6; }
       tbody tr:nth-child(odd) td { background: #fff; }
-      td { color: #26332d; line-height: 1.55; }
+      td { color: #26332d; line-height: 1.6; }
+      tfoot td {
+        background: var(--pine-soft);
+        color: var(--pine);
+        font-weight: 800;
+        border-top: 2px solid var(--pine);
+      }
       td img { width: 42px; height: 42px; object-fit: contain; border-radius: 8px; background: #fff; }
       a { color: inherit; text-decoration: none; }
       .record-sheet {
@@ -467,8 +536,8 @@ function reportDocument({
       .record-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-        padding: 16px 18px 22px;
+        gap: 14px;
+        padding: 18px 20px 24px;
       }
       .record-field {
         min-height: 86px;
@@ -490,9 +559,9 @@ function reportDocument({
       }
       .field-value {
         color: var(--ink);
-        font-size: 11.5px;
+        font-size: 12px;
         font-weight: 650;
-        line-height: 1.65;
+        line-height: 1.7;
         overflow-wrap: anywhere;
       }
       .field-value img {
@@ -508,14 +577,14 @@ function reportDocument({
       .report-footer {
         position: fixed;
         right: 0;
-        bottom: -10mm;
+        bottom: -11mm;
         left: 0;
         display: flex;
         justify-content: space-between;
         padding-top: 5px;
         border-top: 1px solid var(--line);
         color: var(--muted);
-        font-size: 7px;
+        font-size: 7.5px;
       }
       .page-number::after { content: "Page " counter(page); }
       @media print {
@@ -596,9 +665,11 @@ function AdminPrintManager({ children }) {
 
     const title = titleForPath(location.pathname, root)
     const report = buildAllRecordsContent(root, title)
+    // Headline KPI tiles print as a stat strip above the data sections.
+    const kpiStrip = buildKpiStrip(root)
     openPrintReport({
       title,
-      content: report.content,
+      content: kpiStrip + report.content,
       recordCount: report.recordCount,
       direction: getComputedStyle(root).direction || 'ltr',
       mode: 'all',
@@ -617,7 +688,11 @@ function AdminPrintManager({ children }) {
         if (
           cleanups.has(row) ||
           row.querySelector('[data-admin-print-record]') ||
-          !isDataRow(row)
+          !isDataRow(row) ||
+          // Chart companion tables (sr-only accessibility/print tables
+          // inside the analytics charts) are data, not records — no
+          // per-row Print buttons.
+          row.closest('[data-chart-table]')
         ) {
           return
         }

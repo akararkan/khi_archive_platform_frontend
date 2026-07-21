@@ -74,6 +74,7 @@ import {
   MaqamReport,
   VisibilityReport,
 } from '@/pages/admin/analytics-reports'
+import { ChartDataTable } from '@/pages/admin/analytics-charts'
 
 const FEED_PAGE_SIZE = 100
 // User-management audit endpoint clamps page size to 200 server-side;
@@ -107,10 +108,11 @@ function AdminAnalyticsPage() {
   const [actionCatalog, setActionCatalog] = useState(null)
   const [selectedActions, setSelectedActions] = useState([])
 
-  // Chart granularity for the Overview tab. Monthly is the "main goal"
-  // view per the new analytics spec; daily stays available because
-  // short ranges (≤30d) read better as bars-per-day.
-  const [chartView, setChartView] = useState('monthly') // 'monthly' | 'daily'
+  // Chart granularity for the Overview tab: 'daily' | 'weekly' |
+  // 'monthly' | 'yearly'. Monthly is the default (the "main goal" view
+  // per the analytics spec); persisted so the admin's preferred zoom
+  // survives navigation.
+  const [chartView, setChartView] = usePersistentState('admin.analytics.chartView', 'monthly')
   const [monthly, setMonthly] = useState(null)
   const [isMonthlyLoading, setIsMonthlyLoading] = useState(false)
 
@@ -395,10 +397,14 @@ function AdminAnalyticsPage() {
     }
   }, [combinedFilter, userActionsPage])
 
+  // Snapshot silent-reloaders also clear their error key on success —
+  // otherwise a transient failure would leave a stale ErrorCard covering
+  // data the next poll tick already recovered.
   const silentReloadInventory = useCallback(async () => {
     try {
       const data = await getAnalyticsInventory()
       setInventory(data || null)
+      setError((p) => (p.inventory ? { ...p, inventory: '' } : p))
     } catch {
       // swallow
     }
@@ -408,6 +414,7 @@ function AdminAnalyticsPage() {
     try {
       const data = await getAnalyticsVisibility()
       setVisibility(data || null)
+      setError((p) => (p.visibility ? { ...p, visibility: '' } : p))
     } catch {
       // swallow
     }
@@ -417,6 +424,7 @@ function AdminAnalyticsPage() {
     try {
       const data = await getMaqamAnalyticsOverview()
       setMaqamOverview(data || null)
+      setError((p) => (p.maqam ? { ...p, maqam: '' } : p))
     } catch {
       // swallow
     }
@@ -517,9 +525,6 @@ function AdminAnalyticsPage() {
       silentReloadFeed()
       silentReloadUsers()
       silentReloadUserActions()
-      silentReloadInventory()
-      silentReloadVisibility()
-      silentReloadMaqam()
     }
 
     const id = setInterval(tick, POLL_INTERVAL_MS)
@@ -534,6 +539,27 @@ function AdminAnalyticsPage() {
     silentReloadFeed,
     silentReloadUsers,
     silentReloadUserActions,
+  ])
+
+  // Snapshot polling — deliberately NOT gated on combinedFilter: these
+  // endpoints ignore the date/action filter entirely, so the live counts
+  // should keep refreshing even while a custom range is mid-edit (when
+  // combinedFilter is null and the filtered pollers above pause). Only
+  // ticks once a snapshot has actually been opened (state non-null) so
+  // we never poll endpoints the admin hasn't looked at.
+  useEffect(() => {
+    const tick = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      if (inventory != null) silentReloadInventory()
+      if (visibility != null) silentReloadVisibility()
+      if (maqamOverview != null) silentReloadMaqam()
+    }
+    const id = setInterval(tick, POLL_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [
+    inventory,
+    visibility,
+    maqamOverview,
     silentReloadInventory,
     silentReloadVisibility,
     silentReloadMaqam,
@@ -558,7 +584,7 @@ function AdminAnalyticsPage() {
         <div className="flex flex-wrap items-center gap-2">
           <span
             className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400"
-            title={`Auto-refreshing Overview, Feed, and Users every ${POLL_INTERVAL_MS / 1000}s`}
+            title={`Auto-refreshing every tab — Overview, Inventory, Visibility, Maqam, Users, Feed, User actions — every ${POLL_INTERVAL_MS / 1000}s`}
           >
             <span className="relative flex size-1.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/70" />
@@ -654,19 +680,21 @@ function AdminAnalyticsPage() {
           }}
         />
       ) : activeTab === 'inventory' ? (
-        error.inventory ? (
+        // `error && !data` — if a later poll tick recovered the data, show
+        // it instead of a stale ErrorCard.
+        error.inventory && !inventory ? (
           <ErrorCard message={error.inventory} onRetry={loadInventory} />
         ) : (
           <InventoryReport data={inventory} isLoading={isLoading.inventory} />
         )
       ) : activeTab === 'visibility' ? (
-        error.visibility ? (
+        error.visibility && !visibility ? (
           <ErrorCard message={error.visibility} onRetry={loadVisibility} />
         ) : (
           <VisibilityReport data={visibility} isLoading={isLoading.visibility} />
         )
       ) : activeTab === 'maqam' ? (
-        error.maqam ? (
+        error.maqam && !maqamOverview ? (
           <ErrorCard message={error.maqam} onRetry={loadMaqam} />
         ) : (
           <MaqamReport overview={maqamOverview} isLoading={isLoading.maqam} />
@@ -768,6 +796,26 @@ function OverviewTab({
         <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           By entity
         </p>
+        {/* Print/screen-reader companion — the card grid below is
+            divs, so the printed report reads this table instead. */}
+        <ChartDataTable
+          title="Activity by entity"
+          head={['Entity', 'Created', 'Updated', 'Deleted', 'Restored', 'Total']}
+          rows={Object.entries(ENTITY_META)
+            .map(([kind, meta]) => {
+              const stats = byEntity[kind]
+              if (!stats || !Number(stats.total)) return null
+              return [
+                meta.label,
+                formatNumber(stats.created ?? 0),
+                formatNumber(stats.updated ?? 0),
+                formatNumber(stats.deleted ?? 0),
+                formatNumber(stats.restored ?? 0),
+                formatNumber(stats.total ?? 0),
+              ]
+            })
+            .filter(Boolean)}
+        />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {Object.entries(ENTITY_META).map(([kind, meta]) => {
             const stats = byEntity[kind] || {}
@@ -827,7 +875,13 @@ function OverviewTab({
                 const Icon = card.icon
                 const { label, value, accent } = card
                 return (
-                <Card key={label} className="border-border bg-card shadow-sm shadow-black/5">
+                <Card
+                  key={label}
+                  className="border-border bg-card shadow-sm shadow-black/5"
+                  data-print-stat="true"
+                  data-print-label={label}
+                  data-print-value={formatNumber(value)}
+                >
                   <CardContent className="flex items-center gap-4 px-5 py-4">
                     <div className={cn('flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted/60', accent)}>
                       <Icon className="size-4" />
@@ -869,6 +923,16 @@ function OverviewTab({
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Most active users
           </p>
+          <ChartDataTable
+            title="Most active users"
+            head={['#', 'User', 'Username', 'Actions']}
+            rows={topUsers.slice(0, 10).map((u, idx) => [
+              String(idx + 1),
+              u.displayName || u.username || '—',
+              u.username || '—',
+              formatNumber(u.totalActions ?? u.total ?? 0),
+            ])}
+          />
           <Card className="border-border bg-card shadow-sm shadow-black/5">
             <ul className="divide-y divide-border">
               {topUsers.slice(0, 10).map((u, idx) => (

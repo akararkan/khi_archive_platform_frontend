@@ -19,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { ChartDataTable } from '@/pages/admin/analytics-charts'
 import {
   dateInputToInstant,
   ENTITY_META,
@@ -28,6 +29,7 @@ import {
   formatRelative,
   humanize,
   parseCascadeFromDetails,
+  userAuditActionMetaFor,
 } from '@/pages/admin/analytics-constants'
 
 // Default "always-safe" set the action-catalog falls back to when the
@@ -115,6 +117,24 @@ function ActivityTimeChart({ items, granularity = 'daily' }) {
 
   return (
     <div className="space-y-5">
+      {/* Companion table — sr-only on screen; becomes the printed time
+          series (the bar chart itself is SVG-free but its tooltips are
+          hover-only, so print needs the numbers as rows). */}
+      <ChartDataTable
+        title={`Activity by ${unit}`}
+        head={['Period', 'Total', 'Created', 'Updated', 'Deleted', 'Restored', 'Viewed', 'Searched', 'Active users']}
+        rows={data.map((item) => [
+          formatPeriodLabel(item[keyName], granularity),
+          formatNumber(item.total),
+          formatNumber(item.created ?? 0),
+          formatNumber(item.updated ?? 0),
+          formatNumber(item.deleted ?? 0),
+          formatNumber(item.restored ?? 0),
+          formatNumber(item.viewed ?? 0),
+          formatNumber(item.searched ?? 0),
+          item.activeUsers != null ? formatNumber(item.activeUsers) : '—',
+        ])}
+      />
       <div className="grid gap-2 sm:grid-cols-3">
         <div className="rounded-xl border border-border/80 bg-muted/20 px-3.5 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -366,7 +386,12 @@ function ActivityTrendCard({
 function StatCard({ label, value, icon, accent, isLoading }) {
   const Icon = icon
   return (
-    <Card className="border-border bg-card shadow-sm shadow-black/5">
+    <Card
+      className="border-border bg-card shadow-sm shadow-black/5"
+      data-print-stat="true"
+      data-print-label={label}
+      data-print-value={formatNumber(value)}
+    >
       <CardContent className="flex items-start gap-4 px-5 py-5">
         <div
           className={cn(
@@ -394,7 +419,12 @@ function StatCard({ label, value, icon, accent, isLoading }) {
 }
 
 function FeedRow({ item }) {
-  const am = actionMetaFor(item.action)
+  // `user` entity rows carry user-management action names (ROLE_CHANGE,
+  // WARNING_SENT, …) — label them with the same meta the User-actions tab
+  // uses so both feeds stay consistent.
+  const am = item.entity === 'user'
+    ? userAuditActionMetaFor(item.action)
+    : actionMetaFor(item.action)
   const em = ENTITY_META[item.entity] ?? {
     label: humanize(item.entity),
     icon: Activity,

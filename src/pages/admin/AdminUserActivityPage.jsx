@@ -355,7 +355,7 @@ function AdminUserActivityPage() {
           By entity
         </p>
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm shadow-black/5">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm" data-print-title="Activity by entity">
             <thead className="bg-muted/40">
               <tr className="text-left">
                 <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Entity</th>

@@ -24,6 +24,41 @@ function Dot({ className }) {
   )
 }
 
+// Companion data table for a chart — visually hidden (sr-only) on screen,
+// but real everywhere it matters:
+//   • screen readers get the numbers as an actual table (the dataviz
+//     method's "a table view exists" requirement), and
+//   • AdminPrintManager picks it up as a print section (classes are
+//     stripped in the print document, so it renders as a normal branded
+//     table titled via data-print-title).
+// Opt-in: charts only render one when the caller passes `printTitle` —
+// per-row micro-bars inside visible tables must NOT each become a print
+// section of their own.
+function ChartDataTable({ title, head, rows }) {
+  if (!title || !Array.isArray(rows) || rows.length === 0) return null
+  return (
+    <table className="sr-only" data-chart-table="true" data-print-title={title}>
+      <caption>{title}</caption>
+      <thead>
+        <tr>
+          {head.map((label) => (
+            <th key={label} scope="col">{label}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((cells, rowIndex) => (
+          <tr key={rowIndex}>
+            {cells.map((cell, cellIndex) => (
+              <td key={cellIndex}>{cell}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
 // Legend row — always rendered alongside any multi-segment chart so
 // identity is never colour-alone (dataviz non-negotiable). Each item:
 //   { key, label, value?, hint?, dotClass }
@@ -54,12 +89,17 @@ function ChartLegend({ items, className }) {
 // to right with a 2px surface gap between fills (dataviz mark spec) so
 // adjacent tones stay separable even under CVD. Zero-value segments are
 // dropped. `segments`: { key, label, value, barClass }.
-function StackedProgressBar({ segments, total, height = 'h-3', showLegend = true, className }) {
+function StackedProgressBar({ segments, total, height = 'h-3', showLegend = true, printTitle, className }) {
   const safe = Array.isArray(segments) ? segments.filter((s) => s && Number(s.value) > 0) : []
   const sum = total != null ? Number(total) : safe.reduce((acc, s) => acc + Number(s.value || 0), 0)
 
   return (
     <div className={cn('space-y-2.5', className)}>
+      <ChartDataTable
+        title={printTitle}
+        head={['Segment', 'Count', 'Share']}
+        rows={safe.map((s) => [s.label, formatNumber(s.value), `${percentOf(s.value, sum).toFixed(1)}%`])}
+      />
       <div
         className={cn('flex w-full overflow-hidden rounded-full bg-muted/50', height)}
         role="img"
@@ -102,7 +142,7 @@ function StackedProgressBar({ segments, total, height = 'h-3', showLegend = true
 // a label, a proportional bar, and a right-aligned value. Bars are sized
 // against the largest value so the longest fills the track. Rows carry a
 // hover tooltip. `items`: { key, label, value, barClass, secondary? }.
-function HBarList({ items, valueFormatter = formatNumber, emptyLabel = 'No data', className }) {
+function HBarList({ items, valueFormatter = formatNumber, emptyLabel = 'No data', printTitle, className }) {
   const safe = Array.isArray(items) ? items.filter(Boolean) : []
   const max = safe.reduce((m, item) => Math.max(m, Number(item.value) || 0), 0)
 
@@ -115,7 +155,16 @@ function HBarList({ items, valueFormatter = formatNumber, emptyLabel = 'No data'
   }
 
   return (
-    <ul className={cn('space-y-2.5', className)}>
+    <>
+      <ChartDataTable
+        title={printTitle}
+        head={['Label', 'Count']}
+        rows={safe.map((item) => [
+          item.secondary ? `${item.label} ${item.secondary}` : item.label,
+          valueFormatter(item.value),
+        ])}
+      />
+      <ul className={cn('space-y-2.5', className)}>
       {safe.map((item) => {
         const width = max > 0 ? Math.max(1.5, ((Number(item.value) || 0) / max) * 100) : 0
         return (
@@ -139,7 +188,8 @@ function HBarList({ items, valueFormatter = formatNumber, emptyLabel = 'No data'
           </li>
         )
       })}
-    </ul>
+      </ul>
+    </>
   )
 }
 
@@ -155,6 +205,7 @@ function DonutChart({
   thickness = 18,
   centerValue,
   centerLabel,
+  printTitle,
   className,
 }) {
   const safe = Array.isArray(segments) ? segments.filter((s) => s && Number(s.value) > 0) : []
@@ -190,40 +241,49 @@ function DonutChart({
   })
 
   return (
-    <div
-      className={cn('relative shrink-0', className)}
-      style={{ width: size, height: size }}
-      role="img"
-      aria-label={
-        safe.length > 0
-          ? safe.map((s) => `${s.label}: ${formatNumber(s.value)}`).join(', ')
-          : 'No data'
-      }
-    >
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {/* Track */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          strokeWidth={thickness}
-          className="stroke-muted/50"
-        />
-        <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>{arcs}</g>
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="font-heading text-2xl font-semibold tabular-nums leading-none text-foreground">
-          {centerValue}
-        </span>
-        {centerLabel ? (
-          <span className="mt-1 max-w-[5.5rem] text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            {centerLabel}
+    <>
+      {/* Sibling, not child — role="img" would make a nested table
+          presentational for screen readers. */}
+      <ChartDataTable
+        title={printTitle}
+        head={['Segment', 'Count', 'Share']}
+        rows={safe.map((s) => [s.label, formatNumber(s.value), `${percentOf(s.value, total).toFixed(1)}%`])}
+      />
+      <div
+        className={cn('relative shrink-0', className)}
+        style={{ width: size, height: size }}
+        role="img"
+        aria-label={
+          safe.length > 0
+            ? safe.map((s) => `${s.label}: ${formatNumber(s.value)}`).join(', ')
+            : 'No data'
+        }
+      >
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          {/* Track */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            strokeWidth={thickness}
+            className="stroke-muted/50"
+          />
+          <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>{arcs}</g>
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+          <span className="font-heading text-2xl font-semibold tabular-nums leading-none text-foreground">
+            {centerValue}
           </span>
-        ) : null}
+          {centerLabel ? (
+            <span className="mt-1 max-w-[5.5rem] text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              {centerLabel}
+            </span>
+          ) : null}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
-export { ChartLegend, Dot, DonutChart, HBarList, StackedProgressBar }
+export { ChartDataTable, ChartLegend, DonutChart, HBarList, StackedProgressBar }
