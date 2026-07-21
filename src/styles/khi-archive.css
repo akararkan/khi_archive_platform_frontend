@@ -1480,27 +1480,69 @@
 
 /* ============================================================
    ANIMATED BRAND WATERMARK — a transparent KHI medallion that
-   slowly zooms in and out ("breathes") over protected media:
+   slowly zooms in and out ("breathes") AND wanders between the
+   center and the four quadrants ("drifts") over protected media:
    the deep-zoom image viewer, the video frame, every book page,
-   and the hero artwork on image/video/text detail pages.
-   pointer-events stay off so pan/zoom/seek/page-turn all work
-   exactly as before. Mounted from KhiLogoWatermark.jsx.
+   the hero artwork on image/video/text detail pages, and every
+   catalogue card thumbnail in the public browse grids.
+   The drift is a broadcast-style "DOG jitter" — real anti-piracy
+   watermarks move on purpose so a fixed crop can't cheaply remove
+   the mark. pointer-events stay off so pan/zoom/seek/page-turn/
+   card-click all work exactly as before. Mounted from
+   KhiLogoWatermark.jsx.
    ============================================================ */
-.khi-root .khi-watermark{--wm-min:.11;--wm-max:.22;position:absolute;inset:0;z-index:5;display:grid;place-items:center;pointer-events:none;user-select:none}
-.khi-root .khi-watermark img{width:clamp(64px,17%,132px);aspect-ratio:1;border-radius:50%;object-fit:cover;opacity:var(--wm-min);filter:saturate(.82);
-  box-shadow:0 0 0 5px rgba(255,255,255,.1),0 0 0 6px rgba(214,178,94,.2),0 18px 44px rgba(16,30,23,.28);
+.khi-root .khi-watermark{
+  --wm-min:.13;--wm-max:.26;--wm-drift-x:30px;--wm-drift-y:20px;
+  position:absolute;inset:0;z-index:5;display:grid;place-items:center;
+  pointer-events:none;user-select:none;
+  animation:khi-watermark-drift 26s ease-in-out infinite;will-change:transform;
+}
+.khi-root .khi-watermark img{width:clamp(64px,17%,132px);aspect-ratio:1;border-radius:50%;object-fit:cover;opacity:var(--wm-min);filter:saturate(.86);
+  box-shadow:0 0 0 1px rgba(255,255,255,.5),0 0 0 5px rgba(255,255,255,.12),0 0 0 6.5px rgba(214,178,94,.34),0 18px 44px rgba(16,30,23,.3);
   animation:khi-watermark-breathe 7s cubic-bezier(.45,0,.55,1) infinite;will-change:transform,opacity}
 /* Over dark surfaces (the video frame) the mark needs a little more presence. */
-.khi-root .khi-watermark.on-dark{--wm-min:.15;--wm-max:.3}
-.khi-root .khi-watermark.on-dark img{box-shadow:0 0 0 5px rgba(255,255,255,.14),0 0 0 6px rgba(214,178,94,.28),0 18px 44px rgba(0,0,0,.5)}
+.khi-root .khi-watermark.on-dark{--wm-min:.17;--wm-max:.34}
+.khi-root .khi-watermark.on-dark img{box-shadow:0 0 0 1px rgba(255,255,255,.55),0 0 0 5px rgba(255,255,255,.16),0 0 0 6.5px rgba(214,178,94,.4),0 18px 44px rgba(0,0,0,.52)}
+/* Video "scene" moment: while the video is paused/not-yet-started, the mark
+   becomes a proper cinematic ident — a large glowing medallion breathing at
+   center, like a title card. The instant playback starts it steps back down
+   to the calm on-dark corner drift so it never fights for attention with the
+   footage. Toggled by VideoPlayer via the scene-idle class. */
+.khi-root .khi-watermark.on-dark.scene-idle{--wm-min:.38;--wm-max:.56;--wm-drift-x:16px;--wm-drift-y:11px}
+.khi-root .khi-watermark.on-dark.scene-idle img{width:clamp(96px,26%,220px);box-shadow:0 0 0 1px rgba(255,255,255,.62),0 0 0 7px rgba(255,255,255,.18),0 0 0 9px rgba(214,178,94,.46),0 0 70px 12px rgba(214,178,94,.2),0 24px 60px rgba(0,0,0,.58)}
 /* Hero artwork: a smaller mark tucked into the lower corner so the record's
    own presentation stays the star. .media-asset-frame shrink-wraps the hero
-   image so inset:0 resolves to the artwork box, not the whole grid cell. */
+   image so inset:0 resolves to the artwork box, not the whole grid cell.
+   The drift still runs (scaled down via --wm-drift-*) — it just wanders
+   within that corner's own breathing room instead of the whole frame. */
 .khi-root .media-asset-frame{position:relative;display:inline-grid;place-items:center;max-width:100%}
-.khi-root .khi-watermark.hero-mark{align-items:end;justify-items:start;padding:14px}
+.khi-root .khi-watermark.hero-mark{--wm-drift-x:10px;--wm-drift-y:7px;align-items:end;justify-items:start;padding:14px}
 .khi-root .khi-watermark.hero-mark img{width:clamp(44px,16%,76px)}
-@keyframes khi-watermark-breathe{0%,100%{transform:scale(.88);opacity:var(--wm-min,.11)}50%{transform:scale(1.1);opacity:var(--wm-max,.22)}}
+/* Catalogue-card mark: a light, top-anchored seal so it never collides with
+   the bottom-anchored cover label / duration / play button. Smaller drift
+   range (side-to-side along the top edge only) keeps it calm at thumbnail
+   scale — .card .media already clips overflow, so the wander never spills
+   past the card's own rounded corners. */
+.khi-root .khi-watermark.card-mark{--wm-min:.16;--wm-max:.3;--wm-drift-x:16px;--wm-drift-y:4px;align-items:start;justify-items:center;padding-top:6px;z-index:8}
+.khi-root .khi-watermark.card-mark img{width:clamp(24px,13%,34px);box-shadow:0 0 0 1px rgba(255,255,255,.55),0 0 0 3px rgba(255,255,255,.14),0 0 0 4px rgba(214,178,94,.36),0 8px 18px rgba(16,30,23,.3)}
+/* The project card's three overlapping photo-slip tiles start high up
+   (audio tile sits at top:17%) — nudge the mark to hug the very corner so
+   it never drifts across the tiles. KhiMediaPreview + KhiLogoWatermark are
+   always rendered as direct siblings inside .media (see KhiCard.jsx). */
+.khi-root .m-project + .khi-watermark.card-mark{justify-items:end;padding:6px 10px 0 0}
+@keyframes khi-watermark-breathe{0%,100%{transform:scale(.88) rotate(-2.5deg);opacity:var(--wm-min,.11)}50%{transform:scale(1.12) rotate(2.5deg);opacity:var(--wm-max,.22)}}
+/* Wanders center → upper-right → upper-left → lower-left → lower-right →
+   center. 26s (breathe is 7s) so the two cycles drift in and out of phase
+   instead of visibly syncing up — the mark never looks like it's on rails. */
+@keyframes khi-watermark-drift{
+  0%,100%{transform:translate3d(0,0,0)}
+  20%{transform:translate3d(var(--wm-drift-x),calc(var(--wm-drift-y) * -1),0)}
+  40%{transform:translate3d(calc(var(--wm-drift-x) * -1),calc(var(--wm-drift-y) * -1),0)}
+  60%{transform:translate3d(calc(var(--wm-drift-x) * -1),var(--wm-drift-y),0)}
+  80%{transform:translate3d(var(--wm-drift-x),var(--wm-drift-y),0)}
+}
 @media (prefers-reduced-motion: reduce){
+  .khi-root .khi-watermark{animation:none}
   .khi-root .khi-watermark img{animation:none;opacity:calc((var(--wm-min,.11) + var(--wm-max,.22)) / 2)}
 }
 

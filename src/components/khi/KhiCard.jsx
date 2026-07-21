@@ -2,6 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 
 import { Highlight } from '@/components/ui/highlight'
+import KhiLogoWatermark from './KhiLogoWatermark'
 import KhiMediaPreview from './KhiMediaPreview'
 import { IconAll, TYPE_ICON } from './icons'
 import { TYPE_LABELS, UI } from './khi-data'
@@ -80,6 +81,7 @@ export default function KhiCard({ record, index = 0, query = '' }) {
           </span>
         ) : null}
         <KhiMediaPreview record={record} />
+        <KhiLogoWatermark className="card-mark" />
       </div>
 
       <div className="body">

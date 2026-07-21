@@ -94,9 +94,26 @@ function App() {
     const lockWhenHidden = () => {
       setIsScreenLocked(document.visibilityState !== 'visible')
     }
+    // Windows writes the PrintScreen capture to the clipboard as a bitmap
+    // itself, at the OS level — no amount of preventDefault() on the key
+    // event stops that (browsers can't intercept hardware-level capture).
+    // What we CAN do: the instant the key is released, overwrite whatever
+    // just landed on the clipboard with a plain-text notice, so a paste
+    // lands this message instead of the archive image. Best-effort and
+    // Windows/Chromium-specific — silently a no-op everywhere else
+    // (macOS/Linux screenshot shortcuts don't touch the clipboard this
+    // way, and the Clipboard API needs a secure context + permission).
+    const scrubPrintScreenClipboard = (event) => {
+      const key = event.key?.toLowerCase()
+      if (key !== 'printscreen' && key !== 'snapshot') return
+      navigator.clipboard
+        ?.writeText('KHI Archive — screenshots of protected media are discouraged. Contact the archive team for reproduction requests.')
+        .catch(() => {})
+    }
 
     document.addEventListener('keydown', preventImplicitFormSubmit, true)
     document.addEventListener('keydown', preventForbiddenKeys, true)
+    document.addEventListener('keyup', scrubPrintScreenClipboard, true)
     document.addEventListener('copy', preventClipboard, true)
     document.addEventListener('cut', preventClipboard, true)
     document.addEventListener('paste', preventClipboard, true)
@@ -115,6 +132,7 @@ function App() {
     return () => {
       document.removeEventListener('keydown', preventImplicitFormSubmit, true)
       document.removeEventListener('keydown', preventForbiddenKeys, true)
+      document.removeEventListener('keyup', scrubPrintScreenClipboard, true)
       document.removeEventListener('copy', preventClipboard, true)
       document.removeEventListener('cut', preventClipboard, true)
       document.removeEventListener('paste', preventClipboard, true)

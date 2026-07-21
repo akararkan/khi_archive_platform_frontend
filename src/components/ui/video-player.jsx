@@ -391,7 +391,9 @@ function VideoPlayer({ src, title, subtitle, className, protectedMode = false })
           onContextMenu={protectedMode ? stopProtectedMediaEvent : undefined}
           className="size-full object-contain"
         />
-        {protectedMode && ready ? <KhiLogoWatermark className="on-dark" /> : null}
+        {protectedMode && ready ? (
+          <KhiLogoWatermark className={cn('on-dark', !playing && 'scene-idle')} />
+        ) : null}
         {!ready && src ? (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/40">
             <Loader2 className="size-8 animate-spin text-white/80" />

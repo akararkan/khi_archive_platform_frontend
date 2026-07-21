@@ -68,6 +68,18 @@ export function useAuthedMediaUrl(path, { enabled = true } = {}) {
             // Audio/video previews can be large; don't let the default 15s
             // client timeout cut off a slow admin-panel download.
             timeout: 0,
+            // VideoStreamAPI (unlike Audio/Image/Text) ALWAYS chunks a
+            // no-Range request down to a fixed 2MB window — it assumes the
+            // caller is a native <video> that will follow up with its own
+            // Range requests as it plays. We're doing a single one-shot
+            // blob download instead, so without this header every video
+            // over 2MB silently arrived truncated (unparseable container —
+            // "Cannot parse metadata" in Firefox; a frozen few seconds of
+            // playback elsewhere). An explicit open-ended Range asks every
+            // stream endpoint for the whole file in one response; audio/
+            // text already do that by default and are unaffected, image
+            // ignores Range entirely.
+            headers: { Range: 'bytes=0-' },
           })
           if (cancelled) return
           objectUrl = URL.createObjectURL(res.data)
