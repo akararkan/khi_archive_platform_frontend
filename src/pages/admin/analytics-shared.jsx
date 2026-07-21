@@ -3,7 +3,16 @@
 // component-only (Vite's fast-refresh rule).
 
 import { Link } from 'react-router-dom'
-import { Activity, CalendarRange, CornerDownRight, RefreshCw, Sparkles } from 'lucide-react'
+import {
+  Activity,
+  CalendarClock,
+  CalendarDays,
+  CalendarRange,
+  Clock,
+  CornerDownRight,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -26,9 +35,22 @@ import {
 // after dropping LIST: the CRUDs plus VIEW and SEARCH.
 const DEFAULT_ACTION_CATALOG = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'SEARCH']
 
+// Which field on a bucket carries its period key, and the singular noun
+// for that period — one entry per granularity the chart understands.
+const PERIOD_KEY = { daily: 'date', weekly: 'week', monthly: 'label', yearly: 'year' }
+const PERIOD_UNIT = { daily: 'day', weekly: 'week', monthly: 'month', yearly: 'year' }
+
 function formatPeriodLabel(value, granularity, compact = false) {
   if (!value) return '—'
   const raw = String(value)
+
+  // Yearly buckets key on a Jan-1 date (or a bare "2026" label) — just
+  // surface the four-digit year in both compact and full forms.
+  if (granularity === 'yearly') {
+    const m = raw.match(/(\d{4})/)
+    return m ? m[1] : raw
+  }
+
   const date = granularity === 'monthly'
     ? new Date(`${raw.slice(0, 7)}-01T00:00:00`)
     : new Date(`${raw.slice(0, 10)}T00:00:00`)
@@ -40,6 +62,16 @@ function formatPeriodLabel(value, granularity, compact = false) {
       year: 'numeric',
     }).format(date)
   }
+
+  // Weekly buckets key on the Monday that starts the ISO week. Compact
+  // axis shows "Jul 13"; the tooltip spells out "Week of Jul 13, 2026".
+  if (granularity === 'weekly') {
+    const md = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
+    if (compact) return md
+    const year = new Intl.DateTimeFormat(undefined, { year: 'numeric' }).format(date)
+    return `Week of ${md}, ${year}`
+  }
+
   return new Intl.DateTimeFormat(undefined, {
     month: compact ? 'short' : 'long',
     day: 'numeric',
@@ -48,8 +80,8 @@ function formatPeriodLabel(value, granularity, compact = false) {
 }
 
 function ActivityTimeChart({ items, granularity = 'daily' }) {
-  const keyName = granularity === 'monthly' ? 'label' : 'date'
-  const unit = granularity === 'monthly' ? 'month' : 'day'
+  const keyName = PERIOD_KEY[granularity] ?? 'date'
+  const unit = PERIOD_UNIT[granularity] ?? 'day'
   const data = Array.isArray(items) && items.length > 0
     ? [...items]
         .map((item) => ({ ...item, total: Number(item.total ?? 0) }))
@@ -183,7 +215,7 @@ function ActivityTimeChart({ items, granularity = 'daily' }) {
                       <span className="mt-0.5 block text-sm font-semibold tabular-nums text-foreground">
                         {formatNumber(item.total)} action{item.total === 1 ? '' : 's'}
                       </span>
-                      {granularity === 'monthly' && item.activeUsers != null ? (
+                      {item.activeUsers != null ? (
                         <span className="block text-[10px] text-muted-foreground">
                           {formatNumber(item.activeUsers)} active user{item.activeUsers === 1 ? '' : 's'}
                         </span>
@@ -241,6 +273,91 @@ function ActivityTimeChart({ items, granularity = 'daily' }) {
 
 function DailyChart({ daily }) {
   return <ActivityTimeChart items={daily} granularity="daily" />
+}
+
+function WeeklyChart({ weekly }) {
+  return <ActivityTimeChart items={weekly} granularity="weekly" />
+}
+
+function YearlyChart({ yearly }) {
+  return <ActivityTimeChart items={yearly} granularity="yearly" />
+}
+
+// The four granularities the trend card exposes, in ascending period
+// length. Shared by AdminAnalyticsPage (team) and AdminUserActivityPage
+// (per-user) so the toggle looks and behaves identically on both.
+const TREND_GRANULARITIES = [
+  { key: 'daily',   label: 'Daily',   unit: 'day',   icon: Clock },
+  { key: 'weekly',  label: 'Weekly',  unit: 'week',  icon: CalendarRange },
+  { key: 'monthly', label: 'Monthly', unit: 'month', icon: CalendarDays },
+  { key: 'yearly',  label: 'Yearly',  unit: 'year',  icon: CalendarClock },
+]
+
+// "Activity over time" card with a Daily/Weekly/Monthly/Yearly toggle.
+// `seriesByView` is an object keyed by granularity → bucket array; the
+// caller owns which views it populates (a view with no data just renders
+// the chart's empty state). `isLoading` should reflect the ACTIVE view so
+// the skeleton only shows while that granularity is still in flight.
+function ActivityTrendCard({
+  title = 'Activity over time',
+  icon = Activity,
+  seriesByView,
+  view,
+  onViewChange,
+  isLoading = false,
+}) {
+  const Icon = icon
+  const active = TREND_GRANULARITIES.find((g) => g.key === view) ?? TREND_GRANULARITIES[0]
+  const series = Array.isArray(seriesByView?.[active.key]) ? seriesByView[active.key] : []
+  const count = series.length
+
+  return (
+    <Card className="rounded-2xl border-border bg-card shadow-md shadow-black/5">
+      <CardContent className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/70 pb-5">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary/[0.07] text-primary">
+              <Icon className="size-5" />
+            </span>
+            <div className="space-y-0.5">
+              <p className="font-heading text-base font-semibold text-foreground">{title}</p>
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {`${count} ${active.unit}${count === 1 ? '' : 's'} in the selected range`}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border bg-muted/35 p-1 shadow-inner">
+            {TREND_GRANULARITIES.map((gran) => {
+              const GranIcon = gran.icon
+              const isActive = active.key === gran.key
+              return (
+                <button
+                  key={gran.key}
+                  type="button"
+                  onClick={() => onViewChange(gran.key)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
+                    isActive
+                      ? 'bg-background text-foreground shadow-sm ring-1 ring-border/60'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <GranIcon className="size-3.5" />
+                  {gran.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {isLoading && count === 0 ? (
+          <Skeleton className="h-[312px] w-full rounded-xl" />
+        ) : (
+          <ActivityTimeChart items={series} granularity={active.key} />
+        )}
+      </CardContent>
+    </Card>
+  )
 }
 
 // Take `icon` as the raw prop and re-bind to PascalCase inside the body —
@@ -509,10 +626,14 @@ function ErrorCard({ message, onRetry }) {
 
 export {
   ActionFilter,
+  ActivityTimeChart,
+  ActivityTrendCard,
   DailyChart,
   DateRangeFilter,
   ErrorCard,
   FeedRow,
   MonthlyChart,
   StatCard,
+  WeeklyChart,
+  YearlyChart,
 }

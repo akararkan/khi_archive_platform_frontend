@@ -35,7 +35,7 @@ import {
   unwrapFeedPage,
 } from '@/pages/admin/analytics-constants'
 import {
-  DailyChart,
+  ActivityTrendCard,
   DateRangeFilter,
   ErrorCard,
   FeedRow,
@@ -74,6 +74,11 @@ function AdminUserActivityPage() {
   const [activity, setActivity] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Granularity for the activity trend chart. All four series (daily /
+  // weekly / monthly / yearly) come embedded in UserActivityDTO, so the
+  // toggle is a pure client-side switch — no extra fetch.
+  const [chartView, setChartView] = usePersistentState('admin.userActivity.chartView', 'daily')
 
   // Recent feed pagination. The initial activity load embeds page 0 in
   // `activity.recent`; subsequent pages come from /feed?actor=username
@@ -331,26 +336,18 @@ function AdminUserActivityPage() {
         </div>
       </div>
 
-      {/* Daily timeline */}
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardContent className="space-y-3 px-5 py-5">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Daily activity
-            </p>
-            {Array.isArray(activity?.daily) && activity.daily.length > 0 ? (
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {activity.daily.length} day{activity.daily.length === 1 ? '' : 's'}
-              </p>
-            ) : null}
-          </div>
-          {isLoading && !activity ? (
-            <Skeleton className="h-[312px] w-full rounded-xl" />
-          ) : (
-            <DailyChart daily={activity?.daily ?? []} />
-          )}
-        </CardContent>
-      </Card>
+      {/* Activity timeline — Daily / Weekly / Monthly / Yearly toggle */}
+      <ActivityTrendCard
+        seriesByView={{
+          daily: activity?.daily ?? [],
+          weekly: activity?.weekly ?? [],
+          monthly: activity?.monthly ?? [],
+          yearly: activity?.yearly ?? [],
+        }}
+        view={chartView}
+        onViewChange={setChartView}
+        isLoading={isLoading && !activity}
+      />
 
       {/* Per-entity breakdown */}
       <div>

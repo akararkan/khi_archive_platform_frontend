@@ -4,11 +4,12 @@ import { Link } from 'react-router-dom'
 import {
   Activity,
   ArrowRight,
-  CalendarDays,
+  Boxes,
   CheckCircle2,
   Clock,
   Eye,
   MessageSquarePlus,
+  Music2,
   Pencil,
   Plus,
   RefreshCw,
@@ -42,9 +43,12 @@ import { usePersistentState } from '@/hooks/use-persistent-state'
 import {
   getAnalyticsActionCatalog,
   getAnalyticsFeed,
+  getAnalyticsInventory,
   getAnalyticsMonthly,
   getAnalyticsOverview,
   getAnalyticsUsers,
+  getAnalyticsVisibility,
+  getMaqamAnalyticsOverview,
 } from '@/services/analytics'
 import { searchAdminUserAuditLogs } from '@/services/admin-user'
 import {
@@ -59,13 +63,17 @@ import {
 import { UserAuditRow } from '@/pages/admin/user-audit-shared'
 import {
   ActionFilter,
-  DailyChart,
+  ActivityTrendCard,
   DateRangeFilter,
   ErrorCard,
   FeedRow,
-  MonthlyChart,
   StatCard,
 } from '@/pages/admin/analytics-shared'
+import {
+  InventoryReport,
+  MaqamReport,
+  VisibilityReport,
+} from '@/pages/admin/analytics-reports'
 
 const FEED_PAGE_SIZE = 100
 // User-management audit endpoint clamps page size to 200 server-side;
@@ -125,17 +133,31 @@ function AdminAnalyticsPage() {
   const [userActionsMeta, setUserActionsMeta] = useState(null)
   const [userActionsPage, setUserActionsPage] = useState(0)
 
+  // Live-snapshot tabs — Inventory / Visibility / Maqam. These endpoints
+  // take no filter params (they count the real tables right now), so they
+  // don't reset when the date/action filter changes; they load on first
+  // tab open and refresh on the same poll tick as everything else.
+  const [inventory, setInventory] = useState(null)
+  const [visibility, setVisibility] = useState(null)
+  const [maqamOverview, setMaqamOverview] = useState(null)
+
   const [isLoading, setIsLoading] = useState({
     overview: false,
     users: false,
     feed: false,
     userActions: false,
+    inventory: false,
+    visibility: false,
+    maqam: false,
   })
   const [error, setError] = useState({
     overview: '',
     users: '',
     feed: '',
     userActions: '',
+    inventory: '',
+    visibility: '',
+    maqam: '',
   })
 
   const [userFilter, setUserFilter] = useState('') // Users tab: client-side filter
@@ -265,6 +287,47 @@ function AdminAnalyticsPage() {
     [combinedFilter],
   )
 
+  // Snapshot loaders — filter-independent. Each is a live count against
+  // the real tables, so no date/action params flow in.
+  const loadInventory = useCallback(async () => {
+    setIsLoading((p) => ({ ...p, inventory: true }))
+    setError((p) => ({ ...p, inventory: '' }))
+    try {
+      const data = await getAnalyticsInventory()
+      setInventory(data || null)
+    } catch (err) {
+      setError((p) => ({ ...p, inventory: getErrorMessage(err, 'Failed to load inventory') }))
+    } finally {
+      setIsLoading((p) => ({ ...p, inventory: false }))
+    }
+  }, [])
+
+  const loadVisibility = useCallback(async () => {
+    setIsLoading((p) => ({ ...p, visibility: true }))
+    setError((p) => ({ ...p, visibility: '' }))
+    try {
+      const data = await getAnalyticsVisibility()
+      setVisibility(data || null)
+    } catch (err) {
+      setError((p) => ({ ...p, visibility: getErrorMessage(err, 'Failed to load visibility') }))
+    } finally {
+      setIsLoading((p) => ({ ...p, visibility: false }))
+    }
+  }, [])
+
+  const loadMaqam = useCallback(async () => {
+    setIsLoading((p) => ({ ...p, maqam: true }))
+    setError((p) => ({ ...p, maqam: '' }))
+    try {
+      const data = await getMaqamAnalyticsOverview()
+      setMaqamOverview(data || null)
+    } catch (err) {
+      setError((p) => ({ ...p, maqam: getErrorMessage(err, 'Failed to load maqam analytics') }))
+    } finally {
+      setIsLoading((p) => ({ ...p, maqam: false }))
+    }
+  }, [])
+
   // Silent background refreshers — no spinner, errors swallowed
   // (next poll retries). Feed silently refreshes the user's CURRENT
   // page so what's on screen stays in sync without yanking them away
@@ -332,6 +395,33 @@ function AdminAnalyticsPage() {
     }
   }, [combinedFilter, userActionsPage])
 
+  const silentReloadInventory = useCallback(async () => {
+    try {
+      const data = await getAnalyticsInventory()
+      setInventory(data || null)
+    } catch {
+      // swallow
+    }
+  }, [])
+
+  const silentReloadVisibility = useCallback(async () => {
+    try {
+      const data = await getAnalyticsVisibility()
+      setVisibility(data || null)
+    } catch {
+      // swallow
+    }
+  }, [])
+
+  const silentReloadMaqam = useCallback(async () => {
+    try {
+      const data = await getMaqamAnalyticsOverview()
+      setMaqamOverview(data || null)
+    } catch {
+      // swallow
+    }
+  }, [])
+
   // Filter change invalidates everything and resets feed pagination
   // to page 0 (otherwise the user could be stranded on page 5 of a
   // window that no longer has 5 pages).
@@ -374,6 +464,16 @@ function AdminAnalyticsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
 
+  // Lazy-load the snapshot tabs on first open. Kept separate from the
+  // filter-driven effects because these endpoints ignore the date/action
+  // filter — they should load even while a custom range is mid-edit.
+  useEffect(() => {
+    if (activeTab === 'inventory' && inventory == null && !isLoading.inventory) loadInventory()
+    if (activeTab === 'visibility' && visibility == null && !isLoading.visibility) loadVisibility()
+    if (activeTab === 'maqam' && maqamOverview == null && !isLoading.maqam) loadMaqam()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
+
   // Re-fetch the feed when the user navigates pages via DataPagination.
   useEffect(() => {
     if (activeTab !== 'feed') return
@@ -396,6 +496,9 @@ function AdminAnalyticsPage() {
     } else if (activeTab === 'users') loadUsers()
     else if (activeTab === 'feed') loadFeed(feedPage)
     else if (activeTab === 'userActions') loadUserActions(userActionsPage)
+    else if (activeTab === 'inventory') loadInventory()
+    else if (activeTab === 'visibility') loadVisibility()
+    else if (activeTab === 'maqam') loadMaqam()
   }
 
   // Live polling — every tick refreshes Overview, Feed AND Users in
@@ -414,6 +517,9 @@ function AdminAnalyticsPage() {
       silentReloadFeed()
       silentReloadUsers()
       silentReloadUserActions()
+      silentReloadInventory()
+      silentReloadVisibility()
+      silentReloadMaqam()
     }
 
     const id = setInterval(tick, POLL_INTERVAL_MS)
@@ -428,6 +534,9 @@ function AdminAnalyticsPage() {
     silentReloadFeed,
     silentReloadUsers,
     silentReloadUserActions,
+    silentReloadInventory,
+    silentReloadVisibility,
+    silentReloadMaqam,
   ])
 
   // Users tab: client-side filter on what the server already returned.
@@ -502,6 +611,9 @@ function AdminAnalyticsPage() {
       <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border bg-card/60 p-1 shadow-sm">
         {[
           { key: 'overview',    label: 'Overview',     icon: Activity },
+          { key: 'inventory',   label: 'Inventory',    icon: Boxes },
+          { key: 'visibility',  label: 'Visibility',   icon: Eye },
+          { key: 'maqam',       label: 'Maqam',        icon: Music2 },
           { key: 'users',       label: 'Users',        icon: Users },
           { key: 'feed',        label: 'Feed',         icon: Clock },
           { key: 'userActions', label: 'User actions', icon: ShieldCheck },
@@ -541,6 +653,24 @@ function AdminAnalyticsPage() {
             loadMonthly()
           }}
         />
+      ) : activeTab === 'inventory' ? (
+        error.inventory ? (
+          <ErrorCard message={error.inventory} onRetry={loadInventory} />
+        ) : (
+          <InventoryReport data={inventory} isLoading={isLoading.inventory} />
+        )
+      ) : activeTab === 'visibility' ? (
+        error.visibility ? (
+          <ErrorCard message={error.visibility} onRetry={loadVisibility} />
+        ) : (
+          <VisibilityReport data={visibility} isLoading={isLoading.visibility} />
+        )
+      ) : activeTab === 'maqam' ? (
+        error.maqam ? (
+          <ErrorCard message={error.maqam} onRetry={loadMaqam} />
+        ) : (
+          <MaqamReport overview={maqamOverview} isLoading={isLoading.maqam} />
+        )
       ) : activeTab === 'users' ? (
         <UsersTab
           users={filteredUsers}
@@ -597,12 +727,20 @@ function OverviewTab({
   const created = overview?.created ?? overview?.totalCreated ?? null
   const updated = overview?.updated ?? overview?.totalUpdated ?? null
   const byEntity = overview?.byEntity ?? {}
-  const daily = overview?.daily ?? []
   const topUsers = overview?.topUsers ?? overview?.users ?? []
 
-  const isMonthly = chartView === 'monthly'
-  const monthlyCount = Array.isArray(monthly) ? monthly.length : 0
-  const dailyCount = Array.isArray(daily) ? daily.length : 0
+  // All four granularities now ride along in TeamOverviewDTO (daily +
+  // weekly + monthly + yearly), except monthly which the page still pulls
+  // on its own line so its silent-reload cadence stays independent. One
+  // toggle, one response — no extra round-trips for weekly/yearly.
+  const seriesByView = {
+    daily: overview?.daily ?? [],
+    weekly: overview?.weekly ?? [],
+    monthly: monthly || overview?.monthly || [],
+    yearly: overview?.yearly ?? [],
+  }
+  // Monthly has its own loader; the rest arrive with the overview payload.
+  const isChartLoading = chartView === 'monthly' ? isMonthlyLoading : isLoading
 
   return (
     <div className="space-y-6">
@@ -617,72 +755,14 @@ function OverviewTab({
                   accent="text-amber-600 dark:text-amber-400" isLoading={isLoading} />
       </div>
 
-      {/* Activity chart — monthly is the primary view (the new
-          "monthly statistic of user work" the admin asked for); daily
-          stays available because short ranges read better as one bar
-          per day. Toggle is inline so it never feels hidden. */}
-      <Card className="rounded-2xl border-border bg-card shadow-md shadow-black/5">
-        <CardContent className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/70 pb-5">
-            <div className="flex items-center gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary/[0.07] text-primary">
-                <Activity className="size-5" />
-              </span>
-              <div className="space-y-0.5">
-                <p className="font-heading text-base font-semibold text-foreground">
-                  Activity over time
-                </p>
-                <p className="text-xs text-muted-foreground tabular-nums">
-                  {isMonthly
-                    ? `${monthlyCount} month${monthlyCount === 1 ? '' : 's'} in the selected range`
-                    : `${dailyCount} day${dailyCount === 1 ? '' : 's'} in the selected range`}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 rounded-xl border border-border bg-muted/35 p-1 shadow-inner">
-              <button
-                type="button"
-                onClick={() => onChartViewChange('monthly')}
-                aria-pressed={isMonthly}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
-                  isMonthly
-                    ? 'bg-background text-foreground shadow-sm ring-1 ring-border/60'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <CalendarDays className="size-3.5" />
-                Monthly
-              </button>
-              <button
-                type="button"
-                onClick={() => onChartViewChange('daily')}
-                aria-pressed={!isMonthly}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
-                  !isMonthly
-                    ? 'bg-background text-foreground shadow-sm ring-1 ring-border/60'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Clock className="size-3.5" />
-                Daily
-              </button>
-            </div>
-          </div>
-          {isMonthly ? (
-            isMonthlyLoading && monthlyCount === 0 ? (
-              <Skeleton className="h-[312px] w-full rounded-xl" />
-            ) : (
-              <MonthlyChart monthly={monthly || []} />
-            )
-          ) : isLoading ? (
-            <Skeleton className="h-[312px] w-full rounded-xl" />
-          ) : (
-            <DailyChart daily={daily} />
-          )}
-        </CardContent>
-      </Card>
+      {/* Activity chart — one Daily / Weekly / Monthly / Yearly toggle, all
+          four served from the overview payload (monthly on its own line). */}
+      <ActivityTrendCard
+        seriesByView={seriesByView}
+        view={chartView}
+        onViewChange={onChartViewChange}
+        isLoading={isChartLoading}
+      />
 
       <div>
         <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -743,7 +823,10 @@ function OverviewTab({
                 { label: 'Pending review',     value: corrPending,   accent: 'text-amber-600 dark:text-amber-400',          icon: Clock             },
                 { label: 'Forwarded',          value: corrForwarded, accent: 'text-blue-600 dark:text-blue-400',            icon: Send              },
                 { label: 'Resolved',           value: corrResolved,  accent: 'text-green-600 dark:text-green-400',          icon: CheckCircle2      },
-              ].map(({ label, value, accent, icon: Icon }) => (
+              ].map((card) => {
+                const Icon = card.icon
+                const { label, value, accent } = card
+                return (
                 <Card key={label} className="border-border bg-card shadow-sm shadow-black/5">
                   <CardContent className="flex items-center gap-4 px-5 py-4">
                     <div className={cn('flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted/60', accent)}>
@@ -757,7 +840,8 @@ function OverviewTab({
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                )
+              })}
             </div>
             {Object.keys(byMediaType).length > 0 ? (
               <div className="mt-3 flex flex-wrap gap-2">

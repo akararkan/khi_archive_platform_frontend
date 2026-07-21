@@ -153,3 +153,73 @@ export async function getAnalyticsActionCatalog({ signal } = {}) {
   const { data } = await apiClient.get('/analytics/actions/catalog', { signal })
   return data
 }
+
+// Weekly buckets — ISO weeks, Monday-anchored, newest first. Same filter
+// shape as the rest. Each bucket carries week (Monday date) / label
+// ("2026-W29") / total / created / updated / deleted / restored / purged
+// / viewed / searched / activeUsers. Defaults to 12 weeks server-side.
+export async function getAnalyticsWeekly({ signal, ...filter } = {}) {
+  const { data } = await apiClient.get('/analytics/weekly', {
+    params: buildFilterParams(filter),
+    signal,
+  })
+  return data
+}
+
+// Yearly buckets — calendar years, newest first. Each bucket carries year
+// (Jan 1 date) / label ("2026") / same counters as weekly. Defaults to the
+// last 5 years server-side. NOTE: the `days` param is capped at 365, so a
+// multi-year custom window must pass explicit `from`/`to` instead.
+export async function getAnalyticsYearly({ signal, ...filter } = {}) {
+  const { data } = await apiClient.get('/analytics/yearly', {
+    params: buildFilterParams(filter),
+    signal,
+  })
+  return data
+}
+
+// ── Live snapshots — no filter params (not affected by the date window) ──
+
+// Inventory (InventoryDTO): live row counts against the real tables, per
+// type, split active / trashed / total, plus grand totals. Keys under
+// `byType`: audio, video, image, text, maqam, physical_media, project,
+// person, category.
+export async function getAnalyticsInventory({ signal } = {}) {
+  const { data } = await apiClient.get('/analytics/inventory', { signal })
+  return data
+}
+
+// Visibility (VisibilityDTO): public-vs-hidden snapshot over active rows —
+// projectsVisible/Hidden/Total, mediaByType (publicCount/privateCount/total
+// for audio/video/image/text), mediaPublicTotal/PrivateTotal, and the UX-
+// critical itemsInVisibleProjects / itemsInHiddenProjects split.
+export async function getAnalyticsVisibility({ signal } = {}) {
+  const { data } = await apiClient.get('/analytics/visibility', { signal })
+  return data
+}
+
+// Maqam classification overview (MaqamOverviewDTO): team-level progress
+// (unclassified/partial/fully-voted, consensus vs disagreement), listen
+// totals, maqamTypeDistribution, and an embedded `teachers` leaderboard.
+export async function getMaqamAnalyticsOverview({ signal } = {}) {
+  const { data } = await apiClient.get('/analytics/maqam/overview', { signal })
+  return data
+}
+
+// Maqam teacher leaderboard (TeacherActivityDTO[]) on its own — assigned
+// records, votes cast/pending, distinct maqam types, listen seconds/
+// sessions, records listened, first-voted / last-listen timestamps.
+export async function getMaqamAnalyticsTeachers({ signal } = {}) {
+  const { data } = await apiClient.get('/analytics/maqam/teachers', { signal })
+  return data
+}
+
+// One maqam teacher's activity (TeacherActivityDTO). 404 if the username
+// isn't on any active-record panel.
+export async function getMaqamAnalyticsTeacher(username, { signal } = {}) {
+  const { data } = await apiClient.get(
+    `/analytics/maqam/teachers/${encodeURIComponent(username)}`,
+    { signal },
+  )
+  return data
+}

@@ -5,7 +5,9 @@
 
 import {
   Activity,
+  AlertTriangle,
   AudioLines,
+  BellOff,
   Check,
   Eye,
   FileText,
@@ -15,6 +17,7 @@ import {
   KeyRound,
   Lock,
   LogOut,
+  Music2,
   Pencil,
   Plus,
   RotateCcw,
@@ -25,6 +28,7 @@ import {
   Trash2,
   Unlock,
   Upload,
+  UserCog,
   UserPlus,
   UsersRound,
   Video as VideoIcon,
@@ -38,11 +42,27 @@ export const ENTITY_META = {
   video:    { label: 'Video',       icon: VideoIcon,   accent: 'text-emerald-600 dark:text-emerald-400' },
   image:    { label: 'Image',       icon: ImageIcon,   accent: 'text-orange-600 dark:text-orange-400' },
   text:     { label: 'Text',        icon: FileText,    accent: 'text-teal-600 dark:text-teal-400' },
+  maqam:    { label: 'Maqam',       icon: Music2,      accent: 'text-fuchsia-600 dark:text-fuchsia-400' },
   project:  { label: 'Projects',    icon: FolderOpen,  accent: 'text-sky-600 dark:text-sky-400' },
   category: { label: 'Categories',  icon: Tags,        accent: 'text-amber-600 dark:text-amber-400' },
   person:   { label: 'Persons',     icon: UsersRound,  accent: 'text-violet-600 dark:text-violet-400' },
   physical_media: { label: 'Physical media', icon: HardDrive, accent: 'text-cyan-600 dark:text-cyan-400' },
+  // Admin user-management actions (role changes, permission grants,
+  // activations, warnings) now flow into every activity report as their
+  // own entity — the entityCode is the *target* user's username.
+  user:     { label: 'User admin',  icon: UserCog,     accent: 'text-indigo-600 dark:text-indigo-400' },
 }
+
+// Display order + shared meta for the Inventory report (all nine real
+// tables; no `user` — that's an activity entity, not an inventory table).
+export const INVENTORY_ORDER = [
+  'audio', 'video', 'image', 'text', 'maqam', 'physical_media', 'project', 'person', 'category',
+]
+
+// The four media types that carry a public/private visibility flag. The
+// Visibility report iterates this order; person/category/maqam/physical
+// have no per-row flag so they're intentionally excluded.
+export const VISIBILITY_MEDIA_ORDER = ['audio', 'video', 'image', 'text']
 
 // Per-action icon. Backend audit actions are uppercase strings
 // (CREATE, UPDATE, DELETE, RESTORE, PURGE, READ/VIEWED, SEARCH, LIST).
@@ -190,6 +210,9 @@ export const USER_AUDIT_ACTION_META = {
   UNLOCK:                { icon: Unlock,      accent: 'text-emerald-600 dark:text-emerald-400', label: 'Unlocked' },
   FORCE_LOGOUT:          { icon: LogOut,      accent: 'text-amber-600 dark:text-amber-400',     label: 'Sessions revoked' },
   RESET_FAILED_ATTEMPTS: { icon: RotateCcw,   accent: 'text-sky-600 dark:text-sky-400',         label: 'Failed-login counter reset' },
+  WARNING_SENT:          { icon: AlertTriangle, accent: 'text-amber-600 dark:text-amber-400',   label: 'Warning sent' },
+  WARNING_REVOKED:       { icon: BellOff,     accent: 'text-sky-600 dark:text-sky-400',         label: 'Warning revoked' },
+  WARNING_ACKNOWLEDGED:  { icon: Check,       accent: 'text-emerald-600 dark:text-emerald-400', label: 'Warning acknowledged' },
 }
 
 export function userAuditActionMetaFor(action) {
@@ -228,6 +251,31 @@ export function dateFilterToFromTo(dateFilter) {
 export function formatNumber(value) {
   if (value == null) return '—'
   return Number(value).toLocaleString()
+}
+
+// Percentage of `value` within `total`, rounded to one decimal and
+// clamped to [0,100]. Returns 0 when total is 0 so callers can size a
+// bar without a divide-by-zero guard at every site.
+export function percentOf(value, total) {
+  const v = Number(value) || 0
+  const t = Number(total) || 0
+  if (t <= 0) return 0
+  return Math.min(100, Math.max(0, (v / t) * 100))
+}
+
+// Compact human duration from a raw seconds count — used for maqam
+// listen totals which can run to hundreds of hours. "142h 13m",
+// "8m 32s", "45s". Returns "—" for null/zero.
+export function formatCompactDuration(seconds) {
+  const s = Number(seconds)
+  if (!Number.isFinite(s) || s <= 0) return '—'
+  const total = Math.round(s)
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const sec = total % 60
+  if (h > 0) return `${formatNumber(h)}h ${m}m`
+  if (m > 0) return `${m}m ${sec}s`
+  return `${sec}s`
 }
 
 // Relative time stamp ("3m ago"). The feed renders many of these so a
