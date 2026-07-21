@@ -69,13 +69,20 @@ function App() {
       const isShift = event.shiftKey
       const isAlt = event.altKey
 
+      // PrintScreen / Alt+PrintScreen (active-window capture) — same `key`
+      // value either way, so this one check covers both. (Win+PrintScreen
+      // and Win+Shift+S are intercepted by the OS shell before any browser
+      // ever sees a keydown for them — no web page, on any browser, on any
+      // OS, can reach or block those. Not a gap this code can close.)
       if (key === 'printscreen' || key === 'snapshot') {
         event.preventDefault()
       }
       if (key === 'f12') {
         event.preventDefault()
       }
-      if (isCmd && isShift && ['i', 'c', 'j', 'p', '3', '4', '5', '6', 's'].includes(key)) {
+      // Chrome/Edge devtools + view-source + macOS screenshot/recording
+      // toolbar (Cmd+Shift+3/4/5/6) + Firefox devtools variants (i/c/j/k).
+      if (isCmd && isShift && ['i', 'c', 'j', 'k', 'p', '3', '4', '5', '6', 's'].includes(key)) {
         event.preventDefault()
       }
       if (isCmd && ['u', 's', 'p'].includes(key)) {
@@ -91,18 +98,28 @@ function App() {
 
     const preventDrag = (event) => event.preventDefault()
     const preventBeforePrint = (event) => event.preventDefault()
+    // Page Visibility fires on `document`, not `window` — mobile Safari/
+    // Chrome lean on this far more than `blur`/`focus` (backgrounding an
+    // app, pulling down Control Center/notification shade, or switching
+    // tabs on mobile don't always reliably fire window blur, but they DO
+    // update document.visibilityState). Desktop alt-tab / virtual-desktop
+    // switches are still caught by the window blur/focus listeners below.
     const lockWhenHidden = () => {
       setIsScreenLocked(document.visibilityState !== 'visible')
     }
     // Windows writes the PrintScreen capture to the clipboard as a bitmap
     // itself, at the OS level — no amount of preventDefault() on the key
     // event stops that (browsers can't intercept hardware-level capture).
-    // What we CAN do: the instant the key is released, overwrite whatever
-    // just landed on the clipboard with a plain-text notice, so a paste
-    // lands this message instead of the archive image. Best-effort and
-    // Windows/Chromium-specific — silently a no-op everywhere else
-    // (macOS/Linux screenshot shortcuts don't touch the clipboard this
-    // way, and the Clipboard API needs a secure context + permission).
+    // What we CAN do: overwrite whatever just landed on the clipboard with
+    // a plain-text notice, so a paste lands this message instead of the
+    // archive image. Fired on BOTH keydown and keyup — different Windows/
+    // browser builds commit the clipboard write at different points in
+    // that pair, so racing it from both sides gives the overwrite the
+    // best chance of landing after the OS's own write, not before it.
+    // Best-effort and Windows/Chromium-specific — silently a no-op
+    // everywhere else (macOS/Linux screenshot shortcuts don't touch the
+    // clipboard this way, and the Clipboard API needs a secure context +
+    // permission; mobile OSes expose no clipboard hook for this at all).
     const scrubPrintScreenClipboard = (event) => {
       const key = event.key?.toLowerCase()
       if (key !== 'printscreen' && key !== 'snapshot') return
@@ -113,6 +130,7 @@ function App() {
 
     document.addEventListener('keydown', preventImplicitFormSubmit, true)
     document.addEventListener('keydown', preventForbiddenKeys, true)
+    document.addEventListener('keydown', scrubPrintScreenClipboard, true)
     document.addEventListener('keyup', scrubPrintScreenClipboard, true)
     document.addEventListener('copy', preventClipboard, true)
     document.addEventListener('cut', preventClipboard, true)
@@ -124,14 +142,19 @@ function App() {
     document.addEventListener('selectstart', preventSelection, true)
     document.addEventListener('dragstart', preventDrag, true)
     window.addEventListener('beforeprint', preventBeforePrint)
-    window.addEventListener('visibilitychange', lockWhenHidden)
+    document.addEventListener('visibilitychange', lockWhenHidden)
     window.addEventListener('blur', lockWhenHidden)
     window.addEventListener('focus', lockWhenHidden)
+    // Mobile browsers suspend/discard backgrounded tabs into the
+    // bfcache — `pageshow`'s `persisted` flag tells us the page was
+    // just restored from it, which needs the same re-check as `focus`.
+    window.addEventListener('pageshow', lockWhenHidden)
     lockWhenHidden()
 
     return () => {
       document.removeEventListener('keydown', preventImplicitFormSubmit, true)
       document.removeEventListener('keydown', preventForbiddenKeys, true)
+      document.removeEventListener('keydown', scrubPrintScreenClipboard, true)
       document.removeEventListener('keyup', scrubPrintScreenClipboard, true)
       document.removeEventListener('copy', preventClipboard, true)
       document.removeEventListener('cut', preventClipboard, true)
@@ -141,9 +164,10 @@ function App() {
       document.removeEventListener('selectstart', preventSelection, true)
       document.removeEventListener('dragstart', preventDrag, true)
       window.removeEventListener('beforeprint', preventBeforePrint)
-      window.removeEventListener('visibilitychange', lockWhenHidden)
+      document.removeEventListener('visibilitychange', lockWhenHidden)
       window.removeEventListener('blur', lockWhenHidden)
       window.removeEventListener('focus', lockWhenHidden)
+      window.removeEventListener('pageshow', lockWhenHidden)
     }
   }, [publicRoute])
 
