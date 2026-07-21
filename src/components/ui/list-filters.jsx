@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { TagsInput } from '@/components/ui/tags-input'
+import { ComboInput } from '@/components/ui/vocab-input'
 import { cn } from '@/lib/utils'
 
 // ─────────────────────────────────────────────────────────────────
@@ -300,11 +301,16 @@ export function FilterField({ label, hint, span, htmlFor, children, className })
 // or sends to the server). `onCommit` fires after `debounceMs` of
 // quiet, or immediately on Enter / blur / clear. Internal state
 // resets when the parent value changes externally (e.g. Clear all).
+// `options` (from lib/controlled-vocabulary.js) swaps the plain box for the
+// creatable preset dropdown, so staff filter by the exact agreed spelling
+// instead of retyping Kurdish and matching nothing. Still free text: the
+// debounce below commits whatever is in the box either way.
 export function TextFilter({
   id,
   value,
   onCommit,
   placeholder,
+  options = [],
   debounceMs = 280,
   className,
 }) {
@@ -331,6 +337,16 @@ export function TextFilter({
     lastCommittedRef.current = next
     setDraft(next)
     onCommit(next)
+  }
+
+  // ComboInput brings its own clear button and dropdown affordance, so it
+  // replaces the search-icon / clear-button shell rather than nesting in it.
+  if (options.length > 0) {
+    return (
+      <div className={cn('relative', className)}>
+        <ComboInput id={id} value={draft} onChange={setDraft} options={options} className="text-sm" />
+      </div>
+    )
   }
 
   return (

@@ -3,6 +3,7 @@ import { EyeOff, Globe, Plus } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldHelpButton } from '@/components/ui/field-help'
 import { Input } from '@/components/ui/input'
+import { VocabInput } from '@/components/ui/vocab-input'
 import { Label } from '@/components/ui/label'
 import { TagsInput } from '@/components/ui/tags-input'
 import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
@@ -254,11 +255,11 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-language">Language</TextFieldLabel>
-            <Input id="txt-language" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} />
+            <VocabInput id="txt-language" field="language" value={form.language} onChange={(next) => setForm({ ...form, language: next })} />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-dialect">Dialect</TextFieldLabel>
-            <Input id="txt-dialect" value={form.dialect} onChange={(e) => setForm({ ...form, dialect: e.target.value })} />
+            <VocabInput id="txt-dialect" field="dialect" value={form.dialect} onChange={(next) => setForm({ ...form, dialect: next })} />
           </div>
         </CardContent>
       </Card>
@@ -418,7 +419,7 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
             </div>
             <div className="space-y-1.5">
               <TextFieldLabel htmlFor="txt-accrualMethod">Accrual Method</TextFieldLabel>
-              <Input id="txt-accrualMethod" value={form.accrualMethod} onChange={(e) => setForm({ ...form, accrualMethod: e.target.value })} />
+              <VocabInput id="txt-accrualMethod" field="accrualMethod" value={form.accrualMethod} onChange={(next) => setForm({ ...form, accrualMethod: next })} />
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -443,7 +444,7 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
             </div>
             <div className="space-y-1.5">
               <TextFieldLabel htmlFor="txt-lccClassification">LCC Classification</TextFieldLabel>
-              <Input id="txt-lccClassification" value={form.lccClassification} onChange={(e) => setForm({ ...form, lccClassification: e.target.value })} />
+              <VocabInput id="txt-lccClassification" field="lccClassification" value={form.lccClassification} onChange={(next) => setForm({ ...form, lccClassification: next })} />
             </div>
           </div>
           <div className="space-y-1.5">
@@ -461,11 +462,11 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-copyright">Copyright</TextFieldLabel>
-            <Input id="txt-copyright" value={form.copyright} onChange={(e) => setForm({ ...form, copyright: e.target.value })} />
+            <VocabInput id="txt-copyright" field="copyright" value={form.copyright} onChange={(next) => setForm({ ...form, copyright: next })} />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-rightOwner">Right Owner</TextFieldLabel>
-            <Input id="txt-rightOwner" value={form.rightOwner} onChange={(e) => setForm({ ...form, rightOwner: e.target.value })} />
+            <VocabInput id="txt-rightOwner" field="rightOwner" value={form.rightOwner} onChange={(next) => setForm({ ...form, rightOwner: next })} />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-dateCopyrighted">Date Copyrighted</TextFieldLabel>
@@ -473,23 +474,23 @@ function TextFormSections({ form, setForm, projectCategories = [] }) {
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-availability">Availability</TextFieldLabel>
-            <Input id="txt-availability" value={form.availability} onChange={(e) => setForm({ ...form, availability: e.target.value })} />
+            <VocabInput id="txt-availability" field="availability" value={form.availability} onChange={(next) => setForm({ ...form, availability: next })} />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-licenseType">License Type</TextFieldLabel>
-            <Input id="txt-licenseType" value={form.licenseType} onChange={(e) => setForm({ ...form, licenseType: e.target.value })} />
+            <VocabInput id="txt-licenseType" field="licenseType" value={form.licenseType} onChange={(next) => setForm({ ...form, licenseType: next })} />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-usageRights">Usage Rights</TextFieldLabel>
-            <Input id="txt-usageRights" value={form.usageRights} onChange={(e) => setForm({ ...form, usageRights: e.target.value })} />
+            <VocabInput id="txt-usageRights" field="usageRights" value={form.usageRights} onChange={(next) => setForm({ ...form, usageRights: next })} />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-owner">Owner</TextFieldLabel>
-            <Input id="txt-owner" value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} />
+            <VocabInput id="txt-owner" field="owner" value={form.owner} onChange={(next) => setForm({ ...form, owner: next })} />
           </div>
           <div className="space-y-1.5">
             <TextFieldLabel htmlFor="txt-publisher">Publisher</TextFieldLabel>
-            <Input id="txt-publisher" value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} />
+            <VocabInput id="txt-publisher" field="publisher" value={form.publisher} onChange={(next) => setForm({ ...form, publisher: next })} />
           </div>
         </CardContent>
       </Card>

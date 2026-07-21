@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { TagsInput } from '@/components/ui/tags-input'
 import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
+import { VocabInput } from '@/components/ui/vocab-input'
+import { hasVocabulary } from '@/lib/controlled-vocabulary'
 import { cn } from '@/lib/utils'
 import { getPhysicalMediaFieldMetadata } from '@/lib/physical-media-fields-metadata'
 import { DIGITIZATION_OPTIONS, NEED_TO_CLEAR_OPTIONS } from '@/lib/physical-media-form'
@@ -34,16 +36,30 @@ function FieldRow({ id, label, fieldKey, required, children }) {
   )
 }
 
+// Fields that have an agreed value list (owner, and anything added to
+// controlled-vocabulary.js later) get the preset dropdown for free; everything
+// else stays a plain text box.
 function TextField({ k, label, required, placeholder, mono, value, onText }) {
   return (
     <FieldRow id={`pm-${k}`} label={label} fieldKey={k} required={required}>
-      <Input
-        id={`pm-${k}`}
-        value={value}
-        onChange={(e) => onText(k, e.target.value)}
-        placeholder={placeholder}
-        className={cn(mono && 'font-mono tracking-wide')}
-      />
+      {hasVocabulary(k) ? (
+        <VocabInput
+          id={`pm-${k}`}
+          field={k}
+          value={value}
+          onChange={(next) => onText(k, next)}
+          placeholder={placeholder}
+          className={cn(mono && 'font-mono tracking-wide')}
+        />
+      ) : (
+        <Input
+          id={`pm-${k}`}
+          value={value}
+          onChange={(e) => onText(k, e.target.value)}
+          placeholder={placeholder}
+          className={cn(mono && 'font-mono tracking-wide')}
+        />
+      )}
     </FieldRow>
   )
 }

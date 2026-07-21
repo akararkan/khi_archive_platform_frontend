@@ -33,6 +33,7 @@ import { EntityToolbar } from '@/components/ui/entity-toolbar'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { VocabInput } from '@/components/ui/vocab-input'
 import {
   DateRangeField,
   FilterChips,
@@ -900,11 +901,11 @@ function EmployeePersonPage() {
 
                   <div className="space-y-2">
                     <FieldLabel htmlFor="region" fieldKey="region">Region</FieldLabel>
-                    <Input
+                    <VocabInput
                       id="region"
+                      field="region"
                       value={form.region}
-                      onChange={(event) => setForm({ ...form, region: event.target.value })}
-                      placeholder="e.g. Kurdistan"
+                      onChange={(next) => setForm({ ...form, region: next })}
                     />
                   </div>
 

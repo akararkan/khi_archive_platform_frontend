@@ -3,6 +3,7 @@ import { EyeOff, Globe, Plus } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldHelpButton } from '@/components/ui/field-help'
 import { Input } from '@/components/ui/input'
+import { VocabInput } from '@/components/ui/vocab-input'
 import { Label } from '@/components/ui/label'
 import { TagsInput } from '@/components/ui/tags-input'
 import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
@@ -394,7 +395,7 @@ function ImageFormSections({ form, setForm, projectCategories = [] }) {
             </div>
             <div className="space-y-1.5">
               <ImageFieldLabel htmlFor="img-accrualMethod">Accrual Method</ImageFieldLabel>
-              <Input id="img-accrualMethod" value={form.accrualMethod} onChange={(e) => setForm({ ...form, accrualMethod: e.target.value })} />
+              <VocabInput id="img-accrualMethod" field="accrualMethod" value={form.accrualMethod} onChange={(next) => setForm({ ...form, accrualMethod: next })} />
             </div>
           </div>
           <div className="space-y-1.5">
@@ -423,7 +424,7 @@ function ImageFormSections({ form, setForm, projectCategories = [] }) {
             </div>
             <div className="space-y-1.5">
               <ImageFieldLabel htmlFor="img-lccClassification">LCC Classification</ImageFieldLabel>
-              <Input id="img-lccClassification" value={form.lccClassification} onChange={(e) => setForm({ ...form, lccClassification: e.target.value })} />
+              <VocabInput id="img-lccClassification" field="lccClassification" value={form.lccClassification} onChange={(next) => setForm({ ...form, lccClassification: next })} />
             </div>
           </div>
           <div className="space-y-1.5">
@@ -441,11 +442,11 @@ function ImageFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <ImageFieldLabel htmlFor="img-copyright">Copyright</ImageFieldLabel>
-            <Input id="img-copyright" value={form.copyright} onChange={(e) => setForm({ ...form, copyright: e.target.value })} />
+            <VocabInput id="img-copyright" field="copyright" value={form.copyright} onChange={(next) => setForm({ ...form, copyright: next })} />
           </div>
           <div className="space-y-1.5">
             <ImageFieldLabel htmlFor="img-rightOwner">Right Owner</ImageFieldLabel>
-            <Input id="img-rightOwner" value={form.rightOwner} onChange={(e) => setForm({ ...form, rightOwner: e.target.value })} />
+            <VocabInput id="img-rightOwner" field="rightOwner" value={form.rightOwner} onChange={(next) => setForm({ ...form, rightOwner: next })} />
           </div>
           <div className="space-y-1.5">
             <ImageFieldLabel htmlFor="img-dateCopyrighted">Date Copyrighted</ImageFieldLabel>
@@ -453,23 +454,23 @@ function ImageFormSections({ form, setForm, projectCategories = [] }) {
           </div>
           <div className="space-y-1.5">
             <ImageFieldLabel htmlFor="img-availability">Availability</ImageFieldLabel>
-            <Input id="img-availability" value={form.availability} onChange={(e) => setForm({ ...form, availability: e.target.value })} />
+            <VocabInput id="img-availability" field="availability" value={form.availability} onChange={(next) => setForm({ ...form, availability: next })} />
           </div>
           <div className="space-y-1.5">
             <ImageFieldLabel htmlFor="img-licenseType">License Type</ImageFieldLabel>
-            <Input id="img-licenseType" value={form.licenseType} onChange={(e) => setForm({ ...form, licenseType: e.target.value })} />
+            <VocabInput id="img-licenseType" field="licenseType" value={form.licenseType} onChange={(next) => setForm({ ...form, licenseType: next })} />
           </div>
           <div className="space-y-1.5">
             <ImageFieldLabel htmlFor="img-usageRights">Usage Rights</ImageFieldLabel>
-            <Input id="img-usageRights" value={form.usageRights} onChange={(e) => setForm({ ...form, usageRights: e.target.value })} />
+            <VocabInput id="img-usageRights" field="usageRights" value={form.usageRights} onChange={(next) => setForm({ ...form, usageRights: next })} />
           </div>
           <div className="space-y-1.5">
             <ImageFieldLabel htmlFor="img-owner">Owner</ImageFieldLabel>
-            <Input id="img-owner" value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} />
+            <VocabInput id="img-owner" field="owner" value={form.owner} onChange={(next) => setForm({ ...form, owner: next })} />
           </div>
           <div className="space-y-1.5">
             <ImageFieldLabel htmlFor="img-publisher">Publisher</ImageFieldLabel>
-            <Input id="img-publisher" value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} />
+            <VocabInput id="img-publisher" field="publisher" value={form.publisher} onChange={(next) => setForm({ ...form, publisher: next })} />
           </div>
         </CardContent>
       </Card>

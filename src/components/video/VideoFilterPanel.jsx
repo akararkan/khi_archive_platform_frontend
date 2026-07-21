@@ -34,6 +34,7 @@ import {
   SegmentedControl,
   TextFilter,
 } from '@/components/ui/list-filters'
+import { getVocabularyOptions } from '@/lib/controlled-vocabulary'
 
 // Two-up numeric range input. Same shell language as DateRangeField
 // for consistency. Plays nicely with empty strings (the canonical
@@ -94,11 +95,14 @@ export function VideoFilterPanel({
   isAnyActive,
   activeCount,
 }) {
+  // Fields with an agreed value list (language, dialect, region, rights…)
+  // render the preset dropdown; the rest stay plain text boxes.
   const txt = (key, placeholder) => (
     <TextFilter
       value={filters[key]}
       onCommit={(v) => onChange(key, v)}
       placeholder={placeholder}
+      options={getVocabularyOptions(key)}
     />
   )
 

@@ -100,6 +100,7 @@ import {
   isTextFilterEmpty,
 } from '@/pages/employee/text-filters'
 import { Input } from '@/components/ui/input'
+import { VocabInput } from '@/components/ui/vocab-input'
 import { Label } from '@/components/ui/label'
 import { FieldHelpButton } from '@/components/ui/field-help'
 import { getAudioFieldMetadata } from '@/lib/audio-fields-metadata'
@@ -4576,11 +4577,11 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="language">Language</AudioFieldLabel>
-            <Input id="language" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} />
+            <VocabInput id="language" field="language" value={form.language} onChange={(next) => setForm({ ...form, language: next })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="dialect">Dialect</AudioFieldLabel>
-            <Input id="dialect" value={form.dialect} onChange={(e) => setForm({ ...form, dialect: e.target.value })} />
+            <VocabInput id="dialect" field="dialect" value={form.dialect} onChange={(next) => setForm({ ...form, dialect: next })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="audience">Audience</AudioFieldLabel>
@@ -4596,7 +4597,7 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="region">Region</AudioFieldLabel>
-            <Input id="region" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
+            <VocabInput id="region" field="region" value={form.region} onChange={(next) => setForm({ ...form, region: next })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="dateCreated">Date Created</AudioFieldLabel>
@@ -4756,11 +4757,11 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
         <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="copyright">Copyright</AudioFieldLabel>
-            <Input id="copyright" value={form.copyright} onChange={(e) => setForm({ ...form, copyright: e.target.value })} />
+            <VocabInput id="copyright" field="copyright" value={form.copyright} onChange={(next) => setForm({ ...form, copyright: next })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="rightOwner">Right Owner</AudioFieldLabel>
-            <Input id="rightOwner" value={form.rightOwner} onChange={(e) => setForm({ ...form, rightOwner: e.target.value })} />
+            <VocabInput id="rightOwner" field="rightOwner" value={form.rightOwner} onChange={(next) => setForm({ ...form, rightOwner: next })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="dateCopyrighted">Date Copyrighted</AudioFieldLabel>
@@ -4768,23 +4769,23 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="availability">Availability</AudioFieldLabel>
-            <Input id="availability" value={form.availability} onChange={(e) => setForm({ ...form, availability: e.target.value })} />
+            <VocabInput id="availability" field="availability" value={form.availability} onChange={(next) => setForm({ ...form, availability: next })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="licenseType">License Type</AudioFieldLabel>
-            <Input id="licenseType" value={form.licenseType} onChange={(e) => setForm({ ...form, licenseType: e.target.value })} />
+            <VocabInput id="licenseType" field="licenseType" value={form.licenseType} onChange={(next) => setForm({ ...form, licenseType: next })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="usageRights">Usage Rights</AudioFieldLabel>
-            <Input id="usageRights" value={form.usageRights} onChange={(e) => setForm({ ...form, usageRights: e.target.value })} />
+            <VocabInput id="usageRights" field="usageRights" value={form.usageRights} onChange={(next) => setForm({ ...form, usageRights: next })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="owner">Owner</AudioFieldLabel>
-            <Input id="owner" value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} />
+            <VocabInput id="owner" field="owner" value={form.owner} onChange={(next) => setForm({ ...form, owner: next })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="publisher">Publisher</AudioFieldLabel>
-            <Input id="publisher" value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} />
+            <VocabInput id="publisher" field="publisher" value={form.publisher} onChange={(next) => setForm({ ...form, publisher: next })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="provenance">Provenance</AudioFieldLabel>
@@ -4792,11 +4793,11 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="accrualMethod">Accrual Method</AudioFieldLabel>
-            <Input id="accrualMethod" value={form.accrualMethod} onChange={(e) => setForm({ ...form, accrualMethod: e.target.value })} />
+            <VocabInput id="accrualMethod" field="accrualMethod" value={form.accrualMethod} onChange={(next) => setForm({ ...form, accrualMethod: next })} />
           </div>
           <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="lccClassification">LCC Classification</AudioFieldLabel>
-            <Input id="lccClassification" value={form.lccClassification} onChange={(e) => setForm({ ...form, lccClassification: e.target.value })} />
+            <VocabInput id="lccClassification" field="lccClassification" value={form.lccClassification} onChange={(next) => setForm({ ...form, lccClassification: next })} />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <AudioFieldLabel htmlFor="archiveLocalNote">Archive Local Note</AudioFieldLabel>
