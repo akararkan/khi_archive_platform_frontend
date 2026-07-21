@@ -292,7 +292,16 @@ function VideoFormSections({ form, setForm, projectCategories = [] }) {
           </div>
           <div className="space-y-1.5">
             <VideoFieldLabel htmlFor="duration">Duration</VideoFieldLabel>
-            <Input id="duration" value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} placeholder="01:23:45" />
+            <Input
+              id="duration"
+              value={form.duration}
+              readOnly
+              placeholder="Filled automatically from the selected file"
+              className="bg-muted/40 text-muted-foreground"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Filled automatically from the selected video file.
+            </p>
           </div>
           <div className="space-y-1.5">
             <VideoFieldLabel htmlFor="frameRate">Frame Rate</VideoFieldLabel>

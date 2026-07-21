@@ -559,7 +559,7 @@ export function audioMetadataToForm(meta) {
   // album makes a useful tag (so a "Sêwe" album shows up as a tag) and
   // duration makes a useful note.
   if (meta.album) out.tags = [meta.album]
-  if (meta.duration) out.audioFileNote = `Duration ${formatDurationSeconds(meta.duration)}`
+  if (meta.duration) out.duration = formatDurationSeconds(meta.duration)
   if (meta.genre) out.genre = [meta.genre]
   // Technical fields, parsed from MP3 frame header / WAV fmt / FLAC STREAMINFO.
   if (meta.sampleRate) out.sampleRate = formatSampleRate(meta.sampleRate)
