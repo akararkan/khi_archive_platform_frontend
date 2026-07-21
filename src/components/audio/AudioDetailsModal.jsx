@@ -125,7 +125,7 @@ function AudioDetailsModal({ audio, open, onOpenChange, searchQuery }) {
   const hasClassification = hasAny(audio, ['tags', 'keywords', 'audience'])
   const hasPhysical = hasAny(audio, ['physicalAvailability', 'physicalLabel', 'locationArchive', 'degitizedBy', 'degitizationEquipment'])
   const hasFileMeta = hasAny(audio, [
-    'audioChannel', 'fileExtension', 'fileSize', 'bitRate', 'bitDepth', 'sampleRate',
+    'audioChannel', 'fileExtension', 'fileSize', 'duration', 'bitRate', 'bitDepth', 'sampleRate',
     'audioQualityOutOf10', 'audioVersion', 'versionNumber', 'copyNumber',
   ])
   const hasStorage = hasAny(audio, ['volumeName', 'directoryName', 'pathInExternal', 'autoPath', 'audioFileNote'])
@@ -408,6 +408,7 @@ function AudioDetailsModal({ audio, open, onOpenChange, searchQuery }) {
                   <Field label="Channel" value={audio.audioChannel} />
                   <Field label="Extension" value={audio.fileExtension} />
                   <Field label="File Size" value={audio.fileSize} />
+                  <Field label="Duration" value={audio.duration} />
                   <Field label="Bit Rate" value={audio.bitRate} />
                   <Field label="Bit Depth" value={audio.bitDepth} />
                   <Field label="Sample Rate" value={audio.sampleRate} />

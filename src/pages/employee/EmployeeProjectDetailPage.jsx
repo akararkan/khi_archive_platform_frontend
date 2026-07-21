@@ -4687,6 +4687,19 @@ function AudioFormSections({ form, setForm, projectCategories = [] }) {
             <Input id="fileSize" value={form.fileSize} onChange={(e) => setForm({ ...form, fileSize: e.target.value })} placeholder="auto-filled from file (e.g. 45.2 MB)" />
           </div>
           <div className="space-y-1.5">
+            <AudioFieldLabel htmlFor="duration">Duration</AudioFieldLabel>
+            <Input
+              id="duration"
+              value={form.duration}
+              readOnly
+              placeholder="Filled automatically from the selected file"
+              className="bg-muted/40 text-muted-foreground"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Filled automatically from the selected audio file.
+            </p>
+          </div>
+          <div className="space-y-1.5">
             <AudioFieldLabel htmlFor="bitRate">Bit Rate</AudioFieldLabel>
             <Input id="bitRate" value={form.bitRate} onChange={(e) => setForm({ ...form, bitRate: e.target.value })} placeholder="e.g. 320 kbps" />
           </div>
