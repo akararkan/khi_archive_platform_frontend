@@ -130,8 +130,7 @@ export function PhysicalMediaDetailView({ code, onBack, onEdit }) {
             <Row label="Media category" value={r.mediaCategory} />
             <Row label="Title" value={r.title} />
             <Row label="Physical label" value={r.physicalLabel} mono />
-            <Row label="Type / sub-type" value={r.subType} />
-            <Row label="Size" value={r.size} />
+            <Row label="Physical Size" value={r.physicalSize} />
             <Row label="Inventory number" value={r.inventoryNumber} />
             <Row label="Row number" value={r.rowNumber} />
           </Section>
@@ -155,8 +154,9 @@ export function PhysicalMediaDetailView({ code, onBack, onEdit }) {
           <Section title="Technical specifications">
             <Row label="Extension" value={r.extension} />
             <Row label="Format / codec" value={r.formatCodec} />
-            <Row label="Bit / color depth" value={r.bitOrColorDepth} />
-            <Row label="Sample / frame rate" value={r.sampleOrFrameRate} />
+            <Row label="Size GB" value={r.sizeGB} />
+            <Row label="Bit Depth / Color Depth" value={r.bitOrColorDepth} />
+            <Row label="Sample Rate kHz / Frame Rate FPS" value={r.sampleOrFrameRate} />
             <Row label="Channels / resolution" value={r.channelsOrResolution} />
             <Row label="Playback model" value={r.playbackModel} />
             <Row label="Capture interface" value={r.captureInterface} />

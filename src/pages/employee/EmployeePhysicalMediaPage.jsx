@@ -140,7 +140,12 @@ function EmployeePhysicalMediaPage() {
   const [types, setTypes] = useState([])
   const [addTypeOpen, setAddTypeOpen] = useState(false)
   const lastTypeRef = useRef(null) // the type row whose 9 defaults were last applied
-  const lastAutoNumberRef = useRef('') // the last auto-suggested Number we prefilled
+
+  // Server-assigned inventory Number preview (create only). Not part of the
+  // payload — the server mints the real one on save.
+  const [nextNumber, setNextNumber] = useState(null)
+  const [nextNumberLoading, setNextNumberLoading] = useState(false)
+  const nextNumberSeqRef = useRef(0) // drops out-of-order replies on fast type switches
 
   // Misc UI
   const [importOpen, setImportOpen] = useState(false)
@@ -173,26 +178,25 @@ function EmployeePhysicalMediaPage() {
     lastTypeRef.current = typeRow
   }
 
-  // Preview the server-assigned per-type Number and prefill it — but only if the
-  // user hasn't already typed a Number, and only when creating.
+  // Preview the server-assigned per-type Number for the create form. Each type
+  // has its own counter, so this re-runs on every type change.
   const fetchNextNumber = async (typeName) => {
-    if (!typeName) return
+    const seq = ++nextNumberSeqRef.current
+    if (!typeName) {
+      setNextNumber(null)
+      setNextNumberLoading(false)
+      return
+    }
+    setNextNumberLoading(true)
     try {
       const res = await getPhysicalMediaNextNumber(typeName)
-      const n = res?.nextInventoryNumber
-      if (n == null) return
-      setForm((f) => {
-        const cur = String(f.inventoryNumber ?? '').trim()
-        // Prefill only if blank or still showing a previous auto-suggestion (so we
-        // refresh on type switch but never clobber a number the user typed).
-        if (cur === '' || cur === lastAutoNumberRef.current) {
-          lastAutoNumberRef.current = String(n)
-          return { ...f, inventoryNumber: String(n) }
-        }
-        return f
-      })
+      if (seq !== nextNumberSeqRef.current) return // a newer type won
+      setNextNumber(res?.nextInventoryNumber ?? null)
     } catch {
-      // best-effort preview — server still auto-assigns on submit
+      // best-effort preview — the server still assigns the real number on submit
+      if (seq === nextNumberSeqRef.current) setNextNumber(null)
+    } finally {
+      if (seq === nextNumberSeqRef.current) setNextNumberLoading(false)
     }
   }
 
@@ -202,6 +206,7 @@ function EmployeePhysicalMediaPage() {
     const row = types.find((t) => t.name === name)
     if (!row) {
       setForm((f) => ({ ...f, physicalMediaType: name }))
+      if (view === 'create') fetchNextNumber(name)
       return
     }
     const prev = lastTypeRef.current
@@ -328,7 +333,9 @@ function EmployeePhysicalMediaPage() {
     setCurrentCode(null)
     setFormError('')
     lastTypeRef.current = null
-    lastAutoNumberRef.current = ''
+    nextNumberSeqRef.current += 1 // discard any in-flight preview from a prior form
+    setNextNumber(null)
+    setNextNumberLoading(false)
     setView('create')
   }
 
@@ -346,6 +353,9 @@ function EmployeePhysicalMediaPage() {
     // Seed the "last applied type" so re-picking the same type doesn't falsely
     // flag the stamped (matching) defaults as user edits.
     lastTypeRef.current = types.find((t) => t.name === full.physicalMediaType) || null
+    nextNumberSeqRef.current += 1 // edit shows the stamped number, never a preview
+    setNextNumber(null)
+    setNextNumberLoading(false)
     setFormError('')
     setView('edit')
   }
@@ -366,7 +376,13 @@ function EmployeePhysicalMediaPage() {
     try {
       if (view === 'create') {
         const saved = await createPhysicalMedia(payload)
-        toast.success('Record created', `${saved?.pmCode || 'New record'} was added.`)
+        // The number in the response is the authoritative one — the pre-submit
+        // preview can go stale if someone else saved the same type meanwhile.
+        const assigned = saved?.inventoryNumber
+        toast.success(
+          'Record created',
+          `${saved?.pmCode || 'New record'} was added${assigned == null ? '' : ` as No. ${assigned}`}.`,
+        )
       } else {
         await updatePhysicalMedia(currentCode, payload)
         toast.success('Record updated', `${currentCode} was saved.`)
@@ -481,6 +497,9 @@ function EmployeePhysicalMediaPage() {
             onTypeSelect={onTypeSelect}
             onAddType={() => setAddTypeOpen(true)}
             canManageTypes={isAdmin}
+            mode={view}
+            inventoryNumber={view === 'create' ? nextNumber : form.inventoryNumber}
+            inventoryNumberLoading={view === 'create' && nextNumberLoading}
           />
 
           {formError ? (

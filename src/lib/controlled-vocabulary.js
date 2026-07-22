@@ -82,6 +82,16 @@ const VOCABULARY = {
   publisher: [
     { value: 'KHI', hint: 'Kurdish Heritage Institute' },
   ],
+
+  // physical-media → physicalSize. The agreed wording is the four English
+  // grades below, but the field stays free text: rows imported from the old
+  // sheets carry material sizes like "7 inch" / "C60" and must keep editing.
+  physicalSize: [
+    { value: 'Big', hint: 'گەورە' },
+    { value: 'Medium', hint: 'مامناوەند' },
+    { value: 'Normal', hint: 'ئاسایی' },
+    { value: 'Small', hint: 'بچووک' },
+  ],
 }
 
 // Fields whose form `id` differs per media type (img-copyright, txt-language…)

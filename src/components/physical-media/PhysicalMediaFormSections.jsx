@@ -1,3 +1,5 @@
+import { Loader2 } from 'lucide-react'
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldHelpButton } from '@/components/ui/field-help'
 import { Input } from '@/components/ui/input'
@@ -154,6 +156,40 @@ function TypeSelectField({ value, types, onSelect, onAddType, canManageTypes }) 
   )
 }
 
+// Inventory number is never typed: the server mints it per type under a lock
+// (Audio Cassette 101 while VHS is 56). On create we show the previewed next
+// number — a hint, not a reservation, so two people adding at once both see
+// "101" and the authoritative value comes back in the create response. On edit
+// we show the stamped value. Either way it is display-only.
+function InventoryNumberField({ mode, value, loading, hasType }) {
+  const creating = mode === 'create'
+  const shown = value == null || value === '' ? '' : String(value)
+  return (
+    <FieldRow label={creating ? 'New inventory number' : 'Inventory number'} fieldKey="inventoryNumber">
+      {/* No input, so no htmlFor target — this is a value readout, not a field. */}
+      <div className="flex h-8 w-full items-center gap-2 rounded-lg border border-dashed border-input bg-muted/40 px-2.5 text-sm">
+        {loading ? (
+          <>
+            <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
+            <span className="text-muted-foreground">Checking…</span>
+          </>
+        ) : shown ? (
+          <span className="font-mono tabular-nums text-foreground">{shown}</span>
+        ) : (
+          <span className="text-muted-foreground">
+            {creating && !hasType ? 'Select a type first' : '—'}
+          </span>
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        {creating
+          ? 'Assigned automatically on save — the final number comes from the server.'
+          : 'System-assigned — not editable.'}
+      </p>
+    </FieldRow>
+  )
+}
+
 // Segmented button group for the encoded enum / tri-state boolean fields.
 function ChoiceGroup({ value, onChange, options }) {
   return (
@@ -181,6 +217,9 @@ function PhysicalMediaFormSections({
   onTypeSelect,
   onAddType,
   canManageTypes = false,
+  mode = 'create',
+  inventoryNumber = null,
+  inventoryNumberLoading = false,
 }) {
   const onText = (key, value) => setForm((f) => ({ ...f, [key]: value }))
 
@@ -200,19 +239,16 @@ function PhysicalMediaFormSections({
             onAddType={onAddType}
             canManageTypes={canManageTypes}
           />
+          <InventoryNumberField
+            mode={mode}
+            value={inventoryNumber}
+            loading={inventoryNumberLoading}
+            hasType={Boolean(String(form.physicalMediaType ?? '').trim())}
+          />
           <TextField k="mediaCategory" label="Media category" placeholder="e.g. Music" value={form.mediaCategory} onText={onText} />
           <TextField k="title" label="Title" placeholder="Artefact title" value={form.title} onText={onText} />
           <TextField k="physicalLabel" label="Physical label" mono placeholder="Sticker code on the item" value={form.physicalLabel} onText={onText} />
-          <TextField k="subType" label="Type / sub-type" placeholder="e.g. Reel-to-reel" value={form.subType} onText={onText} />
-          <TextField k="size" label="Size" placeholder="e.g. 7 inch, C60" value={form.size} onText={onText} />
-          <NumberField
-            k="inventoryNumber"
-            label="Inventory number"
-            placeholder="Auto-assigned if blank"
-            value={form.inventoryNumber}
-            onText={onText}
-            hint="Leave blank to auto-assign the next number for this type."
-          />
+          <TextField k="physicalSize" label="Physical Size" placeholder="Big / Medium / Normal / Small" value={form.physicalSize} onText={onText} />
           <NumberField k="rowNumber" label="Row number (sheet)" placeholder="e.g. 3" value={form.rowNumber} onText={onText} />
         </CardContent>
       </Card>
@@ -262,8 +298,9 @@ function PhysicalMediaFormSections({
         <CardContent className="grid gap-4 pt-5 sm:grid-cols-2">
           <TextField k="extension" label="Extension" placeholder="e.g. wav, mp4" value={form.extension} onText={onText} />
           <TextField k="formatCodec" label="Format / codec" placeholder="e.g. PCM, H.264" value={form.formatCodec} onText={onText} />
-          <TextField k="bitOrColorDepth" label="Bit / color depth" placeholder="e.g. 24-bit" value={form.bitOrColorDepth} onText={onText} />
-          <TextField k="sampleOrFrameRate" label="Sample / frame rate" placeholder="e.g. 48 kHz, 25 fps" value={form.sampleOrFrameRate} onText={onText} />
+          <TextField k="sizeGB" label="Size GB" placeholder="e.g. 4.7, 4.7 GB, 700 MB" value={form.sizeGB} onText={onText} />
+          <TextField k="bitOrColorDepth" label="Bit Depth / Color Depth" placeholder="e.g. 24-bit" value={form.bitOrColorDepth} onText={onText} />
+          <TextField k="sampleOrFrameRate" label="Sample Rate kHz / Frame Rate FPS" placeholder="e.g. 48 kHz, 25 fps" value={form.sampleOrFrameRate} onText={onText} />
           <TextField k="channelsOrResolution" label="Channels / resolution" placeholder="e.g. Stereo, 1080p" value={form.channelsOrResolution} onText={onText} />
           <TextField k="playbackModel" label="Playback model" placeholder="Deck / player model" value={form.playbackModel} onText={onText} />
           <TextField k="captureInterface" label="Capture interface" placeholder="e.g. SDI, HDMI" value={form.captureInterface} onText={onText} />

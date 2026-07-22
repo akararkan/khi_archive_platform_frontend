@@ -9,7 +9,8 @@ const physicalMediaFieldsMetadata = {
   },
   inventoryNumber: {
     title: 'ژمارەی کۆگا (Number)',
-    description: 'ژمارەی کۆگا/ئینڤێنتۆری ئەو پارچە مادییە.',
+    description:
+      'ژمارەی کۆگا/ئینڤێنتۆری ئەو پارچە مادییە. خۆکارانە لەلایەن سیستەمەوە دیاری دەکرێت و هەر جۆرێک ژمێرەری خۆی هەیە — دەستکاری ناکرێت.',
   },
   physicalMediaType: {
     title: 'جۆری مەدیای مادی',
@@ -23,17 +24,13 @@ const physicalMediaFieldsMetadata = {
     title: 'ناوی بابەت',
     description: 'ناونیشانی ئەو بابەتەی لەسەر مەدیاکە تۆمارکراوە. ناوی بابەت یان کۆدی مادی پێویستە.',
   },
-  subType: {
-    title: 'جۆر (Type)',
-    description: 'جۆری وردتر یان ژێرپۆلی بابەتەکە.',
-  },
   physicalLabel: {
     title: 'کۆد / لەیبڵی مادی',
     description: 'ئەو کۆد یان لەیبڵەی لەسەر خودی ئامێرەکە نووسراوە. ناوی بابەت یان ئەمە پێویستە.',
   },
-  size: {
-    title: 'قەبارە (Size)',
-    description: 'قەبارەی فیزیکی ئامێرەکە (نموونە: ٧ ئینچ، C60).',
+  physicalSize: {
+    title: 'قەبارەی مادی (Physical Size)',
+    description: 'قەبارەی خودی ئامێرە مادییەکە: گەورە، مامناوەند، ئاسایی، یان بچووک.',
   },
   content: {
     title: 'ناوەڕۆک (Content)',
@@ -75,12 +72,16 @@ const physicalMediaFieldsMetadata = {
     title: 'Extension',
     description: 'پاشگری فایلی دیجیتاڵ (نموونە: wav، mp4).',
   },
+  sizeGB: {
+    title: 'قەبارەی دیجیتاڵ (Size GB)',
+    description: 'قەبارەی فایلە دیجیتاڵەکە بە گیگابایت. دەقی ئازادە (نموونە: 4.7، 4.7 GB، 700 MB).',
+  },
   bitOrColorDepth: {
-    title: 'Bit / Color Depth',
+    title: 'Bit Depth / Color Depth',
     description: 'قووڵایی بیت بۆ دەنگ یان قووڵایی ڕەنگ بۆ ڤیدیۆ/وێنە.',
   },
   sampleOrFrameRate: {
-    title: 'Sample / Frame Rate',
+    title: 'Sample Rate kHz / Frame Rate FPS',
     description: 'ڕێژەی نمونە بە kHz بۆ دەنگ یان فرەیم بە fps بۆ ڤیدیۆ.',
   },
   channelsOrResolution: {

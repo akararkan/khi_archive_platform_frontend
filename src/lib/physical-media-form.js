@@ -48,9 +48,9 @@ const TEXT_FIELDS = [
   'physicalMediaType',
   'mediaCategory',
   'title',
-  'subType',
+  'sizeGB',
   'physicalLabel',
-  'size',
+  'physicalSize',
   'content',
   'owner',
   'trackName',
@@ -68,7 +68,13 @@ const TEXT_FIELDS = [
   'captureDepNote',
 ]
 
-const INT_FIELDS = ['rowNumber', 'inventoryNumber', 'year', 'durationMin', 'trackNumbers']
+const INT_FIELDS = ['rowNumber', 'year', 'durationMin', 'trackNumbers']
+
+// Server-assigned, never sent: the backend mints the per-type inventory Number
+// under a lock on create (Audio Cassette 101 while VHS is 56) and treats it as
+// read-only afterwards. It lives in the form purely so the UI can display it —
+// the preview on create, the stamped value on edit.
+const READ_ONLY_INT_FIELDS = ['inventoryNumber']
 
 // The nine technical-capture fields a type-catalog row carries as defaults and
 // autofills into the form when a type is picked. Order matches the spec.
@@ -88,6 +94,7 @@ export function createInitialPhysicalMediaForm() {
   const form = {}
   for (const key of TEXT_FIELDS) form[key] = ''
   for (const key of INT_FIELDS) form[key] = ''
+  for (const key of READ_ONLY_INT_FIELDS) form[key] = ''
   form.digitization = ''
   form.needToClear = ''
   form.digitizeDate = '' // 'YYYY-MM-DD'
@@ -98,7 +105,9 @@ export function populateFormFromPhysicalMedia(record) {
   const form = createInitialPhysicalMediaForm()
   if (!record) return form
   for (const key of TEXT_FIELDS) form[key] = record[key] ?? ''
-  for (const key of INT_FIELDS) form[key] = record[key] == null ? '' : String(record[key])
+  for (const key of [...INT_FIELDS, ...READ_ONLY_INT_FIELDS]) {
+    form[key] = record[key] == null ? '' : String(record[key])
+  }
   form.digitization = record.digitization ?? ''
   form.needToClear = record.needToClear == null ? '' : String(Boolean(record.needToClear))
   // The API returns an ISO date ('2026-06-03'); the date input wants the same.
@@ -108,7 +117,8 @@ export function populateFormFromPhysicalMedia(record) {
 
 // Single payload builder used for BOTH create and update. Strings are sent
 // trimmed (empty string clears the field through the PATCH mapper's trimOrNull);
-// ints/date/enum/bool send their typed value or null.
+// ints/date/enum/bool send their typed value or null. inventoryNumber is
+// deliberately absent — see READ_ONLY_INT_FIELDS.
 export function buildPhysicalMediaPayload(form) {
   const payload = {}
   for (const key of TEXT_FIELDS) payload[key] = String(form[key] ?? '').trim()

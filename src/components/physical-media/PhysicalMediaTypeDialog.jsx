@@ -11,8 +11,8 @@ import { createPhysicalMediaType } from '@/services/physical-media'
 // Human labels for the 9 technical-default fields (camelCase API keys → label).
 const DEFAULT_LABELS = {
   extension: 'Extension',
-  bitOrColorDepth: 'Bit / color depth',
-  sampleOrFrameRate: 'Sample / frame rate',
+  bitOrColorDepth: 'Bit Depth / Color Depth',
+  sampleOrFrameRate: 'Sample Rate kHz / Frame Rate FPS',
   channelsOrResolution: 'Channels / resolution',
   playbackModel: 'Playback model',
   captureInterface: 'Capture interface',
