@@ -28,6 +28,8 @@ import { decodePublicCode, isEncodedPublicCode, publicDetailPath } from '@/compo
 import { apiClient } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
 import { DeepZoomViewer } from '@/components/ui/deep-zoom-viewer'
+import { DocumentContentReader } from '@/components/text/DocumentContentReader'
+import { resolveDocKind } from '@/lib/document-preview'
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
@@ -294,16 +296,28 @@ function PublicTextDetailPage() {
   const originalCandidate = text.originalTitle || text.titleOriginal || text.titleInCentralKurdish || text.centralKurdishTitle
   const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
   const fileUrl = resolveMediaUrl(text.textFileUrl)
-  const isPdf = fileUrl && /\.pdf($|\?)/i.test(fileUrl)
+  // Classify by the stored extension/file name — the `/stream` URL usually
+  // carries no real extension. PDF keeps its dedicated page-image viewer; every
+  // other renderable format goes through the shared DocumentContentReader.
+  const docKind = resolveDocKind(text.extension, text.fileName, text.textFileUrl)
   const projectCode = text.project?.projectCode || text.projectCode
 
   const content = (
     <>
-      {fileUrl ? (
-        isPdf ? (
+      {text.textFileUrl ? (
+        docKind === 'pdf' ? (
           <TextPdfPageImagesViewer key={fileUrl} fileUrl={fileUrl} title={title} />
-        ) : (
+        ) : docKind === 'unsupported' ? (
           <div className="media-unavailable">Preview is not available for this file type.</div>
+        ) : (
+          <DocumentContentReader
+            key={text.textFileUrl}
+            variant="khi"
+            fileUrl={text.textFileUrl}
+            extension={text.extension}
+            fileName={text.fileName}
+            title={title}
+          />
         )
       ) : (
         <div className="media-unavailable">{DETAIL.fileUnavailable}</div>

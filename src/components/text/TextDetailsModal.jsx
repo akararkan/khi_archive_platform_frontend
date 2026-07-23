@@ -7,6 +7,8 @@ import { CodeBadge } from '@/components/ui/code-badge'
 import { Highlight, HighlightProvider } from '@/components/ui/highlight'
 import { useIsAdmin } from '@/hooks/use-current-profile'
 import { useAuthedMediaUrl } from '@/hooks/use-authed-media-url'
+import { DocumentContentReader } from '@/components/text/DocumentContentReader'
+import { resolveDocKind } from '@/lib/document-preview'
 
 function formatInstant(instant) {
   if (!instant) return null
@@ -71,31 +73,42 @@ function hasAny(obj, keys) {
   })
 }
 
-function TextFilePreview({ src, ext }) {
-  const lower = (ext || '').toLowerCase()
-  const isPdf = lower === 'pdf'
-  const { url } = useAuthedMediaUrl(src, { enabled: Boolean(src) && isPdf })
+function TextFilePreview({ src, ext, fileName }) {
+  const kind = resolveDocKind(ext, fileName, src)
+  // PDFs keep the native iframe viewer (fast, paginated by the browser); the
+  // token can't ride an <iframe src>, so fetch it as an authed blob first.
+  const { url } = useAuthedMediaUrl(src, { enabled: Boolean(src) && kind === 'pdf' })
 
   if (!src) return null
 
-  return (
-    <div className="overflow-hidden rounded-xl border bg-muted/20">
-      {!isPdf ? (
+  if (kind === 'pdf') {
+    return (
+      <div className="overflow-hidden rounded-xl border bg-muted/20">
+        {url ? (
+          <iframe src={url} title="Text preview" className="block h-[60vh] w-full bg-background" />
+        ) : (
+          <div className="flex items-center justify-center gap-2 px-6 py-24 text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (kind === 'unsupported') {
+    return (
+      <div className="overflow-hidden rounded-xl border bg-muted/20">
         <div className="flex flex-col items-center gap-3 px-6 py-10 text-center text-muted-foreground">
           <FileText className="size-8" />
           <p className="text-sm">Inline preview is not available for this file type.</p>
         </div>
-      ) : url ? (
-        <iframe
-          src={url}
-          title="Text preview"
-          className="block h-[60vh] w-full bg-background"
-        />
-      ) : (
-        <div className="flex items-center justify-center gap-2 px-6 py-24 text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-        </div>
-      )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border bg-muted/20">
+      <DocumentContentReader variant="plain" fileUrl={src} extension={ext} fileName={fileName} />
     </div>
   )
 }
@@ -278,6 +291,7 @@ function TextDetailsModal({ text, open, onOpenChange, searchQuery }) {
                 <TextFilePreview
                   src={text.textFileUrl}
                   ext={text.extension}
+                  fileName={text.fileName}
                 />
               </Section>
             )}
