@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# This project uses pnpm — pnpm-lock.yaml is the single source of truth.
+# Ignore other package managers' lockfiles so an accidental `npm`/`yarn`
+# install can't reintroduce a competing lockfile (and break CI's frozen check).
+package-lock.json
+yarn.lock
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
