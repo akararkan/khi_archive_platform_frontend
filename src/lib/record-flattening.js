@@ -82,6 +82,9 @@ function flattenRecords(records, { labels = {}, omit = [] } = {}) {
   }
 
   return {
+    // The DTO keys, in column order — export templates map them to their
+    // bilingual archive headers.
+    keys,
     // Object.hasOwn: a DTO key like "constructor" must not read the label
     // through Object.prototype.
     columns: keys.map((key) =>

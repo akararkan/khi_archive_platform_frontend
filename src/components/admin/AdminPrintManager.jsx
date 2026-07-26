@@ -3,6 +3,7 @@ import { ChevronDown, FileSpreadsheet, FileText, Printer } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 
 import { useToast } from '@/hooks/use-toast'
+import { buildArchiveSheet, resolveExportTemplate } from '@/lib/export-templates'
 import { KHI_LOGO_FALLBACK_SRC, getActiveKhiLogo, resolveKhiLogoSrc } from '@/lib/khi-logo'
 import { flattenRecords } from '@/lib/record-flattening'
 import { getReportExportProvider } from '@/lib/report-export-store'
@@ -1156,11 +1157,18 @@ function AdminPrintManager({ children }) {
 
       if (provider) {
         const provided = await provider()
+        // Provider records get the KHI archive-template layout: grouped,
+        // bilingual (Sorani + English) header block over the full DTO
+        // columns, exactly like the institute's hand-made inventory sheets.
+        const template = resolveExportTemplate(location.pathname)
         const providedSections = (provided?.sections ?? [])
           .filter((section) => Array.isArray(section?.records) && section.records.length > 0)
           .map((section) => ({
             title: section.title || title,
-            ...flattenRecords(section.records, { labels: section.labels, omit: section.omit }),
+            ...buildArchiveSheet({
+              ...flattenRecords(section.records, { labels: section.labels, omit: section.omit }),
+              template,
+            }),
           }))
         if (providedSections.length) {
           sections = providedSections
@@ -1199,13 +1207,16 @@ function AdminPrintManager({ children }) {
       const fileName = exportFileName(title, generatedAt)
 
       // Records only — no statistics sheets inside the Excel; the printed
-      // report is where the explanation lives.
+      // report is where the explanation lives. Archive-template sheets are
+      // RTL like the hand-made inventory workbooks; DOM-scrape fallback
+      // sheets follow the page direction.
       const workbook = buildXlsxBlob({
         sheets: stats.map((section) => ({
           name: section.title,
           columns: section.columns,
           rows: section.rows,
-          rtl,
+          rtl: section.rtl ?? rtl,
+          archiveHeader: section.archiveHeader,
         })),
       })
       downloadBlob(workbook, fileName)

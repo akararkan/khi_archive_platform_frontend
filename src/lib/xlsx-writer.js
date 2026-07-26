@@ -8,12 +8,21 @@
 // small XML parts, and a ZIP with STORE (no compression) entries is ~100 lines.
 //
 // Public API:
-//   buildXlsxBlob({ sheets: [{ name, columns, rows, rtl? }] }) → Blob
+//   buildXlsxBlob({ sheets: [{ name, columns, rows, rtl?, archiveHeader? }] }) → Blob
 //   parseSpreadsheetNumber(value) → canonical numeric string | null
 //
 // `columns` is an array of header labels; `rows` an array of string arrays.
 // Values that look like clean numbers are written as numeric cells so Excel
 // can sort/sum them; everything else is an inline string.
+//
+// `archiveHeader` switches a sheet from the plain one-row header to the KHI
+// archive template layout (modelled on the institute's hand-made inventory
+// workbooks): a merged, colour-banded section-group row, optional sparse
+// explanation rows (English + Sorani), optional extra bold title rows (the
+// Sorani column names), then the `columns` row (English names) that carries
+// the autofilter. Shape:
+//   { groups: [{ title, span, color }], hintRows: [string[]…], titleRows: [string[]…] }
+// Group spans must cover every column in order; `color` is an ARGB string.
 
 // ── numeric detection ──────────────────────────────────────────────────────
 // Conservative on purpose: archive codes like "0012" (leading zero) or ids
@@ -85,32 +94,46 @@ function sanitizeSheetNames(sheets) {
 }
 
 // ── worksheet XML ──────────────────────────────────────────────────────────
-// Style indexes match styles.xml below: 1 = header, 2 = body, 3 = body (zebra).
-function cellXml(ref, value, styleId) {
+// Style indexes match stylesXml below: 1 = header, 2 = body, 3 = body (zebra),
+// 4 = hint; group banner/title styles are appended per group colour.
+// Header cells always force text: a Sorani hint like "1965" must never turn
+// into a numeric cell.
+function cellXml(ref, value, styleId, forceText = false) {
   const text = String(value ?? '')
   if (!text) return `<c r="${ref}" s="${styleId}"/>`
 
-  const numeric = parseSpreadsheetNumber(text)
+  const numeric = forceText ? null : parseSpreadsheetNumber(text)
   if (numeric != null) return `<c r="${ref}" s="${styleId}" t="n"><v>${numeric}</v></c>`
 
   const clipped = text.length > CELL_TEXT_LIMIT ? `${text.slice(0, CELL_TEXT_LIMIT)}…` : text
   return `<c r="${ref}" s="${styleId}" t="inlineStr"><is><t xml:space="preserve">${escapeXmlText(clipped)}</t></is></c>`
 }
 
-function worksheetXml({ columns, rows, rtl }) {
+function worksheetXml({ columns, rows, rtl, archiveHeader, colorStyles }) {
   const columnCount = Math.max(columns.length, 1)
-  const lastRef = `${columnRef(columnCount - 1)}${rows.length + 1}`
+  const header = archiveHeader?.groups?.length ? archiveHeader : null
+  const hintRows = header?.hintRows ?? []
+  const titleRows = header?.titleRows ?? []
+  // Group banner + hint rows + extra title rows + the `columns` row itself.
+  const headerRowCount = header ? 1 + hintRows.length + titleRows.length + 1 : 1
+  const lastRow = rows.length + headerRowCount
+  const lastCol = columnRef(columnCount - 1)
+  const lastRef = `${lastCol}${lastRow}`
 
   // Column widths from the longest value (headers count too), sampled over the
-  // first 400 rows so huge exports don't pay a full extra pass.
+  // first 400 rows so huge exports don't pay a full extra pass. Hint rows are
+  // excluded — they wrap inside a tall row instead of widening the column.
   const widths = columns.map((label, colIndex) => {
     let max = String(label ?? '').length
+    for (const titleRow of titleRows) {
+      max = Math.max(max, String(titleRow[colIndex] ?? '').length)
+    }
     const sample = Math.min(rows.length, 400)
     for (let i = 0; i < sample; i += 1) {
       const length = String(rows[i][colIndex] ?? '').length
       if (length > max) max = length
     }
-    return Math.min(58, Math.max(9, Math.round(max * 1.08 + 2)))
+    return Math.min(58, Math.max(header ? 12 : 9, Math.round(max * 1.08 + 2)))
   })
 
   const cols = widths
@@ -118,61 +141,140 @@ function worksheetXml({ columns, rows, rtl }) {
     .join('')
 
   const parts = []
-  parts.push(
-    `<row r="1" ht="24" customHeight="1">${columns
-      .map((label, i) => cellXml(`${columnRef(i)}1`, label, 1))
-      .join('')}</row>`,
-  )
+  const merges = []
+  let rowNumber = 1
+
+  if (header) {
+    // Per-column bold-title style, expanded from the group spans so the Sorani
+    // and English title rows carry their group's colour band.
+    const columnTitleStyle = []
+    const bannerCells = []
+    let startColumn = 0
+    for (const group of header.groups) {
+      const span = Math.max(1, Number(group.span) || 1)
+      const styles = colorStyles.get(group.color)
+      const bannerStyle = styles?.banner ?? 1
+      bannerCells.push(cellXml(`${columnRef(startColumn)}${rowNumber}`, group.title, bannerStyle, true))
+      for (let k = 1; k < span; k += 1) {
+        bannerCells.push(`<c r="${columnRef(startColumn + k)}${rowNumber}" s="${bannerStyle}"/>`)
+      }
+      if (span > 1) {
+        merges.push(`${columnRef(startColumn)}${rowNumber}:${columnRef(startColumn + span - 1)}${rowNumber}`)
+      }
+      for (let k = 0; k < span; k += 1) columnTitleStyle.push(styles?.title ?? 1)
+      startColumn += span
+    }
+    parts.push(`<row r="${rowNumber}" ht="30" customHeight="1">${bannerCells.join('')}</row>`)
+    rowNumber += 1
+
+    for (const hintRow of hintRows) {
+      const cells = columns.map((_, i) =>
+        cellXml(`${columnRef(i)}${rowNumber}`, hintRow[i], 4, true),
+      )
+      parts.push(`<row r="${rowNumber}" ht="86" customHeight="1">${cells.join('')}</row>`)
+      rowNumber += 1
+    }
+
+    for (const titleRow of titleRows) {
+      const cells = columns.map((_, i) =>
+        cellXml(`${columnRef(i)}${rowNumber}`, titleRow[i], columnTitleStyle[i] ?? 1, true),
+      )
+      parts.push(`<row r="${rowNumber}" ht="32" customHeight="1">${cells.join('')}</row>`)
+      rowNumber += 1
+    }
+
+    const englishCells = columns.map((label, i) =>
+      cellXml(`${columnRef(i)}${rowNumber}`, label, columnTitleStyle[i] ?? 1, true),
+    )
+    parts.push(`<row r="${rowNumber}" ht="30" customHeight="1">${englishCells.join('')}</row>`)
+    rowNumber += 1
+  } else {
+    parts.push(
+      `<row r="1" ht="24" customHeight="1">${columns
+        .map((label, i) => cellXml(`${columnRef(i)}1`, label, 1, true))
+        .join('')}</row>`,
+    )
+  }
 
   for (let r = 0; r < rows.length; r += 1) {
-    const rowNumber = r + 2
+    const dataRowNumber = headerRowCount + r + 1
     const styleId = r % 2 === 1 ? 3 : 2
     const cells = []
     for (let c = 0; c < columnCount; c += 1) {
-      cells.push(cellXml(`${columnRef(c)}${rowNumber}`, rows[r][c], styleId))
+      cells.push(cellXml(`${columnRef(c)}${dataRowNumber}`, rows[r][c], styleId))
     }
-    parts.push(`<row r="${rowNumber}">${cells.join('')}</row>`)
+    parts.push(`<row r="${dataRowNumber}">${cells.join('')}</row>`)
   }
 
-  const filter = rows.length > 0 ? `<autoFilter ref="A1:${lastRef}"/>` : ''
+  // The filter lives on the column-title row (the last header row) so Excel
+  // filters the data, not the header block.
+  const filter = rows.length > 0 ? `<autoFilter ref="A${headerRowCount}:${lastRef}"/>` : ''
+  const mergeXml = merges.length
+    ? `<mergeCells count="${merges.length}">${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join('')}</mergeCells>`
+    : ''
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <dimension ref="A1:${lastRef}"/>
-<sheetViews><sheetView workbookViewId="0"${rtl ? ' rightToLeft="1"' : ''}><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+<sheetViews><sheetView workbookViewId="0"${rtl ? ' rightToLeft="1"' : ''}><pane ySplit="${headerRowCount}" topLeftCell="A${headerRowCount + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
 <sheetFormatPr defaultRowHeight="15"/>
 ${cols ? `<cols>${cols}</cols>` : ''}
 <sheetData>${parts.join('')}</sheetData>
 ${filter}
+${mergeXml}
 </worksheet>`
 }
 
-// ── static workbook parts ──────────────────────────────────────────────────
+// ── workbook styles ────────────────────────────────────────────────────────
 // KHI print-report palette: pine header with warm white text, soft zebra.
-const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+// Styles 0–3 are the classic flat-sheet set; style 4 is the archive-template
+// hint cell; each group colour used by any sheet's archiveHeader appends a
+// banner xf (centred, merged group row) and a title xf (bold column names).
+function solidFill(color) {
+  return `<fill><patternFill patternType="solid"><fgColor rgb="${color}"/></patternFill></fill>`
+}
+
+function stylesXml(groupColors) {
+  const groupFills = groupColors.map(solidFill).join('\n')
+  const groupXfs = groupColors
+    .map(
+      (color, i) => `
+<xf numFmtId="0" fontId="2" fillId="${5 + i}" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="2" fillId="${5 + i}" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>`,
+    )
+    .join('')
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="2">
+<fonts count="4">
 <font><sz val="11"/><name val="Calibri"/><color rgb="FF26332D"/></font>
 <font><b/><sz val="11"/><name val="Calibri"/><color rgb="FFFFFDF5"/></font>
+<font><b/><sz val="10.5"/><name val="Calibri"/><color rgb="FF26332D"/></font>
+<font><i/><sz val="8.5"/><name val="Calibri"/><color rgb="FF65716A"/></font>
 </fonts>
-<fills count="4">
+<fills count="${5 + groupColors.length}">
 <fill><patternFill patternType="none"/></fill>
 <fill><patternFill patternType="gray125"/></fill>
-<fill><patternFill patternType="solid"><fgColor rgb="FF173D30"/></patternFill></fill>
-<fill><patternFill patternType="solid"><fgColor rgb="FFF3F7F5"/></patternFill></fill>
+${solidFill('FF173D30')}
+${solidFill('FFF3F7F5')}
+${solidFill('FFFBF8EE')}
+${groupFills}
 </fills>
 <borders count="2">
 <border><left/><right/><top/><bottom/><diagonal/></border>
 <border><left style="thin"><color rgb="FFD9E0DC"/></left><right style="thin"><color rgb="FFD9E0DC"/></right><top style="thin"><color rgb="FFD9E0DC"/></top><bottom style="thin"><color rgb="FFD9E0DC"/></bottom><diagonal/></border>
 </borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="4">
+<cellXfs count="${5 + groupColors.length * 2}">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
 <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
 <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1"/>
+<xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+${groupXfs}
 </cellXfs>
 </styleSheet>`
+}
 
 const RELS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -318,19 +420,33 @@ function buildXlsxBlob({ sheets }) {
     throw new Error('buildXlsxBlob needs at least one sheet')
   }
 
+  // Styles are workbook-global: collect every group colour used by any sheet
+  // and hand each worksheet the banner/title style ids for its colours.
+  const groupColors = []
+  for (const sheet of safeSheets) {
+    for (const group of sheet.archiveHeader?.groups ?? []) {
+      if (group?.color && !groupColors.includes(group.color)) groupColors.push(group.color)
+    }
+  }
+  const colorStyles = new Map(
+    groupColors.map((color, i) => [color, { banner: 5 + i * 2, title: 6 + i * 2 }]),
+  )
+
   const names = sanitizeSheetNames(safeSheets)
   const files = [
     { name: '[Content_Types].xml', data: contentTypesXml(safeSheets.length) },
     { name: '_rels/.rels', data: RELS_XML },
     { name: 'xl/workbook.xml', data: workbookXml(names) },
     { name: 'xl/_rels/workbook.xml.rels', data: workbookRelsXml(safeSheets.length) },
-    { name: 'xl/styles.xml', data: STYLES_XML },
+    { name: 'xl/styles.xml', data: stylesXml(groupColors) },
     ...safeSheets.map((sheet, i) => ({
       name: `xl/worksheets/sheet${i + 1}.xml`,
       data: worksheetXml({
         columns: sheet.columns || [],
         rows: sheet.rows || [],
         rtl: Boolean(sheet.rtl),
+        archiveHeader: sheet.archiveHeader,
+        colorStyles,
       }),
     })),
   ]
