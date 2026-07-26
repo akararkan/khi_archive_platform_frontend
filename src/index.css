@@ -439,6 +439,30 @@
   filter: brightness(1.06);
 }
 
+/* Gold sibling of the print button: downloads the visible records as an
+   .xlsx workbook and prints a statistical summary instead of every row. */
+.admin-excel-button {
+  border-color: #8a6626;
+  background: linear-gradient(145deg, #b68a37, #8f6a25);
+  box-shadow: 0 10px 24px -16px #8f6a25;
+}
+
+.admin-excel-button > svg {
+  background: rgb(255 255 255 / 14%);
+  color: #fff7dd;
+}
+
+.admin-excel-button:hover {
+  box-shadow: 0 15px 30px -18px #8f6a25;
+}
+
+/* Three controls now share the row — let them wrap instead of overflowing
+   on narrower dashboard viewports. */
+.admin-report-toolbar,
+.admin-print-controls {
+  flex-wrap: wrap;
+}
+
 .admin-print-record-button {
   display: inline-flex;
   min-height: 2rem;

@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, FileText, Printer } from 'lucide-react'
+import { ChevronDown, FileSpreadsheet, FileText, Printer } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 
+import { useToast } from '@/hooks/use-toast'
 import { KHI_LOGO_FALLBACK_SRC, getActiveKhiLogo, resolveKhiLogoSrc } from '@/lib/khi-logo'
+import { computeTableStatistics, pickDistributionColumns } from '@/lib/table-statistics'
+import { buildXlsxBlob } from '@/lib/xlsx-writer'
 
 // Report letterheads carry the logo uploaded in Admin → Settings (an absolute
 // S3 URL the print window can load directly); the bundled file covers the case
@@ -34,7 +37,9 @@ function getInitialPaperFormat() {
     : 'A4 landscape'
 }
 
-const PRINTABLE_ADMIN_PATHS = [
+// Both dashboards share this manager: AdminLayout and EmployeeLayout wrap
+// their Outlet in it, so print + Excel export work on every list page.
+const PRINTABLE_PATHS = [
   '/admin/category',
   '/admin/person',
   '/admin/project',
@@ -46,6 +51,13 @@ const PRINTABLE_ADMIN_PATHS = [
   '/admin/users',
   '/admin/warnings',
   '/admin/corrections',
+  '/employee/category',
+  '/employee/person',
+  '/employee/project',
+  '/employee/items',
+  '/employee/maqam',
+  '/employee/physical-media',
+  '/employee/corrections',
 ]
 
 const PAGE_TITLES = {
@@ -60,6 +72,13 @@ const PAGE_TITLES = {
   '/admin/users': 'Users',
   '/admin/warnings': 'Warnings',
   '/admin/corrections': 'Corrections',
+  '/employee/category': 'Categories',
+  '/employee/person': 'Persons',
+  '/employee/project': 'Projects',
+  '/employee/items': 'List of Items',
+  '/employee/maqam': 'Maqam List',
+  '/employee/physical-media': 'Physical Media',
+  '/employee/corrections': 'Corrections',
 }
 
 const NON_REPORT_SELECTOR = [
@@ -75,7 +94,7 @@ const NON_REPORT_SELECTOR = [
 ].join(',')
 
 function isPrintablePath(pathname) {
-  return PRINTABLE_ADMIN_PATHS.some(
+  return PRINTABLE_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   )
 }
@@ -110,8 +129,18 @@ function isDataRow(row) {
 }
 
 function removeNonReportContent(node) {
+  // Visibility switches keep their state in aria-checked; turn them into
+  // readable text before the button sweep below would delete them outright.
+  node.querySelectorAll('[role="switch"]').forEach((element) => {
+    const on = element.getAttribute('aria-checked') === 'true'
+    element.replaceWith(document.createTextNode(on ? 'Yes' : 'No'))
+  })
   node.querySelectorAll(NON_REPORT_SELECTOR).forEach((element) => element.remove())
   node.querySelectorAll('[aria-hidden="true"], svg').forEach((element) => element.remove())
+  // Search-result keyword highlights (<mark> from ui/highlight.jsx) must not
+  // reach reports or exports: with their classes stripped they would print in
+  // the browser's default highlighter yellow. Unwrap them to plain text.
+  node.querySelectorAll('mark').forEach((mark) => mark.replaceWith(...mark.childNodes))
 }
 
 function removeActionColumns(table) {
@@ -279,6 +308,299 @@ function buildRecordContent(sourceTable, row) {
   }
 }
 
+// ── Excel + statistics export ────────────────────────────────────────────
+//
+// "Print the whole table" stops scaling once a filtered view holds hundreds
+// of records. The export path answers that: the visible records download as a
+// real .xlsx workbook (one sheet per table, plus Report + Column statistics
+// summary sheets), and what goes to the printer is a compact statistical
+// profile of that workbook instead of every row. Values come from cell TEXT,
+// so search highlights never reach the export by construction.
+
+// Header cells keep their text (sort controls may live inside), only icons go.
+function headerCellText(cell) {
+  const clone = cell.cloneNode(true)
+  clone.querySelectorAll('svg, [aria-hidden="true"], [data-no-print]').forEach((element) =>
+    element.remove(),
+  )
+  return clone.textContent.replace(/\s+/g, ' ').trim()
+}
+
+function cellPlainText(cell) {
+  const clone = cell.cloneNode(true)
+  removeNonReportContent(clone)
+  return clone.textContent.replace(/\s+/g, ' ').trim()
+}
+
+// DOM tables → plain data sections [{ title, columns, rows }].
+function extractTablesData(root, fallbackTitle) {
+  const tables = [...root.querySelectorAll('table')].filter(
+    (table) =>
+      !table.closest('[role="dialog"], [data-no-print]') &&
+      [...table.tBodies].some((body) => [...body.rows].some(isDataRow)),
+  )
+
+  const sections = []
+  tables.forEach((table, index) => {
+    const headerCells = table.tHead?.rows?.[0] ? [...table.tHead.rows[0].cells] : []
+    if (!headerCells.length) return
+
+    const kept = headerCells
+      .map((cell, cellIndex) => ({ label: headerCellText(cell), cellIndex }))
+      .filter(({ label }) => !/^actions?$/i.test(label))
+
+    const dataRows = [...table.tBodies].flatMap((body) => [...body.rows].filter(isDataRow))
+    const rows = dataRows.map((row) => {
+      const cells = [...row.cells]
+      return kept.map(({ cellIndex }) => (cells[cellIndex] ? cellPlainText(cells[cellIndex]) : ''))
+    })
+
+    // Label-less columns that never carry text (thumbnails, spacers) are noise
+    // in a spreadsheet; headered-but-empty columns stay — their emptiness is a
+    // statistic in itself.
+    const used = kept
+      .map((column, position) => ({ ...column, position }))
+      .filter(({ label, position }) => label || rows.some((row) => row[position]))
+    if (!used.length || !rows.length) return
+
+    sections.push({
+      title: tableSectionTitle(table, fallbackTitle, index, tables.length),
+      columns: used.map(({ label, position }) => label || `Column ${position + 1}`),
+      rows: rows.map((row) => used.map(({ position }) => row[position])),
+    })
+  })
+
+  return sections
+}
+
+// The report names the active search so the reader knows what "visible
+// records" meant. Covers the shared toolbars' English placeholder and the
+// Sorani "گەڕان" used on RTL surfaces; [data-search-input] is the opt-in.
+function detectSearchQuery(root) {
+  const inputs = root.querySelectorAll(
+    'input[data-search-input], input[type="search"], input[placeholder*="search" i], input[placeholder*="گەڕان"]',
+  )
+  for (const input of inputs) {
+    const value = input.value?.trim()
+    if (value) return value
+  }
+  return ''
+}
+
+function exportFileName(title, date) {
+  const slug =
+    title
+      .replace(/[^\p{L}\p{N}]+/gu, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'Archive'
+  const pad = (value) => String(value).padStart(2, '0')
+  const stamp = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}`
+  return `KHI-${slug}-${stamp}.xlsx`
+}
+
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.rel = 'noopener'
+  document.body.append(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 4000)
+}
+
+function formatPercent(ratio) {
+  return `${Math.round((ratio || 0) * 100)}%`
+}
+
+function formatStatNumber(value) {
+  if (!Number.isFinite(value)) return '—'
+  return Number.isInteger(value)
+    ? value.toLocaleString()
+    : value.toLocaleString(undefined, { maximumFractionDigits: 1 })
+}
+
+function truncateValue(value, max = 28) {
+  const text = String(value)
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text
+}
+
+// One sentence describing a column — plain-text flavor for the workbook's
+// "Column statistics" sheet.
+function columnInsightText(profile) {
+  if (!profile.filled) return 'Empty in the visible records'
+  if (profile.numeric) {
+    return `Numbers · min ${formatStatNumber(profile.numeric.min)} · avg ${formatStatNumber(profile.numeric.mean)} · max ${formatStatNumber(profile.numeric.max)}`
+  }
+  if (profile.allUnique) return `All ${profile.filled.toLocaleString()} values unique — identifier-like`
+  if (profile.longText) return `Long text · average ${Math.round(profile.avgLength)} characters`
+  return profile.topValues
+    .slice(0, 3)
+    .map((top) => `${top.value} ×${top.count.toLocaleString()}`)
+    .join(' · ')
+}
+
+// Same insight, styled for the printed report.
+function columnInsightHtml(profile) {
+  if (!profile.filled) {
+    return '<span class="insight-note">No values in the visible records</span>'
+  }
+  if (profile.numeric) {
+    return `<span class="insight-note">Numbers · min <b>${formatStatNumber(profile.numeric.min)}</b> · avg <b>${formatStatNumber(profile.numeric.mean)}</b> · max <b>${formatStatNumber(profile.numeric.max)}</b></span>`
+  }
+  if (profile.allUnique) {
+    return '<span class="insight-note">Every value is unique — identifier-like column</span>'
+  }
+  if (profile.longText) {
+    return `<span class="insight-note">Long text · average ${Math.round(profile.avgLength)} characters</span>`
+  }
+  const chips = profile.topValues
+    .slice(0, 3)
+    .map(
+      (top) =>
+        `<span class="chip"><b title="${escapeHtml(top.value)}">${escapeHtml(truncateValue(top.value))}</b><span>×${top.count.toLocaleString()}</span></span>`,
+    )
+    .join('')
+  return `<div class="value-chips">${chips}</div>`
+}
+
+// The two self-documenting sheets that open the workbook: what this export is,
+// and the per-column statistics that the printed report also shows.
+function buildSummarySheets({ title, stats, totals, searchQuery, generatedAt, fileName }) {
+  const completeness = totals.cells ? totals.filled / totals.cells : 0
+  const generated = new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(generatedAt)
+
+  const report = {
+    name: 'Report',
+    columns: ['Item', 'Detail'],
+    rows: [
+      ['Source page', title],
+      ['Generated', generated],
+      ['Search filter', searchQuery || 'None — all visible records'],
+      ['Visible records', String(totals.records)],
+      ['Data columns', String(totals.columns)],
+      ['Data completeness', formatPercent(completeness)],
+      ['Data sheets', stats.map((section) => section.title).join(' · ')],
+      ['Workbook file', fileName],
+      ['Source', 'KHI Archive Platform — filtered view export'],
+    ],
+  }
+
+  const profile = {
+    name: 'Column statistics',
+    columns: ['Sheet', 'Column', 'Filled', 'Fill rate', 'Distinct values', 'Summary'],
+    rows: stats.flatMap((section) =>
+      section.statistics.profiles.map((columnProfile) => [
+        section.title,
+        columnProfile.name,
+        String(columnProfile.filled),
+        formatPercent(columnProfile.fillRate),
+        String(columnProfile.distinct),
+        columnInsightText(columnProfile),
+      ]),
+    ),
+  }
+
+  return [report, profile]
+}
+
+function distributionCardHtml(profile) {
+  const shown = profile.topValues.slice(0, 6)
+  const shownCount = shown.reduce((sum, top) => sum + top.count, 0)
+  const other = profile.filled - shownCount
+  const maxCount = shown[0]?.count || 1
+  const barWidth = (count) => Math.min(100, Math.max(3, Math.round((count / maxCount) * 100)))
+
+  const rows = shown
+    .map(
+      (top) => `
+      <div class="dist-row">
+        <span class="dist-label" title="${escapeHtml(top.value)}">${escapeHtml(truncateValue(top.value, 40))}</span>
+        <div class="fill-track"><i style="width:${barWidth(top.count)}%"></i></div>
+        <span class="dist-count">${top.count.toLocaleString()} · ${formatPercent(top.share)}</span>
+      </div>`,
+    )
+    .join('')
+
+  const otherRow =
+    other > 0
+      ? `<div class="dist-row"><span class="dist-label">Other values</span><div class="fill-track"><i style="width:${barWidth(other)}%; opacity:.4"></i></div><span class="dist-count">${other.toLocaleString()}</span></div>`
+      : ''
+
+  return `<article class="dist-card"><h3>${escapeHtml(profile.name)}</h3>${rows}${otherRow}</article>`
+}
+
+// The printed statistical summary: Excel callout, headline tiles, then a
+// column profile + value distributions per data sheet.
+function buildStatisticsContent({ stats, totals, searchQuery, fileName }) {
+  const completeness = totals.cells ? totals.filled / totals.cells : 0
+  const sheetCount = stats.length + 2 // + Report + Column statistics
+
+  const banner = `
+    <section class="xls-callout">
+      <span class="xls-badge">XLSX</span>
+      <div class="xls-copy">
+        <strong>${escapeHtml(fileName)}</strong>
+        <span>Full record set downloaded as an Excel workbook · ${sheetCount} sheets · opens in Excel, Numbers, and Google Sheets.</span>
+      </div>
+      <div class="xls-meta">${totals.records.toLocaleString()} records<br/>${totals.columns.toLocaleString()} columns</div>
+    </section>`
+
+  const tiles = `
+    <section class="stat-strip">
+      <div class="stat-tile"><span>Visible records</span><strong>${totals.records.toLocaleString()}</strong><small>Exported to the workbook</small></div>
+      <div class="stat-tile"><span>Data columns</span><strong>${totals.columns.toLocaleString()}</strong><small>Across ${stats.length.toLocaleString()} data ${stats.length === 1 ? 'sheet' : 'sheets'}</small></div>
+      <div class="stat-tile"><span>Data completeness</span><strong>${formatPercent(completeness)}</strong><small>${totals.filled.toLocaleString()} of ${totals.cells.toLocaleString()} cells filled</small></div>
+      <div class="stat-tile"><span>Search filter</span><strong>${searchQuery ? escapeHtml(truncateValue(searchQuery, 22)) : '—'}</strong><small>${searchQuery ? 'Applied before this export' : 'None — all visible records'}</small></div>
+    </section>`
+
+  const sections = stats
+    .map((section) => {
+      const statistics = section.statistics
+      const profileRows = statistics.profiles
+        .map(
+          (profile) => `
+        <tr>
+          <td><strong>${escapeHtml(profile.name)}</strong></td>
+          <td>${profile.filled.toLocaleString()}</td>
+          <td><div class="fill-wrap"><div class="fill-track"><i style="width:${Math.max(2, Math.round(profile.fillRate * 100))}%"></i></div><span class="fill-pct">${formatPercent(profile.fillRate)}</span></div></td>
+          <td>${profile.distinct.toLocaleString()}</td>
+          <td>${columnInsightHtml(profile)}</td>
+        </tr>`,
+        )
+        .join('')
+
+      const distributions = pickDistributionColumns(statistics)
+        .map(distributionCardHtml)
+        .join('')
+
+      return `
+      <section class="report-section stats-flow">
+        <div class="section-heading">
+          <div>
+            <span class="section-kicker">STATISTICAL PROFILE</span>
+            <h2>${escapeHtml(section.title)}</h2>
+          </div>
+          <span class="section-count">${statistics.rowCount.toLocaleString()} records · ${statistics.columnCount.toLocaleString()} columns</span>
+        </div>
+        <div class="table-shell">
+          <table class="profile-table">
+            <thead><tr><th>Column</th><th>Filled</th><th>Completeness</th><th>Distinct</th><th>What the column holds</th></tr></thead>
+            <tbody>${profileRows}</tbody>
+          </table>
+        </div>
+        ${distributions ? `<div class="dist-grid">${distributions}</div>` : ''}
+      </section>`
+    })
+    .join('')
+
+  return banner + tiles + sections
+}
+
 function reportDocument({
   title,
   content,
@@ -287,6 +609,7 @@ function reportDocument({
   paperFormat,
   recordCount,
   recordName,
+  subtitle,
 }) {
   const safeTitle = escapeHtml(title)
   const safeRecordName = escapeHtml(recordName || '')
@@ -295,14 +618,24 @@ function reportDocument({
     dateStyle: 'long',
     timeStyle: 'short',
   }).format(new Date())
-  const reportLabel = mode === 'record' ? 'Individual Record' : 'Collection Report'
+  const reportLabel =
+    mode === 'record'
+      ? 'Individual Record'
+      : mode === 'stats'
+        ? 'Statistical Summary'
+        : 'Collection Report'
   const pageSize = PAPER_FORMATS.some((format) => format.value === paperFormat)
     ? paperFormat
-    : mode === 'record' ? 'A4 portrait' : 'A4 landscape'
+    : mode === 'all' ? 'A4 landscape' : 'A4 portrait'
   const metaValue =
     mode === 'record'
       ? safeRecordName
-      : `${Number(recordCount || 0).toLocaleString()} visible records`
+      : mode === 'stats'
+        ? `${Number(recordCount || 0).toLocaleString()} records → Excel workbook`
+        : `${Number(recordCount || 0).toLocaleString()} visible records`
+  const safeSubtitle = escapeHtml(
+    subtitle || 'Official archive report generated from the KHI management workspace.',
+  )
 
   return `<!doctype html>
 <html dir="${direction}" lang="${document.documentElement.lang || 'en'}">
@@ -585,6 +918,119 @@ function reportDocument({
       .fallback-content { padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
       .fallback-content img { max-width: 140px; max-height: 120px; object-fit: contain; }
       .fallback-content > * { margin-bottom: 12px; }
+      /* ── statistical summary (Excel export companion) ─────────────── */
+      .xls-callout {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 18px;
+        padding: 14px 18px;
+        border: 1px solid #e3d5b3;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #fdf8ec, #faf3df);
+        break-inside: avoid;
+      }
+      .xls-badge {
+        display: grid;
+        place-items: center;
+        width: 46px;
+        height: 46px;
+        flex: 0 0 46px;
+        border-radius: 12px;
+        background: linear-gradient(145deg, #b68a37, #8f6a25);
+        color: #fffdf5;
+        font-size: 8.5px;
+        font-weight: 800;
+        letter-spacing: .09em;
+      }
+      .xls-copy { min-width: 0; flex: 1; }
+      .xls-copy strong {
+        display: block;
+        color: #6d5219;
+        font-family: "Courier New", monospace;
+        font-size: 11.5px;
+        overflow-wrap: anywhere;
+      }
+      .xls-copy span { display: block; margin-top: 3px; color: #8a6f33; font-size: 8.5px; }
+      .xls-meta {
+        color: #6d5219;
+        font-size: 8.5px;
+        font-weight: 800;
+        line-height: 1.6;
+        text-align: end;
+        white-space: nowrap;
+      }
+      .report-section.stats-flow + .report-section.stats-flow { break-before: auto; }
+      .profile-table th { font-size: 7.6px; }
+      .profile-table td { font-size: 9px; }
+      .fill-wrap { display: flex; align-items: center; gap: 7px; min-width: 96px; }
+      .fill-track {
+        flex: 1;
+        height: 5px;
+        min-width: 40px;
+        border-radius: 999px;
+        background: #e6ece9;
+        overflow: hidden;
+      }
+      .fill-track i {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #2a5946, #173d30);
+      }
+      .fill-pct { min-width: 27px; color: var(--pine); font-size: 8.5px; font-weight: 800; }
+      .value-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+      .chip {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 4px;
+        padding: 2px 7px;
+        border: 1px solid #dfe6e2;
+        border-radius: 999px;
+        background: #fff;
+        font-size: 8px;
+        white-space: nowrap;
+      }
+      .chip b { max-width: 150px; overflow: hidden; color: #26332d; font-weight: 750; text-overflow: ellipsis; }
+      .chip span { color: var(--muted); font-weight: 700; }
+      .insight-note { color: var(--muted); font-size: 8.5px; }
+      .insight-note b { color: var(--pine); }
+      .dist-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .dist-card {
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: linear-gradient(180deg, #fff, #fbfcfb);
+        break-inside: avoid;
+      }
+      .dist-card h3 {
+        margin: 0 0 8px;
+        color: var(--pine);
+        font-size: 9.5px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .dist-row {
+        display: grid;
+        grid-template-columns: 88px minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        margin: 4px 0;
+        font-size: 8.4px;
+      }
+      .dist-label {
+        overflow: hidden;
+        color: #26332d;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .dist-count { color: var(--muted); font-weight: 800; white-space: nowrap; }
       .report-footer {
         position: fixed;
         right: 0;
@@ -609,7 +1055,7 @@ function reportDocument({
       <div class="masthead-copy">
         <p class="brand-line">Kurdish Heritage Institute · Digital Archive</p>
         <h1>${safeTitle}</h1>
-        <p>Official archive report generated from the administration workspace.</p>
+        <p>${safeSubtitle}</p>
       </div>
       <div class="report-type">
         <span>Report type</span>
@@ -625,7 +1071,7 @@ function reportDocument({
 
     <main>${content}</main>
     <footer class="report-footer">
-      <span>KHI Archive · Confidential administration report</span>
+      <span>KHI Archive · Confidential archive report</span>
       <span class="page-number"></span>
     </footer>
   </body>
@@ -657,6 +1103,7 @@ function openPrintReport(options) {
 
 function AdminPrintManager({ children }) {
   const location = useLocation()
+  const toast = useToast()
   const surfaceRef = useRef(null)
   const printable = isPrintablePath(location.pathname)
   const [paperFormat, setPaperFormat] = useState(getInitialPaperFormat)
@@ -685,6 +1132,70 @@ function AdminPrintManager({ children }) {
       direction: getComputedStyle(root).direction || 'ltr',
       mode: 'all',
       paperFormat,
+    })
+  }
+
+  // Excel + statistics: the visible records download as an .xlsx workbook and
+  // the print window gets a statistical profile instead of every row — the
+  // sane way to "print" a result set with very many records.
+  const exportExcelReport = () => {
+    const root = surfaceRef.current
+    if (!root) return
+
+    const title = titleForPath(location.pathname, root)
+    const sections = extractTablesData(root, title)
+    if (!sections.length) {
+      toast.error('Nothing to export', 'No table records are visible on this page right now.')
+      return
+    }
+
+    const generatedAt = new Date()
+    const direction = getComputedStyle(root).direction || 'ltr'
+    const rtl = direction === 'rtl'
+    const searchQuery = detectSearchQuery(root)
+    const stats = sections.map((section) => ({
+      ...section,
+      statistics: computeTableStatistics(section),
+    }))
+    const totals = stats.reduce(
+      (sums, section) => ({
+        records: sums.records + section.statistics.rowCount,
+        columns: sums.columns + section.statistics.columnCount,
+        filled: sums.filled + section.statistics.filledCells,
+        cells: sums.cells + section.statistics.totalCells,
+      }),
+      { records: 0, columns: 0, filled: 0, cells: 0 },
+    )
+    const fileName = exportFileName(title, generatedAt)
+
+    try {
+      const workbook = buildXlsxBlob({
+        sheets: [
+          ...buildSummarySheets({ title, stats, totals, searchQuery, generatedAt, fileName }),
+          ...stats.map((section) => ({
+            name: section.title,
+            columns: section.columns,
+            rows: section.rows,
+            rtl,
+          })),
+        ],
+      })
+      downloadBlob(workbook, fileName)
+    } catch {
+      toast.error('Excel export failed', 'The workbook could not be generated from this view.')
+      return
+    }
+
+    toast.success('Excel exported', `${fileName} · ${totals.records.toLocaleString()} records`)
+
+    openPrintReport({
+      title,
+      content: buildStatisticsContent({ stats, totals, searchQuery, fileName }),
+      recordCount: totals.records,
+      direction,
+      mode: 'stats',
+      paperFormat,
+      subtitle: 'Statistical companion to the exported Excel workbook.',
     })
   }
 
@@ -768,7 +1279,7 @@ function AdminPrintManager({ children }) {
             </span>
             <span>
               <strong>Archive report</strong>
-              <small>Print the current filtered view with KHI branding</small>
+              <small>Print or export the current filtered view with KHI branding</small>
             </span>
           </div>
           <div className="admin-print-controls">
@@ -788,6 +1299,17 @@ function AdminPrintManager({ children }) {
               <span>
                 <strong>Print report</strong>
                 <small>{selectedPaperLabel} · all visible records</small>
+              </span>
+            </button>
+            <button
+              type="button"
+              className="admin-print-all-button admin-excel-button"
+              onClick={exportExcelReport}
+            >
+              <FileSpreadsheet aria-hidden="true" />
+              <span>
+                <strong>Excel + statistics</strong>
+                <small>.xlsx download · printed statistical summary</small>
               </span>
             </button>
           </div>
