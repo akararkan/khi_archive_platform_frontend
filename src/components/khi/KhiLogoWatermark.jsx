@@ -1,4 +1,4 @@
-import { KHI_LOGO_SRC } from '@/components/brand/KhiLogo'
+import { useKhiLogoSrc } from '@/hooks/use-khi-logo'
 
 // Animated, transparent brand watermark laid over protected media surfaces
 // (image viewer, video frame, book pages). Purely decorative + deterrent:
@@ -6,9 +6,11 @@ import { KHI_LOGO_SRC } from '@/components/brand/KhiLogo'
 // The slow zoom-in/zoom-out "breathing" lives in khi-archive.css
 // (.khi-watermark) and honours prefers-reduced-motion.
 export default function KhiLogoWatermark({ className = '' }) {
+  const logoSrc = useKhiLogoSrc()
+
   return (
     <span aria-hidden="true" className={`khi-watermark ${className}`.trim()}>
-      <img src={KHI_LOGO_SRC} alt="" draggable="false" decoding="async" />
+      <img src={logoSrc} alt="" draggable="false" decoding="async" />
     </span>
   )
 }

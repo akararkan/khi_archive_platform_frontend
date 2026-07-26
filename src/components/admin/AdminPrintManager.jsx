@@ -2,6 +2,17 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, FileText, Printer } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 
+import { KHI_LOGO_FALLBACK_SRC, getActiveKhiLogo, resolveKhiLogoSrc } from '@/lib/khi-logo'
+
+// Report letterheads carry the logo uploaded in Admin → Settings (an absolute
+// S3 URL the print window can load directly); the bundled file covers the case
+// where no logo has been uploaded yet.
+function printLogoSrc() {
+  const record = getActiveKhiLogo()
+  if (record?.imageUrl) return resolveKhiLogoSrc(record)
+  return new URL(KHI_LOGO_FALLBACK_SRC, window.location.origin).href
+}
+
 const PAPER_FORMATS = [
   { value: 'A4 portrait', label: 'A4 · Portrait' },
   { value: 'A4 landscape', label: 'A4 · Landscape' },
@@ -279,7 +290,7 @@ function reportDocument({
 }) {
   const safeTitle = escapeHtml(title)
   const safeRecordName = escapeHtml(recordName || '')
-  const logo = new URL('/khi-logo.jpg', window.location.origin).href
+  const logo = printLogoSrc()
   const printedAt = new Intl.DateTimeFormat(undefined, {
     dateStyle: 'long',
     timeStyle: 'short',

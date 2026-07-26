@@ -13,6 +13,7 @@ import {
   MessageSquarePlus,
   Music4,
   ShieldCheck,
+  SlidersHorizontal,
   Tags,
   Trash2,
   Users,
@@ -62,6 +63,7 @@ const navigationGroups = [
       { label: 'Users',       to: '/admin/users',       icon: Users              },
       { label: 'Warnings',    to: '/admin/warnings',    icon: AlertTriangle      },
       { label: 'Corrections', to: '/admin/corrections', icon: MessageSquarePlus  },
+      { label: 'Settings',    to: '/admin/settings',    icon: SlidersHorizontal  },
     ],
   },
 ]

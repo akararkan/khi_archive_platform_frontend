@@ -1,14 +1,13 @@
 import { AdminEntityPage } from '@/components/admin/AdminEntityPage'
-import { Card, CardContent } from '@/components/ui/card'
+import { KhiLogoManager } from '@/components/admin/KhiLogoManager'
 
 function AdminSettingsPage() {
   return (
-    <AdminEntityPage title="Settings" description="Adjust platform behavior and defaults.">
-      <Card className="border-border bg-card shadow-sm shadow-black/5">
-        <CardContent className="px-6 py-8 text-sm text-muted-foreground">
-          Settings controls will be added here.
-        </CardContent>
-      </Card>
+    <AdminEntityPage
+      title="Settings"
+      description="Platform branding, behavior, and defaults."
+    >
+      <KhiLogoManager />
     </AdminEntityPage>
   )
 }
