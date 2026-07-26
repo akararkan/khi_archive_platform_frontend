@@ -456,6 +456,13 @@
   box-shadow: 0 15px 30px -18px #8f6a25;
 }
 
+.admin-excel-button:disabled {
+  opacity: 0.65;
+  transform: none;
+  cursor: progress;
+  filter: none;
+}
+
 /* Three controls now share the row — let them wrap instead of overflowing
    on narrower dashboard viewports. */
 .admin-report-toolbar,

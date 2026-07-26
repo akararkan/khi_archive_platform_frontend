@@ -30,7 +30,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useReportExport } from '@/hooks/use-report-export'
 import { useToast } from '@/hooks/use-toast'
+import { fetchAllPageRecords } from '@/lib/fetch-all-pages'
 import { cn } from '@/lib/utils'
 import { MaqamFormDialog } from '@/components/maqam/MaqamFormDialog'
 import { MaqamManageDialog } from '@/components/maqam/MaqamManageDialog'
@@ -272,6 +274,27 @@ function AdminMaqamPage() {
 
   const isSearchMode = Boolean(search.trim())
   const activeRows = isSearchMode ? searchResults : records
+
+  // Excel export (report toolbar): full DTOs for whichever view is open —
+  // trash walks the trash pages, search re-runs uncapped (the on-screen list
+  // stops at 50 hits), browse walks every active page.
+  useReportExport(async () => {
+    if (view === 'trash') {
+      const { records: trashRecords, truncated } = await fetchAllPageRecords(
+        ({ page: exportPage, size }) => getMaqamTrashPage({ page: exportPage, size }),
+      )
+      return { sections: [{ title: 'Maqam List · Trash', records: trashRecords }], truncated }
+    }
+    if (isSearchMode) {
+      const found = await searchMaqams(search.trim(), {})
+      return { sections: [{ title: 'Maqam List', records: found || [] }] }
+    }
+    const { records: allRecords, truncated } = await fetchAllPageRecords(
+      ({ page: exportPage, size }) =>
+        getMaqamsPage({ page: exportPage, size, sort: 'createdAt,desc' }),
+    )
+    return { sections: [{ title: 'Maqam List', records: allRecords }], truncated }
+  }, [view, isSearchMode, search])
   const activeBusy = isSearchMode ? searching : loading
 
   const totalActive = meta?.totalElements ?? 0

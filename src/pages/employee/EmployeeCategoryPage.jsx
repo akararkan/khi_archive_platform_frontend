@@ -52,7 +52,9 @@ import {
 } from '@/components/ui/table'
 import { KeywordSuggestInput } from '@/components/ui/keyword-suggest-input'
 import { usePersistentState } from '@/hooks/use-persistent-state'
+import { useReportExport } from '@/hooks/use-report-export'
 import { useToast } from '@/hooks/use-toast'
+import { fetchAllPageRecords } from '@/lib/fetch-all-pages'
 import { FormErrorBox } from '@/components/ui/form-error'
 import { formatApiError, getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
 import {
@@ -294,6 +296,27 @@ function EmployeeCategoryPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadCategories()
   }, [loadCategories])
+
+  // Excel export (report toolbar): the workbook must carry the REAL records —
+  // full DTOs across the whole matching set. Searches re-run uncapped (the
+  // on-screen list is limited to 50 hits); browse mode walks every page with
+  // the current sort + filters.
+  useReportExport(async () => {
+    if (isSearchActive) {
+      const records = await searchCategories(trimmedSearch, {})
+      return { sections: [{ title: 'Categories', records: records || [] }] }
+    }
+    const { records, truncated } = await fetchAllPageRecords(({ page: exportPage, size }) =>
+      getCategoriesPage({
+        page: exportPage,
+        size,
+        sortBy: activeSort.sortBy,
+        sortDirection: activeSort.sortDirection,
+        ...buildFilterParams(filters),
+      }),
+    )
+    return { sections: [{ title: 'Categories', records }], truncated }
+  }, [isSearchActive, trimmedSearch, activeSort, filters])
 
   // When sort or filter changes, jump back to page 0 — otherwise the
   // user could be stranded on page 5 of a window that no longer has

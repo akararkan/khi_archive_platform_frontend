@@ -57,7 +57,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { usePersistentState } from '@/hooks/use-persistent-state'
+import { useReportExport } from '@/hooks/use-report-export'
 import { useToast } from '@/hooks/use-toast'
+import { fetchAllPageRecords } from '@/lib/fetch-all-pages'
 import { FormErrorBox } from '@/components/ui/form-error'
 import { formatApiError, getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
 import {
@@ -553,6 +555,26 @@ function EmployeePersonPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadPersons()
   }, [loadPersons])
+
+  // Excel export (report toolbar): full DTOs across the whole matching set.
+  // The on-screen search caps at 50 hits, so the export re-runs it uncapped;
+  // browse mode walks every page with the current sort + filters.
+  useReportExport(async () => {
+    if (isSearchActive) {
+      const records = await searchPersons(trimmedSearch, {})
+      return { sections: [{ title: 'Persons', records: records || [] }] }
+    }
+    const { records, truncated } = await fetchAllPageRecords(({ page: exportPage, size }) =>
+      getPersonsPage({
+        page: exportPage,
+        size,
+        sortBy: activeSort.sortBy,
+        sortDirection: activeSort.sortDirection,
+        ...buildPersonFilterParams(filters),
+      }),
+    )
+    return { sections: [{ title: 'Persons', records }], truncated }
+  }, [isSearchActive, trimmedSearch, activeSort, filters])
 
   // Sort/filter changes invalidate the current page index — bounce
   // back to page 0 so the user isn't stranded on a page that no

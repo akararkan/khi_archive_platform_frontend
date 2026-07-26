@@ -19,7 +19,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { usePersistentState } from '@/hooks/use-persistent-state'
+import { useReportExport } from '@/hooks/use-report-export'
 import { useToast } from '@/hooks/use-toast'
+import { fetchAllPageRecords } from '@/lib/fetch-all-pages'
 import { cn } from '@/lib/utils'
 import { MaqamFormDialog } from '@/components/maqam/MaqamFormDialog'
 import { MaqamPlayer } from '@/components/maqam/MaqamPlayer'
@@ -151,6 +153,21 @@ function EmployeeMaqamPage() {
   const isSearchMode = Boolean(search.trim())
   const rows = isSearchMode ? searchResults : records
   const busy = isSearchMode ? searching : loading
+
+  // Excel export (report toolbar): full DTOs across the whole matching set —
+  // search re-runs uncapped (the on-screen list stops at 50 hits), browse
+  // walks every page.
+  useReportExport(async () => {
+    if (isSearchMode) {
+      const found = await searchMaqams(search.trim(), {})
+      return { sections: [{ title: 'Maqam List', records: found || [] }] }
+    }
+    const { records: allRecords, truncated } = await fetchAllPageRecords(
+      ({ page: exportPage, size }) =>
+        getMaqamsPage({ page: exportPage, size, sort: 'createdAt,desc' }),
+    )
+    return { sections: [{ title: 'Maqam List', records: allRecords }], truncated }
+  }, [isSearchMode, search])
 
   return (
     <EmployeeEntityPage

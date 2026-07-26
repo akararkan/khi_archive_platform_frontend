@@ -52,6 +52,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { usePersistentState } from '@/hooks/use-persistent-state'
+import { useReportExport } from '@/hooks/use-report-export'
 import { useToast } from '@/hooks/use-toast'
 import { useCurrentProfile } from '@/hooks/use-current-profile'
 import { cn } from '@/lib/utils'
@@ -179,6 +180,13 @@ function AdminUsersPage() {
       return hay.includes(term)
     })
   }, [users, filter])
+
+  // Excel export (report toolbar): the full user DTOs (role, activation,
+  // permissions, authorities…) for the currently filtered list — the whole
+  // set is already in memory, no pagination to walk.
+  useReportExport(async () => ({
+    sections: [{ title: 'Users', records: filteredUsers ?? [] }],
+  }), [filteredUsers])
 
   // Replace one user in `users` after a mutation lands. Avoids a full
   // refetch — backend always returns the updated user, so we just swap.

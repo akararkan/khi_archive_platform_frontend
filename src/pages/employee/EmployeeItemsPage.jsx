@@ -41,7 +41,9 @@ import { TypeBadge, VisibilityBadges } from '@/components/items/item-badges'
 import { VisibilityToggle } from '@/components/ui/visibility-toggle'
 import { getTypeMeta } from '@/components/items/item-helpers'
 import { usePersistentState } from '@/hooks/use-persistent-state'
+import { useReportExport } from '@/hooks/use-report-export'
 import { useToast } from '@/hooks/use-toast'
+import { fetchAllPageRecords } from '@/lib/fetch-all-pages'
 import { getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/components/maqam/maqam-helpers'
@@ -331,6 +333,20 @@ function EmployeeItemsPage() {
     [filter, sortOpt, page],
   )
   const requestKey = useMemo(() => JSON.stringify(request), [request])
+
+  // Excel export (report toolbar): re-runs the exact current request across
+  // every page, then merges each item's per-type DTO (item.audio / video /
+  // image / text) into the summary so EVERY original field becomes a column.
+  useReportExport(async () => {
+    const { records, truncated } = await fetchAllPageRecords(({ page: exportPage, size }) =>
+      getItemsPage({ ...request, page: exportPage, size }),
+    )
+    const merged = records.map((item) => {
+      const { audio, video, image, text, ...summary } = item
+      return { ...summary, ...(audio ?? video ?? image ?? text ?? {}) }
+    })
+    return { sections: [{ title: 'List of Items', records: merged }], truncated }
+  }, [request])
 
   // ── Fetch (debounced + abortable) ───────────────────────────────────────────
   /* eslint-disable react-hooks/set-state-in-effect */

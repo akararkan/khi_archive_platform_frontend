@@ -50,7 +50,9 @@ import { TagSuggestInput } from '@/components/ui/tag-suggest-input'
 import { KeywordSuggestInput } from '@/components/ui/keyword-suggest-input'
 import { VisibilityToggle } from '@/components/ui/visibility-toggle'
 import { usePersistentState } from '@/hooks/use-persistent-state'
+import { useReportExport } from '@/hooks/use-report-export'
 import { useToast } from '@/hooks/use-toast'
+import { fetchAllPageRecords } from '@/lib/fetch-all-pages'
 import { FormErrorBox } from '@/components/ui/form-error'
 import { cn } from '@/lib/utils'
 import { formatApiError, getErrorMessage, isStaleVersionError } from '@/lib/get-error-message'
@@ -463,6 +465,19 @@ function EmployeeProjectPage() {
       return haystack.toLowerCase().includes(term)
     })
   }, [visibleProjects, searchTerm])
+
+  // Excel export (report toolbar): full project DTOs. Search mode already has
+  // the complete list in memory (client-side filter over getProjects); browse
+  // mode walks every page.
+  useReportExport(async () => {
+    if (searchTerm.trim()) {
+      return { sections: [{ title: 'Projects', records: filteredProjects }] }
+    }
+    const { records, truncated } = await fetchAllPageRecords(({ page: exportPage, size }) =>
+      getProjectsPage({ page: exportPage, size }),
+    )
+    return { sections: [{ title: 'Projects', records }], truncated }
+  }, [searchTerm, filteredProjects])
 
   const categoryByCode = useMemo(() => {
     const map = new Map()

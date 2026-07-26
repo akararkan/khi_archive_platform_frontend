@@ -25,8 +25,10 @@ import { SearchClearButton } from '@/components/ui/search-clear-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePersistentState } from '@/hooks/use-persistent-state'
+import { useReportExport } from '@/hooks/use-report-export'
 import { useToast } from '@/hooks/use-toast'
 import { useIsAdmin } from '@/hooks/use-current-profile'
+import { fetchAllPageRecords } from '@/lib/fetch-all-pages'
 import { cn } from '@/lib/utils'
 import { isStaleVersionError } from '@/lib/get-error-message'
 import { formatDateTime } from '@/components/maqam/maqam-helpers'
@@ -326,6 +328,26 @@ function EmployeePhysicalMediaPage() {
   const isSearchMode = Boolean(search.trim())
   const activeRows = isSearchMode ? searchResults : records
   const activeBusy = isSearchMode ? searching : loading
+
+  // Excel export (report toolbar): full 29-field DTOs for whichever tab is
+  // open — trash walks the trash pages (admin only), search re-runs uncapped
+  // (the on-screen list stops at 50 hits), browse walks every active page.
+  useReportExport(async () => {
+    if (tab === 'trash') {
+      const { records: trashRecords, truncated } = await fetchAllPageRecords(
+        ({ page: exportPage, size }) => getPhysicalMediaTrashPage({ page: exportPage, size }),
+      )
+      return { sections: [{ title: 'Physical Media · Trash', records: trashRecords }], truncated }
+    }
+    if (isSearchMode) {
+      const found = await searchPhysicalMedia(search.trim(), {})
+      return { sections: [{ title: 'Physical Media', records: found || [] }] }
+    }
+    const { records: allRecords, truncated } = await fetchAllPageRecords(
+      ({ page: exportPage, size }) => getPhysicalMediaPage({ page: exportPage, size }),
+    )
+    return { sections: [{ title: 'Physical Media', records: allRecords }], truncated }
+  }, [tab, isSearchMode, search])
 
   // ── Form handlers ─────────────────────────────────────────────────────────
   const openCreate = () => {

@@ -4,6 +4,8 @@ import { useLocation } from 'react-router-dom'
 
 import { useToast } from '@/hooks/use-toast'
 import { KHI_LOGO_FALLBACK_SRC, getActiveKhiLogo, resolveKhiLogoSrc } from '@/lib/khi-logo'
+import { flattenRecords } from '@/lib/record-flattening'
+import { getReportExportProvider } from '@/lib/report-export-store'
 import { computeTableStatistics, pickDistributionColumns } from '@/lib/table-statistics'
 import { buildXlsxBlob } from '@/lib/xlsx-writer'
 
@@ -426,22 +428,7 @@ function truncateValue(value, max = 28) {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }
 
-// One sentence describing a column — plain-text flavor for the workbook's
-// "Column statistics" sheet.
-function columnInsightText(profile) {
-  if (!profile.filled) return 'Empty in the visible records'
-  if (profile.numeric) {
-    return `Numbers · min ${formatStatNumber(profile.numeric.min)} · avg ${formatStatNumber(profile.numeric.mean)} · max ${formatStatNumber(profile.numeric.max)}`
-  }
-  if (profile.allUnique) return `All ${profile.filled.toLocaleString()} values unique — identifier-like`
-  if (profile.longText) return `Long text · average ${Math.round(profile.avgLength)} characters`
-  return profile.topValues
-    .slice(0, 3)
-    .map((top) => `${top.value} ×${top.count.toLocaleString()}`)
-    .join(' · ')
-}
-
-// Same insight, styled for the printed report.
+// One sentence describing a column, styled for the printed report.
 function columnInsightHtml(profile) {
   if (!profile.filled) {
     return '<span class="insight-note">No values in the visible records</span>'
@@ -463,49 +450,6 @@ function columnInsightHtml(profile) {
     )
     .join('')
   return `<div class="value-chips">${chips}</div>`
-}
-
-// The two self-documenting sheets that open the workbook: what this export is,
-// and the per-column statistics that the printed report also shows.
-function buildSummarySheets({ title, stats, totals, searchQuery, generatedAt, fileName }) {
-  const completeness = totals.cells ? totals.filled / totals.cells : 0
-  const generated = new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'long',
-    timeStyle: 'short',
-  }).format(generatedAt)
-
-  const report = {
-    name: 'Report',
-    columns: ['Item', 'Detail'],
-    rows: [
-      ['Source page', title],
-      ['Generated', generated],
-      ['Search filter', searchQuery || 'None — all visible records'],
-      ['Visible records', String(totals.records)],
-      ['Data columns', String(totals.columns)],
-      ['Data completeness', formatPercent(completeness)],
-      ['Data sheets', stats.map((section) => section.title).join(' · ')],
-      ['Workbook file', fileName],
-      ['Source', 'KHI Archive Platform — filtered view export'],
-    ],
-  }
-
-  const profile = {
-    name: 'Column statistics',
-    columns: ['Sheet', 'Column', 'Filled', 'Fill rate', 'Distinct values', 'Summary'],
-    rows: stats.flatMap((section) =>
-      section.statistics.profiles.map((columnProfile) => [
-        section.title,
-        columnProfile.name,
-        String(columnProfile.filled),
-        formatPercent(columnProfile.fillRate),
-        String(columnProfile.distinct),
-        columnInsightText(columnProfile),
-      ]),
-    ),
-  }
-
-  return [report, profile]
 }
 
 function distributionCardHtml(profile) {
@@ -534,28 +478,29 @@ function distributionCardHtml(profile) {
   return `<article class="dist-card"><h3>${escapeHtml(profile.name)}</h3>${rows}${otherRow}</article>`
 }
 
-// The printed statistical summary: Excel callout, headline tiles, then a
-// column profile + value distributions per data sheet.
-function buildStatisticsContent({ stats, totals, searchQuery, fileName }) {
+// The printed statistical summary — the "explanation" companion to the
+// records-only workbook: Excel callout, headline tiles, then a column profile
+// + value distributions per data sheet.
+function buildStatisticsContent({ stats, totals, searchQuery, fileName, scopeNote }) {
   const completeness = totals.cells ? totals.filled / totals.cells : 0
-  const sheetCount = stats.length + 2 // + Report + Column statistics
+  const sheetCount = stats.length
 
   const banner = `
     <section class="xls-callout">
       <span class="xls-badge">XLSX</span>
       <div class="xls-copy">
         <strong>${escapeHtml(fileName)}</strong>
-        <span>Full record set downloaded as an Excel workbook · ${sheetCount} sheets · opens in Excel, Numbers, and Google Sheets.</span>
+        <span>${escapeHtml(scopeNote)} · ${sheetCount} data ${sheetCount === 1 ? 'sheet' : 'sheets'} · opens in Excel, Numbers, and Google Sheets.</span>
       </div>
       <div class="xls-meta">${totals.records.toLocaleString()} records<br/>${totals.columns.toLocaleString()} columns</div>
     </section>`
 
   const tiles = `
     <section class="stat-strip">
-      <div class="stat-tile"><span>Visible records</span><strong>${totals.records.toLocaleString()}</strong><small>Exported to the workbook</small></div>
+      <div class="stat-tile"><span>Records exported</span><strong>${totals.records.toLocaleString()}</strong><small>Complete contents in the workbook</small></div>
       <div class="stat-tile"><span>Data columns</span><strong>${totals.columns.toLocaleString()}</strong><small>Across ${stats.length.toLocaleString()} data ${stats.length === 1 ? 'sheet' : 'sheets'}</small></div>
       <div class="stat-tile"><span>Data completeness</span><strong>${formatPercent(completeness)}</strong><small>${totals.filled.toLocaleString()} of ${totals.cells.toLocaleString()} cells filled</small></div>
-      <div class="stat-tile"><span>Search filter</span><strong>${searchQuery ? escapeHtml(truncateValue(searchQuery, 22)) : '—'}</strong><small>${searchQuery ? 'Applied before this export' : 'None — all visible records'}</small></div>
+      <div class="stat-tile"><span>Search filter</span><strong>${searchQuery ? escapeHtml(truncateValue(searchQuery, 22)) : '—'}</strong><small>${searchQuery ? 'Applied before this export' : 'None — all matching records'}</small></div>
     </section>`
 
   const sections = stats
@@ -1078,27 +1023,50 @@ function reportDocument({
 </html>`
 }
 
-function openPrintReport(options) {
+// Opens the report window immediately (inside the user's click, so pop-up
+// blockers allow it) with a small "preparing…" shell; `render` swaps in the
+// finished report once async data is ready, `close` abandons it on failure.
+function openDeferredPrintReport() {
   const printWindow = window.open('', '_blank', 'width=1280,height=900')
-  if (!printWindow) return
+  if (!printWindow) return null
 
   printWindow.opener = null
   printWindow.document.open()
-  printWindow.document.write(reportDocument(options))
+  printWindow.document.write(`<!doctype html>
+<html><head><meta charset="utf-8" /><title>KHI Archive · Preparing report…</title></head>
+<body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#f8f5ec;color:#173d30;font:600 15px/1.6 Arial,sans-serif;">
+  <p>Preparing the statistical report…</p>
+</body></html>`)
   printWindow.document.close()
 
-  const printWhenReady = () => {
-    printWindow.focus()
-    printWindow.print()
-  }
+  return {
+    render(options) {
+      if (printWindow.closed) return
+      printWindow.document.open()
+      printWindow.document.write(reportDocument(options))
+      printWindow.document.close()
 
-  if (printWindow.document.readyState === 'complete') {
-    window.setTimeout(printWhenReady, 350)
-  } else {
-    printWindow.addEventListener('load', () => window.setTimeout(printWhenReady, 350), {
-      once: true,
-    })
+      const printWhenReady = () => {
+        printWindow.focus()
+        printWindow.print()
+      }
+
+      if (printWindow.document.readyState === 'complete') {
+        window.setTimeout(printWhenReady, 350)
+      } else {
+        printWindow.addEventListener('load', () => window.setTimeout(printWhenReady, 350), {
+          once: true,
+        })
+      }
+    },
+    close() {
+      if (!printWindow.closed) printWindow.close()
+    },
   }
+}
+
+function openPrintReport(options) {
+  openDeferredPrintReport()?.render(options)
 }
 
 function AdminPrintManager({ children }) {
@@ -1107,6 +1075,7 @@ function AdminPrintManager({ children }) {
   const surfaceRef = useRef(null)
   const printable = isPrintablePath(location.pathname)
   const [paperFormat, setPaperFormat] = useState(getInitialPaperFormat)
+  const [isExporting, setIsExporting] = useState(false)
 
   useEffect(() => {
     window.localStorage.setItem(PAPER_SIZE_STORAGE_KEY, paperFormat)
@@ -1135,68 +1104,99 @@ function AdminPrintManager({ children }) {
     })
   }
 
-  // Excel + statistics: the visible records download as an .xlsx workbook and
-  // the print window gets a statistical profile instead of every row — the
-  // sane way to "print" a result set with very many records.
-  const exportExcelReport = () => {
+  // Excel + statistics — split exactly as: the .xlsx carries the REAL records
+  // with their complete field contents; the print window carries the
+  // explanation (a statistical profile of that workbook), never the rows.
+  //
+  // Records come from the page's registered export provider (full DTOs for
+  // the whole matching result set, fetched from the API); pages without a
+  // provider fall back to scraping the visible table.
+  const exportExcelReport = async () => {
     const root = surfaceRef.current
-    if (!root) return
+    if (!root || isExporting) return
 
     const title = titleForPath(location.pathname, root)
-    const sections = extractTablesData(root, title)
-    if (!sections.length) {
-      toast.error('Nothing to export', 'No table records are visible on this page right now.')
-      return
-    }
-
-    const generatedAt = new Date()
-    const direction = getComputedStyle(root).direction || 'ltr'
-    const rtl = direction === 'rtl'
-    const searchQuery = detectSearchQuery(root)
-    const stats = sections.map((section) => ({
-      ...section,
-      statistics: computeTableStatistics(section),
-    }))
-    const totals = stats.reduce(
-      (sums, section) => ({
-        records: sums.records + section.statistics.rowCount,
-        columns: sums.columns + section.statistics.columnCount,
-        filled: sums.filled + section.statistics.filledCells,
-        cells: sums.cells + section.statistics.totalCells,
-      }),
-      { records: 0, columns: 0, filled: 0, cells: 0 },
-    )
-    const fileName = exportFileName(title, generatedAt)
+    const provider = getReportExportProvider()
+    // Opened synchronously inside the click so pop-up blockers allow it.
+    const pending = openDeferredPrintReport()
+    setIsExporting(true)
 
     try {
+      let sections = []
+      let scopeNote = 'Records visible on this page'
+
+      if (provider) {
+        const provided = await provider()
+        const providedSections = (provided?.sections ?? [])
+          .filter((section) => Array.isArray(section?.records) && section.records.length > 0)
+          .map((section) => ({
+            title: section.title || title,
+            ...flattenRecords(section.records, { labels: section.labels, omit: section.omit }),
+          }))
+        if (providedSections.length) {
+          sections = providedSections
+          scopeNote = provided?.truncated
+            ? 'Result set capped at 20,000 records — narrow the search for a complete export'
+            : 'Complete matching result set with full record contents'
+        }
+      }
+
+      if (!sections.length) {
+        sections = extractTablesData(root, title)
+      }
+      if (!sections.length) {
+        pending?.close()
+        toast.error('Nothing to export', 'No records are visible on this page right now.')
+        return
+      }
+
+      const generatedAt = new Date()
+      const direction = getComputedStyle(root).direction || 'ltr'
+      const rtl = direction === 'rtl'
+      const searchQuery = detectSearchQuery(root)
+      const stats = sections.map((section) => ({
+        ...section,
+        statistics: computeTableStatistics(section),
+      }))
+      const totals = stats.reduce(
+        (sums, section) => ({
+          records: sums.records + section.statistics.rowCount,
+          columns: sums.columns + section.statistics.columnCount,
+          filled: sums.filled + section.statistics.filledCells,
+          cells: sums.cells + section.statistics.totalCells,
+        }),
+        { records: 0, columns: 0, filled: 0, cells: 0 },
+      )
+      const fileName = exportFileName(title, generatedAt)
+
+      // Records only — no statistics sheets inside the Excel; the printed
+      // report is where the explanation lives.
       const workbook = buildXlsxBlob({
-        sheets: [
-          ...buildSummarySheets({ title, stats, totals, searchQuery, generatedAt, fileName }),
-          ...stats.map((section) => ({
-            name: section.title,
-            columns: section.columns,
-            rows: section.rows,
-            rtl,
-          })),
-        ],
+        sheets: stats.map((section) => ({
+          name: section.title,
+          columns: section.columns,
+          rows: section.rows,
+          rtl,
+        })),
       })
       downloadBlob(workbook, fileName)
-    } catch {
-      toast.error('Excel export failed', 'The workbook could not be generated from this view.')
-      return
+      toast.success('Excel exported', `${fileName} · ${totals.records.toLocaleString()} records`)
+
+      pending?.render({
+        title,
+        content: buildStatisticsContent({ stats, totals, searchQuery, fileName, scopeNote }),
+        recordCount: totals.records,
+        direction,
+        mode: 'stats',
+        paperFormat,
+        subtitle: 'Statistical companion to the exported Excel workbook.',
+      })
+    } catch (error) {
+      pending?.close()
+      toast.apiError(error, 'Excel export failed')
+    } finally {
+      setIsExporting(false)
     }
-
-    toast.success('Excel exported', `${fileName} · ${totals.records.toLocaleString()} records`)
-
-    openPrintReport({
-      title,
-      content: buildStatisticsContent({ stats, totals, searchQuery, fileName }),
-      recordCount: totals.records,
-      direction,
-      mode: 'stats',
-      paperFormat,
-      subtitle: 'Statistical companion to the exported Excel workbook.',
-    })
   }
 
   useEffect(() => {
@@ -1304,12 +1304,17 @@ function AdminPrintManager({ children }) {
             <button
               type="button"
               className="admin-print-all-button admin-excel-button"
+              disabled={isExporting}
               onClick={exportExcelReport}
             >
               <FileSpreadsheet aria-hidden="true" />
               <span>
-                <strong>Excel + statistics</strong>
-                <small>.xlsx download · printed statistical summary</small>
+                <strong>{isExporting ? 'Preparing export…' : 'Excel + statistics'}</strong>
+                <small>
+                  {isExporting
+                    ? 'Fetching all matching records'
+                    : 'records → .xlsx · statistics → printed report'}
+                </small>
               </span>
             </button>
           </div>
