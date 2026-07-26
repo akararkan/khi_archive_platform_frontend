@@ -82,7 +82,11 @@ function flattenRecords(records, { labels = {}, omit = [] } = {}) {
   }
 
   return {
-    columns: keys.map((key) => labels[key] ?? humanizeFieldLabel(key)),
+    // Object.hasOwn: a DTO key like "constructor" must not read the label
+    // through Object.prototype.
+    columns: keys.map((key) =>
+      Object.hasOwn(labels, key) ? labels[key] : humanizeFieldLabel(key),
+    ),
     rows: records.map((record) => keys.map((key) => formatCellValue(record?.[key]))),
   }
 }

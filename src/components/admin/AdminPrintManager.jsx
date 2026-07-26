@@ -428,6 +428,18 @@ function truncateValue(value, max = 28) {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }
 
+// The range of a field's values — min – max for numbers, earliest → latest
+// for dates. Text columns have no meaningful range.
+function columnRangeHtml(profile) {
+  if (profile.numeric) {
+    return `${formatStatNumber(profile.numeric.min)} – ${formatStatNumber(profile.numeric.max)}`
+  }
+  if (profile.dates) {
+    return `${escapeHtml(profile.dates.min.slice(0, 10))} → ${escapeHtml(profile.dates.max.slice(0, 10))}`
+  }
+  return '<span class="insight-note">—</span>'
+}
+
 // One sentence describing a column, styled for the printed report.
 function columnInsightHtml(profile) {
   if (!profile.filled) {
@@ -435,6 +447,9 @@ function columnInsightHtml(profile) {
   }
   if (profile.numeric) {
     return `<span class="insight-note">Numbers · min <b>${formatStatNumber(profile.numeric.min)}</b> · avg <b>${formatStatNumber(profile.numeric.mean)}</b> · max <b>${formatStatNumber(profile.numeric.max)}</b></span>`
+  }
+  if (profile.dates) {
+    return `<span class="insight-note">Dates · earliest <b>${escapeHtml(profile.dates.min.slice(0, 10))}</b> · latest <b>${escapeHtml(profile.dates.max.slice(0, 10))}</b></span>`
   }
   if (profile.allUnique) {
     return '<span class="insight-note">Every value is unique — identifier-like column</span>'
@@ -514,6 +529,7 @@ function buildStatisticsContent({ stats, totals, searchQuery, fileName, scopeNot
           <td>${profile.filled.toLocaleString()}</td>
           <td><div class="fill-wrap"><div class="fill-track"><i style="width:${Math.max(2, Math.round(profile.fillRate * 100))}%"></i></div><span class="fill-pct">${formatPercent(profile.fillRate)}</span></div></td>
           <td>${profile.distinct.toLocaleString()}</td>
+          <td class="range-cell">${columnRangeHtml(profile)}</td>
           <td>${columnInsightHtml(profile)}</td>
         </tr>`,
         )
@@ -534,7 +550,7 @@ function buildStatisticsContent({ stats, totals, searchQuery, fileName, scopeNot
         </div>
         <div class="table-shell">
           <table class="profile-table">
-            <thead><tr><th>Column</th><th>Filled</th><th>Completeness</th><th>Distinct</th><th>What the column holds</th></tr></thead>
+            <thead><tr><th>Column</th><th>Filled</th><th>Completeness</th><th>Distinct</th><th>Range</th><th>What the column holds</th></tr></thead>
             <tbody>${profileRows}</tbody>
           </table>
         </div>
@@ -908,6 +924,7 @@ function reportDocument({
       .report-section.stats-flow + .report-section.stats-flow { break-before: auto; }
       .profile-table th { font-size: 7.6px; }
       .profile-table td { font-size: 9px; }
+      .profile-table td.range-cell { color: var(--pine); font-weight: 750; white-space: nowrap; }
       .fill-wrap { display: flex; align-items: center; gap: 7px; min-width: 96px; }
       .fill-track {
         flex: 1;
@@ -996,7 +1013,7 @@ function reportDocument({
   </head>
   <body>
     <header class="report-masthead">
-      <div class="logo-wrap"><img src="${logo}" alt="KHI Archive logo" /></div>
+      <div class="logo-wrap"><img src="${escapeHtml(logo)}" alt="KHI Archive logo" /></div>
       <div class="masthead-copy">
         <p class="brand-line">Kurdish Heritage Institute · Digital Archive</p>
         <h1>${safeTitle}</h1>
@@ -1065,8 +1082,11 @@ function openDeferredPrintReport() {
   }
 }
 
+// Returns false when the pop-up was blocked so callers can tell the user.
 function openPrintReport(options) {
-  openDeferredPrintReport()?.render(options)
+  const pending = openDeferredPrintReport()
+  pending?.render(options)
+  return Boolean(pending)
 }
 
 function AdminPrintManager({ children }) {
@@ -1094,7 +1114,7 @@ function AdminPrintManager({ children }) {
     const report = buildAllRecordsContent(root, title)
     // Headline KPI tiles print as a stat strip above the data sections.
     const kpiStrip = buildKpiStrip(root)
-    openPrintReport({
+    const opened = openPrintReport({
       title,
       content: kpiStrip + report.content,
       recordCount: report.recordCount,
@@ -1102,6 +1122,9 @@ function AdminPrintManager({ children }) {
       mode: 'all',
       paperFormat,
     })
+    if (!opened) {
+      toast.error('Pop-up blocked', 'Allow pop-ups for this site to open the print report.')
+    }
   }
 
   // Excel + statistics — split exactly as: the .xlsx carries the REAL records
@@ -1119,6 +1142,12 @@ function AdminPrintManager({ children }) {
     const provider = getReportExportProvider()
     // Opened synchronously inside the click so pop-up blockers allow it.
     const pending = openDeferredPrintReport()
+    if (!pending) {
+      toast.toast(
+        'Pop-up blocked',
+        'The Excel will still download — allow pop-ups to also get the printed statistical summary.',
+      )
+    }
     setIsExporting(true)
 
     try {
@@ -1239,7 +1268,7 @@ function AdminPrintManager({ children }) {
           const title = titleForPath(location.pathname, root)
           const record = buildRecordContent(table, row)
 
-          openPrintReport({
+          const opened = openPrintReport({
             title: `${title} · Record`,
             content: record.content,
             recordName: record.recordName,
@@ -1247,6 +1276,9 @@ function AdminPrintManager({ children }) {
             mode: 'record',
             paperFormat,
           })
+          if (!opened) {
+            toast.error('Pop-up blocked', 'Allow pop-ups for this site to print this record.')
+          }
         }
 
         button.addEventListener('click', onClick)
@@ -1267,7 +1299,7 @@ function AdminPrintManager({ children }) {
       cleanups.forEach((cleanup) => cleanup())
       cleanups.clear()
     }
-  }, [location.pathname, paperFormat, printable])
+  }, [location.pathname, paperFormat, printable, toast])
 
   return (
     <>

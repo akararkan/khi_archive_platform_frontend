@@ -30,10 +30,13 @@ async function fetchAllPageRecords(
     }
 
     const totalPages = Number(data?.totalPages)
+    // The short-page heuristic only applies when the response doesn't say
+    // otherwise: a backend that clamps the page size (last === false with a
+    // short page) must not end the walk early.
     const isLast =
       !isPageShape ||
       data.last === true ||
-      content.length < size ||
+      (data.last !== false && content.length < size) ||
       (Number.isFinite(totalPages) && page >= totalPages - 1)
     if (isLast) break
     page += 1

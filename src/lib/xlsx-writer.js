@@ -19,7 +19,9 @@
 // Conservative on purpose: archive codes like "0012" (leading zero) or ids
 // longer than 15 digits (float precision) must stay text.
 const PLAIN_NUMBER_RE = /^-?(0|[1-9]\d{0,14})(\.\d{1,10})?$/
-const GROUPED_NUMBER_RE = /^-?\d{1,3}(,\d{3}){1,4}(\.\d{1,10})?$/
+// Grouped numbers must start 1-9: "0,123" is not a real thousands-grouped
+// number, so it stays text instead of silently becoming 123.
+const GROUPED_NUMBER_RE = /^-?[1-9]\d{0,2}(,\d{3}){1,4}(\.\d{1,10})?$/
 
 function parseSpreadsheetNumber(value) {
   const text = String(value ?? '').trim()
@@ -139,7 +141,7 @@ function worksheetXml({ columns, rows, rtl }) {
 <dimension ref="A1:${lastRef}"/>
 <sheetViews><sheetView workbookViewId="0"${rtl ? ' rightToLeft="1"' : ''}><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
 <sheetFormatPr defaultRowHeight="15"/>
-<cols>${cols}</cols>
+${cols ? `<cols>${cols}</cols>` : ''}
 <sheetData>${parts.join('')}</sheetData>
 ${filter}
 </worksheet>`

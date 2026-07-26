@@ -13,6 +13,11 @@ import { parseSpreadsheetNumber } from '@/lib/xlsx-writer'
 // tolerant of the odd "N/A" without misclassifying mixed text columns.
 const NUMERIC_COLUMN_THRESHOLD = 0.85
 
+// ISO-8601 date / datetime (the backend's audit + date fields). For this
+// shape lexicographic order equals chronological order, so the column's
+// range (earliest → latest) falls out of plain string comparison.
+const DATE_VALUE_RE = /^\d{4}-\d{2}-\d{2}([T ].*)?$/
+
 // Above this average length a column reads as prose (descriptions, notes):
 // top-value chips are meaningless there, so the report shows length info.
 const LONG_TEXT_AVG_LENGTH = 60
@@ -33,6 +38,9 @@ function computeTableStatistics({ columns, rows }) {
     let min = Infinity
     let max = -Infinity
     let sum = 0
+    let dateCount = 0
+    let dateMin = ''
+    let dateMax = ''
 
     for (const row of rows) {
       const value = String(row[columnIndex] ?? '').trim()
@@ -49,6 +57,10 @@ function computeTableStatistics({ columns, rows }) {
         if (parsed < min) min = parsed
         if (parsed > max) max = parsed
         sum += parsed
+      } else if (DATE_VALUE_RE.test(value)) {
+        dateCount += 1
+        if (!dateMin || value < dateMin) dateMin = value
+        if (!dateMax || value > dateMax) dateMax = value
       }
     }
 
@@ -57,11 +69,12 @@ function computeTableStatistics({ columns, rows }) {
     const distinct = counts.size
     const avgLength = filled ? totalLength / filled : 0
     const isNumeric = filled > 0 && numericCount / filled >= NUMERIC_COLUMN_THRESHOLD
+    const isDates = !isNumeric && filled > 0 && dateCount / filled >= NUMERIC_COLUMN_THRESHOLD
     const allUnique = filled > 1 && distinct === filled
-    const longText = !isNumeric && avgLength > LONG_TEXT_AVG_LENGTH
+    const longText = !isNumeric && !isDates && avgLength > LONG_TEXT_AVG_LENGTH
 
     const topValues =
-      allUnique || longText
+      allUnique || longText || isDates
         ? []
         : [...counts.entries()]
             .sort((a, b) => b[1] - a[1])
@@ -81,6 +94,7 @@ function computeTableStatistics({ columns, rows }) {
       longText,
       avgLength,
       numeric: isNumeric ? { min, max, mean: sum / numericCount } : null,
+      dates: isDates ? { min: dateMin, max: dateMax } : null,
       topValues,
     }
   })
@@ -105,6 +119,7 @@ function pickDistributionColumns(statistics, limit = 4) {
     .filter(
       (profile) =>
         !profile.numeric &&
+        !profile.dates &&
         !profile.allUnique &&
         !profile.longText &&
         profile.distinct >= 2 &&
