@@ -311,14 +311,14 @@ function buildRecordContent(sourceTable, row) {
   }
 }
 
-// ── Excel + statistics export ────────────────────────────────────────────
+// ── Excel export ─────────────────────────────────────────────────────────
 //
-// "Print the whole table" stops scaling once a filtered view holds hundreds
-// of records. The export path answers that: the visible records download as a
-// real .xlsx workbook (one sheet per table, plus Report + Column statistics
-// summary sheets), and what goes to the printer is a compact statistical
-// profile of that workbook instead of every row. Values come from cell TEXT,
-// so search highlights never reach the export by construction.
+// The two toolbar buttons split cleanly: the Excel button downloads ONLY the
+// records workbook (all matching records in the KHI archive-template layout,
+// like the institute's hand-made "Audio 2026" inventory sheets); the Print
+// Report button carries the details AND the explanation — the record tables
+// followed by their statistical profile. Values come from cell TEXT, so
+// search highlights never reach the export by construction.
 
 // Header cells keep their text (sort controls may live inside), only icons go.
 function headerCellText(cell) {
@@ -494,29 +494,26 @@ function distributionCardHtml(profile) {
   return `<article class="dist-card"><h3>${escapeHtml(profile.name)}</h3>${rows}${otherRow}</article>`
 }
 
-// The printed statistical summary — the "explanation" companion to the
-// records-only workbook: Excel callout, headline tiles, then a column profile
-// + value distributions per data sheet.
-function buildStatisticsContent({ stats, totals, searchQuery, fileName, scopeNote }) {
+// The explanation half of the printed report: headline tiles, then a column
+// profile + value distributions for every record table printed above it.
+function buildExplanationContent({ stats, totals, searchQuery }) {
   const completeness = totals.cells ? totals.filled / totals.cells : 0
-  const sheetCount = stats.length
-
-  const banner = `
-    <section class="xls-callout">
-      <span class="xls-badge">XLSX</span>
-      <div class="xls-copy">
-        <strong>${escapeHtml(fileName)}</strong>
-        <span>${escapeHtml(scopeNote)} · ${sheetCount} data ${sheetCount === 1 ? 'sheet' : 'sheets'} · opens in Excel, Numbers, and Google Sheets.</span>
-      </div>
-      <div class="xls-meta">${totals.records.toLocaleString()} records<br/>${totals.columns.toLocaleString()} columns</div>
-    </section>`
 
   const tiles = `
-    <section class="stat-strip">
-      <div class="stat-tile"><span>Records exported</span><strong>${totals.records.toLocaleString()}</strong><small>Complete contents in the workbook</small></div>
-      <div class="stat-tile"><span>Data columns</span><strong>${totals.columns.toLocaleString()}</strong><small>Across ${stats.length.toLocaleString()} data ${stats.length === 1 ? 'sheet' : 'sheets'}</small></div>
-      <div class="stat-tile"><span>Data completeness</span><strong>${formatPercent(completeness)}</strong><small>${totals.filled.toLocaleString()} of ${totals.cells.toLocaleString()} cells filled</small></div>
-      <div class="stat-tile"><span>Search filter</span><strong>${searchQuery ? escapeHtml(truncateValue(searchQuery, 22)) : '—'}</strong><small>${searchQuery ? 'Applied before this export' : 'None — all matching records'}</small></div>
+    <section class="report-section stats-flow">
+      <div class="section-heading">
+        <div>
+          <span class="section-kicker">EXPLANATION</span>
+          <h2>Statistics of the printed records</h2>
+        </div>
+        <span class="section-count">${totals.records.toLocaleString()} records · ${totals.columns.toLocaleString()} columns</span>
+      </div>
+      <div class="stat-strip">
+        <div class="stat-tile"><span>Records in report</span><strong>${totals.records.toLocaleString()}</strong><small>Printed in the tables above</small></div>
+        <div class="stat-tile"><span>Data columns</span><strong>${totals.columns.toLocaleString()}</strong><small>Across ${stats.length.toLocaleString()} data ${stats.length === 1 ? 'table' : 'tables'}</small></div>
+        <div class="stat-tile"><span>Data completeness</span><strong>${formatPercent(completeness)}</strong><small>${totals.filled.toLocaleString()} of ${totals.cells.toLocaleString()} cells filled</small></div>
+        <div class="stat-tile"><span>Search filter</span><strong>${searchQuery ? escapeHtml(truncateValue(searchQuery, 22)) : '—'}</strong><small>${searchQuery ? 'Applied before this report' : 'None — all visible records'}</small></div>
+      </div>
     </section>`
 
   const sections = stats
@@ -560,7 +557,7 @@ function buildStatisticsContent({ stats, totals, searchQuery, fileName, scopeNot
     })
     .join('')
 
-  return banner + tiles + sections
+  return tiles + sections
 }
 
 function reportDocument({
@@ -580,21 +577,14 @@ function reportDocument({
     dateStyle: 'long',
     timeStyle: 'short',
   }).format(new Date())
-  const reportLabel =
-    mode === 'record'
-      ? 'Individual Record'
-      : mode === 'stats'
-        ? 'Statistical Summary'
-        : 'Collection Report'
+  const reportLabel = mode === 'record' ? 'Individual Record' : 'Collection Report'
   const pageSize = PAPER_FORMATS.some((format) => format.value === paperFormat)
     ? paperFormat
     : mode === 'all' ? 'A4 landscape' : 'A4 portrait'
   const metaValue =
     mode === 'record'
       ? safeRecordName
-      : mode === 'stats'
-        ? `${Number(recordCount || 0).toLocaleString()} records → Excel workbook`
-        : `${Number(recordCount || 0).toLocaleString()} visible records`
+      : `${Number(recordCount || 0).toLocaleString()} visible records`
   const safeSubtitle = escapeHtml(
     subtitle || 'Official archive report generated from the KHI management workspace.',
   )
@@ -880,48 +870,7 @@ function reportDocument({
       .fallback-content { padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
       .fallback-content img { max-width: 140px; max-height: 120px; object-fit: contain; }
       .fallback-content > * { margin-bottom: 12px; }
-      /* ── statistical summary (Excel export companion) ─────────────── */
-      .xls-callout {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        margin-bottom: 18px;
-        padding: 14px 18px;
-        border: 1px solid #e3d5b3;
-        border-radius: 14px;
-        background: linear-gradient(135deg, #fdf8ec, #faf3df);
-        break-inside: avoid;
-      }
-      .xls-badge {
-        display: grid;
-        place-items: center;
-        width: 46px;
-        height: 46px;
-        flex: 0 0 46px;
-        border-radius: 12px;
-        background: linear-gradient(145deg, #b68a37, #8f6a25);
-        color: #fffdf5;
-        font-size: 8.5px;
-        font-weight: 800;
-        letter-spacing: .09em;
-      }
-      .xls-copy { min-width: 0; flex: 1; }
-      .xls-copy strong {
-        display: block;
-        color: #6d5219;
-        font-family: "Courier New", monospace;
-        font-size: 11.5px;
-        overflow-wrap: anywhere;
-      }
-      .xls-copy span { display: block; margin-top: 3px; color: #8a6f33; font-size: 8.5px; }
-      .xls-meta {
-        color: #6d5219;
-        font-size: 8.5px;
-        font-weight: 800;
-        line-height: 1.6;
-        text-align: end;
-        white-space: nowrap;
-      }
+      /* ── statistical explanation (printed after the record tables) ── */
       .report-section.stats-flow + .report-section.stats-flow { break-before: auto; }
       .profile-table th { font-size: 7.6px; }
       .profile-table td { font-size: 9px; }
@@ -1107,6 +1056,8 @@ function AdminPrintManager({ children }) {
     [paperFormat],
   )
 
+  // Print report = the details AND the explanation: every visible record
+  // table, followed by a statistical profile of those same records.
   const printAll = () => {
     const root = surfaceRef.current
     if (!root) return
@@ -1115,9 +1066,28 @@ function AdminPrintManager({ children }) {
     const report = buildAllRecordsContent(root, title)
     // Headline KPI tiles print as a stat strip above the data sections.
     const kpiStrip = buildKpiStrip(root)
+
+    const sections = extractTablesData(root, title)
+    const stats = sections.map((section) => ({
+      ...section,
+      statistics: computeTableStatistics(section),
+    }))
+    const totals = stats.reduce(
+      (sums, section) => ({
+        records: sums.records + section.statistics.rowCount,
+        columns: sums.columns + section.statistics.columnCount,
+        filled: sums.filled + section.statistics.filledCells,
+        cells: sums.cells + section.statistics.totalCells,
+      }),
+      { records: 0, columns: 0, filled: 0, cells: 0 },
+    )
+    const explanation = stats.length
+      ? buildExplanationContent({ stats, totals, searchQuery: detectSearchQuery(root) })
+      : ''
+
     const opened = openPrintReport({
       title,
-      content: kpiStrip + report.content,
+      content: kpiStrip + report.content + explanation,
       recordCount: report.recordCount,
       direction: getComputedStyle(root).direction || 'ltr',
       mode: 'all',
@@ -1128,38 +1098,27 @@ function AdminPrintManager({ children }) {
     }
   }
 
-  // Excel + statistics — split exactly as: the .xlsx carries the REAL records
-  // with their complete field contents; the print window carries the
-  // explanation (a statistical profile of that workbook), never the rows.
-  //
-  // Records come from the page's registered export provider (full DTOs for
-  // the whole matching result set, fetched from the API); pages without a
-  // provider fall back to scraping the visible table.
+  // Excel button — downloads ONLY the records workbook, no popup. Records
+  // come from the page's registered export provider (full DTOs for the whole
+  // matching result set, fetched from the API) and get the KHI
+  // archive-template layout: grouped, bilingual (Sorani + English) header
+  // block over the full DTO columns, exactly like the institute's hand-made
+  // inventory sheets. Pages without a provider fall back to scraping the
+  // visible table into a plain flat sheet.
   const exportExcelReport = async () => {
     const root = surfaceRef.current
     if (!root || isExporting) return
 
     const title = titleForPath(location.pathname, root)
     const provider = getReportExportProvider()
-    // Opened synchronously inside the click so pop-up blockers allow it.
-    const pending = openDeferredPrintReport()
-    if (!pending) {
-      toast.toast(
-        'Pop-up blocked',
-        'The Excel will still download — allow pop-ups to also get the printed statistical summary.',
-      )
-    }
     setIsExporting(true)
 
     try {
       let sections = []
-      let scopeNote = 'Records visible on this page'
+      let truncated = false
 
       if (provider) {
         const provided = await provider()
-        // Provider records get the KHI archive-template layout: grouped,
-        // bilingual (Sorani + English) header block over the full DTO
-        // columns, exactly like the institute's hand-made inventory sheets.
         const template = resolveExportTemplate(location.pathname)
         const providedSections = (provided?.sections ?? [])
           .filter((section) => Array.isArray(section?.records) && section.records.length > 0)
@@ -1172,9 +1131,7 @@ function AdminPrintManager({ children }) {
           }))
         if (providedSections.length) {
           sections = providedSections
-          scopeNote = provided?.truncated
-            ? 'Result set capped at 20,000 records — narrow the search for a complete export'
-            : 'Complete matching result set with full record contents'
+          truncated = Boolean(provided?.truncated)
         }
       }
 
@@ -1182,36 +1139,18 @@ function AdminPrintManager({ children }) {
         sections = extractTablesData(root, title)
       }
       if (!sections.length) {
-        pending?.close()
         toast.error('Nothing to export', 'No records are visible on this page right now.')
         return
       }
 
-      const generatedAt = new Date()
-      const direction = getComputedStyle(root).direction || 'ltr'
-      const rtl = direction === 'rtl'
-      const searchQuery = detectSearchQuery(root)
-      const stats = sections.map((section) => ({
-        ...section,
-        statistics: computeTableStatistics(section),
-      }))
-      const totals = stats.reduce(
-        (sums, section) => ({
-          records: sums.records + section.statistics.rowCount,
-          columns: sums.columns + section.statistics.columnCount,
-          filled: sums.filled + section.statistics.filledCells,
-          cells: sums.cells + section.statistics.totalCells,
-        }),
-        { records: 0, columns: 0, filled: 0, cells: 0 },
-      )
-      const fileName = exportFileName(title, generatedAt)
+      // Archive-template sheets are RTL like the hand-made inventory
+      // workbooks; DOM-scrape fallback sheets follow the page direction.
+      const rtl = (getComputedStyle(root).direction || 'ltr') === 'rtl'
+      const fileName = exportFileName(title, new Date())
+      const totalRecords = sections.reduce((sum, section) => sum + section.rows.length, 0)
 
-      // Records only — no statistics sheets inside the Excel; the printed
-      // report is where the explanation lives. Archive-template sheets are
-      // RTL like the hand-made inventory workbooks; DOM-scrape fallback
-      // sheets follow the page direction.
       const workbook = buildXlsxBlob({
-        sheets: stats.map((section) => ({
+        sheets: sections.map((section) => ({
           name: section.title,
           columns: section.columns,
           rows: section.rows,
@@ -1220,19 +1159,13 @@ function AdminPrintManager({ children }) {
         })),
       })
       downloadBlob(workbook, fileName)
-      toast.success('Excel exported', `${fileName} · ${totals.records.toLocaleString()} records`)
-
-      pending?.render({
-        title,
-        content: buildStatisticsContent({ stats, totals, searchQuery, fileName, scopeNote }),
-        recordCount: totals.records,
-        direction,
-        mode: 'stats',
-        paperFormat,
-        subtitle: 'Statistical companion to the exported Excel workbook.',
-      })
+      toast.success(
+        'Excel exported',
+        `${fileName} · ${totalRecords.toLocaleString()} records${
+          truncated ? ' · capped at 20,000 — narrow the search for a complete export' : ''
+        }`,
+      )
     } catch (error) {
-      pending?.close()
       toast.apiError(error, 'Excel export failed')
     } finally {
       setIsExporting(false)
@@ -1341,7 +1274,7 @@ function AdminPrintManager({ children }) {
               <Printer aria-hidden="true" />
               <span>
                 <strong>Print report</strong>
-                <small>{selectedPaperLabel} · all visible records</small>
+                <small>{selectedPaperLabel} · details + explanation</small>
               </span>
             </button>
             <button
@@ -1352,11 +1285,11 @@ function AdminPrintManager({ children }) {
             >
               <FileSpreadsheet aria-hidden="true" />
               <span>
-                <strong>{isExporting ? 'Preparing export…' : 'Excel + statistics'}</strong>
+                <strong>{isExporting ? 'Preparing export…' : 'Excel export'}</strong>
                 <small>
                   {isExporting
                     ? 'Fetching all matching records'
-                    : 'records → .xlsx · statistics → printed report'}
+                    : 'all records → archive .xlsx'}
                 </small>
               </span>
             </button>
