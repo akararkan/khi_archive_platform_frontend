@@ -26,18 +26,19 @@ import { textFieldsMetadata } from '@/lib/text-fields-metadata'
 import { videoFieldsMetadata } from '@/lib/video-fields-metadata'
 
 // ── groups ─────────────────────────────────────────────────────────────────
-// Canonical order mirrors the reference workbook; colours are the light
-// banded fills of its hand-made group row. Only groups a sheet actually uses
-// appear in it.
+// Canonical order mirrors the reference workbook. Each group carries a
+// saturated banner colour (white text, merged group row) and a light tint
+// (the Sorani/English title rows beneath it). Only groups a sheet actually
+// uses appear in it.
 const GROUP_DEFS = {
-  identification: { en: 'Identification', ku: 'ناسنامە', color: 'FFA9D08E' },
-  content: { en: 'Content', ku: 'ناوەڕۆک', color: 'FF9DC3E6' },
-  technical: { en: 'Technical', ku: 'تەکنیکی', color: 'FFFFD966' },
-  rights: { en: 'Rights & Publication', ku: 'ماف و بڵاوکردنەوە', color: 'FFF4B183' },
-  access: { en: 'Role & Access', ku: 'ڕۆڵ و دەسەڵاتەکان', color: 'FFFFD966' },
-  notes: { en: 'Notes', ku: 'تێبینییەکان', color: 'FFF4B183' },
-  details: { en: 'Details', ku: 'وردەکارییەکان', color: 'FFB4A7D6' },
-  system: { en: 'System & Audit', ku: 'سیستەم و تۆمارکاری', color: 'FFD9D9D9' },
+  identification: { en: 'Identification', ku: 'ناسنامە', color: 'FF2F6B54', tint: 'FFDDEBD9' },
+  content: { en: 'Content', ku: 'ناوەڕۆک', color: 'FF2E5F8A', tint: 'FFDCE8F4' },
+  technical: { en: 'Technical', ku: 'تەکنیکی', color: 'FFB68A37', tint: 'FFF4E8CB' },
+  rights: { en: 'Rights & Publication', ku: 'ماف و بڵاوکردنەوە', color: 'FFAE5A3C', tint: 'FFF5E1D6' },
+  access: { en: 'Role & Access', ku: 'ڕۆڵ و دەسەڵاتەکان', color: 'FFB68A37', tint: 'FFF4E8CB' },
+  notes: { en: 'Notes', ku: 'تێبینییەکان', color: 'FFAE5A3C', tint: 'FFF5E1D6' },
+  details: { en: 'Details', ku: 'وردەکارییەکان', color: 'FF6B5B95', tint: 'FFE7E2F1' },
+  system: { en: 'System & Audit', ku: 'سیستەم و تۆمارکاری', color: 'FF5F6B64', tint: 'FFE5E9E6' },
 }
 
 const GROUP_ORDER = Object.keys(GROUP_DEFS)
@@ -321,7 +322,8 @@ function kurdishEntry(template, key) {
 }
 
 // keys/columns/rows come from flattenRecords; the result feeds buildXlsxBlob.
-function buildArchiveSheet({ keys, columns, rows, template }) {
+// `title` labels the masthead (sheet name + record count + generation date).
+function buildArchiveSheet({ keys, columns, rows, template, title }) {
   if (!template || !Array.isArray(keys) || keys.length === 0) {
     return { columns, rows }
   }
@@ -376,6 +378,7 @@ function buildArchiveSheet({ keys, columns, rows, template }) {
         title: `${def.en} / ${def.ku}`,
         span: 1,
         color: def.color,
+        tint: def.tint,
       })
     }
   }
@@ -384,13 +387,27 @@ function buildArchiveSheet({ keys, columns, rows, template }) {
   if (hintsEn.some(Boolean)) hintRows.push(hintsEn)
   if (hintsKu.some(Boolean)) hintRows.push(hintsKu)
 
+  const generated = new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(new Date())
+
   return {
     columns: outColumns,
     rows: outRows,
     // The reference workbooks read right-to-left — most content is Sorani.
     rtl: true,
     archiveHeader: {
-      groups: groups.map(({ title, span, color }) => ({ title, span, color })),
+      masthead: {
+        brand: 'Kurdish Heritage Institute · ئینستیتیوتی کەلەپووری کوردی',
+        subtitle: `${title || 'Archive'} · ${rows.length.toLocaleString()} records · Generated ${generated}`,
+      },
+      groups: groups.map(({ title: groupTitle, span, color, tint }) => ({
+        title: groupTitle,
+        span,
+        color,
+        tint,
+      })),
       hintRows,
       titleRows: titlesKu.some(Boolean) ? [titlesKu] : [],
     },

@@ -19,6 +19,24 @@ function printLogoSrc() {
   return new URL(KHI_LOGO_FALLBACK_SRC, window.location.origin).href
 }
 
+// Logo bytes for the Excel masthead. The uploaded S3 logo may refuse
+// cross-origin reads; the bundled same-origin fallback always works, and a
+// missing logo just means the workbook ships without the image.
+async function fetchLogoBytes() {
+  const candidates = [printLogoSrc(), new URL(KHI_LOGO_FALLBACK_SRC, window.location.origin).href]
+  for (const src of candidates) {
+    try {
+      const response = await fetch(src)
+      if (!response.ok) continue
+      const bytes = new Uint8Array(await response.arrayBuffer())
+      if (bytes.length) return bytes
+    } catch {
+      // Try the next candidate.
+    }
+  }
+  return null
+}
+
 const PAPER_FORMATS = [
   { value: 'A4 portrait', label: 'A4 · Portrait' },
   { value: 'A4 landscape', label: 'A4 · Landscape' },
@@ -1127,6 +1145,7 @@ function AdminPrintManager({ children }) {
             ...buildArchiveSheet({
               ...flattenRecords(section.records, { labels: section.labels, omit: section.omit }),
               template,
+              title: section.title || title,
             }),
           }))
         if (providedSections.length) {
@@ -1148,8 +1167,12 @@ function AdminPrintManager({ children }) {
       const rtl = (getComputedStyle(root).direction || 'ltr') === 'rtl'
       const fileName = exportFileName(title, new Date())
       const totalRecords = sections.reduce((sum, section) => sum + section.rows.length, 0)
+      const logo = sections.some((section) => section.archiveHeader)
+        ? await fetchLogoBytes()
+        : null
 
       const workbook = buildXlsxBlob({
+        logo,
         sheets: sections.map((section) => ({
           name: section.title,
           columns: section.columns,

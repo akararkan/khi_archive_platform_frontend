@@ -8,7 +8,7 @@
 // small XML parts, and a ZIP with STORE (no compression) entries is ~100 lines.
 //
 // Public API:
-//   buildXlsxBlob({ sheets: [{ name, columns, rows, rtl?, archiveHeader? }] }) → Blob
+//   buildXlsxBlob({ sheets: [{ name, columns, rows, rtl?, archiveHeader? }], logo? }) → Blob
 //   parseSpreadsheetNumber(value) → canonical numeric string | null
 //
 // `columns` is an array of header labels; `rows` an array of string arrays.
@@ -17,12 +17,21 @@
 //
 // `archiveHeader` switches a sheet from the plain one-row header to the KHI
 // archive template layout (modelled on the institute's hand-made inventory
-// workbooks): a merged, colour-banded section-group row, optional sparse
-// explanation rows (English + Sorani), optional extra bold title rows (the
-// Sorani column names), then the `columns` row (English names) that carries
-// the autofilter. Shape:
-//   { groups: [{ title, span, color }], hintRows: [string[]…], titleRows: [string[]…] }
-// Group spans must cover every column in order; `color` is an ARGB string.
+// workbooks): a two-row branded masthead, a merged colour-banded
+// section-group row, optional sparse explanation rows (English + Sorani),
+// optional extra bold title rows (the Sorani column names), then the
+// `columns` row (English names) that carries the autofilter. Shape:
+//   {
+//     masthead?: { brand, subtitle },
+//     groups: [{ title, span, color, tint }],   // color = banner, tint = title rows
+//     hintRows: [string[]…],
+//     titleRows: [string[]…],
+//   }
+// Group spans must cover every column in order; colours are ARGB strings.
+//
+// `logo` is optional PNG/JPEG bytes (Uint8Array); when present, every
+// masthead sheet gets the image anchored over its masthead via a standard
+// spreadsheetDrawing part.
 
 // ── numeric detection ──────────────────────────────────────────────────────
 // Conservative on purpose: archive codes like "0012" (leading zero) or ids
@@ -109,13 +118,16 @@ function cellXml(ref, value, styleId, forceText = false) {
   return `<c r="${ref}" s="${styleId}" t="inlineStr"><is><t xml:space="preserve">${escapeXmlText(clipped)}</t></is></c>`
 }
 
-function worksheetXml({ columns, rows, rtl, archiveHeader, colorStyles }) {
+function worksheetXml({ columns, rows, rtl, archiveHeader, colorStyles, drawingRelId }) {
   const columnCount = Math.max(columns.length, 1)
   const header = archiveHeader?.groups?.length ? archiveHeader : null
+  const masthead = header?.masthead
   const hintRows = header?.hintRows ?? []
   const titleRows = header?.titleRows ?? []
-  // Group banner + hint rows + extra title rows + the `columns` row itself.
-  const headerRowCount = header ? 1 + hintRows.length + titleRows.length + 1 : 1
+  // Masthead + group banner + hint rows + extra title rows + `columns` row.
+  const headerRowCount = header
+    ? (masthead ? 2 : 0) + 1 + hintRows.length + titleRows.length + 1
+    : 1
   const lastRow = rows.length + headerRowCount
   const lastCol = columnRef(columnCount - 1)
   const lastRef = `${lastCol}${lastRow}`
@@ -145,6 +157,26 @@ function worksheetXml({ columns, rows, rtl, archiveHeader, colorStyles }) {
   let rowNumber = 1
 
   if (header) {
+    if (masthead) {
+      // Two branded rows merged across the sheet: institute name, then the
+      // sheet title with record count and generation date. The logo drawing
+      // (when provided) floats over these rows.
+      parts.push(
+        `<row r="1" ht="44" customHeight="1">${columns
+          .map((_, i) => cellXml(`${columnRef(i)}1`, i === 0 ? masthead.brand : '', 5, true))
+          .join('')}</row>`,
+      )
+      parts.push(
+        `<row r="2" ht="22" customHeight="1">${columns
+          .map((_, i) => cellXml(`${columnRef(i)}2`, i === 0 ? masthead.subtitle : '', 6, true))
+          .join('')}</row>`,
+      )
+      if (columnCount > 1) {
+        merges.push(`A1:${lastCol}1`, `A2:${lastCol}2`)
+      }
+      rowNumber = 3
+    }
+
     // Per-column bold-title style, expanded from the group spans so the Sorani
     // and English title rows carry their group's colour band.
     const columnTitleStyle = []
@@ -152,7 +184,7 @@ function worksheetXml({ columns, rows, rtl, archiveHeader, colorStyles }) {
     let startColumn = 0
     for (const group of header.groups) {
       const span = Math.max(1, Number(group.span) || 1)
-      const styles = colorStyles.get(group.color)
+      const styles = colorStyles.get(`${group.color}|${group.tint}`)
       const bannerStyle = styles?.banner ?? 1
       bannerCells.push(cellXml(`${columnRef(startColumn)}${rowNumber}`, group.title, bannerStyle, true))
       for (let k = 1; k < span; k += 1) {
@@ -213,51 +245,64 @@ function worksheetXml({ columns, rows, rtl, archiveHeader, colorStyles }) {
     ? `<mergeCells count="${merges.length}">${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join('')}</mergeCells>`
     : ''
 
+  // Archive sheets read like a document: gridlines off, pine sheet tab.
+  const sheetPr = header ? '<sheetPr><tabColor rgb="FF173D30"/></sheetPr>' : ''
+  const gridlines = header ? ' showGridLines="0"' : ''
+  const drawing = drawingRelId ? `<drawing r:id="${drawingRelId}"/>` : ''
+
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+${sheetPr}
 <dimension ref="A1:${lastRef}"/>
-<sheetViews><sheetView workbookViewId="0"${rtl ? ' rightToLeft="1"' : ''}><pane ySplit="${headerRowCount}" topLeftCell="A${headerRowCount + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+<sheetViews><sheetView workbookViewId="0"${gridlines}${rtl ? ' rightToLeft="1"' : ''}><pane ySplit="${headerRowCount}" topLeftCell="A${headerRowCount + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
 <sheetFormatPr defaultRowHeight="15"/>
 ${cols ? `<cols>${cols}</cols>` : ''}
 <sheetData>${parts.join('')}</sheetData>
 ${filter}
 ${mergeXml}
+${drawing}
 </worksheet>`
 }
 
 // ── workbook styles ────────────────────────────────────────────────────────
 // KHI print-report palette: pine header with warm white text, soft zebra.
-// Styles 0–3 are the classic flat-sheet set; style 4 is the archive-template
-// hint cell; each group colour used by any sheet's archiveHeader appends a
-// banner xf (centred, merged group row) and a title xf (bold column names).
+// Styles 0–3 are the classic flat-sheet set; 4 is the archive-template hint
+// cell; 5–6 the branded masthead rows; each group colour pair used by any
+// sheet's archiveHeader appends a banner xf (saturated fill, warm white,
+// centred) and a title xf (light tint, dark bold — Sorani/English names).
 function solidFill(color) {
   return `<fill><patternFill patternType="solid"><fgColor rgb="${color}"/></patternFill></fill>`
 }
 
-function stylesXml(groupColors) {
-  const groupFills = groupColors.map(solidFill).join('\n')
-  const groupXfs = groupColors
+function stylesXml(groupColorPairs) {
+  const groupFills = groupColorPairs
+    .map((pair) => `${solidFill(pair.color)}\n${solidFill(pair.tint)}`)
+    .join('\n')
+  const groupXfs = groupColorPairs
     .map(
-      (color, i) => `
-<xf numFmtId="0" fontId="2" fillId="${5 + i}" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
-<xf numFmtId="0" fontId="2" fillId="${5 + i}" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>`,
+      (pair, i) => `
+<xf numFmtId="0" fontId="1" fillId="${6 + i * 2}" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="2" fillId="${7 + i * 2}" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>`,
     )
     .join('')
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="4">
+<fonts count="6">
 <font><sz val="11"/><name val="Calibri"/><color rgb="FF26332D"/></font>
 <font><b/><sz val="11"/><name val="Calibri"/><color rgb="FFFFFDF5"/></font>
 <font><b/><sz val="10.5"/><name val="Calibri"/><color rgb="FF26332D"/></font>
 <font><i/><sz val="8.5"/><name val="Calibri"/><color rgb="FF65716A"/></font>
+<font><b/><sz val="15"/><name val="Calibri"/><color rgb="FFFFFDF5"/></font>
+<font><sz val="10"/><name val="Calibri"/><color rgb="FFEAD9AD"/></font>
 </fonts>
-<fills count="${5 + groupColors.length}">
+<fills count="${6 + groupColorPairs.length * 2}">
 <fill><patternFill patternType="none"/></fill>
 <fill><patternFill patternType="gray125"/></fill>
 ${solidFill('FF173D30')}
 ${solidFill('FFF3F7F5')}
 ${solidFill('FFFBF8EE')}
+${solidFill('FF0D2B21')}
 ${groupFills}
 </fills>
 <borders count="2">
@@ -265,12 +310,14 @@ ${groupFills}
 <border><left style="thin"><color rgb="FFD9E0DC"/></left><right style="thin"><color rgb="FFD9E0DC"/></right><top style="thin"><color rgb="FFD9E0DC"/></top><bottom style="thin"><color rgb="FFD9E0DC"/></bottom><diagonal/></border>
 </borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="${5 + groupColors.length * 2}">
+<cellXfs count="${7 + groupColorPairs.length * 2}">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
 <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
 <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1"/>
 <xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="4" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="5" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 ${groupXfs}
 </cellXfs>
 </styleSheet>`
@@ -281,21 +328,76 @@ const RELS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
 </Relationships>`
 
-function contentTypesXml(sheetCount) {
+function contentTypesXml(sheetCount, { imageExtension, drawingCount } = {}) {
   const overrides = Array.from(
     { length: sheetCount },
     (_, i) =>
       `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`,
+  ).join('')
+  const imageDefault = imageExtension
+    ? `<Default Extension="${imageExtension}" ContentType="image/${imageExtension}"/>`
+    : ''
+  const drawingOverrides = Array.from(
+    { length: drawingCount || 0 },
+    (_, i) =>
+      `<Override PartName="/xl/drawings/drawing${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`,
   ).join('')
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
+${imageDefault}
 <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
 <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
 ${overrides}
+${drawingOverrides}
 </Types>`
+}
+
+// ── logo drawing parts ─────────────────────────────────────────────────────
+// One shared image part; each masthead sheet gets its own drawing anchored
+// over the masthead rows (in RTL sheets cell A1 sits visually at the top
+// right, mirroring the print-report letterhead).
+function detectImageExtension(bytes) {
+  if (!bytes || bytes.length < 4) return null
+  if (bytes[0] === 0x89 && bytes[1] === 0x50) return 'png'
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) return 'jpeg'
+  return null
+}
+
+// 9525 EMU per pixel; the masthead is 66px tall, the logo floats at ~58px.
+const LOGO_EMU = 58 * 9525
+const LOGO_OFFSET_EMU = 4 * 9525
+
+function drawingXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<xdr:oneCellAnchor>
+<xdr:from><xdr:col>0</xdr:col><xdr:colOff>${LOGO_OFFSET_EMU}</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>${LOGO_OFFSET_EMU}</xdr:rowOff></xdr:from>
+<xdr:ext cx="${LOGO_EMU}" cy="${LOGO_EMU}"/>
+<xdr:pic>
+<xdr:nvPicPr><xdr:cNvPr id="1" name="KHI Logo"/><xdr:cNvPicPr/></xdr:nvPicPr>
+<xdr:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
+<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${LOGO_EMU}" cy="${LOGO_EMU}"/></a:xfrm><a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom></xdr:spPr>
+</xdr:pic>
+<xdr:clientData/>
+</xdr:oneCellAnchor>
+</xdr:wsDr>`
+}
+
+function drawingRelsXml(imageExtension) {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.${imageExtension}"/>
+</Relationships>`
+}
+
+function sheetRelsXml(drawingIndex) {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${drawingIndex}.xml"/>
+</Relationships>`
 }
 
 function workbookXml(sheetNames) {
@@ -414,31 +516,49 @@ function buildZip(files) {
 }
 
 // ── public entry point ─────────────────────────────────────────────────────
-function buildXlsxBlob({ sheets }) {
+function buildXlsxBlob({ sheets, logo }) {
   const safeSheets = (sheets || []).filter(Boolean)
   if (safeSheets.length === 0) {
     throw new Error('buildXlsxBlob needs at least one sheet')
   }
 
-  // Styles are workbook-global: collect every group colour used by any sheet
-  // and hand each worksheet the banner/title style ids for its colours.
-  const groupColors = []
+  // Styles are workbook-global: collect every banner/tint colour pair used by
+  // any sheet and hand each worksheet the style ids for its pairs.
+  const pairKeys = []
+  const groupColorPairs = []
   for (const sheet of safeSheets) {
     for (const group of sheet.archiveHeader?.groups ?? []) {
-      if (group?.color && !groupColors.includes(group.color)) groupColors.push(group.color)
+      const key = `${group.color}|${group.tint}`
+      if (group?.color && !pairKeys.includes(key)) {
+        pairKeys.push(key)
+        groupColorPairs.push({ color: group.color, tint: group.tint })
+      }
     }
   }
   const colorStyles = new Map(
-    groupColors.map((color, i) => [color, { banner: 5 + i * 2, title: 6 + i * 2 }]),
+    pairKeys.map((key, i) => [key, { banner: 7 + i * 2, title: 8 + i * 2 }]),
   )
+
+  // Logo drawings: one shared image, one drawing part per masthead sheet.
+  const imageExtension = detectImageExtension(logo)
+  const drawnSheets = imageExtension
+    ? safeSheets.map((sheet, i) => (sheet.archiveHeader?.masthead ? i : -1)).filter((i) => i >= 0)
+    : []
+  const drawingIndexBySheet = new Map(drawnSheets.map((sheetIndex, k) => [sheetIndex, k + 1]))
 
   const names = sanitizeSheetNames(safeSheets)
   const files = [
-    { name: '[Content_Types].xml', data: contentTypesXml(safeSheets.length) },
+    {
+      name: '[Content_Types].xml',
+      data: contentTypesXml(safeSheets.length, {
+        imageExtension: drawnSheets.length ? imageExtension : null,
+        drawingCount: drawnSheets.length,
+      }),
+    },
     { name: '_rels/.rels', data: RELS_XML },
     { name: 'xl/workbook.xml', data: workbookXml(names) },
     { name: 'xl/_rels/workbook.xml.rels', data: workbookRelsXml(safeSheets.length) },
-    { name: 'xl/styles.xml', data: stylesXml(groupColors) },
+    { name: 'xl/styles.xml', data: stylesXml(groupColorPairs) },
     ...safeSheets.map((sheet, i) => ({
       name: `xl/worksheets/sheet${i + 1}.xml`,
       data: worksheetXml({
@@ -447,9 +567,22 @@ function buildXlsxBlob({ sheets }) {
         rtl: Boolean(sheet.rtl),
         archiveHeader: sheet.archiveHeader,
         colorStyles,
+        drawingRelId: drawingIndexBySheet.has(i) ? 'rId1' : null,
       }),
     })),
   ]
+
+  if (drawnSheets.length) {
+    files.push({ name: `xl/media/image1.${imageExtension}`, data: logo })
+    for (const sheetIndex of drawnSheets) {
+      const drawingIndex = drawingIndexBySheet.get(sheetIndex)
+      files.push(
+        { name: `xl/drawings/drawing${drawingIndex}.xml`, data: drawingXml() },
+        { name: `xl/drawings/_rels/drawing${drawingIndex}.xml.rels`, data: drawingRelsXml(imageExtension) },
+        { name: `xl/worksheets/_rels/sheet${sheetIndex + 1}.xml.rels`, data: sheetRelsXml(drawingIndex) },
+      )
+    }
+  }
 
   return buildZip(files)
 }
