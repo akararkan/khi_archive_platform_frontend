@@ -245,16 +245,22 @@ function worksheetXml({ columns, rows, rtl, archiveHeader, colorStyles, drawingR
     ? `<mergeCells count="${merges.length}">${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join('')}</mergeCells>`
     : ''
 
-  // Archive sheets read like a document: gridlines off, pine sheet tab.
+  // Archive sheets read like a document: gridlines off, pine sheet tab, and
+  // NO frozen panes — the tall branded header must scroll away normally
+  // (user feedback: a pinned colored block on every scroll is unwanted).
+  // Plain sheets keep the classic single frozen header row.
   const sheetPr = header ? '<sheetPr><tabColor rgb="FF173D30"/></sheetPr>' : ''
   const gridlines = header ? ' showGridLines="0"' : ''
+  const pane = header
+    ? ''
+    : '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>'
   const drawing = drawingRelId ? `<drawing r:id="${drawingRelId}"/>` : ''
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 ${sheetPr}
 <dimension ref="A1:${lastRef}"/>
-<sheetViews><sheetView workbookViewId="0"${gridlines}${rtl ? ' rightToLeft="1"' : ''}><pane ySplit="${headerRowCount}" topLeftCell="A${headerRowCount + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+<sheetViews><sheetView workbookViewId="0"${gridlines}${rtl ? ' rightToLeft="1"' : ''}>${pane}</sheetView></sheetViews>
 <sheetFormatPr defaultRowHeight="15"/>
 ${cols ? `<cols>${cols}</cols>` : ''}
 <sheetData>${parts.join('')}</sheetData>
