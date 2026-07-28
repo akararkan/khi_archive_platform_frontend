@@ -83,14 +83,6 @@ function PublicImageDetailPage() {
   const fileUrl = isStaff ? staffImage.url : resolveMediaUrl(image.imageFileUrl)
   const projectCode = image.project?.projectCode || image.projectCode
 
-  // The year is deliberately absent here — it closes the page as footerYear.
-  const infoCards = [
-    { label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
-    { label: DETAIL.event, value: image.event },
-    { label: DETAIL.location, value: image.location || image.region },
-    { label: DETAIL.photographer, value: image.creatorArtistPhotographer },
-  ]
-
   const content = (
     <>
       {fileUrl ? (
@@ -146,7 +138,6 @@ function PublicImageDetailPage() {
           ] : []}
           helpAction={{ label: DETAIL.help, onClick: () => setHelpOpen(true) }}
           footerYear={yearNum(image)}
-          infoCards={infoCards}
           content={content}
           meta={meta}
         />

@@ -88,15 +88,6 @@ function PublicVideoDetailPage() {
   const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
   const projectCode = video.project?.projectCode || video.projectCode
 
-  // The year is deliberately absent here — it closes the page as footerYear.
-  const infoCards = [
-    { label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
-    { label: DETAIL.event, value: video.event },
-    { label: DETAIL.location, value: video.location || video.region },
-    { label: DETAIL.language, value: video.language },
-    { label: DETAIL.duration, value: video.durationFormatted || video.duration },
-  ]
-
   const content = (
     <>
       {playbackSrc ? (
@@ -144,7 +135,6 @@ function PublicVideoDetailPage() {
           ] : []}
           helpAction={{ label: DETAIL.help, onClick: () => setHelpOpen(true) }}
           footerYear={yearNum(video)}
-          infoCards={infoCards}
           content={content}
           meta={meta}
         />

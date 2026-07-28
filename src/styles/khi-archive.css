@@ -1065,13 +1065,6 @@
 .khi-root .mic-badge svg{color:var(--gold-bright)}
 
 /* ── Info grid ──────────────────────────────────────────────────────────── */
-.khi-root .info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:18px;margin-bottom:36px}
-.khi-root .info-card{display:flex;align-items:center;gap:16px;min-height:104px;padding:20px;border-radius:18px;background:#fff;border:1px solid var(--line);box-shadow:0 18px 42px -28px rgba(58,44,27,.45);text-decoration:none;color:inherit;transition:.2s}
-.khi-root .info-card.link:hover{transform:translateY(-3px);border-color:var(--line-2);box-shadow:0 26px 52px -26px rgba(58,44,27,.5)}
-.khi-root .info-icon{min-width:48px;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,var(--pine-2),var(--pine));color:var(--cream)}
-.khi-root .info-text{min-width:0}
-.khi-root .info-text span{display:block;color:var(--ink-muted);font-size:13px;margin-bottom:5px}
-.khi-root .info-text strong{display:block;color:var(--ink);font-size:16px;font-weight:700;word-break:break-word;line-height:1.4}
 
 /* ── Stats strip ────────────────────────────────────────────────────────── */
 .khi-root .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:32px;border-radius:18px;background:#fff;border:1px solid var(--line);box-shadow:0 20px 48px -30px rgba(59,45,25,.5);overflow:hidden}
@@ -1469,7 +1462,6 @@
 .khi-root .detail-error{min-height:300px;display:grid;place-items:center;gap:18px;text-align:center;color:var(--ink-muted);font-size:16px}
 
 @media (prefers-reduced-motion: reduce){
-  .khi-root .info-card.link:hover{transform:none}
   .khi-root .see-all-btn:hover svg{transform:none}
   .khi-root .detail-skeleton [class^=sk-],.khi-root .detail-skeleton .sk-grid span{animation:none}
 }
@@ -1496,57 +1488,38 @@
    the deep-zoom image viewer, the video frame, every book page,
    and the hero artwork on image/video/text detail pages.
    (Catalogue cards deliberately carry no mark.)
-   The drift is a broadcast-style "DOG jitter" — real anti-piracy
-   watermarks move on purpose so a fixed crop can't cheaply remove
-   the mark. pointer-events stay off so pan/zoom/seek/page-turn/
-   card-click all work exactly as before. Mounted from
-   KhiLogoWatermark.jsx.
+   The mark is STATIC and pinned to the bottom-right corner of the
+   media box (the earlier drifting/breathing animation was removed —
+   motion over the artwork was distracting). pointer-events stay off
+   so pan/zoom/seek/page-turn all work exactly as before. Mounted
+   from KhiLogoWatermark.jsx.
    ============================================================ */
 .khi-root .khi-watermark{
-  --wm-min:.13;--wm-max:.26;--wm-drift-x:30px;--wm-drift-y:20px;
-  position:absolute;inset:0;z-index:5;display:grid;place-items:center;
-  pointer-events:none;user-select:none;
-  animation:khi-watermark-drift 26s ease-in-out infinite;will-change:transform;
+  --wm-opacity:.22;--wm-size:clamp(52px,12%,96px);--wm-inset:16px;
+  position:absolute;inset:0;z-index:5;pointer-events:none;user-select:none;
 }
-.khi-root .khi-watermark img{width:clamp(64px,17%,132px);aspect-ratio:1;border-radius:50%;object-fit:cover;opacity:var(--wm-min);filter:saturate(.86);
-  box-shadow:0 0 0 1px rgba(255,255,255,.5),0 0 0 5px rgba(255,255,255,.12),0 0 0 6.5px rgba(214,178,94,.34),0 18px 44px rgba(16,30,23,.3);
-  animation:khi-watermark-breathe 7s cubic-bezier(.45,0,.55,1) infinite;will-change:transform,opacity}
+/* Physical bottom/right (not logical) so the mark keeps the same corner on
+   the RTL public pages as everywhere else. */
+.khi-root .khi-watermark img{
+  position:absolute;bottom:var(--wm-inset);right:var(--wm-inset);
+  width:var(--wm-size);aspect-ratio:1;border-radius:50%;object-fit:cover;
+  opacity:var(--wm-opacity);filter:saturate(.85);
+  box-shadow:0 0 0 1px rgba(255,255,255,.42),0 0 0 4px rgba(255,255,255,.1),0 10px 26px rgba(16,30,23,.28);
+}
 /* Over dark surfaces (the video frame) the mark needs a little more presence. */
-.khi-root .khi-watermark.on-dark{--wm-min:.17;--wm-max:.34}
-.khi-root .khi-watermark.on-dark img{box-shadow:0 0 0 1px rgba(255,255,255,.55),0 0 0 5px rgba(255,255,255,.16),0 0 0 6.5px rgba(214,178,94,.4),0 18px 44px rgba(0,0,0,.52)}
-/* Video "scene" moment: while the video is paused/not-yet-started, the mark
-   becomes a proper cinematic ident — a large glowing medallion breathing at
-   center, like a title card. The instant playback starts it steps back down
-   to the calm on-dark corner drift so it never fights for attention with the
-   footage. Toggled by VideoPlayer via the scene-idle class. */
-.khi-root .khi-watermark.on-dark.scene-idle{--wm-min:.38;--wm-max:.56;--wm-drift-x:16px;--wm-drift-y:11px}
-.khi-root .khi-watermark.on-dark.scene-idle img{width:clamp(96px,26%,220px);box-shadow:0 0 0 1px rgba(255,255,255,.62),0 0 0 7px rgba(255,255,255,.18),0 0 0 9px rgba(214,178,94,.46),0 0 70px 12px rgba(214,178,94,.2),0 24px 60px rgba(0,0,0,.58)}
-/* Hero artwork: a smaller mark tucked into the lower corner so the record's
+.khi-root .khi-watermark.on-dark{--wm-opacity:.3}
+.khi-root .khi-watermark.on-dark img{box-shadow:0 0 0 1px rgba(255,255,255,.5),0 0 0 4px rgba(255,255,255,.14),0 10px 26px rgba(0,0,0,.5)}
+/* While a video sits paused there is no footage to compete with, so the mark
+   is allowed to read a little stronger — same corner, same stillness. */
+.khi-root .khi-watermark.on-dark.scene-idle{--wm-opacity:.44;--wm-size:clamp(64px,15%,120px)}
+/* Hero artwork: a smaller mark tucked into the same corner so the record's
    own presentation stays the star. .media-asset-frame shrink-wraps the hero
-   image so inset:0 resolves to the artwork box, not the whole grid cell.
-   The drift still runs (scaled down via --wm-drift-*) — it just wanders
-   within that corner's own breathing room instead of the whole frame. */
+   image so inset:0 resolves to the artwork box, not the whole grid cell. */
 .khi-root .media-asset-frame{position:relative;display:inline-grid;place-items:center;max-width:100%}
-.khi-root .khi-watermark.hero-mark{--wm-drift-x:10px;--wm-drift-y:7px;align-items:end;justify-items:start;padding:14px}
-.khi-root .khi-watermark.hero-mark img{width:clamp(44px,16%,76px)}
+.khi-root .khi-watermark.hero-mark{--wm-size:clamp(38px,11%,64px);--wm-inset:12px;--wm-opacity:.26}
 /* (The catalogue-card watermark was removed — the mark now lives only on the
    protected detail surfaces: hero artwork, deep-zoom viewer, video frame and
    book pages.) */
-@keyframes khi-watermark-breathe{0%,100%{transform:scale(.88) rotate(-2.5deg);opacity:var(--wm-min,.11)}50%{transform:scale(1.12) rotate(2.5deg);opacity:var(--wm-max,.22)}}
-/* Wanders center → upper-right → upper-left → lower-left → lower-right →
-   center. 26s (breathe is 7s) so the two cycles drift in and out of phase
-   instead of visibly syncing up — the mark never looks like it's on rails. */
-@keyframes khi-watermark-drift{
-  0%,100%{transform:translate3d(0,0,0)}
-  20%{transform:translate3d(var(--wm-drift-x),calc(var(--wm-drift-y) * -1),0)}
-  40%{transform:translate3d(calc(var(--wm-drift-x) * -1),calc(var(--wm-drift-y) * -1),0)}
-  60%{transform:translate3d(calc(var(--wm-drift-x) * -1),var(--wm-drift-y),0)}
-  80%{transform:translate3d(var(--wm-drift-x),var(--wm-drift-y),0)}
-}
-@media (prefers-reduced-motion: reduce){
-  .khi-root .khi-watermark{animation:none}
-  .khi-root .khi-watermark img{animation:none;opacity:calc((var(--wm-min,.11) + var(--wm-max,.22)) / 2)}
-}
 
 /* ============================================================
    REFINEMENT PASS — heritage polish across the public surface.
@@ -1621,10 +1594,6 @@
 
 /* ── Detail pages: gilded pills, icons, stages + content flourishes ── */
 .khi-root .type-pill{background:linear-gradient(145deg,#fffdf4,#f9efd8);border-color:rgba(214,178,94,.55);box-shadow:0 6px 14px -10px rgba(150,110,40,.5),inset 0 1px 0 rgba(255,255,255,.7)}
-.khi-root .info-card{transition:transform .25s,box-shadow .25s,border-color .25s}
-.khi-root .info-icon{border:1px solid rgba(214,178,94,.35);color:var(--gold-soft);box-shadow:0 0 0 4px rgba(31,58,49,.06)}
-.khi-root .info-card.link:hover{transform:translateY(-4px);border-color:rgba(214,178,94,.5)}
-.khi-root .info-card.link:hover .info-icon{color:var(--gold-bright)}
 .khi-root .section-ic{border:1px solid rgba(214,178,94,.35);box-shadow:0 10px 20px -14px rgba(31,58,49,.8)}
 .khi-root .content-title{padding-bottom:12px;border-bottom:1px solid var(--line);position:relative}
 .khi-root .content-title::after{content:"";position:absolute;bottom:-1px;inset-inline-start:0;width:64px;height:2px;border-radius:2px;background:linear-gradient(to left,var(--gold-bright),transparent)}
@@ -1643,7 +1612,6 @@
   .khi-root .btn-gold:hover,
   .khi-root .filters-toggle:hover,
   .khi-root .show-more-btn:hover:not(:disabled),
-  .khi-root .info-card.link:hover,
   .khi-root .detail-btn:hover{transform:none}
   /* the appended .card rules would otherwise out-cascade the kit's earlier
      reduced-motion disables (same specificity, later source order) */
@@ -1673,14 +1641,6 @@
 @media(max-width:640px){
   .khi-root .hero-corner{position:static;display:flex;justify-content:flex-end;margin:0 6px 14px}
 }
-
-/* ── Info cards — flat ledger tiles, no icons ── */
-.khi-root .info-grid{gap:14px;margin-bottom:34px}
-.khi-root .info-card{display:block;min-height:0;padding:15px 18px 13px;border-radius:14px;border:1px solid var(--line);background:#fff;box-shadow:none;transition:border-color .2s,background .2s}
-.khi-root .info-card.link:hover{transform:none;border-color:rgba(176,136,51,.5);background:#fffdf6;box-shadow:none}
-.khi-root .info-text span{margin-bottom:7px;font-size:12px;font-weight:700;color:var(--ink-muted)}
-.khi-root .info-text strong{padding-bottom:11px;border-bottom:1px solid rgba(176,136,51,.32);font-size:16px;line-height:1.5}
-.khi-root .info-card.link .info-text strong{color:var(--pine)}
 
 /* ── The metadata ledger ── */
 .khi-root .detail-meta{column-width:auto;column-count:auto;display:flex;flex-direction:column;gap:34px;margin-bottom:26px}

@@ -7,7 +7,7 @@ import {
 import { DETAIL, UI, yearNum, cardFromItem } from '@/components/khi/khi-data'
 import KhiCard from '@/components/khi/KhiCard'
 import {
-  KhiDetailShell, KhiBreadcrumb, KhiDetailHero, KhiDetailDisc, KhiInfoGrid,
+  KhiDetailShell, KhiBreadcrumb, KhiDetailHero, KhiDetailDisc, KhiMetaPanel, KhiMetaRow,
   KhiSectionCard, KhiSeeAll, KhiEmptyState,
 } from '@/components/khi/KhiDetail'
 import { CardGridSkeleton } from '@/components/public/PublicShared'
@@ -127,14 +127,13 @@ function PublicPersonDetailPage() {
     ...toList(person.tags, 6),
   ].filter(Boolean)
 
-  const infoCards = [
-    { icon: IconPerson, label: DETAIL.name, value: display },
-    { icon: IconMic, label: DETAIL.type, value: roles.join(' · ') || null },
-    { icon: IconRegion, label: DETAIL.region, value: person.region },
-    { icon: IconPerson, label: DETAIL.gender, value: GENDER[person.gender] || person.gender },
-    { icon: IconTag, label: DETAIL.nickname, value: person.nickname },
-    { icon: IconCalendar, label: DETAIL.birthYear, value: year },
-  ]
+  // Name, roles, region and gender already read in the hero (title, subtitle
+  // and tag row), so the ledger below carries only what would otherwise be
+  // missing from the page.
+  const ledgerRows = [
+    { label: DETAIL.nickname, value: person.nickname },
+    { label: DETAIL.birthYear, value: year },
+  ].filter((r) => r.value != null && r.value !== '')
 
   return (
     <KhiDetailShell>
@@ -152,7 +151,17 @@ function PublicPersonDetailPage() {
         disc={<KhiDetailDisc kind="person" image={portrait} alt={display} badge={roles[0] || DETAIL.person} initials={personInitials(display)} frame />}
       />
 
-      <KhiInfoGrid items={infoCards} />
+      {ledgerRows.length ? (
+        <section className="detail-meta-section">
+          <div className="detail-meta">
+            <KhiMetaPanel title={DETAIL.details}>
+              {ledgerRows.map((r) => (
+                <KhiMetaRow key={r.label} label={r.label} value={r.value}>{r.value}</KhiMetaRow>
+              ))}
+            </KhiMetaPanel>
+          </div>
+        </section>
+      ) : null}
 
       <KhiSectionCard
         icon={IconProject}

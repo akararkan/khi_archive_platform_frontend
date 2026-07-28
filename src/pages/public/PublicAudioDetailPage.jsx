@@ -87,20 +87,7 @@ function PublicAudioDetailPage() {
   const title = pickMediaTitle(audio) || DETAIL.none
   const originalCandidate = audio.originTitle || audio.titleOriginal || audio.centralKurdishTitle || audio.titleInCentralKurdish
   const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
-  const firstCat = Array.isArray(audio.categories) && audio.categories[0]
-  const catName = firstCat ? (firstCat.categoryName || firstCat.name || firstCat.categoryCode) : null
-  const catCode = firstCat ? (firstCat.categoryCode || firstCat.code) : null
   const projectCode = audio.project?.projectCode || audio.projectCode
-
-  // The year is deliberately absent here — it closes the page as footerYear.
-  const infoCards = [
-    { label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
-    { label: DETAIL.category, value: catName, to: catCode ? publicDetailPath('categories', catCode) : null },
-    { label: DETAIL.form, value: audio.form },
-    { label: DETAIL.language, value: audio.language },
-    { label: DETAIL.region, value: audio.region || audio.city },
-    { label: DETAIL.duration, value: audio.durationFormatted || (audio.duration ? `${audio.duration}s` : null) },
-  ]
 
   const content = (
     <>
@@ -150,7 +137,6 @@ function PublicAudioDetailPage() {
           ] : []}
           helpAction={{ label: DETAIL.help, onClick: () => setHelpOpen(true) }}
           footerYear={yearNum(audio)}
-          infoCards={infoCards}
           content={content}
           meta={meta}
         />

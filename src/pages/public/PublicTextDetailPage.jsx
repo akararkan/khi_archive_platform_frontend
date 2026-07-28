@@ -398,14 +398,6 @@ function PublicTextDetailPage() {
     </>
   )
 
-  // The year is deliberately absent here — it closes the page as footerYear.
-  const infoCards = [
-    { label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
-    { label: DETAIL.documentType, value: text.documentType },
-    { label: DETAIL.author, value: text.author },
-    { label: DETAIL.language, value: text.language },
-  ]
-
   const meta = (
     <>
       <KhiMetaPanel icon={IconLayers} title={DETAIL.details}>
@@ -438,7 +430,6 @@ function PublicTextDetailPage() {
           ] : []}
           helpAction={{ label: DETAIL.help, onClick: () => setHelpOpen(true) }}
           footerYear={yearNum(text)}
-          infoCards={infoCards}
           content={content}
           meta={meta}
         />

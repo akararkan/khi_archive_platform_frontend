@@ -5,7 +5,7 @@ import { mediaThumbHref, extractPersonFromItem } from '@/components/public/publi
 import { DETAIL, cardFromItem } from '@/components/khi/khi-data'
 import KhiCard from '@/components/khi/KhiCard'
 import {
-  KhiDetailShell, KhiBreadcrumb, KhiDetailHero, KhiDetailDisc, KhiInfoGrid,
+  KhiDetailShell, KhiBreadcrumb, KhiDetailHero, KhiDetailDisc, KhiMetaPanel, KhiMetaRow, KhiPersonLink,
   KhiStatsRow, KhiSectionCard, KhiEmptyState, KhiCategoryLinks,
 } from '@/components/khi/KhiDetail'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -103,11 +103,6 @@ function PublicProjectDetailPage() {
   const projectCategories = Array.isArray(project.categories) ? project.categories : []
   const firstCat = projectCategories[0]
   const catName = firstCat ? (typeof firstCat === 'string' ? firstCat : (firstCat.categoryName || firstCat.name || firstCat.categoryCode)) : null
-  const catCode = firstCat ? (typeof firstCat === 'string' ? firstCat : (firstCat.categoryCode || firstCat.code)) : null
-  const categorySummary = projectCategories
-    .map((cat) => (typeof cat === 'string' ? cat : (cat.categoryName || cat.name || cat.categoryCode || cat.code)))
-    .filter(Boolean)
-    .join(' · ')
   const totalMedia = (project.audioCount || 0) + (project.videoCount || 0) + (project.textCount || 0) + (project.imageCount || 0)
 
   const stats = [
@@ -117,13 +112,9 @@ function PublicProjectDetailPage() {
     { icon: IconImage, label: DETAIL.counts.image, value: project.imageCount || 0 },
   ]
 
-  const infoCards = [
-    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
-    projectCategories.length === 1
-      ? { icon: IconCategory, label: DETAIL.category, value: catName, to: catCode ? publicDetailPath('categories', catCode) : null }
-      : { icon: IconCategory, label: DETAIL.categories, value: categorySummary || null },
-    { icon: IconLayers, label: DETAIL.media, value: totalMedia ? totalMedia.toLocaleString() : null },
-  ]
+  // Categories have their own section card and the media tally is already in
+  // the stats strip, so only the person link needs a home of its own.
+  const personName = person?.fullName || person?.name
 
   return (
     <KhiDetailShell>
@@ -142,7 +133,17 @@ function PublicProjectDetailPage() {
       />
 
       <KhiStatsRow items={stats} />
-      <KhiInfoGrid items={infoCards} />
+      {personName ? (
+        <section className="detail-meta-section">
+          <div className="detail-meta">
+            <KhiMetaPanel title={DETAIL.details}>
+              <KhiMetaRow label={DETAIL.person} value={personName}>
+                <KhiPersonLink person={person} fallbackName={personName} />
+              </KhiMetaRow>
+            </KhiMetaPanel>
+          </div>
+        </section>
+      ) : null}
 
       {projectCategories.length > 0 ? (
         <KhiSectionCard icon={IconCategory} title={DETAIL.categories} count={projectCategories.length}>

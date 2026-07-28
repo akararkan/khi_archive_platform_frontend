@@ -90,14 +90,25 @@ function DeepZoomViewer({ src, tileSources, alt = '', className, protectedMode =
       setLoading(false)
       onError?.()
     }
+    // OpenSeadragon swallows every wheel event over the canvas (canvas-scroll
+    // defaults to `preventDefault: true`), so with scroll-to-zoom off the
+    // wheel did nothing at all and the page froze under the pointer. Release
+    // the event instead: the wheel scrolls the page, and zooming stays on the
+    // control buttons, double-click and pinch.
+    const handleScroll = (e) => {
+      e.preventDefaultAction = true
+      e.preventDefault = false
+    }
     viewer.addHandler('open', handleOpen)
     viewer.addHandler('open-failed', handleFailed)
     viewer.addHandler('tile-load-failed', handleFailed)
+    viewer.addHandler('canvas-scroll', handleScroll)
 
     return () => {
       viewer.removeHandler('open', handleOpen)
       viewer.removeHandler('open-failed', handleFailed)
       viewer.removeHandler('tile-load-failed', handleFailed)
+      viewer.removeHandler('canvas-scroll', handleScroll)
       viewer.destroy()
       viewerRef.current = null
     }

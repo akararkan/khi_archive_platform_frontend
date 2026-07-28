@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { DETAIL, UI, cardFromItem } from '@/components/khi/khi-data'
 import KhiCard from '@/components/khi/KhiCard'
 import {
-  KhiDetailShell, KhiBreadcrumb, KhiDetailHero, KhiDetailDisc, KhiInfoGrid,
+  KhiDetailShell, KhiBreadcrumb, KhiDetailHero, KhiDetailDisc,
   KhiSectionCard, KhiEmptyState,
 } from '@/components/khi/KhiDetail'
 import { CardGridSkeleton } from '@/components/public/PublicShared'
@@ -104,11 +104,6 @@ function PublicCategoryDetailPage() {
       ? projectMeta.number < projectMeta.totalPages - 1
       : items.length < total
 
-  const infoCards = [
-    { icon: IconCategory, label: DETAIL.name, value: title },
-    { icon: IconProject, label: DETAIL.projects, value: Number.isFinite(total) ? total.toLocaleString() : null },
-  ]
-
   return (
     <KhiDetailShell>
       <KhiDetailHero
@@ -123,8 +118,8 @@ function PublicCategoryDetailPage() {
         disc={<KhiDetailDisc kind="category" alt={title} badge={DETAIL.category} />}
       />
 
-      <KhiInfoGrid items={infoCards} />
-
+      {/* No info-card strip: the name is already the page title and the
+          project count is the section's own badge. */}
       <KhiSectionCard icon={IconProject} title={DETAIL.projects} count={Number.isFinite(total) ? total : (items.length || 0)}>
         {projectsLoading ? (
           <CardGridSkeleton count={4} />

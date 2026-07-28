@@ -11,7 +11,7 @@ import {
 
 // ════════════════════════════════════════════════════════════════════════════
 // KhiDetail — the heritage "Living Archive" detail-page design system.
-// A record/medallion hero, a Sorani info-grid, stat strip, section cards,
+// A record/medallion hero, a Sorani metadata ledger, stat strip, section cards,
 // an illustrated empty state and curated meta panels. Everything is scoped
 // under .khi-root (RTL) and styled in khi-archive.css. The page body stays
 // WHITE — tints live only inside the hero + cards.
@@ -219,30 +219,8 @@ export function KhiDetailHero({
   )
 }
 
-// ── Info grid ────────────────────────────────────────────────────────────────
-// items: [{ label, value, to }] — empty values are dropped. Icon-free ledger
-// tiles: the label sits over the value, closed by a gold hairline.
-export function KhiInfoGrid({ items = [] }) {
-  const rows = items.filter((it) => it && it.value != null && it.value !== '')
-  if (!rows.length) return null
-  return (
-    <div className="info-grid">
-      {rows.map((it, i) => {
-        const body = (
-          <div className="info-text">
-            <span>{it.label}</span>
-            <strong>{it.value}</strong>
-          </div>
-        )
-        return it.to ? (
-          <Link key={i} to={it.to} className="info-card link">{body}</Link>
-        ) : (
-          <div key={i} className="info-card">{body}</div>
-        )
-      })}
-    </div>
-  )
-}
+// (KhiInfoGrid was removed: the info-card strip repeated facts that the
+// metadata ledger, hero and section cards already carry.)
 
 // ── Stats strip ──────────────────────────────────────────────────────────────
 export function KhiStatsRow({ items = [] }) {

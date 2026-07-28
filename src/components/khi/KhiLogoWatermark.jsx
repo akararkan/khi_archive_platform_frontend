@@ -1,10 +1,10 @@
 import { useKhiLogoSrc } from '@/hooks/use-khi-logo'
 
-// Animated, transparent brand watermark laid over protected media surfaces
-// (image viewer, video frame, book pages). Purely decorative + deterrent:
-// pointer-events stay off so zooming, seeking and page-turning are untouched.
-// The slow zoom-in/zoom-out "breathing" lives in khi-archive.css
-// (.khi-watermark) and honours prefers-reduced-motion.
+// Quiet, transparent brand watermark pinned to the bottom-right corner of the
+// protected media surfaces (image viewer, video frame, book pages). Static by
+// design — the mark should sit still over the artwork, never animate. Purely
+// decorative + deterrent: pointer-events stay off so zooming, seeking and
+// page-turning are untouched. Styles live in khi-archive.css (.khi-watermark).
 export default function KhiLogoWatermark({ className = '' }) {
   const logoSrc = useKhiLogoSrc()
 
