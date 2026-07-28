@@ -18,16 +18,18 @@ export default function KhiToolbar({
 }) {
   return (
     <div className="toolbar">
-      {onToggleSidebar ? (
+      {/* The rail carries its own filter icon while open — the toolbar only
+          shows an icon-only reopen control when the rail is hidden. */}
+      {onToggleSidebar && !sidebarOpen ? (
         <button
           type="button"
-          className={`filters-toggle${sidebarOpen ? ' on' : ''}`}
+          className="filters-toggle icon-only"
           onClick={onToggleSidebar}
           aria-pressed={sidebarOpen}
           aria-label={UI.filter}
+          title={UI.filter}
         >
           <IconFilter />
-          <span>{UI.filter}</span>
           {activeCount > 0 ? <span className="cnt">{activeCount}</span> : null}
         </button>
       ) : <span />}

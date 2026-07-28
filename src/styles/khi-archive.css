@@ -267,10 +267,13 @@
   .khi-root .results-scroll::-webkit-scrollbar-track{background:transparent}
   .khi-root .catalogue-main > .pager{flex-shrink:0;margin-top:0;padding-top:16px;border-top:1px solid var(--line)}
 }
-/* The rail has no heading of its own — the head row only exists on phones,
-   where it carries the drawer's close (×) button. */
-.khi-root .side-head{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:6px 2px 10px}
-@media(min-width:1025px){.khi-root .side-head{display:none}}
+/* The rail has no text heading — its head row carries the one filter control:
+   an icon-only button that collapses the rail (desktop) / closes the drawer
+   (phones). The toolbar shows the matching reopen icon while it's hidden. */
+.khi-root .side-head{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:2px 2px 12px}
+.khi-root .side-filter{display:grid;place-items:center;width:38px;height:38px;flex-shrink:0;border-radius:11px;border:1px solid var(--line-2);background:#fff;color:var(--pine);transition:.16s}
+.khi-root .side-filter svg{width:17px;height:17px}
+.khi-root .side-filter:hover{border-color:var(--pine-2);background:var(--paper-3);color:var(--pine)}
 .khi-root .side-close{display:none;margin-inline-start:auto;width:36px;height:36px;flex-shrink:0;border-radius:9px;border:1px solid var(--line-2);background:var(--paper-2);color:var(--ink-soft);place-items:center;transition:.18s}
 .khi-root .side-close svg{width:17px;height:17px}
 .khi-root .side-close:hover{border-color:var(--pine-2);color:var(--ink);background:var(--paper-3)}
@@ -1688,10 +1691,11 @@
 .khi-root .meta-panel-title-local::after{content:counter(khimeta,decimal-leading-zero);color:var(--gold-bright);font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.06em;direction:ltr}
 .khi-root .meta-panel-title-main{color:rgba(243,234,212,.52);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.24em;text-transform:uppercase}
 
-/* field rows: label over value, gold hairline under each — 2-up on desktop.
+/* field rows: label over value, gold hairline under each — 3-up on desktop,
+   2-up on narrower screens, single column on phones.
    (The :not() variant re-declares the kit's higher-specificity gap rule.) */
 .khi-root .meta-panel .meta-rows,
-.khi-root .meta-panel:not(.media-field-group) .meta-rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 44px;padding:4px 6px 0}
+.khi-root .meta-panel:not(.media-field-group) .meta-rows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 36px;padding:4px 6px 0}
 .khi-root .meta-panel .meta-row,
 .khi-root .media-field-group .meta-row{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:16px 0 13px;border-bottom:1px solid rgba(176,136,51,.3)}
 .khi-root .meta-panel .meta-row dt,
@@ -1705,6 +1709,10 @@
 /* mixed-direction values (codes, file names, numbers) order themselves */
 .khi-root .full-field-text{unicode-bidi:plaintext}
 .khi-root .full-field-empty{font-family:'IBM Plex Mono',monospace}
+@media(max-width:1180px){
+  .khi-root .meta-panel .meta-rows,
+  .khi-root .meta-panel:not(.media-field-group) .meta-rows{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 @media(max-width:760px){
   .khi-root .meta-panel .meta-rows,
   .khi-root .meta-panel:not(.media-field-group) .meta-rows{grid-template-columns:1fr;gap:0}
@@ -1717,3 +1725,78 @@
 .khi-root .detail-year-foot .dyf-label{color:var(--ink-muted);font-size:14px;font-weight:700}
 .khi-root .detail-year-foot .dyf-value{color:var(--pine);font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:700;direction:ltr;letter-spacing:.04em}
 .khi-root .detail-year-foot .dyf-value::after{content:"";display:block;height:3px;margin-top:8px;border-radius:3px;background:linear-gradient(90deg,var(--gold-bright),rgba(214,178,94,.15))}
+
+/* ============================================================
+   CATALOGUE + DETAIL REFRESH — 2026-07, pass 2.
+   Cards lose every colour matte: artwork sits edge-to-edge on
+   the paper ground, generated covers (waveform / filmstrip /
+   photo slip / manuscript) recolour to pine-on-paper, and the
+   type pill goes light-frost so it reads everywhere. The card
+   category is quiet text with a gold-underline hover. Filter
+   control is icon-only and lives inside the rail. The image
+   detail hero is text-only (the photograph renders once, in
+   the zoom stage) and the project link sheds its green fill.
+   ============================================================ */
+
+/* ── Toolbar reopen control (rail hidden): icon only ── */
+.khi-root .filters-toggle.icon-only{position:relative;width:42px;padding:0;justify-content:center;gap:0}
+.khi-root .filters-toggle.icon-only .cnt{position:absolute;top:-6px;inset-inline-end:-6px}
+
+/* ── Card covers: artwork fills the card, no mattes ── */
+.khi-root .card .media{background:linear-gradient(165deg,#f8f4e9,#efe7d2)}
+.khi-root .card .media .natural-cover{inset:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.khi-root .card .media .natural-cover::after{content:none}
+.khi-root .card .media .cover-backdrop{display:none}
+.khi-root .card .media .cover-img{padding:0;object-fit:cover;filter:none}
+.khi-root .card .media .archive-real-shade{background:linear-gradient(180deg,rgba(8,24,18,.14) 0%,transparent 30%,transparent 80%,rgba(8,24,18,.08) 100%)}
+.khi-root .card:hover .media .cover-img{transform:scale(1.04)}
+.khi-root .card .media .video-cover{background:transparent}
+.khi-root .card .media .video-frame-cover .cover-img{background:transparent}
+/* portraits + book covers are never sliced — contained on the paper ground */
+.khi-root .card .media .natural-cover.kind-person .cover-img,
+.khi-root .card .media .natural-cover.kind-text .cover-img{object-fit:contain;padding:10px}
+
+/* ── Generated boards: pine felt retires, paper board arrives ── */
+.khi-root :is(.m-project,.m-audio,.m-video,.m-image,.m-text){inset:0;border:0;border-radius:0;background:linear-gradient(165deg,#f8f4e9 0%,#f1e9d5 55%,#eadfc7 100%);box-shadow:none}
+.khi-root :is(.m-project,.m-audio,.m-video,.m-image,.m-text)::before{opacity:.5;background:repeating-linear-gradient(118deg,rgba(31,58,49,.03) 0 2px,transparent 2px 7px)}
+.khi-root .m-avatar{background:linear-gradient(165deg,#f8f4e9,#eadfc7)}
+.khi-root .archive-rails i{background:linear-gradient(180deg,#e6dcbf,#d8cba8);box-shadow:0 1px 0 rgba(255,255,255,.65)}
+.khi-root .archive-tile{border-color:rgba(31,58,49,.16);box-shadow:0 12px 22px -14px rgba(31,58,49,.4),inset 0 1px 0 #fff}
+/* audio waveform in pine */
+.khi-root .m-audio .halo{background:radial-gradient(circle,rgba(31,58,49,.07),transparent 59%)}
+.khi-root .m-audio .base-line{background:linear-gradient(90deg,transparent,rgba(31,58,49,.3),transparent)}
+.khi-root .wave .bar{background:linear-gradient(to top,#a8b69b 0%,#4f7362 52%,#1f4035 100%);box-shadow:none}
+/* video board */
+.khi-root .m-video .frame{background:radial-gradient(circle at 50% 42%,rgba(31,58,49,.07),transparent 60%)}
+.khi-root .m-video .vig{background:none}
+.khi-root .filmstrip{background:rgba(31,58,49,.12)}
+.khi-root .filmstrip::after{background:repeating-linear-gradient(90deg,transparent 0 6px,rgba(31,58,49,.25) 6px 12px,transparent 12px 18px)}
+.khi-root .m-video .scrub{background:rgba(31,58,49,.14)}
+.khi-root .m-video .scrub i{background:var(--pine-2);box-shadow:none}
+/* category fallback icon slate */
+.khi-root .m-image .ph{border-color:rgba(31,58,49,.18);background:rgba(31,58,49,.05)}
+.khi-root .m-image .ph svg{color:var(--pine-2)}
+
+/* ── Type pills: light frost + pine text — read over photos AND paper ── */
+.khi-root .archive-cover-label,
+.khi-root .card .type-badge{background:rgba(255,253,246,.8);border:1px solid rgba(31,58,49,.16);color:var(--pine);text-shadow:none;box-shadow:0 8px 18px -12px rgba(16,30,23,.45),inset 0 1px 0 rgba(255,255,255,.7);backdrop-filter:blur(8px) saturate(1.1);-webkit-backdrop-filter:blur(8px) saturate(1.1)}
+
+/* ── Card category: quiet text, gold underline grows on hover ── */
+.khi-root .card .card-category{position:relative;padding:0 0 4px;border:0;border-radius:0;background:transparent;color:var(--ink-muted);font-size:12.5px;transition:color .18s}
+.khi-root .card .card-category::after{content:"";position:absolute;inset-inline-start:0;bottom:0;width:0;height:2px;border-radius:2px;background:var(--gold);transition:width .24s cubic-bezier(.2,.7,.2,1)}
+.khi-root .card:hover .card-category{border-color:transparent;background:transparent;color:var(--pine)}
+.khi-root .card:hover .card-category::after{width:30px}
+
+/* ── Hero project link: just the name, no green fill ── */
+.khi-root .detail-btn.ghost{height:auto;padding:2px 0 7px;border:0;border-radius:0;background:transparent;color:var(--pine);font-size:16.5px;font-weight:800;box-shadow:none;border-bottom:2px solid rgba(176,136,51,.45);white-space:normal;text-align:start}
+.khi-root .detail-btn.ghost:hover{background:transparent;border-color:transparent;border-bottom-color:var(--gold);color:var(--pine-deep);transform:none;box-shadow:none}
+
+/* ── Text-only hero (image pages): content spans the card ── */
+.khi-root .detail-hero.no-disc .hero-grid{grid-template-columns:1fr;min-height:0;padding:10px 28px 20px}
+.khi-root .detail-hero.no-disc .hero-content{max-width:880px}
+@media(max-width:640px){.khi-root .detail-hero.no-disc .hero-grid{padding:8px 6px 14px}}
+
+@media (prefers-reduced-motion: reduce){
+  .khi-root .card:hover .media .cover-img{transform:none}
+  .khi-root .card .card-category::after{transition:none}
+}

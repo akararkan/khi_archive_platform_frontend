@@ -95,7 +95,6 @@ function PublicAudioDetailPage() {
   // The year is deliberately absent here — it closes the page as footerYear.
   const infoCards = [
     { label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
-    { label: DETAIL.project, value: audio.project?.projectName || audio.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
     { label: DETAIL.category, value: catName, to: catCode ? publicDetailPath('categories', catCode) : null },
     { label: DETAIL.form, value: audio.form },
     { label: DETAIL.language, value: audio.language },
@@ -147,7 +146,7 @@ function PublicAudioDetailPage() {
             { label: title },
           ]}
           actions={projectCode ? [
-            { label: audio.project?.projectName || audio.projectName || DETAIL.project, to: publicDetailPath('projects', projectCode), primary: true },
+            { label: audio.project?.projectName || audio.projectName || DETAIL.project, to: publicDetailPath('projects', projectCode), ghost: true },
           ] : []}
           helpAction={{ label: DETAIL.help, onClick: () => setHelpOpen(true) }}
           footerYear={yearNum(audio)}

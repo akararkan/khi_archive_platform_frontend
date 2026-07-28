@@ -57,7 +57,7 @@ export function KhiActions({ actions = [] }) {
     <div className="detail-actions">
       {list.map((a, i) => {
         const Icon = a.icon
-        const cls = `detail-btn${a.primary ? ' primary' : ''}`
+        const cls = `detail-btn${a.primary ? ' primary' : ''}${a.ghost ? ' ghost' : ''}`
         const inner = <>{Icon ? <Icon width="17" height="17" /> : null}{a.label}</>
         if (a.to) {
           return <Link key={i} to={a.to} className={cls}>{inner}</Link>
@@ -196,7 +196,7 @@ export function KhiDetailHero({
 }) {
   const cleanTags = (tags || []).filter(Boolean)
   return (
-    <section className={`detail-hero${kind ? ` kind-${kind}` : ''}`}>
+    <section className={`detail-hero${kind ? ` kind-${kind}` : ''}${disc ? '' : ' no-disc'}`}>
       {breadcrumb}
       {corner ? <div className="hero-corner">{corner}</div> : null}
       <div className="hero-grid">

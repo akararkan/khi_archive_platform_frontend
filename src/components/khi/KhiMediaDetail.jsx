@@ -16,6 +16,10 @@ export default function KhiMediaDetail({
   content = null, meta = null, helpAction = null, footerYear = null,
 }) {
   const useFrame = kind === 'image' || kind === 'audio'
+  // The image page renders the photograph once, in the zoomable stage below —
+  // repeating it inside the hero card doubled the artwork, so the image hero
+  // carries text only.
+  const showDisc = kind !== 'image'
 
   return (
     <>
@@ -28,7 +32,7 @@ export default function KhiMediaDetail({
         action={actions.length ? <KhiActions actions={actions} /> : null}
         corner={helpAction ? <KhiActions actions={[helpAction]} /> : null}
         breadcrumb={<KhiBreadcrumb items={breadcrumbItems} />}
-        disc={<KhiDetailDisc kind={kind} image={image} alt={title} badge={TYPE_LABELS[kind]} vinyl={vinyl} frame={useFrame} />}
+        disc={showDisc ? <KhiDetailDisc kind={kind} image={image} alt={title} badge={TYPE_LABELS[kind]} vinyl={vinyl} frame={useFrame} /> : null}
       />
       <KhiInfoGrid items={infoCards} />
       {content}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 
 import { readFacet, personImageSrc, personInitials } from '@/components/public/public-helpers'
-import { IconChevron, IconCalendar, IconClose, TYPE_ICON, FACET_ICON } from './icons'
+import { IconChevron, IconCalendar, IconFilter, TYPE_ICON, FACET_ICON } from './icons'
 import { UI, TYPE_LABELS } from './khi-data'
 import KhiDateRange from './KhiDateRange'
 
@@ -102,12 +102,13 @@ export default function KhiSidebar({
 }) {
   return (
     <aside className="sidebar">
-      {/* The rail carries no heading — the toolbar's filter button is the one
-          label; on phones this row only hosts the drawer's close control. */}
+      {/* The rail's one label is its filter icon — pressing it collapses the
+          rail (desktop) or closes the drawer (phones); the toolbar shows an
+          icon-only reopen control while the rail is hidden. */}
       {onClose ? (
         <div className="side-head">
-          <button type="button" className="side-close" onClick={onClose} aria-label="داخستن">
-            <IconClose />
+          <button type="button" className="side-filter" onClick={onClose} aria-label={UI.filter} title={UI.filter}>
+            <IconFilter />
           </button>
         </div>
       ) : null}

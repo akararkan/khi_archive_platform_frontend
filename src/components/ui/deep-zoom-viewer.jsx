@@ -71,7 +71,7 @@ function DeepZoomViewer({ src, tileSources, alt = '', className, protectedMode =
       showZoomControl: false,
       showHomeControl: false,
       showFullPageControl: false,
-      gestureSettingsMouse: { clickToZoom: false, dblClickToZoom: true, scrollToZoom: true, flickEnabled: false },
+      gestureSettingsMouse: { clickToZoom: false, dblClickToZoom: true, scrollToZoom: false, flickEnabled: false },
       gestureSettingsTouch: { pinchToZoom: true, dblClickToZoom: true, flickEnabled: true },
       animationTime: 0.4,
       springStiffness: 8,
@@ -176,10 +176,7 @@ function DeepZoomViewer({ src, tileSources, alt = '', className, protectedMode =
       ) : null}
 
       {!loading && !failed ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 p-2.5 opacity-0 transition-opacity group-hover/zoom:opacity-100 focus-within:opacity-100">
-          <span className="pointer-events-none rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground backdrop-blur-md">
-            Pinch or scroll to zoom
-          </span>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-end gap-2 p-2.5 opacity-0 transition-opacity group-hover/zoom:opacity-100 focus-within:opacity-100">
           <div className="pointer-events-auto flex items-center gap-1.5">
             <ControlButton onClick={zoomOut} label="Zoom out"><Minus className="size-4" /></ControlButton>
             <ControlButton onClick={resetView} label="Reset view"><RotateCcw className="size-3.5" /></ControlButton>

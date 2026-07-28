@@ -86,7 +86,6 @@ function PublicImageDetailPage() {
   // The year is deliberately absent here — it closes the page as footerYear.
   const infoCards = [
     { label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
-    { label: DETAIL.project, value: image.project?.projectName || image.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
     { label: DETAIL.event, value: image.event },
     { label: DETAIL.location, value: image.location || image.region },
     { label: DETAIL.photographer, value: image.creatorArtistPhotographer },
@@ -143,7 +142,7 @@ function PublicImageDetailPage() {
             { label: title },
           ]}
           actions={projectCode ? [
-            { label: image.project?.projectName || image.projectName || DETAIL.project, to: publicDetailPath('projects', projectCode), primary: true },
+            { label: image.project?.projectName || image.projectName || DETAIL.project, to: publicDetailPath('projects', projectCode), ghost: true },
           ] : []}
           helpAction={{ label: DETAIL.help, onClick: () => setHelpOpen(true) }}
           footerYear={yearNum(image)}
