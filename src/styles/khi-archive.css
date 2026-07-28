@@ -1643,86 +1643,73 @@
 }
 
 /* ── The metadata ledger ── */
-.khi-root .detail-meta{column-width:auto;column-count:auto;display:flex;flex-direction:column;gap:46px;margin-bottom:30px}
+.khi-root .detail-meta{column-width:auto;column-count:auto;display:flex;flex-direction:column;gap:34px;margin-bottom:26px}
 
 /* flatten the old panel card */
 .khi-root .meta-panel{display:block;width:auto;margin:0;padding:0;overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none}
 .khi-root .meta-panel:hover{transform:none;box-shadow:none;border-color:transparent}
 .khi-root .meta-panel::before{content:none}
 
-/* ── Section: a title rail, a gold hairline, then the field grid ───────────
-   [ fields grid | gold rule | section title ]  (RTL: title sits at the right)
-   Fields are stacked label-over-value cells with no rows or leaders — the
-   whitespace does the work. */
-.khi-root .meta-panel{display:grid;grid-template-columns:minmax(96px,164px) minmax(0,1fr);gap:0 30px;align-items:start}
-.khi-root .meta-panel-title{display:block;margin:0;padding:2px 0 0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--ink);text-align:start}
-.khi-root .meta-panel-title::after{content:none}
-.khi-root .meta-panel-title-local{display:inline;gap:0;color:var(--ink);font-family:'Amiri','Vazirmatn',serif;font-size:21px;font-weight:700;line-height:1.5}
+/* the section header — Sorani title at the inline-start; the hairline opens
+   with a short solid gold tick and fades away across the row. No section
+   number, no Latin accent (user rules). */
+.khi-root .meta-panel-title{display:flex;flex-wrap:nowrap;align-items:center;gap:16px;min-height:0;margin:0;padding:0 2px 12px;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--ink)}
+.khi-root .meta-panel-title::after{content:"";flex:1 1 40px;min-width:28px;height:1px;background:linear-gradient(to left,var(--gold) 0 7px,rgba(176,136,51,.45) 7px,rgba(176,136,51,.04))}
+.khi-root .meta-panel-title-local{display:inline;gap:0;color:var(--ink);font-family:'Amiri','Vazirmatn',serif;font-size:20.5px;font-weight:700;line-height:1.5}
 .khi-root .meta-panel-title-local::after{content:none}
 
-/* the field grid carries the gold divider on its inline-start (left of the
-   title in RTL). (The :not() variant re-declares the kit's gap rule.) */
+/* field rows — a calm spec sheet, NOT a table of contents: the Sorani label
+   and its value stand directly TOGETHER as one unit (the label column hugs
+   its own text), so no leader is needed to bridge them. A faint hairline
+   keeps the rhythm and the row warms gently under the pointer.
+   (The :not() variant re-declares the kit's higher-specificity gap rule.) */
 .khi-root .meta-panel .meta-rows,
-.khi-root .meta-panel:not(.media-field-group) .meta-rows{
-  display:grid;grid-auto-flow:dense;grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:30px 34px;padding:2px 0 4px 4px;
-  border-inline-start:1px solid rgba(176,136,51,.42);padding-inline-start:30px;
-}
-/* one field = quiet label, bold value under it */
+.khi-root .meta-panel:not(.media-field-group) .meta-rows{display:grid;grid-auto-flow:dense;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 clamp(34px,4.5vw,72px);padding:0}
 .khi-root .meta-panel .meta-row,
-.khi-root .media-field-group .meta-row{
-  display:flex;flex-direction:column;align-items:stretch;gap:6px;
-  padding:0;border:0;border-radius:0;background:transparent;min-height:0;overflow:visible;
-}
+.khi-root .media-field-group .meta-row{display:grid;grid-template-columns:minmax(0,max-content) minmax(0,1fr);align-items:baseline;gap:3px 13px;padding:9px 11px 8px;border:0;border-bottom:1px solid rgba(31,58,49,.06);border-radius:10px;background:transparent;min-height:0;overflow:visible;transition:background-color .18s}
+@media (hover:hover){.khi-root .meta-panel .meta-row:hover{background:rgba(176,136,51,.055)}}
 .khi-root .meta-panel .meta-row dt,
-.khi-root .media-field-group .meta-row dt{
-  max-width:none;padding:0;color:var(--ink-muted);font-size:13px;font-weight:600;line-height:1.6;
-}
+.khi-root .media-field-group .meta-row dt{max-width:none;padding:0;color:var(--ink-muted);font-size:12.5px;font-weight:650;line-height:1.65;transition:color .18s}
+@media (hover:hover){.khi-root .meta-panel .meta-row:hover dt{color:var(--ink-soft)}}
 .khi-root .meta-panel .meta-row dd,
-.khi-root .media-field-group .meta-row dd{
-  margin:0;padding:0;min-width:0;color:var(--ink);
-  font-family:'IBM Plex Mono','Vazirmatn',monospace;font-size:16px;font-weight:800;line-height:1.75;
-  word-break:break-word;
-}
-/* long prose takes the full grid width and reads at a calmer weight */
-.khi-root .media-field-group .meta-row.is-long{grid-column:1/-1}
-.khi-root .media-field-group .meta-row.is-long dd{font-size:15px;font-weight:600;line-height:2;text-align:justify}
-/* an absent value is a quiet dash, never a shouty empty cell */
-.khi-root .media-field-group .meta-row.is-empty-value{grid-column:auto;opacity:.55}
-.khi-root .media-field-group .meta-row.is-empty-value dd{font-size:15px;font-weight:600}
+.khi-root .media-field-group .meta-row dd{margin:0;padding:0;min-width:0;color:var(--ink);font-family:'IBM Plex Mono','Vazirmatn',monospace;font-size:13.5px;font-weight:700;line-height:1.75;word-break:break-word}
+/* long prose stacks: label above, the text under a soft gold quote-bar */
+.khi-root .media-field-group .meta-row.is-long{grid-column:1/-1;grid-template-columns:minmax(0,1fr);gap:7px;padding:12px 11px 11px}
+.khi-root .media-field-group .meta-row.is-long dt{padding-top:0;max-width:none}
+.khi-root .media-field-group .meta-row.is-long dd{padding-inline-start:14px;border-inline-start:2px solid rgba(176,136,51,.3);font-size:14px;font-weight:600;line-height:2}
+/* empty rows compress and hush so a full staff ledger stays short */
+.khi-root .media-field-group .meta-row.is-empty-value{grid-column:auto;grid-template-columns:minmax(0,max-content) minmax(0,1fr);align-items:baseline;gap:3px 13px;padding-block:6px 5px;opacity:.48}
+.khi-root .media-field-group .meta-row.is-empty-value dd{padding-inline-start:0;border-inline-start:0;font-size:12.5px;font-weight:600;line-height:1.7}
+/* the label is a single quiet line */
 .khi-root .full-field-label{flex-direction:row;align-items:baseline;gap:6px}
 .khi-root .full-field-label-ku{color:inherit;font-size:inherit;font-weight:inherit}
 /* mixed-direction values (codes, file names, numbers) order themselves */
 .khi-root .full-field-text{unicode-bidi:plaintext}
 .khi-root .full-field-empty{font-family:'IBM Plex Mono',monospace}
-/* multi-value + linked values render as chips inside the value slot */
-.khi-root .meta-row dd .full-field-pills{gap:7px}
-.khi-root .meta-row dd .full-field-pill{border-color:rgba(176,136,51,.28);background:#fffdf6;padding:3px 11px;font-size:12.5px;font-weight:700}
-.khi-root .meta-row dd .entity-chip{padding:4px 14px;border-color:rgba(176,136,51,.55);background:transparent;color:var(--gold);font-weight:800;transition:border-color .18s,color .18s,background .18s}
+/* multi-value pills sit flush at the value end, soft paper chips */
+.khi-root .meta-row dd .full-field-pills{gap:6px}
+.khi-root .meta-row dd .full-field-pill{border-color:rgba(176,136,51,.28);background:#fffdf6;padding:3px 10px;font-size:12px}
+/* linked values (project/person/category) — gold-outlined chips */
+.khi-root .meta-row dd .entity-chip{padding:3px 13px;border-color:rgba(176,136,51,.55);background:transparent;color:var(--gold);font-weight:800;transition:border-color .18s,color .18s,background .18s}
 @media (hover:hover){.khi-root .meta-row dd .entity-chip:hover{border-color:var(--gold);background:#fffdf6;color:var(--pine)}}
-/* `.ec-label`'s overflow:hidden turns the chip into a scroll container, whose
-   baseline is synthesized from its bottom edge; let it wrap instead. */
+/* `.ec-label`'s overflow:hidden makes the chip a scroll container, whose
+   baseline is synthesized from its BOTTOM edge — inside a baseline-aligned
+   row that floats the chip ~7px above the label. Let it wrap instead. */
 .khi-root .meta-row dd .entity-chip .ec-label{overflow:visible;white-space:normal}
-@media(max-width:1180px){
+@media(max-width:900px){
   .khi-root .meta-panel .meta-rows,
-  .khi-root .meta-panel:not(.media-field-group) .meta-rows{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
-@media(max-width:820px){
-  /* the title stops being a rail and becomes a heading over its fields */
-  .khi-root .meta-panel{grid-template-columns:1fr;gap:14px}
-  .khi-root .meta-panel-title{padding-bottom:11px;border-bottom:1px solid rgba(176,136,51,.42)}
-  .khi-root .meta-panel .meta-rows,
-  .khi-root .meta-panel:not(.media-field-group) .meta-rows{
-    grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 26px;
-    border-inline-start:0;padding-inline-start:0;padding-left:0;
-  }
-  .khi-root .meta-panel-title-local{font-size:19px}
+  .khi-root .meta-panel:not(.media-field-group) .meta-rows{grid-template-columns:1fr}
+  .khi-root .meta-panel-title-local{font-size:18.5px}
+  .khi-root .detail-meta{gap:28px}
 }
 @media(max-width:560px){
-  .khi-root .meta-panel .meta-rows,
-  .khi-root .meta-panel:not(.media-field-group) .meta-rows{grid-template-columns:1fr;gap:20px}
+  .khi-root .meta-panel .meta-row,
+  .khi-root .media-field-group .meta-row,
+  .khi-root .media-field-group .meta-row.is-empty-value{gap:3px 11px;padding-inline:8px}
 }
 @media (prefers-reduced-motion: reduce){
+  .khi-root .meta-panel .meta-row,
+  .khi-root .meta-panel .meta-row dt,
   .khi-root .meta-row dd .entity-chip{transition:none}
 }
 
@@ -1791,8 +1778,12 @@
 
 /* ── Type pills: crisp white with a gold hairline + pine text — high
    contrast over photos and the paper boards alike ── */
+/* See-through pill: a light scrim of the pine ink, so the artwork reads
+   straight through it. Cream text + a soft shadow keep it legible over pale
+   photographs as well as the dark ones. No backdrop blur — that cost a
+   composited layer per card and made scrolling stutter. */
 .khi-root .archive-cover-label,
-.khi-root .card .type-badge{background:rgba(255,255,255,.94);border:1px solid rgba(176,136,51,.42);color:var(--pine);text-shadow:none;box-shadow:0 6px 16px -10px rgba(16,30,23,.4);backdrop-filter:none;-webkit-backdrop-filter:none}
+.khi-root .card .type-badge{background:rgba(16,30,23,.62);border:1px solid rgba(255,255,255,.5);color:#fffdf6;text-shadow:0 1px 3px rgba(10,27,20,.6);box-shadow:0 6px 16px -10px rgba(16,30,23,.45);backdrop-filter:none;-webkit-backdrop-filter:none}
 
 /* ── Card category: quiet text, gold underline grows on hover ── */
 .khi-root .card .card-category{position:relative;padding:0 0 4px;border:0;border-radius:0;background:transparent;color:var(--ink-muted);font-size:12.5px;transition:color .18s}
