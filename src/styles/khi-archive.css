@@ -1688,55 +1688,48 @@
 .khi-root .meta-panel:hover{transform:none;box-shadow:none;border-color:transparent}
 .khi-root .meta-panel::before{content:none}
 
-/* the section header — user-approved ledger style: a gold-ringed section
-   number leads (inline-start), then the Sorani title, the Latin name as a
-   quiet mono accent, and a gold hairline filling the remaining width. */
-.khi-root .meta-panel-title{display:flex;flex-wrap:nowrap;align-items:center;gap:16px;min-height:0;margin:0;padding:2px 2px 16px;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--ink)}
-.khi-root .meta-panel-title::before{content:counter(khimeta,decimal-leading-zero);display:grid;place-items:center;width:46px;height:46px;flex:0 0 46px;border:1.5px solid rgba(176,136,51,.75);border-radius:50%;background:#fff;color:var(--gold);font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:700;letter-spacing:.05em;direction:ltr}
-.khi-root .meta-panel-title::after{content:"";flex:1 1 40px;min-width:28px;height:1px;background:linear-gradient(to left,rgba(176,136,51,.6),rgba(176,136,51,.05))}
-.khi-root .meta-panel-title-local{display:inline;gap:0;color:var(--ink);font-family:'Amiri','Vazirmatn',serif;font-size:24px;font-weight:700;line-height:1.45}
+/* the section header — Sorani title at the inline-start, a gold hairline
+   filling the rest. No section number, no Latin accent (user rules). */
+.khi-root .meta-panel-title{display:flex;flex-wrap:nowrap;align-items:center;gap:18px;min-height:0;margin:0;padding:0 2px 10px;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--ink)}
+.khi-root .meta-panel-title::after{content:"";flex:1 1 40px;min-width:28px;height:1px;background:linear-gradient(to left,rgba(176,136,51,.55),rgba(176,136,51,.05))}
+.khi-root .meta-panel-title-local{display:inline;gap:0;color:var(--ink);font-family:'Amiri','Vazirmatn',serif;font-size:21px;font-weight:700;line-height:1.5}
 .khi-root .meta-panel-title-local::after{content:none}
-.khi-root .meta-panel-title-main{color:var(--ink-muted);font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;white-space:nowrap}
 
-/* field cells — the user-approved banded ledger, 3-up on desktop: each cell
-   is a soft band with the label stack (Sorani over the Latin key) on the
-   inline-start, a short vertical hairline, and the value beside it.
+/* field rows — the airy index style the user approved: a quiet label at the
+   inline-start, a dotted leader, the value pushed to the inline-end, each row
+   closed by a faint hairline. Two compact columns.
    (The :not() variant re-declares the kit's higher-specificity gap rule.) */
 .khi-root .meta-panel .meta-rows,
-.khi-root .meta-panel:not(.media-field-group) .meta-rows{display:grid;grid-auto-flow:dense;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:0}
+.khi-root .meta-panel:not(.media-field-group) .meta-rows{display:grid;grid-auto-flow:dense;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 84px;padding:0}
 .khi-root .meta-panel .meta-row,
-.khi-root .media-field-group .meta-row{display:grid;grid-template-columns:minmax(118px,38%) minmax(0,1fr);align-items:center;gap:0;padding:0;border:0;border-bottom:0;border-radius:13px;background:#f5f3ec;min-height:78px;overflow:hidden}
-.khi-root .meta-panel .meta-rows > .meta-row:nth-child(even){background:#fcfbf7}
+.khi-root .media-field-group .meta-row{display:flex;align-items:baseline;gap:14px;padding:11px 0 10px;border:0;border-bottom:1px solid rgba(31,58,49,.08);border-radius:0;background:transparent;min-height:0;overflow:visible}
 .khi-root .meta-panel .meta-row dt,
-.khi-root .media-field-group .meta-row dt{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px 18px;color:var(--ink-soft);font-size:13.5px;font-weight:800;line-height:1.55}
-.khi-root .meta-panel .meta-row dt::after,
-.khi-root .media-field-group .meta-row dt::after{content:"";position:absolute;inset-inline-end:0;top:22%;bottom:22%;width:1px;background:rgba(31,58,49,.16)}
+.khi-root .media-field-group .meta-row dt{flex:0 0 auto;max-width:45%;padding:0;color:var(--ink-muted);font-size:13px;font-weight:600;line-height:1.7}
 .khi-root .meta-panel .meta-row dd,
-.khi-root .media-field-group .meta-row dd{margin:0;padding:14px 18px;color:var(--ink);font-family:'IBM Plex Mono','Vazirmatn',monospace;font-size:13.5px;font-weight:600;line-height:1.8;text-align:right;word-break:break-word;min-width:0}
-.khi-root .media-field-group .meta-row.is-long{grid-column:1/-1;grid-template-columns:minmax(150px,22%) minmax(0,1fr);gap:0}
-.khi-root .media-field-group .meta-row.is-long dt{padding-top:14px}
-.khi-root .media-field-group .meta-row.is-empty-value{grid-template-columns:minmax(118px,38%) minmax(0,1fr);align-items:center;gap:0;padding-block:0;opacity:.5}
-.khi-root .media-field-group .meta-row.is-empty-value dd{font-size:12.5px;font-weight:600}
-/* the label stack inside a cell */
-.khi-root .full-field-label{flex-direction:column;align-items:flex-start;gap:4px}
-.khi-root .full-field-label-ku{color:var(--ink-soft);font-size:13.5px;font-weight:800}
-.khi-root .full-field-label-en{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#b3ae9d;direction:ltr;word-break:break-word;text-transform:none}
+.khi-root .media-field-group .meta-row dd{margin:0;padding:0;flex:1 1 auto;display:flex;align-items:baseline;gap:14px;min-width:0;color:var(--ink);font-family:'IBM Plex Mono','Vazirmatn',monospace;font-size:14px;font-weight:700;line-height:1.8;word-break:break-word}
+.khi-root .meta-panel .meta-row dd::before,
+.khi-root .media-field-group .meta-row dd::before{content:"";flex:1 1 28px;min-width:22px;transform:translateY(-4px);border-bottom:1px dotted rgba(140,129,103,.5)}
+/* long prose stacks instead: label above, value full width, no leader */
+.khi-root .media-field-group .meta-row.is-long{grid-column:1/-1;flex-direction:column;align-items:stretch;gap:6px}
+.khi-root .media-field-group .meta-row.is-long dt{padding-top:0;max-width:none}
+.khi-root .media-field-group .meta-row.is-long dd{display:block}
+.khi-root .media-field-group .meta-row.is-long dd::before{content:none}
+.khi-root .media-field-group .meta-row.is-empty-value{align-items:baseline;gap:14px;padding-block:11px 10px;opacity:.55}
+.khi-root .media-field-group .meta-row.is-empty-value dd{font-size:13px;font-weight:600}
+/* the label is a single quiet line */
+.khi-root .full-field-label{flex-direction:row;align-items:baseline;gap:6px}
+.khi-root .full-field-label-ku{color:inherit;font-size:inherit;font-weight:inherit}
 /* mixed-direction values (codes, file names, numbers) order themselves */
 .khi-root .full-field-text{unicode-bidi:plaintext}
 .khi-root .full-field-empty{font-family:'IBM Plex Mono',monospace}
-@media(max-width:1180px){
-  .khi-root .meta-panel .meta-rows,
-  .khi-root .meta-panel:not(.media-field-group) .meta-rows{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
-@media(max-width:760px){
+/* linked values (project/person/category) — gold-outlined chips like the
+   reference design's pill */
+.khi-root .meta-row dd .entity-chip{padding:3px 13px;border-color:rgba(176,136,51,.55);background:transparent;color:var(--gold);font-weight:800}
+.khi-root .meta-row dd .entity-chip:hover{border-color:var(--gold);color:var(--pine)}
+@media(max-width:900px){
   .khi-root .meta-panel .meta-rows,
   .khi-root .meta-panel:not(.media-field-group) .meta-rows{grid-template-columns:1fr}
-  .khi-root .meta-panel-title{flex-wrap:wrap}
-  .khi-root .meta-panel-title::before{width:38px;height:38px;flex-basis:38px;font-size:12px}
   .khi-root .meta-panel-title-local{font-size:19px}
-  /* the Latin accent may wrap on narrow phones — a rigid nowrap row would
-     push the hairline (and the accent itself) past the viewport edge */
-  .khi-root .meta-panel-title-main{letter-spacing:.14em;min-width:0;white-space:normal}
 }
 
 /* ── The year closes the page ── */
