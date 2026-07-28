@@ -12,10 +12,7 @@ import {
   KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaRow,
   KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
 } from '@/components/khi/KhiDetail'
-import {
-  IconPerson, IconProject, IconCalendar, IconRegion, IconImage, IconLayers,
-  IconMic, IconPlus,
-} from '@/components/khi/icons'
+import { IconImage, IconLayers } from '@/components/khi/icons'
 import { guestImages } from '@/services/guest'
 import { getStaffMediaOne } from '@/services/staff-public-catalog'
 import { usePublicAccess } from '@/hooks/use-public-access'
@@ -86,13 +83,13 @@ function PublicImageDetailPage() {
   const fileUrl = isStaff ? staffImage.url : resolveMediaUrl(image.imageFileUrl)
   const projectCode = image.project?.projectCode || image.projectCode
 
+  // The year is deliberately absent here — it closes the page as footerYear.
   const infoCards = [
-    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
-    { icon: IconProject, label: DETAIL.project, value: image.project?.projectName || image.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
-    { icon: IconCalendar, label: DETAIL.event, value: image.event },
-    { icon: IconRegion, label: DETAIL.location, value: image.location || image.region },
-    { icon: IconMic, label: DETAIL.photographer, value: image.creatorArtistPhotographer },
-    { icon: IconCalendar, label: DETAIL.year, value: yearNum(image) },
+    { label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
+    { label: DETAIL.project, value: image.project?.projectName || image.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
+    { label: DETAIL.event, value: image.event },
+    { label: DETAIL.location, value: image.location || image.region },
+    { label: DETAIL.photographer, value: image.creatorArtistPhotographer },
   ]
 
   const content = (
@@ -145,10 +142,11 @@ function PublicImageDetailPage() {
             { to: '/public/browse?types=image', label: 'وێنەکان' },
             { label: title },
           ]}
-          actions={[
-            ...([]),
-            { label: DETAIL.help, icon: IconPlus, onClick: () => setHelpOpen(true) },
-          ]}
+          actions={projectCode ? [
+            { label: image.project?.projectName || image.projectName || DETAIL.project, to: publicDetailPath('projects', projectCode), primary: true },
+          ] : []}
+          helpAction={{ label: DETAIL.help, onClick: () => setHelpOpen(true) }}
+          footerYear={yearNum(image)}
           infoCards={infoCards}
           content={content}
           meta={meta}

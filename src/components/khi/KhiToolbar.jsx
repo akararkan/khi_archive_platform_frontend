@@ -8,34 +8,29 @@ const selectStyle = {
   paddingInlineEnd: 4, outline: 'none',
 }
 
-// Results header: a Filters toggle (shows/hides the rail), title + subtitle,
-// grid/list toggle, and a sort <select> styled to match the kit's .sort-btn.
-// `sortIndex` is the active option index; `activeCount` badges the toggle with
-// the number of live filters.
+// Results header: one quiet Filters toggle (shows/hides the rail), the grid/list
+// toggle, and a sort <select> styled to match the kit's .sort-btn. `sortIndex`
+// is the active option index; `activeCount` badges the toggle with the number
+// of live filters.
 export default function KhiToolbar({
-  title, subtitle, view, onView, sorts = [], sortIndex = 0, onSortChange,
+  view, onView, sorts = [], sortIndex = 0, onSortChange,
   sidebarOpen = true, onToggleSidebar, activeCount = 0, showView = true,
 }) {
   return (
     <div className="toolbar">
-      <div className="toolbar-head">
-        {onToggleSidebar ? (
-          <button
-            type="button"
-            className={`filters-toggle${sidebarOpen ? ' on' : ''}`}
-            onClick={onToggleSidebar}
-            aria-pressed={sidebarOpen}
-          >
-            <IconFilter />
-            <span>{UI.filter}</span>
-            {activeCount > 0 ? <span className="cnt">{activeCount}</span> : null}
-          </button>
-        ) : null}
-        <div>
-          <h2>{title}</h2>
-          {subtitle ? <div className="sub">{subtitle}</div> : null}
-        </div>
-      </div>
+      {onToggleSidebar ? (
+        <button
+          type="button"
+          className={`filters-toggle${sidebarOpen ? ' on' : ''}`}
+          onClick={onToggleSidebar}
+          aria-pressed={sidebarOpen}
+          aria-label={UI.filter}
+        >
+          <IconFilter />
+          <span>{UI.filter}</span>
+          {activeCount > 0 ? <span className="cnt">{activeCount}</span> : null}
+        </button>
+      ) : <span />}
 
       <div className="controls">
         {showView ? (

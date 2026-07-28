@@ -393,8 +393,6 @@ export function KhiBrowsePage() {
   for (const k of selectedMediaTypes) chips.push({ key: `mt:${k}`, label: ({ audio: 'دەنگ', video: 'ڤیدیۆ', text: 'دەق', image: 'وێنە' })[k], onRemove: () => onToggleMediaType(k) })
   if (type.showDateRange && (dateFrom || dateTo)) chips.push({ key: 'date', label: `${UI.dateRange}: ${yearFrom || '…'}–${yearTo || '…'}`, onRemove: () => update({ dateFrom: null, dateTo: null }) })
 
-  const subtitle = loading ? type.sub : `${type.sub} · ${totalElements.toLocaleString()} ${UI.results}`
-
   return (
     <HighlightProvider query={q}>
       <div className={`layout${sidebarOpen ? '' : ' side-hidden'}`}>
@@ -430,8 +428,6 @@ export function KhiBrowsePage() {
 
         <main className="catalogue-main">
           <KhiToolbar
-            title={type.label}
-            subtitle={subtitle}
             view={view}
             onView={(v) => update({ layout: v === 'list' ? 'list' : null }, false)}
             showView={!!q}

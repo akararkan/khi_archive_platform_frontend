@@ -104,6 +104,7 @@ export const TYPE_PILL = { audio: 'AUDIO', video: 'VIDEO', text: 'TEXT', image: 
 export const DETAIL = {
   home: 'سەرەتا',
   notFound: 'نەدۆزرایەوە.',
+  untitled: 'بێ ناو',
   back: 'گەڕانەوە',
   openDoc: 'کردنەوەی بەڵگەنامە',
   openOriginal: 'کردنەوەی ڕەسەن',

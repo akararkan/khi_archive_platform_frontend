@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 
 import { readFacet, personImageSrc, personInitials } from '@/components/public/public-helpers'
-import { IconFilter, IconChevron, IconCalendar, IconClose, TYPE_ICON, FACET_ICON } from './icons'
+import { IconChevron, IconCalendar, IconClose, TYPE_ICON, FACET_ICON } from './icons'
 import { UI, TYPE_LABELS } from './khi-data'
 import KhiDateRange from './KhiDateRange'
 
@@ -102,18 +102,15 @@ export default function KhiSidebar({
 }) {
   return (
     <aside className="sidebar">
-      <div className="side-head">
-        <span className="ic"><IconFilter /></span>
-        <span className="side-head-txt">
-          <span className="eb">{UI.collection}</span>
-          <b>{UI.filter}</b>
-        </span>
-        {onClose ? (
-          <button type="button" className="side-close" onClick={onClose} aria-label={UI.clearAll}>
+      {/* The rail carries no heading — the toolbar's filter button is the one
+          label; on phones this row only hosts the drawer's close control. */}
+      {onClose ? (
+        <div className="side-head">
+          <button type="button" className="side-close" onClick={onClose} aria-label="داخستن">
             <IconClose />
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {/* Media-type checkboxes — the primary way to browse the public media
           grid, always shown; toggling one jumps to the grid from any scope. */}

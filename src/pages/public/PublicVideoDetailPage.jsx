@@ -13,10 +13,7 @@ import {
   KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaRow,
   KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
 } from '@/components/khi/KhiDetail'
-import {
-  IconPerson, IconProject, IconCalendar, IconLanguage, IconRegion, IconClock,
-  IconLayers, IconText, IconPlus,
-} from '@/components/khi/icons'
+import { IconLayers, IconText } from '@/components/khi/icons'
 import { guestVideos } from '@/services/guest'
 import { getStaffMediaOne } from '@/services/staff-public-catalog'
 import { usePublicAccess } from '@/hooks/use-public-access'
@@ -91,14 +88,14 @@ function PublicVideoDetailPage() {
   const original = originalCandidate && originalCandidate !== title ? originalCandidate : null
   const projectCode = video.project?.projectCode || video.projectCode
 
+  // The year is deliberately absent here — it closes the page as footerYear.
   const infoCards = [
-    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
-    { icon: IconProject, label: DETAIL.project, value: video.project?.projectName || video.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
-    { icon: IconCalendar, label: DETAIL.event, value: video.event },
-    { icon: IconRegion, label: DETAIL.location, value: video.location || video.region },
-    { icon: IconLanguage, label: DETAIL.language, value: video.language },
-    { icon: IconCalendar, label: DETAIL.year, value: yearNum(video) },
-    { icon: IconClock, label: DETAIL.duration, value: video.durationFormatted || video.duration },
+    { label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
+    { label: DETAIL.project, value: video.project?.projectName || video.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
+    { label: DETAIL.event, value: video.event },
+    { label: DETAIL.location, value: video.location || video.region },
+    { label: DETAIL.language, value: video.language },
+    { label: DETAIL.duration, value: video.durationFormatted || video.duration },
   ]
 
   const content = (
@@ -143,7 +140,11 @@ function PublicVideoDetailPage() {
             { to: '/public/browse?types=video', label: 'ڤیدیۆکان' },
             { label: title },
           ]}
-          actions={[{ label: DETAIL.help, icon: IconPlus, onClick: () => setHelpOpen(true) }]}
+          actions={projectCode ? [
+            { label: video.project?.projectName || video.projectName || DETAIL.project, to: publicDetailPath('projects', projectCode), primary: true },
+          ] : []}
+          helpAction={{ label: DETAIL.help, onClick: () => setHelpOpen(true) }}
+          footerYear={yearNum(video)}
           infoCards={infoCards}
           content={content}
           meta={meta}

@@ -16,10 +16,7 @@ import {
   KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaRow,
   KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
 } from '@/components/khi/KhiDetail'
-import {
-  IconPerson, IconProject, IconBook, IconLanguage, IconCalendar, IconLayers,
-  IconText, IconMic, IconQuote, IconPlus,
-} from '@/components/khi/icons'
+import { IconLayers, IconText, IconQuote } from '@/components/khi/icons'
 import { guestTexts } from '@/services/guest'
 import { getStaffMediaOne } from '@/services/staff-public-catalog'
 import { usePublicAccess } from '@/hooks/use-public-access'
@@ -327,13 +324,13 @@ function PublicTextDetailPage() {
     </>
   )
 
+  // The year is deliberately absent here — it closes the page as footerYear.
   const infoCards = [
-    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
-    { icon: IconProject, label: DETAIL.project, value: text.project?.projectName || text.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
-    { icon: IconBook, label: DETAIL.documentType, value: text.documentType },
-    { icon: IconMic, label: DETAIL.author, value: text.author },
-    { icon: IconLanguage, label: DETAIL.language, value: text.language },
-    { icon: IconCalendar, label: DETAIL.year, value: yearNum(text) },
+    { label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
+    { label: DETAIL.project, value: text.project?.projectName || text.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
+    { label: DETAIL.documentType, value: text.documentType },
+    { label: DETAIL.author, value: text.author },
+    { label: DETAIL.language, value: text.language },
   ]
 
   const meta = (
@@ -363,9 +360,11 @@ function PublicTextDetailPage() {
             { to: '/public/browse?types=text', label: 'دەقەکان' },
             { label: title },
           ]}
-          actions={[
-            { label: DETAIL.help, icon: IconPlus, onClick: () => setHelpOpen(true) },
-          ]}
+          actions={projectCode ? [
+            { label: text.project?.projectName || text.projectName || DETAIL.project, to: publicDetailPath('projects', projectCode), primary: true },
+          ] : []}
+          helpAction={{ label: DETAIL.help, onClick: () => setHelpOpen(true) }}
+          footerYear={yearNum(text)}
           infoCards={infoCards}
           content={content}
           meta={meta}

@@ -13,10 +13,7 @@ import {
   KhiDetailShell, KhiContentCard, KhiMetaPanel, KhiMetaRow,
   KhiProjectLink, KhiPersonLink, KhiCategoryLinks,
 } from '@/components/khi/KhiDetail'
-import {
-  IconPerson, IconProject, IconCategory, IconAudio, IconLanguage, IconRegion,
-  IconCalendar, IconClock, IconLayers, IconText, IconQuote, IconPlus,
-} from '@/components/khi/icons'
+import { IconLayers, IconText, IconQuote } from '@/components/khi/icons'
 import { guestAudios } from '@/services/guest'
 import { getStaffMediaOne } from '@/services/staff-public-catalog'
 import { usePublicAccess } from '@/hooks/use-public-access'
@@ -95,15 +92,15 @@ function PublicAudioDetailPage() {
   const catCode = firstCat ? (firstCat.categoryCode || firstCat.code) : null
   const projectCode = audio.project?.projectCode || audio.projectCode
 
+  // The year is deliberately absent here — it closes the page as footerYear.
   const infoCards = [
-    { icon: IconPerson, label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
-    { icon: IconProject, label: DETAIL.project, value: audio.project?.projectName || audio.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
-    { icon: IconCategory, label: DETAIL.category, value: catName, to: catCode ? publicDetailPath('categories', catCode) : null },
-    { icon: IconAudio, label: DETAIL.form, value: audio.form },
-    { icon: IconLanguage, label: DETAIL.language, value: audio.language },
-    { icon: IconRegion, label: DETAIL.region, value: audio.region || audio.city },
-    { icon: IconCalendar, label: DETAIL.year, value: yearNum(audio) },
-    { icon: IconClock, label: DETAIL.duration, value: audio.durationFormatted || (audio.duration ? `${audio.duration}s` : null) },
+    { label: DETAIL.person, value: person?.fullName || person?.name, to: person?.personCode ? publicDetailPath('persons', person.personCode) : null },
+    { label: DETAIL.project, value: audio.project?.projectName || audio.projectName, to: projectCode ? publicDetailPath('projects', projectCode) : null },
+    { label: DETAIL.category, value: catName, to: catCode ? publicDetailPath('categories', catCode) : null },
+    { label: DETAIL.form, value: audio.form },
+    { label: DETAIL.language, value: audio.language },
+    { label: DETAIL.region, value: audio.region || audio.city },
+    { label: DETAIL.duration, value: audio.durationFormatted || (audio.duration ? `${audio.duration}s` : null) },
   ]
 
   const content = (
@@ -149,7 +146,11 @@ function PublicAudioDetailPage() {
             { to: '/public/browse?types=audio', label: 'دەنگەکان' },
             { label: title },
           ]}
-          actions={[{ label: DETAIL.help, icon: IconPlus, onClick: () => setHelpOpen(true) }]}
+          actions={projectCode ? [
+            { label: audio.project?.projectName || audio.projectName || DETAIL.project, to: publicDetailPath('projects', projectCode), primary: true },
+          ] : []}
+          helpAction={{ label: DETAIL.help, onClick: () => setHelpOpen(true) }}
+          footerYear={yearNum(audio)}
           infoCards={infoCards}
           content={content}
           meta={meta}

@@ -713,24 +713,26 @@ function metadataTitle(kind, field) {
   return metadata[metadataKey]?.title || null
 }
 
-function BilingualFieldLabel({ field, kind }) {
+// Kurdish-only field labels — the English DTO field names stay out of the UI.
+function FieldLabel({ field, kind }) {
   const ku = FIELD_LABELS_KU[field] || metadataTitle(kind, field) || field
   return (
     <span className="full-field-label">
-      <span dir="ltr" className="full-field-label-en">{field}</span>
-      <span className="full-field-label-ku">({ku})</span>
+      <span className="full-field-label-ku">{ku}</span>
     </span>
   )
 }
 
-function BilingualGroupTitle({ title }) {
+// Ledger band title: the Sorani name leads (followed by the auto section
+// number from CSS counters); the Latin name stays as a small mono accent.
+function GroupTitle({ title }) {
   const match = String(title || '').match(/^(.+?)\s*\((.+)\)$/)
-  if (!match) return <span className="meta-panel-title-main">{title}</span>
+  if (!match) return <span className="meta-panel-title-local">{title}</span>
   return (
-    <span className="meta-panel-title-copy">
-      <span dir="ltr" className="meta-panel-title-main">{match[1]}</span>
+    <>
       <span className="meta-panel-title-local">{match[2]}</span>
-    </span>
+      <span dir="ltr" className="meta-panel-title-main">{match[1]}</span>
+    </>
   )
 }
 
@@ -766,13 +768,10 @@ function KhiPublicMediaFields({ kind, item, full = false }) {
       {groups.map((group) => {
         const fields = group.fields.filter((field) => full || !displayedOutside.has(field))
         if (!fields.length) return null
-        const Icon = group.icon || IconLayers
         return (
           <div className="meta-panel media-field-group" key={group.title}>
             <p className="meta-panel-title">
-              <span className="meta-panel-title-icon"><Icon width="17" height="17" /></span>
-              <BilingualGroupTitle title={group.title} />
-              <span className="meta-panel-count" aria-label={`${fields.length} fields`}>{fields.length}</span>
+              <GroupTitle title={group.title} />
             </p>
             <dl className="meta-rows">
               {fields.map((field) => {
@@ -784,7 +783,7 @@ function KhiPublicMediaFields({ kind, item, full = false }) {
                 )
                 return (
                   <div className={`meta-row full-field-row${isLong ? ' is-long' : ''}${isEmptyValue(value) ? ' is-empty-value' : ''}`} key={field}>
-                    <dt><BilingualFieldLabel field={field} kind={normalizedKind} /></dt>
+                    <dt><FieldLabel field={field} kind={normalizedKind} /></dt>
                     <dd><PublicFieldValue value={value} detailed={full} /></dd>
                   </div>
                 )

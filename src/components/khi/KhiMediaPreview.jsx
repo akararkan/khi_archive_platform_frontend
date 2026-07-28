@@ -5,9 +5,7 @@ import {
   IconMic,
   IconPerson,
   IconPlay,
-  IconProject,
   IconText,
-  IconVideo,
 } from './icons'
 
 const COVER_LABELS = {
@@ -28,10 +26,10 @@ function ArchiveRails() {
   )
 }
 
-function CoverLabel({ kind, Icon }) {
+// Icon-free by design: the media type reads as a quiet rounded glass pill.
+function CoverLabel({ kind }) {
   return (
     <span className={`archive-cover-label kind-${kind}`}>
-      {Icon ? <Icon aria-hidden="true" /> : null}
       <span>{COVER_LABELS[kind] || kind}</span>
     </span>
   )
@@ -66,8 +64,8 @@ export default function KhiMediaPreview({ record }) {
       ) : null}
       <img className="cover-img" src={image} alt="" loading="lazy" />
       <span className="archive-real-shade" aria-hidden="true" />
-      {kind === 'image' ? <CoverLabel kind="image" Icon={IconImage} /> : null}
-      {kind === 'text' ? <CoverLabel kind="text" Icon={IconText} /> : null}
+      {kind === 'image' ? <CoverLabel kind="image" /> : null}
+      {kind === 'text' ? <CoverLabel kind="text" /> : null}
     </div>
   ) : null
   const videoThumbnail = image ? (
@@ -77,7 +75,7 @@ export default function KhiMediaPreview({ record }) {
       <span className="vig" aria-hidden="true" />
       {duration ? <span className="duration">{duration}</span> : null}
       <span className="play ring" aria-hidden="true"><IconPlay /></span>
-      <CoverLabel kind="video" Icon={IconVideo} />
+      <CoverLabel kind="video" />
     </div>
   ) : null
   const videoFramePreview = videoSrc ? (
@@ -93,7 +91,7 @@ export default function KhiMediaPreview({ record }) {
       <span className="vig" aria-hidden="true" />
       {duration ? <span className="duration">{duration}</span> : null}
       <span className="play ring" aria-hidden="true"><IconPlay /></span>
-      <CoverLabel kind="video" Icon={IconVideo} />
+      <CoverLabel kind="video" />
     </div>
   ) : null
 
@@ -106,7 +104,7 @@ export default function KhiMediaPreview({ record }) {
         <Waveform />
         {duration ? <span className="duration">{duration}</span> : null}
         <span className="play" aria-hidden="true"><IconPlay /></span>
-        <CoverLabel kind="audio" Icon={IconMic} />
+        <CoverLabel kind="audio" />
       </div>
     )
   }
@@ -125,7 +123,7 @@ export default function KhiMediaPreview({ record }) {
         <span className="scrub" aria-hidden="true"><i /></span>
         {duration ? <span className="duration">{duration}</span> : null}
         <span className="play ring" aria-hidden="true"><IconPlay /></span>
-        <CoverLabel kind="video" Icon={IconVideo} />
+        <CoverLabel kind="video" />
       </div>
     )
   }
@@ -138,7 +136,7 @@ export default function KhiMediaPreview({ record }) {
           <span className="archive-photo-sun" />
           <span className="archive-photo-hills" />
         </span>
-        <CoverLabel kind="image" Icon={IconImage} />
+        <CoverLabel kind="image" />
       </div>
     )
   }
@@ -152,7 +150,7 @@ export default function KhiMediaPreview({ record }) {
         <span className="archive-tile project-image-tile" aria-hidden="true">
           {image ? <img src={image} alt="" loading="lazy" /> : <IconImage />}
         </span>
-        <CoverLabel kind="project" Icon={IconProject} />
+        <CoverLabel kind="project" />
       </div>
     )
   }
@@ -190,7 +188,7 @@ export default function KhiMediaPreview({ record }) {
           <div className="ln" style={{ width: '84%' }} />
         </div>
       </div>
-      <CoverLabel kind="text" Icon={IconText} />
+      <CoverLabel kind="text" />
     </div>
   )
 }

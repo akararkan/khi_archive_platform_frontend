@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 
-import { DETAIL, TYPE_PILL } from './khi-data'
+import { DETAIL } from './khi-data'
 import KhiLogoWatermark from './KhiLogoWatermark'
 import { publicDetailPath } from '@/components/public/public-route-id'
 import {
@@ -49,6 +49,7 @@ export function KhiBreadcrumb({ items = [] }) {
 }
 
 // ── Action buttons (hero) ────────────────────────────────────────────────────
+// `to` renders an internal router Link, `href` a plain anchor, else a button.
 export function KhiActions({ actions = [] }) {
   const list = actions.filter(Boolean)
   if (!list.length) return null
@@ -58,6 +59,9 @@ export function KhiActions({ actions = [] }) {
         const Icon = a.icon
         const cls = `detail-btn${a.primary ? ' primary' : ''}`
         const inner = <>{Icon ? <Icon width="17" height="17" /> : null}{a.label}</>
+        if (a.to) {
+          return <Link key={i} to={a.to} className={cls}>{inner}</Link>
+        }
         if (a.href) {
           return (
             <a
@@ -184,17 +188,19 @@ export function KhiDetailDisc({ kind, image, alt, badge, vinyl = false, initials
 }
 
 // ── Hero ─────────────────────────────────────────────────────────────────────
-// kind drives the Latin type-pill + the disc badge; disc is a ready KhiDetailDisc.
+// kind drives the hero tint + the disc badge; disc is a ready KhiDetailDisc.
+// No type pill above the title — the cover/breadcrumb already say what it is.
+// `corner` floats in the hero's top-left corner (the Help control lives there).
 export function KhiDetailHero({
-  kind, title, subtitle, description, tags = [], action, disc, breadcrumb,
+  kind, title, subtitle, description, tags = [], action, disc, breadcrumb, corner,
 }) {
   const cleanTags = (tags || []).filter(Boolean)
   return (
     <section className={`detail-hero${kind ? ` kind-${kind}` : ''}`}>
       {breadcrumb}
+      {corner ? <div className="hero-corner">{corner}</div> : null}
       <div className="hero-grid">
         <div className="hero-content">
-          {kind ? <span className="type-pill">{TYPE_PILL[kind] || kind}</span> : null}
           <h1>{title}</h1>
           {subtitle ? <h2>{subtitle}</h2> : null}
           {description ? <p className="hero-desc">{description}</p> : null}
@@ -214,22 +220,19 @@ export function KhiDetailHero({
 }
 
 // ── Info grid ────────────────────────────────────────────────────────────────
-// items: [{ icon, label, value, to }] — empty values are dropped.
+// items: [{ label, value, to }] — empty values are dropped. Icon-free ledger
+// tiles: the label sits over the value, closed by a gold hairline.
 export function KhiInfoGrid({ items = [] }) {
   const rows = items.filter((it) => it && it.value != null && it.value !== '')
   if (!rows.length) return null
   return (
     <div className="info-grid">
       {rows.map((it, i) => {
-        const Icon = it.icon
         const body = (
-          <>
-            <span className="info-icon">{Icon ? <Icon width="22" height="22" /> : null}</span>
-            <div className="info-text">
-              <span>{it.label}</span>
-              <strong>{it.value}</strong>
-            </div>
-          </>
+          <div className="info-text">
+            <span>{it.label}</span>
+            <strong>{it.value}</strong>
+          </div>
         )
         return it.to ? (
           <Link key={i} to={it.to} className="info-card link">{body}</Link>
@@ -314,12 +317,14 @@ export function KhiEmptyState({ title, text, action, illustration = true }) {
 }
 
 // ── Curated meta panels ──────────────────────────────────────────────────────
-export function KhiMetaPanel({ icon, title, children }) {
-  const Icon = icon
+// Ledger sections: a pine header band (title + auto section number via CSS
+// counters), then underlined field rows. Icon-free; `icon` is accepted for
+// call-site compatibility but never rendered.
+export function KhiMetaPanel({ title, children }) {
   return (
     <div className="meta-panel">
       <p className="meta-panel-title">
-        {Icon ? <Icon width="16" height="16" /> : null}{title}
+        <span className="meta-panel-title-local">{title}</span>
       </p>
       <dl className="meta-rows">{children}</dl>
     </div>
@@ -382,13 +387,12 @@ export function KhiPillRow({ values, search = false }) {
   )
 }
 
-// Inline chip linking to another entity's detail page.
-export function KhiEntityChip({ to, label, icon }) {
-  const Icon = icon
+// Inline chip linking to another entity's detail page. Icon-free; `icon` is
+// accepted for call-site compatibility but never rendered.
+export function KhiEntityChip({ to, label }) {
   if (!to || !label) return null
   return (
     <Link to={to} className="entity-chip">
-      <span className="ec-ic">{Icon ? <Icon width="13" height="13" /> : null}</span>
       <span className="ec-label">{label}</span>
     </Link>
   )
@@ -422,13 +426,11 @@ export function KhiCategoryLinks({ categories }) {
 }
 
 // ── Content section (player / description / lyrics …) ─────────────────────────
-export function KhiContentCard({ icon, title, children, className = '' }) {
-  const Icon = icon
+// Icon-free; `icon` is accepted for call-site compatibility but never rendered.
+export function KhiContentCard({ title, children, className = '' }) {
   return (
     <section className={`content-card ${className}`.trim()}>
-      {title ? (
-        <h2 className="content-title">{Icon ? <Icon width="18" height="18" /> : null}{title}</h2>
-      ) : null}
+      {title ? <h2 className="content-title">{title}</h2> : null}
       <div className="content-body">{children}</div>
     </section>
   )
