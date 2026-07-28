@@ -720,7 +720,9 @@ function FieldLabel({ field, kind }) {
   return (
     <span className="full-field-label">
       <span className="full-field-label-ku">{ku}</span>
-      {ku !== field ? <span dir="ltr" className="full-field-label-en">{field}</span> : null}
+      {String(ku).toLowerCase() !== String(field).toLowerCase()
+        ? <span dir="ltr" className="full-field-label-en">{field}</span>
+        : null}
     </span>
   )
 }

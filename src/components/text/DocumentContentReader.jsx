@@ -27,13 +27,17 @@ function humanizeError(err, kind) {
   return 'Could not load the document preview.'
 }
 
-function DocumentContentReader({ fileUrl, extension, fileName, title, variant = 'khi' }) {
+// `forcedKind` + `preloadedBuffer` let a caller that already downloaded and
+// byte-sniffed the file (see SniffedDocViewer on the public text page) reuse
+// the buffer instead of refetching and re-classifying by metadata.
+function DocumentContentReader({ fileUrl, extension, fileName, title, variant = 'khi', forcedKind = null, preloadedBuffer = null }) {
   const ext = useMemo(() => resolveExtension(extension, fileName, fileUrl), [extension, fileName, fileUrl])
-  const kind = useMemo(() => resolveDocKind(extension, fileName, fileUrl), [extension, fileName, fileUrl])
+  const metaKind = useMemo(() => resolveDocKind(extension, fileName, fileUrl), [extension, fileName, fileUrl])
+  const kind = forcedKind || metaKind
   const [state, setState] = useState({ status: 'idle', data: null, error: '' })
 
   useEffect(() => {
-    if (!fileUrl || kind === 'unsupported' || kind === 'pdf') {
+    if ((!fileUrl && !preloadedBuffer) || kind === 'unsupported' || kind === 'pdf') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setState({ status: 'idle', data: null, error: '' })
       return undefined
@@ -45,20 +49,22 @@ function DocumentContentReader({ fileUrl, extension, fileName, title, variant = 
 
     async function run() {
       try {
-        const res = await apiClient.get(resolveMediaUrl(fileUrl), {
-          responseType: 'arraybuffer',
-          signal: ctrl.signal,
-          // Archival scans/books can be large; the default 15s client timeout
-          // would cut a slow download off mid-stream.
-          timeout: 0,
-          // Ask the stream endpoint for the whole file in one response (some
-          // media endpoints otherwise chunk a no-Range request to a small
-          // window — see use-authed-media-url.js).
-          headers: { Range: 'bytes=0-' },
-        })
+        let buffer = preloadedBuffer
+        if (!buffer) {
+          const res = await apiClient.get(resolveMediaUrl(fileUrl), {
+            responseType: 'arraybuffer',
+            signal: ctrl.signal,
+            // Archival scans/books can be large; the default 15s client timeout
+            // would cut a slow download off mid-stream.
+            timeout: 0,
+            // Ask the stream endpoint for the whole file in one response (some
+            // media endpoints otherwise chunk a no-Range request to a small
+            // window — see use-authed-media-url.js).
+            headers: { Range: 'bytes=0-' },
+          })
+          buffer = res.data
+        }
         if (cancelled) return
-
-        const buffer = res.data
         let data
         if (kind === 'docx') {
           data = { html: await convertDocxToHtml(buffer) }
@@ -86,10 +92,10 @@ function DocumentContentReader({ fileUrl, extension, fileName, title, variant = 
       cancelled = true
       ctrl.abort()
     }
-  }, [fileUrl, kind, ext])
+  }, [fileUrl, kind, ext, preloadedBuffer])
 
   let inner
-  if (!fileUrl) {
+  if (!fileUrl && !preloadedBuffer) {
     inner = <div className="doc-reader-status">No file is attached to this record.</div>
   } else if (kind === 'unsupported') {
     inner = (

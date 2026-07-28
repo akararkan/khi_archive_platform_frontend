@@ -31,12 +31,30 @@ const RENDERABLE = new Set([
   ...PDF_EXTS, ...TEXT_EXTS, ...CODE_EXTS, ...TABLE_EXTS, ...HTML_EXTS, ...DOCX_EXTS,
 ])
 
+// Some rows store a MIME type in the extension column; map the common document
+// types back to their extension before falling through to the other signals.
+const MIME_TO_EXT = {
+  'application/pdf': 'pdf',
+  'application/rtf': 'rtf',
+  'text/rtf': 'rtf',
+  'text/plain': 'txt',
+  'text/markdown': 'md',
+  'text/html': 'html',
+  'text/csv': 'csv',
+  'text/tab-separated-values': 'tsv',
+  'application/json': 'json',
+  'application/xml': 'xml',
+  'text/xml': 'xml',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+}
+
 /**
  * Lower-cased extension (no dot) resolved from the stored field first, then the
  * file name, then the URL path as a last resort.
  */
 export function resolveExtension(extension, fileName, fileUrl) {
-  const fromField = String(extension || '').trim().toLowerCase().replace(/^\./, '')
+  let fromField = String(extension || '').trim().toLowerCase().replace(/^\./, '')
+  if (fromField.includes('/')) fromField = MIME_TO_EXT[fromField] || ''
   if (fromField) return fromField
   const fromName = extFromString(fileName)
   if (fromName) return fromName
@@ -70,6 +88,65 @@ export function resolveDocKind(extension, fileName, fileUrl) {
 /** True when the file can be previewed inline (any kind other than unsupported). */
 export function isPreviewable(extension, fileName, fileUrl) {
   return RENDERABLE.has(resolveExtension(extension, fileName, fileUrl))
+}
+
+// ── Content sniffing ─────────────────────────────────────────────────────────
+// Guest DTOs and legacy imports often carry no usable extension or file name,
+// and `/stream` URLs never do — metadata-only classification then gives up on
+// perfectly renderable files. These helpers identify a downloaded buffer by
+// its actual bytes instead, as the last resort before "no preview".
+
+const ZIP_SCAN_BYTES = 65536
+const TEXT_SAMPLE_BYTES = 131072
+
+function latin1(bytes) {
+  let out = ''
+  for (let i = 0; i < bytes.length; i += 1) out += String.fromCharCode(bytes[i])
+  return out
+}
+
+function countChar(text, ch) {
+  let n = 0
+  for (let i = 0; i < text.length; i += 1) if (text[i] === ch) n += 1
+  return n
+}
+
+function sniffDecodeSample(bytes) {
+  const sample = bytes.slice(0, Math.min(bytes.length, TEXT_SAMPLE_BYTES))
+  let text = decodeBufferToText(sample.buffer)
+  // BOM-less UTF-16 (old Windows exports) decodes as NUL-riddled UTF-8.
+  if (countChar(text, '\u0000') / Math.max(1, text.length) > 0.05) {
+    text = new TextDecoder('utf-16le').decode(sample)
+  }
+  const bad = countChar(text, '\uFFFD') + countChar(text, '\u0000')
+  if (bad / Math.max(1, text.length) > 0.02) return null
+  return text
+}
+
+/**
+ * Classify a downloaded file by its magic bytes / content.
+ * @returns {'pdf'|'docx'|'html'|'text'|'unsupported'}
+ */
+export function sniffDocKind(buffer) {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer || new ArrayBuffer(0))
+  if (!bytes.length) return 'unsupported'
+  if (latin1(bytes.subarray(0, 5)).startsWith('%PDF')) return 'pdf'
+  if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+    // ZIP container: docx stores word/… entry names inline near the start;
+    // epub declares its mimetype first; xlsx/pptx/odt have neither.
+    const probe = latin1(bytes.subarray(0, ZIP_SCAN_BYTES))
+    if (probe.includes('application/epub+zip')) return 'unsupported'
+    if (probe.includes('word/')) return 'docx'
+    return 'unsupported'
+  }
+  // OLE compound file (legacy .doc/.xls/.ppt) — needs a backend converter.
+  if (bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0) return 'unsupported'
+  const decoded = sniffDecodeSample(bytes)
+  if (decoded == null) return 'unsupported'
+  if (/^\s*\{\\rtf/.test(decoded)) return 'text'
+  const lead = decoded.slice(0, 600).trimStart().toLowerCase()
+  if (lead.startsWith('<!doctype html') || lead.startsWith('<html')) return 'html'
+  return 'text'
 }
 
 /**

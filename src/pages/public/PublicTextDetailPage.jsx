@@ -26,7 +26,7 @@ import { apiClient } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
 import { DeepZoomViewer } from '@/components/ui/deep-zoom-viewer'
 import { DocumentContentReader } from '@/components/text/DocumentContentReader'
-import { resolveDocKind } from '@/lib/document-preview'
+import { resolveDocKind, sniffDocKind } from '@/lib/document-preview'
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
@@ -47,7 +47,9 @@ function getSpreadStartPage(page, pageCount) {
   return safePage % 2 === 0 ? Math.max(1, safePage - 1) : safePage
 }
 
-function TextPdfPageImagesViewer({ fileUrl, title }) {
+// `initialData` (ArrayBuffer) skips the download when the caller already has
+// the file — see SniffedDocViewer below.
+function TextPdfPageImagesViewer({ fileUrl, title, initialData = null }) {
   const [pages, setPages] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -66,15 +68,21 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
         setError('')
         setPages([])
 
-        const response = await apiClient.get(resolveMediaUrl(fileUrl), {
-          signal: abortController.signal,
-          responseType: 'arraybuffer',
-          // PDFs can be large archival scans; don't let the default 15s
-          // client timeout cut the download off.
-          timeout: 0,
-        })
-
-        const rawData = new Uint8Array(response.data)
+        let rawData
+        if (initialData) {
+          // Copy: pdf.js transfers (detaches) the buffer it's handed to its
+          // worker, and StrictMode replays this effect against the same prop.
+          rawData = new Uint8Array(initialData.slice(0))
+        } else {
+          const response = await apiClient.get(resolveMediaUrl(fileUrl), {
+            signal: abortController.signal,
+            responseType: 'arraybuffer',
+            // PDFs can be large archival scans; don't let the default 15s
+            // client timeout cut the download off.
+            timeout: 0,
+          })
+          rawData = new Uint8Array(response.data)
+        }
         loadingTask = getDocument({ data: rawData })
         const pdf = await loadingTask.promise
         const renderedPages = []
@@ -115,7 +123,7 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
         loadingTask.destroy().catch(() => null)
       }
     }
-  }, [fileUrl])
+  }, [fileUrl, initialData])
 
   const isSpread = viewMode === 'spread' && pageCount > 1
   const maxStartPage = pageCount
@@ -247,6 +255,72 @@ function TextPdfPageImagesViewer({ fileUrl, title }) {
   )
 }
 
+// Last-resort viewer for records whose metadata names no renderable format
+// (guest DTOs and legacy rows often store no extension, and /stream URLs never
+// carry one). Downloads the file once, identifies it by its actual bytes, then
+// hands the buffer to the right viewer — instead of giving up with
+// "Preview is not available".
+function SniffedDocViewer({ fileUrl, fileName, title }) {
+  const [state, setState] = useState({ status: 'loading', kind: null, buffer: null })
+
+  useEffect(() => {
+    let cancelled = false
+    const ctrl = new AbortController()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setState({ status: 'loading', kind: null, buffer: null })
+    apiClient.get(resolveMediaUrl(fileUrl), {
+      responseType: 'arraybuffer',
+      signal: ctrl.signal,
+      timeout: 0,
+      // Whole file in one response — some stream endpoints chunk a no-Range
+      // request to a small window (see use-authed-media-url.js).
+      headers: { Range: 'bytes=0-' },
+    })
+      .then((res) => {
+        if (!cancelled) setState({ status: 'ready', kind: sniffDocKind(res.data), buffer: res.data })
+      })
+      .catch((err) => {
+        if (cancelled || err?.code === 'ERR_CANCELED' || err?.name === 'AbortError') return
+        setState({ status: 'error', kind: null, buffer: null })
+      })
+    return () => {
+      cancelled = true
+      ctrl.abort()
+    }
+  }, [fileUrl])
+
+  if (state.status === 'loading') {
+    return (
+      <div className="protected-file-viewer protected-media">
+        <div className="document-viewer-status">Loading document…</div>
+      </div>
+    )
+  }
+  if (state.status === 'error') {
+    return <div className="media-unavailable" dir="ltr">Could not load the document preview.</div>
+  }
+  if (state.kind === 'pdf') {
+    return <TextPdfPageImagesViewer fileUrl={fileUrl} title={title} initialData={state.buffer} />
+  }
+  if (state.kind === 'unsupported') {
+    return (
+      <div className="media-unavailable" dir="ltr">
+        Preview is not available for this file type.{fileName ? ` (${fileName})` : ''}
+      </div>
+    )
+  }
+  return (
+    <DocumentContentReader
+      variant="khi"
+      fileUrl={fileUrl}
+      fileName={fileName}
+      title={title}
+      forcedKind={state.kind}
+      preloadedBuffer={state.buffer}
+    />
+  )
+}
+
 function PublicTextDetailPage() {
   const { code: routeCode } = useParams()
   const navigate = useNavigate()
@@ -305,7 +379,7 @@ function PublicTextDetailPage() {
         docKind === 'pdf' ? (
           <TextPdfPageImagesViewer key={fileUrl} fileUrl={fileUrl} title={title} />
         ) : docKind === 'unsupported' ? (
-          <div className="media-unavailable">Preview is not available for this file type.</div>
+          <SniffedDocViewer key={fileUrl} fileUrl={text.textFileUrl} fileName={text.fileName} title={title} />
         ) : (
           <DocumentContentReader
             key={text.textFileUrl}

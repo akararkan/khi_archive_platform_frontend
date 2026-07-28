@@ -1027,8 +1027,11 @@
   -webkit-mask-image:radial-gradient(ellipse at center,#000 26%,transparent 72%);mask-image:radial-gradient(ellipse at center,#000 26%,transparent 72%);
   background-image:repeating-linear-gradient(90deg,transparent 0 6px,var(--gold) 6px 8px,transparent 8px 16px)}
 .khi-root .hero-image-area .wave::before{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,transparent 48%,var(--gold) 49% 51%,transparent 52%)}
-.khi-root .wave-left{right:4px}
-.khi-root .wave-right{left:4px}
+/* The base kit's `.wave{inset:29% 0 25%}` leaks left:0/right:0 into these
+   ornaments; under RTL the `right` always wins the over-constraint, piling
+   BOTH waves on the right flank. Neutralize the opposite side explicitly. */
+.khi-root .hero-image-area .wave-left{left:auto;right:4px}
+.khi-root .hero-image-area .wave-right{right:auto;left:4px}
 @media(max-width:520px){.khi-root .hero-image-area .wave{display:none}}
 .khi-root .record-frame{position:relative;z-index:2;width:330px;height:330px;max-width:78vw;max-height:78vw;border-radius:50%;padding:12px;
   background:linear-gradient(#fffdf8,#f4ead9);border:1px solid #d7c49d;
@@ -1142,8 +1145,8 @@
 .khi-root .media-field-group .meta-row dd{font-size:14px;font-weight:600;line-height:1.75}
 .khi-root .media-field-group .meta-row.is-empty-value{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding-block:9px;opacity:.66}
 .khi-root .media-field-group .meta-row.is-empty-value dd{font-size:12px}
-.khi-root .media-field-group .meta-row.is-long{grid-template-columns:1fr;gap:7px}
-.khi-root .media-field-group .meta-row.is-long dt{padding-top:0}
+/* (the old .is-long overrides lived here; they outranked the banded-ledger
+   redesign at the end of this file by specificity, so they were removed) */
 @media(max-width:720px){.khi-root .detail-meta-heading{align-items:flex-start;flex-direction:column;gap:8px}.khi-root .detail-meta-heading p{text-align:right}.khi-root .detail-meta{column-width:auto;column-count:1}.khi-root .full-field-label-en{font-size:11px}}
 .khi-root .meta-link{color:var(--pine);font-weight:600;text-decoration:underline;text-decoration-color:rgba(44,84,72,.3);text-underline-offset:3px}
 .khi-root .meta-link:hover{text-decoration-color:var(--pine)}
@@ -1700,7 +1703,7 @@
    inline-start, a short vertical hairline, and the value beside it.
    (The :not() variant re-declares the kit's higher-specificity gap rule.) */
 .khi-root .meta-panel .meta-rows,
-.khi-root .meta-panel:not(.media-field-group) .meta-rows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:0}
+.khi-root .meta-panel:not(.media-field-group) .meta-rows{display:grid;grid-auto-flow:dense;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:0}
 .khi-root .meta-panel .meta-row,
 .khi-root .media-field-group .meta-row{display:grid;grid-template-columns:minmax(118px,38%) minmax(0,1fr);align-items:center;gap:0;padding:0;border:0;border-bottom:0;border-radius:13px;background:#f5f3ec;min-height:78px;overflow:hidden}
 .khi-root .meta-panel .meta-rows > .meta-row:nth-child(even){background:#fcfbf7}
@@ -1710,7 +1713,8 @@
 .khi-root .media-field-group .meta-row dt::after{content:"";position:absolute;inset-inline-end:0;top:22%;bottom:22%;width:1px;background:rgba(31,58,49,.16)}
 .khi-root .meta-panel .meta-row dd,
 .khi-root .media-field-group .meta-row dd{margin:0;padding:14px 18px;color:var(--ink);font-family:'IBM Plex Mono','Vazirmatn',monospace;font-size:13.5px;font-weight:600;line-height:1.8;text-align:right;word-break:break-word;min-width:0}
-.khi-root .media-field-group .meta-row.is-long{grid-column:1/-1;grid-template-columns:minmax(150px,22%) minmax(0,1fr)}
+.khi-root .media-field-group .meta-row.is-long{grid-column:1/-1;grid-template-columns:minmax(150px,22%) minmax(0,1fr);gap:0}
+.khi-root .media-field-group .meta-row.is-long dt{padding-top:14px}
 .khi-root .media-field-group .meta-row.is-empty-value{grid-template-columns:minmax(118px,38%) minmax(0,1fr);align-items:center;gap:0;padding-block:0;opacity:.5}
 .khi-root .media-field-group .meta-row.is-empty-value dd{font-size:12.5px;font-weight:600}
 /* the label stack inside a cell */
@@ -1727,9 +1731,12 @@
 @media(max-width:760px){
   .khi-root .meta-panel .meta-rows,
   .khi-root .meta-panel:not(.media-field-group) .meta-rows{grid-template-columns:1fr}
+  .khi-root .meta-panel-title{flex-wrap:wrap}
   .khi-root .meta-panel-title::before{width:38px;height:38px;flex-basis:38px;font-size:12px}
   .khi-root .meta-panel-title-local{font-size:19px}
-  .khi-root .meta-panel-title-main{letter-spacing:.14em}
+  /* the Latin accent may wrap on narrow phones — a rigid nowrap row would
+     push the hairline (and the accent itself) past the viewport edge */
+  .khi-root .meta-panel-title-main{letter-spacing:.14em;min-width:0;white-space:normal}
 }
 
 /* ── The year closes the page ── */
@@ -1780,8 +1787,10 @@
 .khi-root .m-audio .archive-rails{display:none}
 .khi-root .m-audio .base-line{display:none}
 .khi-root .m-audio .halo{background:radial-gradient(circle,rgba(31,58,49,.05),transparent 58%)}
-.khi-root .m-audio .wave{inset:27% 0 27%;gap:4px;padding:0 11%;-webkit-mask-image:linear-gradient(90deg,transparent 2%,#000 16%,#000 84%,transparent 98%);mask-image:linear-gradient(90deg,transparent 2%,#000 16%,#000 84%,transparent 98%)}
-.khi-root .wave .bar{max-width:5px;border-radius:99px;background:linear-gradient(180deg,#3d6a5a 0%,#24493c 55%,#1a382d 100%);box-shadow:none;opacity:.92}
+/* the gap scales with the cover so 34 bars never collapse to sub-pixel
+   hairlines on narrow cards (2-up phone grid / 236px list covers) */
+.khi-root .m-audio .wave{inset:27% 0 27%;gap:clamp(2px,1.4%,4px);padding:0 11%;-webkit-mask-image:linear-gradient(90deg,transparent 2%,#000 16%,#000 84%,transparent 98%);mask-image:linear-gradient(90deg,transparent 2%,#000 16%,#000 84%,transparent 98%)}
+.khi-root .wave .bar{min-width:2px;max-width:5px;border-radius:99px;background:linear-gradient(180deg,#3d6a5a 0%,#24493c 55%,#1a382d 100%);box-shadow:none;opacity:.92}
 /* video board */
 .khi-root .m-video .frame{background:radial-gradient(circle at 50% 42%,rgba(31,58,49,.07),transparent 60%)}
 .khi-root .m-video .vig{background:none}
