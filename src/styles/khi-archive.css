@@ -1140,7 +1140,9 @@
 .khi-root .full-field-pills{display:flex;flex-wrap:wrap;gap:7px}
 .khi-root .full-field-pill{display:inline-flex;align-items:center;max-width:100%;border:1px solid var(--line);border-radius:999px;background:var(--paper-3);padding:5px 10px;font-size:12.5px;font-weight:700;color:var(--ink-soft);word-break:break-word}
 .khi-root .media-field-group .meta-row{grid-template-columns:minmax(0,1fr);gap:7px;padding:13px 3px;border-bottom:1px solid #edf0ec}
-.khi-root .media-field-group .meta-row:last-child{border-bottom:0}
+/* (the old `:last-child{border-bottom:0}` lived here — under the two-column
+   dense grid the DOM-last row is rarely the visually-last one, so it dropped
+   a hairline mid-ledger; the redesign underlines every row instead) */
 .khi-root .media-field-group .meta-row dt{padding:0}
 .khi-root .media-field-group .meta-row dd{font-size:14px;font-weight:600;line-height:1.75}
 .khi-root .media-field-group .meta-row.is-empty-value{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding-block:9px;opacity:.66}
@@ -1696,35 +1698,28 @@
 .khi-root .meta-panel-title-local{display:inline;gap:0;color:var(--ink);font-family:'Amiri','Vazirmatn',serif;font-size:20.5px;font-weight:700;line-height:1.5}
 .khi-root .meta-panel-title-local::after{content:none}
 
-/* field rows — the airy index style the user approved: a quiet label at the
-   inline-start, a gold-dotted leader, the value pushed to the inline-end,
-   each row closed by a faint hairline. Two compact columns; the row wakes
-   gently under the pointer.
+/* field rows — a calm spec sheet, NOT a table of contents: the Sorani label
+   and its value stand directly TOGETHER as one unit (the label column hugs
+   its own text), so no leader is needed to bridge them. A faint hairline
+   keeps the rhythm and the row warms gently under the pointer.
    (The :not() variant re-declares the kit's higher-specificity gap rule.) */
 .khi-root .meta-panel .meta-rows,
-.khi-root .meta-panel:not(.media-field-group) .meta-rows{display:grid;grid-auto-flow:dense;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 clamp(44px,6vw,88px);padding:0}
+.khi-root .meta-panel:not(.media-field-group) .meta-rows{display:grid;grid-auto-flow:dense;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 clamp(34px,4.5vw,72px);padding:0}
 .khi-root .meta-panel .meta-row,
-.khi-root .media-field-group .meta-row{display:flex;align-items:baseline;gap:13px;padding:10px 4px 9px;border:0;border-bottom:1px solid rgba(31,58,49,.07);border-radius:8px 8px 0 0;background:transparent;min-height:0;overflow:visible;transition:background-color .18s}
-.khi-root .meta-panel .meta-row:hover{background:rgba(176,136,51,.05)}
+.khi-root .media-field-group .meta-row{display:grid;grid-template-columns:minmax(0,max-content) minmax(0,1fr);align-items:baseline;gap:3px 13px;padding:9px 11px 8px;border:0;border-bottom:1px solid rgba(31,58,49,.06);border-radius:10px;background:transparent;min-height:0;overflow:visible;transition:background-color .18s}
+@media (hover:hover){.khi-root .meta-panel .meta-row:hover{background:rgba(176,136,51,.055)}}
 .khi-root .meta-panel .meta-row dt,
-.khi-root .media-field-group .meta-row dt{flex:0 0 auto;max-width:45%;padding:0;color:var(--ink-muted);font-size:12.5px;font-weight:650;line-height:1.7;transition:color .18s}
-.khi-root .meta-panel .meta-row:hover dt{color:var(--ink-soft)}
+.khi-root .media-field-group .meta-row dt{max-width:none;padding:0;color:var(--ink-muted);font-size:12.5px;font-weight:650;line-height:1.65;transition:color .18s}
+@media (hover:hover){.khi-root .meta-panel .meta-row:hover dt{color:var(--ink-soft)}}
 .khi-root .meta-panel .meta-row dd,
-.khi-root .media-field-group .meta-row dd{margin:0;padding:0;flex:1 1 auto;display:flex;align-items:baseline;gap:13px;min-width:0;color:var(--ink);font-family:'IBM Plex Mono','Vazirmatn',monospace;font-size:13.5px;font-weight:700;line-height:1.8;word-break:break-word}
-.khi-root .meta-panel .meta-row dd::before,
-.khi-root .media-field-group .meta-row dd::before{content:"";flex:1 1 26px;min-width:20px;transform:translateY(-4px);border-bottom:1px dotted rgba(176,136,51,.42);transition:border-color .18s}
-.khi-root .meta-panel .meta-row:hover dd::before{border-bottom-color:rgba(176,136,51,.8)}
-/* long prose stacks instead: label above, the text under a soft gold
-   quote-bar at the inline-start, no leader */
-.khi-root .media-field-group .meta-row.is-long{grid-column:1/-1;flex-direction:column;align-items:stretch;gap:7px;padding:13px 4px 12px}
+.khi-root .media-field-group .meta-row dd{margin:0;padding:0;min-width:0;color:var(--ink);font-family:'IBM Plex Mono','Vazirmatn',monospace;font-size:13.5px;font-weight:700;line-height:1.75;word-break:break-word}
+/* long prose stacks: label above, the text under a soft gold quote-bar */
+.khi-root .media-field-group .meta-row.is-long{grid-column:1/-1;grid-template-columns:minmax(0,1fr);gap:7px;padding:12px 11px 11px}
 .khi-root .media-field-group .meta-row.is-long dt{padding-top:0;max-width:none}
-.khi-root .media-field-group .meta-row.is-long dd{display:block;padding-inline-start:14px;border-inline-start:2px solid rgba(176,136,51,.32);font-size:14px;font-weight:600;line-height:2}
-.khi-root .media-field-group .meta-row.is-long dd::before{content:none}
-/* empty rows compress and hush — the dash and a lighter, dashed leader */
-.khi-root .media-field-group .meta-row.is-empty-value{flex-direction:row;align-items:baseline;gap:13px;padding-block:7px 6px;opacity:.5}
-.khi-root .media-field-group .meta-row.is-empty-value dt{max-width:45%}
-.khi-root .media-field-group .meta-row.is-empty-value dd{display:flex;padding-inline-start:0;border-inline-start:0;font-size:12.5px;font-weight:600;line-height:1.7}
-.khi-root .media-field-group .meta-row.is-empty-value dd::before{content:"";border-bottom:1px dashed rgba(140,129,103,.3)}
+.khi-root .media-field-group .meta-row.is-long dd{padding-inline-start:14px;border-inline-start:2px solid rgba(176,136,51,.3);font-size:14px;font-weight:600;line-height:2}
+/* empty rows compress and hush so a full staff ledger stays short */
+.khi-root .media-field-group .meta-row.is-empty-value{grid-column:auto;grid-template-columns:minmax(0,max-content) minmax(0,1fr);align-items:baseline;gap:3px 13px;padding-block:6px 5px;opacity:.48}
+.khi-root .media-field-group .meta-row.is-empty-value dd{padding-inline-start:0;border-inline-start:0;font-size:12.5px;font-weight:600;line-height:1.7}
 /* the label is a single quiet line */
 .khi-root .full-field-label{flex-direction:row;align-items:baseline;gap:6px}
 .khi-root .full-field-label-ku{color:inherit;font-size:inherit;font-weight:inherit}
@@ -1737,17 +1732,26 @@
 /* linked values (project/person/category) — gold-outlined chips like the
    reference design's pill */
 .khi-root .meta-row dd .entity-chip{padding:3px 13px;border-color:rgba(176,136,51,.55);background:transparent;color:var(--gold);font-weight:800;transition:border-color .18s,color .18s,background .18s}
-.khi-root .meta-row dd .entity-chip:hover{border-color:var(--gold);background:#fffdf6;color:var(--pine)}
+@media (hover:hover){.khi-root .meta-row dd .entity-chip:hover{border-color:var(--gold);background:#fffdf6;color:var(--pine)}}
+/* `.ec-label`'s overflow:hidden makes the chip a scroll container, so its
+   baseline is synthesized from its BOTTOM edge — inside a baseline-aligned
+   ledger row that floats the chip ~7px above the label. These names are
+   short; let them wrap instead of clip so the real text baseline is used. */
+.khi-root .meta-row dd .entity-chip .ec-label{overflow:visible;white-space:normal}
 @media(max-width:900px){
   .khi-root .meta-panel .meta-rows,
   .khi-root .meta-panel:not(.media-field-group) .meta-rows{grid-template-columns:1fr}
   .khi-root .meta-panel-title-local{font-size:18.5px}
   .khi-root .detail-meta{gap:28px}
 }
+@media(max-width:560px){
+  .khi-root .meta-panel .meta-row,
+  .khi-root .media-field-group .meta-row,
+  .khi-root .media-field-group .meta-row.is-empty-value{gap:3px 11px;padding-inline:8px}
+}
 @media (prefers-reduced-motion: reduce){
   .khi-root .meta-panel .meta-row,
   .khi-root .meta-panel .meta-row dt,
-  .khi-root .meta-panel .meta-row dd::before,
   .khi-root .meta-row dd .entity-chip{transition:none}
 }
 

@@ -31,27 +31,17 @@ const FIELD_METADATA_BY_KIND = {
   video: videoFieldsMetadata,
 }
 
-const LONG_FIELDS = new Set([
-  'abstractText',
-  'copyright',
-  'lyrics',
-  'photostory',
-  'provenance',
-  'transcription',
-  'usageRights',
-  'archiveLocalNote',
-  'audioFileNote',
-  'autoPath',
-  'bodyText',
-  'categories',
-  'categoryCodes',
-  'note',
-  'pathInExternal',
-  'pathInExternalVolume',
-  'project',
-  'person',
-  'summary',
-])
+// A field takes the full-width, quote-barred prose treatment only when its
+// RENDERED text is genuinely long or multi-line. Classifying by field name (or
+// by `typeof value === 'object'`) wrongly promoted short list values — a
+// one-word subject or genre arrives as an array and would stack full width.
+const LONG_VALUE_CHARS = 120
+
+function isLongRendering(values) {
+  if (!values.length) return false
+  const total = values.reduce((sum, v) => sum + v.length, 0)
+  return total > LONG_VALUE_CHARS || values.some((v) => v.includes('\n'))
+}
 
 // Keep a long value in one deliberate place. The hero and content cards are
 // easier to read than repeating the same prose inside the metadata sections.
@@ -733,8 +723,7 @@ function GroupTitle({ title }) {
   return <span className="meta-panel-title-local">{match ? match[2] : title}</span>
 }
 
-function PublicFieldValue({ value, detailed = false }) {
-  const values = normalizeValue(value, { detailed })
+function PublicFieldValue({ values }) {
   if (!values.length) return <span className="full-field-empty">{EMPTY_VALUE}</span>
   if (values.length > 1) {
     return (
@@ -773,15 +762,13 @@ function KhiPublicMediaFields({ kind, item, full = false }) {
             <dl className="meta-rows">
               {fields.map((field) => {
                 const value = valueFrom(item, field, { aliases: FIELD_ALIASES, keepEmpty: full })
-                const isLong = LONG_FIELDS.has(field) || (
-                  !isEmptyValue(value) && (
-                    typeof value === 'object' || String(value).length > 160
-                  )
-                )
+                const values = normalizeValue(value, { detailed: full })
+                const empty = isEmptyValue(value) || !values.length
+                const isLong = !empty && isLongRendering(values)
                 return (
-                  <div className={`meta-row full-field-row${isLong ? ' is-long' : ''}${isEmptyValue(value) ? ' is-empty-value' : ''}`} key={field}>
+                  <div className={`meta-row full-field-row${isLong ? ' is-long' : ''}${empty ? ' is-empty-value' : ''}`} key={field}>
                     <dt><FieldLabel field={field} kind={normalizedKind} /></dt>
-                    <dd><PublicFieldValue value={value} detailed={full} /></dd>
+                    <dd><PublicFieldValue values={values} /></dd>
                   </div>
                 )
               })}
