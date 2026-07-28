@@ -713,31 +713,24 @@ function metadataTitle(kind, field) {
   return metadata[metadataKey]?.title || null
 }
 
-// The Sorani label leads; the Latin field key sits beneath it as a small mono
-// accent — the user's approved ledger style shows both.
+// Sorani-only field labels — no Latin field keys in the ledger (user rule:
+// no English words in the details). The raw field name only appears as a
+// last-resort fallback when no Kurdish label exists.
 function FieldLabel({ field, kind }) {
   const ku = FIELD_LABELS_KU[field] || metadataTitle(kind, field) || field
   return (
     <span className="full-field-label">
       <span className="full-field-label-ku">{ku}</span>
-      {String(ku).toLowerCase() !== String(field).toLowerCase()
-        ? <span dir="ltr" className="full-field-label-en">{field}</span>
-        : null}
     </span>
   )
 }
 
-// Ledger band title: the Sorani name leads (followed by the auto section
-// number from CSS counters); the Latin name stays as a small mono accent.
+// Ledger band title: Sorani only (the Latin half of "English (Sorani)" group
+// titles is dropped — user rule: no English words in the details). The gold
+// section number comes from CSS counters on the header itself.
 function GroupTitle({ title }) {
   const match = String(title || '').match(/^(.+?)\s*\((.+)\)$/)
-  if (!match) return <span className="meta-panel-title-local">{title}</span>
-  return (
-    <>
-      <span className="meta-panel-title-local">{match[2]}</span>
-      <span dir="ltr" className="meta-panel-title-main">{match[1]}</span>
-    </>
-  )
+  return <span className="meta-panel-title-local">{match ? match[2] : title}</span>
 }
 
 function PublicFieldValue({ value, detailed = false }) {

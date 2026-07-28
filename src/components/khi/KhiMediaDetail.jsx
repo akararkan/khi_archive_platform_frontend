@@ -36,15 +36,10 @@ export default function KhiMediaDetail({
       />
       <KhiInfoGrid items={infoCards} />
       {content}
+      {/* No section heading — the numbered ledger bands are the headers
+          (user: no English anywhere in the details, no extra title block). */}
       {meta ? (
-        <section className="detail-meta-section" aria-labelledby="record-details-title">
-          <header className="detail-meta-heading">
-            <div>
-              <span className="detail-meta-eyebrow">ARCHIVE METADATA</span>
-              <h2 id="record-details-title">وردەکاریی تۆمار</h2>
-            </div>
-            <p>زانیاریی تەواوی ناساندن، ناوەڕۆک و مافەکانی ئەم تۆمارە</p>
-          </header>
+        <section className="detail-meta-section">
           <div className="detail-meta">{meta}</div>
         </section>
       ) : null}
