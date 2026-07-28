@@ -713,12 +713,14 @@ function metadataTitle(kind, field) {
   return metadata[metadataKey]?.title || null
 }
 
-// Kurdish-only field labels — the English DTO field names stay out of the UI.
+// The Sorani label leads; the Latin field key sits beneath it as a small mono
+// accent — the user's approved ledger style shows both.
 function FieldLabel({ field, kind }) {
   const ku = FIELD_LABELS_KU[field] || metadataTitle(kind, field) || field
   return (
     <span className="full-field-label">
       <span className="full-field-label-ku">{ku}</span>
+      {ku !== field ? <span dir="ltr" className="full-field-label-en">{field}</span> : null}
     </span>
   )
 }

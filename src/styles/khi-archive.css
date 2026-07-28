@@ -1685,27 +1685,38 @@
 .khi-root .meta-panel:hover{transform:none;box-shadow:none;border-color:transparent}
 .khi-root .meta-panel::before{content:none}
 
-/* the numbered pine header band */
-.khi-root .meta-panel-title{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;min-height:0;margin:0;padding:15px 24px;border:0;border-radius:10px;background:linear-gradient(120deg,#224237,var(--pine-deep) 78%);box-shadow:0 16px 34px -26px rgba(16,30,23,.85);color:#fdf9ec}
-.khi-root .meta-panel-title-local{display:inline-flex;align-items:baseline;gap:16px;color:#fdf9ec;font-family:'Vazirmatn',sans-serif;font-size:17.5px;font-weight:800;line-height:1.5}
-.khi-root .meta-panel-title-local::after{content:counter(khimeta,decimal-leading-zero);color:var(--gold-bright);font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.06em;direction:ltr}
-.khi-root .meta-panel-title-main{color:rgba(243,234,212,.52);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.24em;text-transform:uppercase}
+/* the section header — user-approved ledger style: a gold-ringed section
+   number leads (inline-start), then the Sorani title, the Latin name as a
+   quiet mono accent, and a gold hairline filling the remaining width. */
+.khi-root .meta-panel-title{display:flex;flex-wrap:nowrap;align-items:center;gap:16px;min-height:0;margin:0;padding:2px 2px 16px;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--ink)}
+.khi-root .meta-panel-title::before{content:counter(khimeta,decimal-leading-zero);display:grid;place-items:center;width:46px;height:46px;flex:0 0 46px;border:1.5px solid rgba(176,136,51,.75);border-radius:50%;background:#fff;color:var(--gold);font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:700;letter-spacing:.05em;direction:ltr}
+.khi-root .meta-panel-title::after{content:"";flex:1 1 40px;min-width:28px;height:1px;background:linear-gradient(to left,rgba(176,136,51,.6),rgba(176,136,51,.05))}
+.khi-root .meta-panel-title-local{display:inline;gap:0;color:var(--ink);font-family:'Amiri','Vazirmatn',serif;font-size:24px;font-weight:700;line-height:1.45}
+.khi-root .meta-panel-title-local::after{content:none}
+.khi-root .meta-panel-title-main{color:var(--ink-muted);font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;white-space:nowrap}
 
-/* field rows: label over value, gold hairline under each — 3-up on desktop,
-   2-up on narrower screens, single column on phones.
+/* field cells — the user-approved banded ledger, 3-up on desktop: each cell
+   is a soft band with the label stack (Sorani over the Latin key) on the
+   inline-start, a short vertical hairline, and the value beside it.
    (The :not() variant re-declares the kit's higher-specificity gap rule.) */
 .khi-root .meta-panel .meta-rows,
-.khi-root .meta-panel:not(.media-field-group) .meta-rows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 36px;padding:4px 6px 0}
+.khi-root .meta-panel:not(.media-field-group) .meta-rows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:0}
 .khi-root .meta-panel .meta-row,
-.khi-root .media-field-group .meta-row{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:16px 0 13px;border-bottom:1px solid rgba(176,136,51,.3)}
+.khi-root .media-field-group .meta-row{display:grid;grid-template-columns:minmax(118px,38%) minmax(0,1fr);align-items:center;gap:0;padding:0;border:0;border-bottom:0;border-radius:13px;background:#f5f3ec;min-height:78px;overflow:hidden}
+.khi-root .meta-panel .meta-rows > .meta-row:nth-child(even){background:#fcfbf7}
 .khi-root .meta-panel .meta-row dt,
-.khi-root .media-field-group .meta-row dt{padding:0;color:var(--ink-muted);font-size:12.5px;font-weight:700}
+.khi-root .media-field-group .meta-row dt{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px 18px;color:var(--ink-soft);font-size:13.5px;font-weight:800;line-height:1.55}
+.khi-root .meta-panel .meta-row dt::after,
+.khi-root .media-field-group .meta-row dt::after{content:"";position:absolute;inset-inline-end:0;top:22%;bottom:22%;width:1px;background:rgba(31,58,49,.16)}
 .khi-root .meta-panel .meta-row dd,
-.khi-root .media-field-group .meta-row dd{margin:0;color:var(--ink);font-size:15.5px;font-weight:700;line-height:1.8;word-break:break-word}
-.khi-root .media-field-group .meta-row.is-long{grid-column:1/-1}
-.khi-root .media-field-group .meta-row.is-empty-value{grid-template-columns:none;align-items:stretch;gap:8px;padding-block:16px 13px;opacity:.45}
-.khi-root .media-field-group .meta-row.is-empty-value dd{font-size:13px;font-weight:600}
-.khi-root .full-field-label-ku{color:inherit;font-size:inherit}
+.khi-root .media-field-group .meta-row dd{margin:0;padding:14px 18px;color:var(--ink);font-family:'IBM Plex Mono','Vazirmatn',monospace;font-size:13.5px;font-weight:600;line-height:1.8;text-align:right;word-break:break-word;min-width:0}
+.khi-root .media-field-group .meta-row.is-long{grid-column:1/-1;grid-template-columns:minmax(150px,22%) minmax(0,1fr)}
+.khi-root .media-field-group .meta-row.is-empty-value{grid-template-columns:minmax(118px,38%) minmax(0,1fr);align-items:center;gap:0;padding-block:0;opacity:.5}
+.khi-root .media-field-group .meta-row.is-empty-value dd{font-size:12.5px;font-weight:600}
+/* the label stack inside a cell */
+.khi-root .full-field-label{flex-direction:column;align-items:flex-start;gap:4px}
+.khi-root .full-field-label-ku{color:var(--ink-soft);font-size:13.5px;font-weight:800}
+.khi-root .full-field-label-en{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#b3ae9d;direction:ltr;word-break:break-word;text-transform:none}
 /* mixed-direction values (codes, file names, numbers) order themselves */
 .khi-root .full-field-text{unicode-bidi:plaintext}
 .khi-root .full-field-empty{font-family:'IBM Plex Mono',monospace}
@@ -1715,9 +1726,10 @@
 }
 @media(max-width:760px){
   .khi-root .meta-panel .meta-rows,
-  .khi-root .meta-panel:not(.media-field-group) .meta-rows{grid-template-columns:1fr;gap:0}
-  .khi-root .meta-panel-title{padding:13px 18px}
-  .khi-root .meta-panel-title-local{font-size:16px}
+  .khi-root .meta-panel:not(.media-field-group) .meta-rows{grid-template-columns:1fr}
+  .khi-root .meta-panel-title::before{width:38px;height:38px;flex-basis:38px;font-size:12px}
+  .khi-root .meta-panel-title-local{font-size:19px}
+  .khi-root .meta-panel-title-main{letter-spacing:.14em}
 }
 
 /* ── The year closes the page ── */
@@ -1752,9 +1764,7 @@
 .khi-root .card:hover .media .cover-img{transform:scale(1.04)}
 .khi-root .card .media .video-cover{background:transparent}
 .khi-root .card .media .video-frame-cover .cover-img{background:transparent}
-/* portraits + book covers are never sliced — contained on the paper ground */
-.khi-root .card .media .natural-cover.kind-person .cover-img,
-.khi-root .card .media .natural-cover.kind-text .cover-img{object-fit:contain;padding:10px}
+/* every real cover fills the card — cropping is fine, per the user */
 
 /* ── Generated boards: pine felt retires, paper board arrives ── */
 .khi-root :is(.m-project,.m-audio,.m-video,.m-image,.m-text){inset:0;border:0;border-radius:0;background:linear-gradient(165deg,#f8f4e9 0%,#f1e9d5 55%,#eadfc7 100%);box-shadow:none}
@@ -1762,10 +1772,16 @@
 .khi-root .m-avatar{background:linear-gradient(165deg,#f8f4e9,#eadfc7)}
 .khi-root .archive-rails i{background:linear-gradient(180deg,#e6dcbf,#d8cba8);box-shadow:0 1px 0 rgba(255,255,255,.65)}
 .khi-root .archive-tile{border-color:rgba(31,58,49,.16);box-shadow:0 12px 22px -14px rgba(31,58,49,.4),inset 0 1px 0 #fff}
-/* audio waveform in pine */
-.khi-root .m-audio .halo{background:radial-gradient(circle,rgba(31,58,49,.07),transparent 59%)}
-.khi-root .m-audio .base-line{background:linear-gradient(90deg,transparent,rgba(31,58,49,.3),transparent)}
-.khi-root .wave .bar{background:linear-gradient(to top,#a8b69b 0%,#4f7362 52%,#1f4035 100%);box-shadow:none}
+/* audio: a clean sound tile — the catalogue rails, base-line and diagonal
+   texture are gone; a soft gold aura holds a pine waveform whose edges fade
+   out, with the gold play medallion as the one accent */
+.khi-root .m-audio{background:radial-gradient(85% 70% at 50% 36%,rgba(214,178,94,.16),transparent 62%),linear-gradient(170deg,#fbf8f0 0%,#f2ebd9 100%)}
+.khi-root .m-audio::before{content:none}
+.khi-root .m-audio .archive-rails{display:none}
+.khi-root .m-audio .base-line{display:none}
+.khi-root .m-audio .halo{background:radial-gradient(circle,rgba(31,58,49,.05),transparent 58%)}
+.khi-root .m-audio .wave{inset:27% 0 27%;gap:4px;padding:0 11%;-webkit-mask-image:linear-gradient(90deg,transparent 2%,#000 16%,#000 84%,transparent 98%);mask-image:linear-gradient(90deg,transparent 2%,#000 16%,#000 84%,transparent 98%)}
+.khi-root .wave .bar{max-width:5px;border-radius:99px;background:linear-gradient(180deg,#3d6a5a 0%,#24493c 55%,#1a382d 100%);box-shadow:none;opacity:.92}
 /* video board */
 .khi-root .m-video .frame{background:radial-gradient(circle at 50% 42%,rgba(31,58,49,.07),transparent 60%)}
 .khi-root .m-video .vig{background:none}
@@ -1777,9 +1793,10 @@
 .khi-root .m-image .ph{border-color:rgba(31,58,49,.18);background:rgba(31,58,49,.05)}
 .khi-root .m-image .ph svg{color:var(--pine-2)}
 
-/* ── Type pills: light frost + pine text — read over photos AND paper ── */
+/* ── Type pills: crisp white with a gold hairline + pine text — high
+   contrast over photos and the paper boards alike ── */
 .khi-root .archive-cover-label,
-.khi-root .card .type-badge{background:rgba(255,253,246,.8);border:1px solid rgba(31,58,49,.16);color:var(--pine);text-shadow:none;box-shadow:0 8px 18px -12px rgba(16,30,23,.45),inset 0 1px 0 rgba(255,255,255,.7);backdrop-filter:blur(8px) saturate(1.1);-webkit-backdrop-filter:blur(8px) saturate(1.1)}
+.khi-root .card .type-badge{background:rgba(255,255,255,.93);border:1px solid rgba(176,136,51,.42);color:var(--pine);text-shadow:none;box-shadow:0 6px 16px -10px rgba(16,30,23,.4);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 
 /* ── Card category: quiet text, gold underline grows on hover ── */
 .khi-root .card .card-category{position:relative;padding:0 0 4px;border:0;border-radius:0;background:transparent;color:var(--ink-muted);font-size:12.5px;transition:color .18s}
