@@ -181,6 +181,25 @@
 .khi-help-dialog .khi-help-textarea:focus{
   box-shadow:0 0 0 4px rgba(44,84,72,.13), inset 0 1px 3px rgba(20,38,32,.07);
 }
+/* Field option: the selected row lifts onto the card surface and carries its
+   section tone; the whole row is a 52px target so it stays thumb-friendly. */
+.khi-help-dialog .khi-help-option[aria-selected="true"]{
+  box-shadow:0 6px 16px -12px rgba(31,58,49,.55);
+}
+.khi-help-dialog .khi-help-option:active{transform:translateY(.5px)}
+/* Both scroll panes keep a slim, on-brand scrollbar instead of the OS default. */
+.khi-help-dialog [role="listbox"],
+.khi-help-dialog .khi-help-rail ul{
+  scrollbar-width:thin;
+  scrollbar-color:color-mix(in srgb, var(--primary) 28%, transparent) transparent;
+}
+/* The dialog enters gently; motion-sensitive users get it instantly. */
+@keyframes khi-help-in{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+.khi-help-dialog .khi-help-shell{animation:khi-help-in .22s cubic-bezier(.2,.7,.2,1)}
+@media (prefers-reduced-motion: reduce){
+  .khi-help-dialog .khi-help-shell{animation:none}
+  .khi-help-dialog .khi-help-option:active{transform:none}
+}
 /* Submit: gilded pine — gradient body, gold top sheen + ring, lifting shadow. */
 .khi-help-submit:not(:disabled){
   background:linear-gradient(145deg, var(--primary), color-mix(in srgb, var(--primary) 80%, #000));
