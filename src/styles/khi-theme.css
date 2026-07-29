@@ -12,11 +12,11 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Vazirmatn:wght@300;400;500;600;700;800&display=swap');
 
-.khi-teacher,
 .khi-surface{
-  /* Deeper paper page + brighter near-white cards = clear elevation/contrast.
-     Every warm surface is derived from --khi-tone (0 = full white → 100 = paper)
-     so the tone slider warms the WHOLE workspace, not just the page. */
+  /* Warm paper skin — now the public Help/Contribute modal only. (The teacher
+     workspace used to share this block; it is plain white below. `--khi-tone`
+     no longer has a control driving it, so it resolves to its 100 fallback =
+     full paper, i.e. exactly what this modal already looked like.) */
   --bg-base:#ece2cc;
   --card-base:#fdfaf2;
   --muted-base:#f1e8d4;
@@ -55,37 +55,54 @@
    the dense workspace UI stays in clean Vazirmatn so it reads well. */
 .khi-teacher h1,.khi-surface h1,.khi-surface h2{font-family:'Amiri',serif}
 
-/* Real elevation so cards float on the paper page instead of blending in. */
-.khi-teacher [class*="rounded-3xl"]{box-shadow:0 14px 34px -22px rgba(31,58,49,.5),0 2px 6px -2px rgba(31,58,49,.12)}
+/* Elevation on white: a quiet neutral lift, not the heavy pine shadow the
+   paper page needed to separate cards from the tinted background. */
+.khi-teacher [class*="rounded-3xl"]{box-shadow:0 10px 26px -20px rgba(27,32,29,.35),0 1px 3px -1px rgba(27,32,29,.08)}
 
-/* Warm paper backdrop — teacher workspace only (modals keep their overlay).
-   Responds to the shared --khi-tone slider (0 = whitest → 100 = full paper). */
+/* ── Teacher workspace: plain WHITE ───────────────────────────────────────────
+   No paper tint, no cream cards, no gold hairlines — the page is white and the
+   only colour left is the pine primary plus semantic status tones. Structure
+   reads from the neutral green-grey border/muted scale instead of the old tan.
+   (Previously this shared the warm block above and faded between white and
+   paper via a tone slider; both are gone.) */
 .khi-teacher{
-  background-color:var(--background);
-  background-image:
-    radial-gradient(1100px 700px at 18% -8%,color-mix(in srgb,#ffffff,#f8f1df calc(var(--khi-tone,100) * 1%)) 0,transparent 60%),
-    radial-gradient(900px 600px at 105% 30%,color-mix(in srgb,#ffffff,#efe4ca calc(var(--khi-tone,100) * 1%)) 0,transparent 55%);
-  background-attachment:fixed;
+  --background:#ffffff;
+  --foreground:#1b201d;
+  --card:#ffffff;
+  --card-foreground:#1b201d;
+  --popover:#ffffff;
+  --popover-foreground:#1b201d;
+  --primary:#1f3a31;
+  --primary-foreground:#f7faf8;
+  --secondary:#f2f5f2;
+  --secondary-foreground:#1f3a31;
+  --muted:#f4f7f4;
+  --muted-foreground:#5f6b64;
+  --accent:#e8efea;
+  --accent-foreground:#142620;
+  --destructive:#b4512c;
+  --border:#e3e8e4;
+  --input:#d3dbd6;
+  --ring:#2c5448;
+  --sidebar:#ffffff;
+  --sidebar-foreground:#1b201d;
+  --sidebar-primary:#1f3a31;
+  --sidebar-primary-foreground:#f7faf8;
+  --sidebar-accent:#f2f5f2;
+  --sidebar-accent-foreground:#1f3a31;
+  --sidebar-border:#e3e8e4;
+  --sidebar-ring:#2c5448;
+  --font-sans:'Vazirmatn',Tahoma,system-ui,sans-serif;
+  --font-heading:'Vazirmatn',Tahoma,system-ui,sans-serif;
+  background-color:#ffffff;
+  background-image:none;
 }
 
-/* ── Background-tone slider — shared by public + teacher surfaces ──────────────
-   An INLINE compact control that lives in the top bar (public header / teacher
-   sidebar), not a floating overlay — so it never covers content. Fades the page
-   background from the whitest tone to full paper. */
-.khi-tone{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:999px;border:1px solid #d4c5a4;background:rgba(251,246,234,.55);font-family:'Vazirmatn',Tahoma,sans-serif}
-.khi-tone .ic{display:grid;place-items:center;color:#b08833;width:16px;height:16px}
-.khi-tone input[type=range]{-webkit-appearance:none;appearance:none;width:96px;height:5px;border-radius:999px;background:linear-gradient(90deg,#ffffff,#ece0c9);outline:none;cursor:pointer}
-.khi-tone input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:#d6b25e;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer}
-.khi-tone input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#d6b25e;border:2px solid #fff;cursor:pointer}
-.khi-tone .lbl{font-size:11px;font-weight:600;color:#897c64;white-space:nowrap}
-.dark .khi-tone{background:rgba(231,211,160,.08);border-color:rgba(231,211,160,.2)}
-.dark .khi-tone .lbl{color:#c8d2c4}
-@media(max-width:1040px){.khi-tone .lbl{display:none}}
+/* A touch of gold on brand/icon chips so the pine reads as "archive" — kept on
+   the warm modal, dropped on the white workspace (a neutral ring instead). */
+.khi-surface .khi-mark{border:1px solid rgba(214,178,94,.45);box-shadow:0 6px 18px rgba(31,58,49,.22)}
+.khi-teacher .khi-mark{border:1px solid #e3e8e4;box-shadow:0 4px 14px rgba(27,32,29,.12)}
 
-/* A touch of gold on brand/icon chips so the pine reads as "archive". */
-.khi-teacher .khi-mark,.khi-surface .khi-mark{border:1px solid rgba(214,178,94,.45);box-shadow:0 6px 18px rgba(31,58,49,.22)}
-
-.dark .khi-teacher,
 .dark .khi-surface{
   --background:#101e17;
   --foreground:#f3ead4;
@@ -115,10 +132,37 @@
   --sidebar-ring:#d6b25e;
 }
 
+/* Dark teacher workspace — the same neutral treatment: no gold primary, no
+   cream text, no tinted backdrop. */
 .dark .khi-teacher{
-  background-image:
-    radial-gradient(1100px 700px at 18% -8%,rgba(44,84,72,.30) 0,transparent 60%),
-    radial-gradient(900px 600px at 105% 30%,rgba(20,38,32,.6) 0,transparent 55%);
+  --background:#121614;
+  --foreground:#eef2ef;
+  --card:#181d1a;
+  --card-foreground:#eef2ef;
+  --popover:#181d1a;
+  --popover-foreground:#eef2ef;
+  --primary:#8fbfa8;
+  --primary-foreground:#0f1613;
+  --secondary:#1e2522;
+  --secondary-foreground:#eef2ef;
+  --muted:#1c2320;
+  --muted-foreground:#adb8b2;
+  --accent:#243029;
+  --accent-foreground:#eef2ef;
+  --destructive:#e0795a;
+  --border:rgba(238,242,239,.12);
+  --input:rgba(238,242,239,.16);
+  --ring:#8fbfa8;
+  --sidebar:#181d1a;
+  --sidebar-foreground:#eef2ef;
+  --sidebar-primary:#8fbfa8;
+  --sidebar-primary-foreground:#0f1613;
+  --sidebar-accent:#1e2522;
+  --sidebar-accent-foreground:#eef2ef;
+  --sidebar-border:rgba(238,242,239,.12);
+  --sidebar-ring:#8fbfa8;
+  background-color:#121614;
+  background-image:none;
 }
 
 .khi-help-dialog,

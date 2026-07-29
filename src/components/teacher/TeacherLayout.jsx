@@ -5,7 +5,6 @@ import { History, House, LogOut, Music4 } from 'lucide-react'
 import '@/styles/khi-theme.css'
 import { KhiLogo } from '@/components/brand/KhiLogo'
 import { Button } from '@/components/ui/button'
-import { KhiToneSlider } from '@/components/khi/KhiToneSlider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { clearCurrentProfile, setCurrentProfile } from '@/lib/current-profile'
 import { ku } from '@/lib/maqam-i18n'
@@ -191,11 +190,6 @@ function TeacherLayout() {
           </div>
 
           <div className="my-4 h-px bg-border" />
-
-          {/* Reading-tone control — inline, never a floating overlay. */}
-          <div className="mb-4 flex justify-center">
-            <KhiToneSlider />
-          </div>
 
           {/* Profile card (display only — the teacher area is single-page) */}
           <div className="rounded-2xl border border-border bg-background p-3">
