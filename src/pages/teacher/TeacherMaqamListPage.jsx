@@ -30,6 +30,7 @@ import { useCurrentProfile } from '@/hooks/use-current-profile'
 import { MaqamPlayer } from '@/components/maqam/MaqamPlayer'
 import { formatClock, teacherLabel, voteProgress } from '@/components/maqam/maqam-helpers'
 import { COMMON_MAQAM_TYPES, formatKuDate, ku } from '@/lib/maqam-i18n'
+import { matchKey } from '@/lib/kurdish-text'
 import { cn } from '@/lib/utils'
 import { castMaqamVote, getMaqam, getMaqamsPage } from '@/services/maqam'
 
@@ -184,16 +185,19 @@ function TeacherMaqamListPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Client-side filter over the current page.
+  // Client-side filter over the current page. Matching folds Kurdish script the
+  // same way the backend engines do — a Kurdish Yeh typed against a stored
+  // Arabic Yeh looks identical on screen but would never match a plain
+  // lower-cased compare (see lib/kurdish-text).
   const displayed = useMemo(() => {
     if (!Array.isArray(records)) return []
-    const q = query.trim().toLowerCase()
+    const q = matchKey(query)
     if (!q) return records
     return records.filter(
       (r) =>
-        (r.songName ?? '').toLowerCase().includes(q) ||
-        (r.producer ?? '').toLowerCase().includes(q) ||
-        (r.maqamCode ?? '').toLowerCase().includes(q),
+        matchKey(r.songName).includes(q) ||
+        matchKey(r.producer).includes(q) ||
+        matchKey(r.maqamCode).includes(q),
     )
   }, [records, query])
 

@@ -1,3 +1,5 @@
+import { matchKey } from '@/lib/kurdish-text'
+
 // Controlled vocabularies — the single source of truth for the fixed values
 // the archive uses across every dashboard form (audio, video, image, text,
 // physical media, person, project).
@@ -104,14 +106,13 @@ export function hasVocabulary(field) {
   return getVocabularyOptions(field).length > 0
 }
 
-// Comparison key used for "is this value one of the presets?". Trims, folds
-// case (a no-op for Arabic script but not for `CC BY` / `cc by`) and collapses
-// runs of whitespace so a stray double space doesn't read as a new term.
+// Comparison key used for "is this value one of the presets?". Folds Latin case
+// (`CC BY` / `cc by`), collapses whitespace, and — via the shared Kurdish
+// normaliser — folds the interchangeable Arabic-script letters and invisible
+// characters, so a preset typed with an Arabic Yeh still reads as the preset
+// rather than as a brand-new term.
 export function normalizeVocabularyValue(raw) {
-  return String(raw ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
+  return matchKey(raw)
 }
 
 export function isPresetValue(field, raw) {

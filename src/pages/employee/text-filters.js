@@ -15,6 +15,8 @@
 // fastest-first short-circuit: cheap booleans → numeric → date →
 // equals → contains → collections.
 
+import { matchKey } from '@/lib/kurdish-text'
+
 // ─────────────────────────────────────────────────────────────────
 // Sort options
 // ─────────────────────────────────────────────────────────────────
@@ -191,7 +193,10 @@ export function countTextFilters(filters) {
 // Matching primitives
 // ─────────────────────────────────────────────────────────────────
 
-const norm = (v) => (v == null ? '' : String(v).trim().toLowerCase())
+// Case- AND script-insensitive, mirroring the backend engines: Kurdish is
+// written in Arabic script, where toLowerCase() is a no-op, so a plain
+// lower-cased compare degrades to an exact byte match (see lib/kurdish-text).
+const norm = (v) => matchKey(v)
 
 function buildWantedSet(values) {
   const out = new Set()

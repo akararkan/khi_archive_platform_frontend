@@ -33,10 +33,16 @@ export const PHYSICAL_MEDIA_SORT_OPTIONS = [
   { key: 'pmCode-desc',          label: 'Code (Z → A)',             sortBy: 'pmCode',            sortDirection: 'desc' },
   { key: 'inventoryNumber-asc',  label: 'Inventory № (low → high)', sortBy: 'inventoryNumber',   sortDirection: 'asc'  },
   { key: 'inventoryNumber-desc', label: 'Inventory № (high → low)', sortBy: 'inventoryNumber',   sortDirection: 'desc' },
+  { key: 'rowNumber-asc',        label: 'Row № (low → high)',       sortBy: 'rowNumber',         sortDirection: 'asc'  },
+  { key: 'rowNumber-desc',       label: 'Row № (high → low)',       sortBy: 'rowNumber',         sortDirection: 'desc' },
   { key: 'title-asc',            label: 'Title (A → Z)',            sortBy: 'title',             sortDirection: 'asc'  },
   { key: 'title-desc',           label: 'Title (Z → A)',            sortBy: 'title',             sortDirection: 'desc' },
   { key: 'physicalMediaType-asc', label: 'Type (A → Z)',            sortBy: 'physicalMediaType', sortDirection: 'asc'  },
   { key: 'mediaCategory-asc',    label: 'Category (A → Z)',         sortBy: 'mediaCategory',     sortDirection: 'asc'  },
+  // The one key with no backing column: it orders by the derived 0/1/2 code, so
+  // picking it drops the request onto the in-memory path (a full-set scan) even
+  // with no filters set — every other key here stays a single DB page. Worth it,
+  // since "what's left to digitise" is the actual workflow question.
   { key: 'digitization-asc',     label: 'Digitisation (least first)', sortBy: 'digitization',    sortDirection: 'asc'  },
   { key: 'digitization-desc',    label: 'Digitisation (most first)',  sortBy: 'digitization',    sortDirection: 'desc' },
   { key: 'year-desc',            label: 'Year (newest)',            sortBy: 'year',              sortDirection: 'desc' },
@@ -48,6 +54,7 @@ export const PHYSICAL_MEDIA_SORT_OPTIONS = [
   { key: 'createdAt-desc',       label: 'Newest first',             sortBy: 'createdAt',         sortDirection: 'desc' },
   { key: 'createdAt-asc',        label: 'Oldest first',             sortBy: 'createdAt',         sortDirection: 'asc'  },
   { key: 'updatedAt-desc',       label: 'Recently updated',         sortBy: 'updatedAt',         sortDirection: 'desc' },
+  { key: 'updatedAt-asc',        label: 'Least recently updated',   sortBy: 'updatedAt',         sortDirection: 'asc'  },
 ]
 export const DEFAULT_PHYSICAL_MEDIA_SORT_KEY = 'default'
 
