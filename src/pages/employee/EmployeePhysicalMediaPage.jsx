@@ -787,11 +787,12 @@ function EmployeePhysicalMediaPage() {
                           <CodeBadge code={r.pmCode} size="sm" />
                         </TableCell>
                         <TableCell className="max-w-[12rem] truncate text-foreground">{r.physicalMediaType || '—'}</TableCell>
+                        {/* One line per row: the title only. The physical label used
+                            to repeat underneath it, which just doubled the text in
+                            the cell. It still shows in the detail view, the edit
+                            form and the Excel export. */}
                         <TableCell className="max-w-[16rem]">
                           <p className="truncate font-medium text-foreground">{r.title || r.physicalLabel || '—'}</p>
-                          {r.title && r.physicalLabel ? (
-                            <p className="truncate font-mono text-[11px] text-muted-foreground">{r.physicalLabel}</p>
-                          ) : null}
                         </TableCell>
                         <TableCell className="hidden text-muted-foreground md:table-cell">{r.mediaCategory || '—'}</TableCell>
                         <TableCell className="hidden lg:table-cell">
