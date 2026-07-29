@@ -1815,3 +1815,64 @@
 .khi-root .results-scroll{overscroll-behavior:contain}
 /* Only promote a cover to its own layer while it is actually animating. */
 @media (hover:hover){.khi-root .card:hover .media .cover-img{will-change:transform}}
+
+/* ============================================================
+   CATALOGUE CARD — hover reveal, 2026-07 pass.
+   Replaces the gold hairline treatment: no yellow border, no gold
+   underline, no gold focus ring. On hover a pine shade RISES from
+   the card's bottom edge up to the artwork and the name + category
+   ride up with it in cream.
+
+   The panel is the BODY's own layer (.body is `flex:1`, so it spans
+   exactly from the card's bottom edge to the bottom of the image) —
+   scaleY from the bottom therefore stops at the artwork on its own,
+   with nothing to measure and no JS.
+   ============================================================ */
+
+/* ── 1. Strip the gold ── */
+.khi-root .card:hover{border-color:var(--line-2)}
+.khi-root .card::after{box-shadow:none}
+.khi-root .card:hover::after{box-shadow:none}
+/* Focus stays obvious for keyboard users — pine instead of gold. */
+.khi-root .card:focus-visible{outline:3px solid var(--pine-2);outline-offset:3px;border-color:var(--pine-2)}
+/* The growing gold underline under the category is gone; the rising
+   panel is the hover affordance now. */
+.khi-root .card .card-category::after{content:none}
+/* Trending chip: white on the pine scrim, matching the type badge. */
+.khi-root .card .trend-badge{background:rgba(16,30,23,.62);border:1px solid rgba(255,255,255,.5);color:#fffdf6;text-shadow:0 1px 3px rgba(10,27,20,.6);box-shadow:0 6px 16px -10px rgba(16,30,23,.45)}
+
+/* ── 2. The rising shade ── */
+.khi-root .card .body{position:relative;isolation:isolate}
+.khi-root .card .body::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(to top,var(--night),var(--pine) 88%);
+  /* a hairline where the shade meets the artwork + its own cast shadow,
+     so the panel reads as a surface sliding up rather than a flat fill */
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 -16px 30px -20px rgba(10,27,20,.95);
+  transform:scaleY(0);transform-origin:bottom;
+  transition:transform .44s cubic-bezier(.2,.7,.2,1);
+}
+.khi-root .card:hover .body::before,
+.khi-root .card:focus-visible .body::before{transform:scaleY(1)}
+
+/* ── 3. The text riding the shade ── */
+.khi-root .card .body h3,
+.khi-root .card .body .card-category{
+  position:relative;z-index:1;
+  transition:color .3s ease .05s,transform .44s cubic-bezier(.2,.7,.2,1);
+}
+.khi-root .card:hover h3,
+.khi-root .card:focus-visible h3{color:#fff;transform:translateY(-3px)}
+.khi-root .card:hover .card-category,
+.khi-root .card:focus-visible .card-category{color:rgba(255,255,255,.74);transform:translateY(-3px)}
+
+@media (prefers-reduced-motion: reduce){
+  /* No sweep — the shade and the text simply switch state. */
+  .khi-root .card .body::before{transition:none}
+  .khi-root .card .body h3,
+  .khi-root .card .body .card-category{transition:none;transform:none}
+  .khi-root .card:hover h3,
+  .khi-root .card:focus-visible h3,
+  .khi-root .card:hover .card-category,
+  .khi-root .card:focus-visible .card-category{transform:none}
+}
