@@ -1123,7 +1123,7 @@
 .khi-root .meta-rows{margin:0;display:flex;flex-direction:column;gap:0}
 .khi-root .meta-panel:not(.media-field-group) .meta-rows{gap:12px;padding-top:6px}
 .khi-root .meta-row{display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;align-items:start}
-.khi-root .meta-row dt{color:var(--ink-muted);font-size:12.5px;font-weight:700;padding-top:2px}
+.khi-root .meta-row dt{color:var(--ink-muted);font-size:14px;font-weight:700;padding-top:2px}
 .khi-root .meta-row dd{margin:0;color:var(--ink);font-size:14.5px;min-width:0;word-break:break-word}
 .khi-root .full-field-label{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 6px;line-height:1.45}
 .khi-root .full-field-label-en{font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:800;color:var(--pine);direction:ltr;word-break:break-word}
@@ -1482,41 +1482,40 @@
 .khi-root .check.on .check-ic{opacity:1;color:var(--pine-2)}
 
 /* ============================================================
-   ANIMATED BRAND WATERMARK — a transparent KHI medallion that
-   slowly zooms in and out ("breathes") AND wanders between the
-   center and the four quadrants ("drifts") over protected media:
-   the deep-zoom image viewer, the video frame, every book page,
-   and the hero artwork on image/video/text detail pages.
+   BRAND WATERMARK — the KHI medallion stamped over protected
+   media: the deep-zoom image viewer, the video frame, every book
+   page, and the hero artwork on image/video/text detail pages.
    (Catalogue cards deliberately carry no mark.)
-   The mark is STATIC and pinned to the bottom-right corner of the
-   media box (the earlier drifting/breathing animation was removed —
-   motion over the artwork was distracting). pointer-events stay off
-   so pan/zoom/seek/page-turn all work exactly as before. Mounted
+   The mark is STATIC, fully OPAQUE and pinned to the bottom-LEFT
+   corner of the media box (the earlier drifting/breathing
+   animation was removed — motion over the artwork was
+   distracting; the faded treatment was removed too — the mark now
+   reads as a real seal, not a ghost). pointer-events stay off so
+   pan/zoom/seek/page-turn all work exactly as before. Mounted
    from KhiLogoWatermark.jsx.
    ============================================================ */
 .khi-root .khi-watermark{
-  --wm-opacity:.22;--wm-size:clamp(52px,12%,96px);--wm-inset:16px;
+  --wm-opacity:1;--wm-size:clamp(52px,12%,96px);--wm-inset:16px;
   position:absolute;inset:0;z-index:5;pointer-events:none;user-select:none;
 }
-/* Physical bottom/right (not logical) so the mark keeps the same corner on
+/* Physical bottom/left (not logical) so the mark keeps the same corner on
    the RTL public pages as everywhere else. */
 .khi-root .khi-watermark img{
-  position:absolute;bottom:var(--wm-inset);right:var(--wm-inset);
+  position:absolute;bottom:var(--wm-inset);left:var(--wm-inset);
   width:var(--wm-size);aspect-ratio:1;border-radius:50%;object-fit:cover;
-  opacity:var(--wm-opacity);filter:saturate(.85);
+  opacity:var(--wm-opacity);
   box-shadow:0 0 0 1px rgba(255,255,255,.42),0 0 0 4px rgba(255,255,255,.1),0 10px 26px rgba(16,30,23,.28);
 }
-/* Over dark surfaces (the video frame) the mark needs a little more presence. */
-.khi-root .khi-watermark.on-dark{--wm-opacity:.3}
+/* Over dark surfaces (the video frame) the mark carries a stronger halo. */
 .khi-root .khi-watermark.on-dark img{box-shadow:0 0 0 1px rgba(255,255,255,.5),0 0 0 4px rgba(255,255,255,.14),0 10px 26px rgba(0,0,0,.5)}
 /* While a video sits paused there is no footage to compete with, so the mark
-   is allowed to read a little stronger — same corner, same stillness. */
-.khi-root .khi-watermark.on-dark.scene-idle{--wm-opacity:.44;--wm-size:clamp(64px,15%,120px)}
+   is allowed to read a little larger — same corner, same stillness. */
+.khi-root .khi-watermark.on-dark.scene-idle{--wm-size:clamp(64px,15%,120px)}
 /* Hero artwork: a smaller mark tucked into the same corner so the record's
    own presentation stays the star. .media-asset-frame shrink-wraps the hero
    image so inset:0 resolves to the artwork box, not the whole grid cell. */
 .khi-root .media-asset-frame{position:relative;display:inline-grid;place-items:center;max-width:100%}
-.khi-root .khi-watermark.hero-mark{--wm-size:clamp(38px,11%,64px);--wm-inset:12px;--wm-opacity:.26}
+.khi-root .khi-watermark.hero-mark{--wm-size:clamp(38px,11%,64px);--wm-inset:12px}
 /* (The catalogue-card watermark was removed — the mark now lives only on the
    protected detail surfaces: hero artwork, deep-zoom viewer, video frame and
    book pages.) */
@@ -1669,7 +1668,7 @@
 .khi-root .media-field-group .meta-row{display:grid;grid-template-columns:minmax(0,max-content) minmax(0,1fr);align-items:baseline;gap:3px 13px;padding:9px 11px 8px;border:0;border-bottom:1px solid rgba(31,58,49,.06);border-radius:10px;background:transparent;min-height:0;overflow:visible;transition:background-color .18s}
 @media (hover:hover){.khi-root .meta-panel .meta-row:hover{background:rgba(176,136,51,.055)}}
 .khi-root .meta-panel .meta-row dt,
-.khi-root .media-field-group .meta-row dt{max-width:none;padding:0;color:var(--ink-muted);font-size:12.5px;font-weight:650;line-height:1.65;transition:color .18s}
+.khi-root .media-field-group .meta-row dt{max-width:none;padding:0;color:var(--ink-muted);font-size:14px;font-weight:650;line-height:1.65;transition:color .18s}
 @media (hover:hover){.khi-root .meta-panel .meta-row:hover dt{color:var(--ink-soft)}}
 .khi-root .meta-panel .meta-row dd,
 .khi-root .media-field-group .meta-row dd{margin:0;padding:0;min-width:0;color:var(--ink);font-family:'IBM Plex Mono','Vazirmatn',monospace;font-size:13.5px;font-weight:700;line-height:1.75;word-break:break-word}
