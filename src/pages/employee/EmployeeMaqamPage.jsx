@@ -1,14 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Eye, Music4, Pencil, Plus, RefreshCw, Search, Users, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowDownAZ,
+  ArrowUpAZ,
+  Eye,
+  Music4,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Users,
+  X,
+} from 'lucide-react'
 
 import { EmployeeEntityPage } from '@/components/employee/EmployeeEntityPage'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { CodeBadge } from '@/components/ui/code-badge'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Input } from '@/components/ui/input'
+import { EntityToolbar } from '@/components/ui/entity-toolbar'
+import { FilterChips, FilterTriggerButton, SortSelect } from '@/components/ui/list-filters'
 import { DataPagination } from '@/components/ui/pagination'
-import { SearchClearButton } from '@/components/ui/search-clear-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -33,6 +44,17 @@ import {
   voteProgress,
 } from '@/components/maqam/maqam-helpers'
 import { getMaqam, getMaqamsPage, searchMaqams } from '@/services/maqam'
+import { MaqamFilterPanel } from '@/components/maqam/MaqamFilterPanel'
+import {
+  DEFAULT_MAQAM_SORT_KEY,
+  MAQAM_SORT_OPTIONS,
+  buildMaqamChips,
+  buildMaqamFilterParams,
+  buildMaqamSortParams,
+  countMaqamFilters,
+  createInitialMaqamFilters,
+  isMaqamFilterEmpty,
+} from '@/pages/employee/maqam-filters'
 
 const PAGE_SIZE = 25
 
@@ -72,6 +94,27 @@ function EmployeeMaqamPage() {
   const [searchResults, setSearchResults] = useState(null)
   const [searching, setSearching] = useState(false)
 
+  // Sort + filter state. These flow through to GET /api/maqam as query params;
+  // the backend applies them in-memory over the active set (and keeps its
+  // DB-paged fast path while the filter is empty).
+  const [sortKey, setSortKey] = usePersistentState('employee.maqam.sort', DEFAULT_MAQAM_SORT_KEY)
+  const [filters, setFilters] = usePersistentState('employee.maqam.filters', createInitialMaqamFilters)
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false)
+  const filtersActive = !isMaqamFilterEmpty(filters)
+  const sortActive = sortKey !== DEFAULT_MAQAM_SORT_KEY
+  const filterCount = useMemo(() => countMaqamFilters(filters), [filters])
+  const activeSort = useMemo(
+    () => MAQAM_SORT_OPTIONS.find((opt) => opt.key === sortKey) ?? MAQAM_SORT_OPTIONS[0],
+    [sortKey],
+  )
+  const listQuery = useMemo(
+    () => ({ ...buildMaqamSortParams(activeSort), ...buildMaqamFilterParams(filters) }),
+    [activeSort, filters],
+  )
+
+  const clearFilters = () => setFilters(createInitialMaqamFilters())
+  const updateFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }))
+
   const [formState, setFormState] = useState({ open: false, mode: 'create', record: null })
   const [previewCode, setPreviewCode] = useState(null)
   const [panelRecord, setPanelRecord] = useState(null)
@@ -101,7 +144,7 @@ function EmployeeMaqamPage() {
     setLoading(true)
     setError('')
     try {
-      const data = await getMaqamsPage({ page: nextPage, size: PAGE_SIZE, sort: 'createdAt,desc' })
+      const data = await getMaqamsPage({ page: nextPage, size: PAGE_SIZE, ...listQuery })
       const rows = Array.isArray(data?.content) ? data.content : Array.isArray(data) ? data : []
       setRecords(rows)
       setMeta({
@@ -116,13 +159,15 @@ function EmployeeMaqamPage() {
     } finally {
       setLoading(false)
     }
-  }, [setPage])
+  }, [setPage, listQuery])
 
+  // Reload on mount and whenever sort/filters change — a changed result set
+  // invalidates the current page index, so both reset to page 0.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadActive(0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [listQuery])
 
   useEffect(() => {
     const q = search.trim()
@@ -164,10 +209,10 @@ function EmployeeMaqamPage() {
     }
     const { records: allRecords, truncated } = await fetchAllPageRecords(
       ({ page: exportPage, size }) =>
-        getMaqamsPage({ page: exportPage, size, sort: 'createdAt,desc' }),
+        getMaqamsPage({ page: exportPage, size, ...listQuery }),
     )
     return { sections: [{ title: 'Maqam List', records: allRecords }], truncated }
-  }, [isSearchMode, search])
+  }, [isSearchMode, search, listQuery])
 
   return (
     <EmployeeEntityPage
@@ -197,20 +242,69 @@ function EmployeeMaqamPage() {
         </div>
       }
     >
-      <Card className="border-border shadow-sm shadow-black/5">
-        <CardContent className="px-4 py-3">
-          <div className="relative w-full sm:max-w-md">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by song, singer, or code…"
-              className="pl-8 pr-8"
+      <EntityToolbar
+        filteredCount={rows?.length ?? 0}
+        totalCount={isSearchMode ? (rows?.length ?? 0) : (meta?.totalElements ?? 0)}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by song, singer, or code…"
+        searchWidthClassName="sm:w-80"
+        onRefresh={() => loadActive(page)}
+        isRefreshing={busy}
+        trailing={
+          // Sort + filter are disabled during a text search: /maqam/search has
+          // its own ranking and bypasses both server-side.
+          <div className="flex flex-wrap items-center gap-2">
+            <SortSelect
+              value={sortKey}
+              onChange={setSortKey}
+              options={MAQAM_SORT_OPTIONS}
+              ascIcon={ArrowUpAZ}
+              descIcon={ArrowDownAZ}
+              disabled={isSearchMode}
+              title="Sort maqam records"
+              width="sm:w-[15rem]"
             />
-            {search ? <SearchClearButton onClick={() => setSearch('')} /> : null}
+            <FilterTriggerButton
+              active={filtersActive}
+              count={filterCount}
+              open={isFilterPanelOpen}
+              onClick={() => setIsFilterPanelOpen((v) => !v)}
+              disabled={isSearchMode}
+              disabledReason="Clear search to use filters"
+            />
           </div>
-        </CardContent>
-      </Card>
+        }
+      />
+
+      {!isSearchMode ? (
+        <MaqamFilterPanel
+          open={isFilterPanelOpen}
+          filters={filters}
+          onChange={updateFilter}
+          onClear={clearFilters}
+          onClose={() => setIsFilterPanelOpen(false)}
+          isAnyActive={filtersActive}
+          activeCount={filterCount}
+        />
+      ) : null}
+
+      <FilterChips
+        chips={buildMaqamChips({
+          sortLabel: sortActive ? activeSort.label : null,
+          onClearSort: () => setSortKey(DEFAULT_MAQAM_SORT_KEY),
+          filters,
+          updateFilter,
+        })}
+        onClearAll={
+          filtersActive || sortActive
+            ? () => {
+                clearFilters()
+                setSortKey(DEFAULT_MAQAM_SORT_KEY)
+              }
+            : null
+        }
+      />
 
       {error ? (
         <Card className="border-destructive/40 bg-destructive/5">

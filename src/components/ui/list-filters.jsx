@@ -20,6 +20,7 @@ import {
   Check,
   ChevronDown,
   Filter,
+  Hash,
   Search,
   SlidersHorizontal,
   X,
@@ -436,6 +437,68 @@ export function DateRangeField({
       </div>
       {isInvalid ? (
         <p className="text-[11px] text-destructive">From date is after To date.</p>
+      ) : null}
+    </div>
+  )
+}
+
+// Two number inputs side-by-side — the numeric twin of DateRangeField.
+// Used by entities whose backend exposes `<field>Min` / `<field>Max`
+// params (year, duration, inventory number…). Values stay strings so an
+// empty box round-trips as "" and is dropped from the query.
+export function NumberRangeField({
+  label,
+  min,
+  max,
+  onMinChange,
+  onMaxChange,
+  icon = Hash,
+  hint,
+  step = 1,
+  minPlaceholder = 'Min',
+  maxPlaceholder = 'Max',
+}) {
+  const isInvalid =
+    min !== '' && max !== '' && Number.isFinite(Number(min)) && Number.isFinite(Number(max)) && Number(min) > Number(max)
+  const IconComp = icon
+  return (
+    <div className="space-y-1.5">
+      {label ? (
+        <Label className="flex items-center justify-between gap-2 text-[11px] font-medium leading-none text-foreground/80">
+          <span className="flex items-center gap-1.5">
+            {IconComp ? <IconComp className="size-3 text-muted-foreground/80" /> : null}
+            {label}
+          </span>
+          {hint ? (
+            <span className="text-[10px] font-normal text-muted-foreground/70">{hint}</span>
+          ) : null}
+        </Label>
+      ) : null}
+      <div className="group relative grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 rounded-lg border border-input bg-background px-1 py-1 transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
+        <Input
+          type="number"
+          inputMode="numeric"
+          step={step}
+          value={min}
+          placeholder={minPlaceholder}
+          onChange={(event) => onMinChange(event.target.value)}
+          className="h-7 border-0 bg-transparent px-1.5 text-xs shadow-none focus-visible:ring-0"
+          aria-label={`${label || 'Range'} minimum`}
+        />
+        <span className="text-[11px] font-medium text-muted-foreground/70">→</span>
+        <Input
+          type="number"
+          inputMode="numeric"
+          step={step}
+          value={max}
+          placeholder={maxPlaceholder}
+          onChange={(event) => onMaxChange(event.target.value)}
+          className="h-7 border-0 bg-transparent px-1.5 text-xs shadow-none focus-visible:ring-0"
+          aria-label={`${label || 'Range'} maximum`}
+        />
+      </div>
+      {isInvalid ? (
+        <p className="text-[11px] text-destructive">Minimum is greater than maximum.</p>
       ) : null}
     </div>
   )

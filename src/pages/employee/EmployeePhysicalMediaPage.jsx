@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
+  ArrowDownAZ,
+  ArrowUpAZ,
   Eye,
   HardDrive,
   Loader2,
@@ -8,7 +10,6 @@ import {
   Plus,
   RefreshCw,
   RotateCcw,
-  Search,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -19,9 +20,10 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { CodeBadge } from '@/components/ui/code-badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import { EntityToolbar } from '@/components/ui/entity-toolbar'
 import { Input } from '@/components/ui/input'
+import { FilterChips, FilterTriggerButton, SortSelect } from '@/components/ui/list-filters'
 import { DataPagination } from '@/components/ui/pagination'
-import { SearchClearButton } from '@/components/ui/search-clear-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePersistentState } from '@/hooks/use-persistent-state'
@@ -36,6 +38,17 @@ import { PhysicalMediaDetailView } from '@/components/physical-media/PhysicalMed
 import { PhysicalMediaFormSections } from '@/components/physical-media/PhysicalMediaFormSections'
 import { PhysicalMediaImportDialog } from '@/components/physical-media/PhysicalMediaImportDialog'
 import { PhysicalMediaTypeDialog } from '@/components/physical-media/PhysicalMediaTypeDialog'
+import { PhysicalMediaFilterPanel } from '@/components/physical-media/PhysicalMediaFilterPanel'
+import {
+  DEFAULT_PHYSICAL_MEDIA_SORT_KEY,
+  PHYSICAL_MEDIA_SORT_OPTIONS,
+  buildPhysicalMediaChips,
+  buildPhysicalMediaFilterParams,
+  buildPhysicalMediaSortParams,
+  countPhysicalMediaFilters,
+  createInitialPhysicalMediaFilters,
+  isPhysicalMediaFilterEmpty,
+} from '@/pages/employee/physical-media-filters'
 import {
   DIGITIZATION_LABELS,
   TYPE_DEFAULT_FIELDS,
@@ -125,6 +138,33 @@ function EmployeePhysicalMediaPage() {
   const [searchResults, setSearchResults] = useState(null)
   const [searching, setSearching] = useState(false)
 
+  // Sort + filter state. These flow through to GET /api/physical-media as query
+  // params; the backend applies them in-memory over the active set, and keeps
+  // its DB-paged fast path while the filter is empty.
+  const [sortKey, setSortKey] = usePersistentState(
+    'employee.physicalMedia.sort',
+    DEFAULT_PHYSICAL_MEDIA_SORT_KEY,
+  )
+  const [filters, setFilters] = usePersistentState(
+    'employee.physicalMedia.filters',
+    createInitialPhysicalMediaFilters,
+  )
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false)
+  const filtersActive = !isPhysicalMediaFilterEmpty(filters)
+  const sortActive = sortKey !== DEFAULT_PHYSICAL_MEDIA_SORT_KEY
+  const filterCount = useMemo(() => countPhysicalMediaFilters(filters), [filters])
+  const activeSort = useMemo(
+    () => PHYSICAL_MEDIA_SORT_OPTIONS.find((opt) => opt.key === sortKey) ?? PHYSICAL_MEDIA_SORT_OPTIONS[0],
+    [sortKey],
+  )
+  const listQuery = useMemo(
+    () => ({ ...buildPhysicalMediaSortParams(activeSort), ...buildPhysicalMediaFilterParams(filters) }),
+    [activeSort, filters],
+  )
+
+  const clearFilters = () => setFilters(createInitialPhysicalMediaFilters())
+  const updateFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }))
+
   // Trash (admin)
   const [trashRecords, setTrashRecords] = useState(null)
   const [trashMeta, setTrashMeta] = useState(null)
@@ -140,6 +180,12 @@ function EmployeePhysicalMediaPage() {
 
   // Type catalog (cached; drives the type dropdown + autofill)
   const [types, setTypes] = useState([])
+  // The type catalog doubles as the filter dropdown's preset list, so staff
+  // pick a real inventory type instead of retyping it (still free text).
+  const typeFilterOptions = useMemo(
+    () => (Array.isArray(types) ? types.filter((t) => t?.name).map((t) => ({ value: t.name })) : []),
+    [types],
+  )
   const [addTypeOpen, setAddTypeOpen] = useState(false)
   const lastTypeRef = useRef(null) // the type row whose 9 defaults were last applied
 
@@ -247,7 +293,7 @@ function EmployeePhysicalMediaPage() {
     setError('')
     try {
       // No sort override — the backend defaults to id,ASC so rows read 1..N like the sheet.
-      const data = await getPhysicalMediaPage({ page: nextPage, size: PAGE_SIZE })
+      const data = await getPhysicalMediaPage({ page: nextPage, size: PAGE_SIZE, ...listQuery })
       const rows = Array.isArray(data?.content) ? data.content : Array.isArray(data) ? data : []
       setRecords(rows)
       setMeta({
@@ -262,7 +308,7 @@ function EmployeePhysicalMediaPage() {
     } finally {
       setLoading(false)
     }
-  }, [setPage])
+  }, [setPage, listQuery])
 
   const loadTrash = useCallback(async (nextPage = 0) => {
     setTrashLoading(true)
@@ -284,11 +330,13 @@ function EmployeePhysicalMediaPage() {
     }
   }, [toast])
 
+  // Reload on mount and whenever sort/filters change — a changed result set
+  // invalidates the current page index, so both reset to page 0.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadActive(0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [listQuery])
 
   // Lazy-load trash the first time the admin opens that tab.
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -344,10 +392,10 @@ function EmployeePhysicalMediaPage() {
       return { sections: [{ title: 'Physical Media', records: found || [] }] }
     }
     const { records: allRecords, truncated } = await fetchAllPageRecords(
-      ({ page: exportPage, size }) => getPhysicalMediaPage({ page: exportPage, size }),
+      ({ page: exportPage, size }) => getPhysicalMediaPage({ page: exportPage, size, ...listQuery }),
     )
     return { sections: [{ title: 'Physical Media', records: allRecords }], truncated }
-  }, [tab, isSearchMode, search])
+  }, [tab, isSearchMode, search, listQuery])
 
   // ── Form handlers ─────────────────────────────────────────────────────────
   const openCreate = () => {
@@ -620,21 +668,71 @@ function EmployeePhysicalMediaPage() {
 
       {tab === 'active' ? (
         <>
-          {/* Search */}
-          <Card className="border-border shadow-sm shadow-black/5">
-            <CardContent className="px-4 py-3">
-              <div className="relative w-full sm:max-w-md">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by type, title, label, category…"
-                  className="pl-8 pr-8"
+          {/* Search + sort + filters */}
+          <EntityToolbar
+            filteredCount={activeRows?.length ?? 0}
+            totalCount={isSearchMode ? (activeRows?.length ?? 0) : (meta?.totalElements ?? 0)}
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search by type, title, label, category…"
+            searchWidthClassName="sm:w-80"
+            onRefresh={() => loadActive(page)}
+            isRefreshing={activeBusy}
+            trailing={
+              // Sort + filter are disabled during a text search:
+              // /physical-media/search has its own ranking and bypasses both.
+              <div className="flex flex-wrap items-center gap-2">
+                <SortSelect
+                  value={sortKey}
+                  onChange={setSortKey}
+                  options={PHYSICAL_MEDIA_SORT_OPTIONS}
+                  ascIcon={ArrowUpAZ}
+                  descIcon={ArrowDownAZ}
+                  disabled={isSearchMode}
+                  title="Sort physical media"
+                  width="sm:w-[16rem]"
                 />
-                {search ? <SearchClearButton onClick={() => setSearch('')} /> : null}
+                <FilterTriggerButton
+                  active={filtersActive}
+                  count={filterCount}
+                  open={isFilterPanelOpen}
+                  onClick={() => setIsFilterPanelOpen((v) => !v)}
+                  disabled={isSearchMode}
+                  disabledReason="Clear search to use filters"
+                />
               </div>
-            </CardContent>
-          </Card>
+            }
+          />
+
+          {!isSearchMode ? (
+            <PhysicalMediaFilterPanel
+              open={isFilterPanelOpen}
+              filters={filters}
+              onChange={updateFilter}
+              onClear={clearFilters}
+              onClose={() => setIsFilterPanelOpen(false)}
+              isAnyActive={filtersActive}
+              activeCount={filterCount}
+              typeOptions={typeFilterOptions}
+            />
+          ) : null}
+
+          <FilterChips
+            chips={buildPhysicalMediaChips({
+              sortLabel: sortActive ? activeSort.label : null,
+              onClearSort: () => setSortKey(DEFAULT_PHYSICAL_MEDIA_SORT_KEY),
+              filters,
+              updateFilter,
+            })}
+            onClearAll={
+              filtersActive || sortActive
+                ? () => {
+                    clearFilters()
+                    setSortKey(DEFAULT_PHYSICAL_MEDIA_SORT_KEY)
+                  }
+                : null
+            }
+          />
 
           <Card className="overflow-hidden border-border shadow-sm shadow-black/5">
             <CardContent className="p-0">

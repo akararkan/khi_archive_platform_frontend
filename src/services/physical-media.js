@@ -8,9 +8,53 @@ import { apiClient } from '@/lib/api-client'
 // + admin restore/purge).
 
 // Paginated list — returns the full Spring Page<PhysicalMediaResponseDTO> shape.
-export async function getPhysicalMediaPage({ page = 0, size = 50, sort, signal } = {}) {
+//
+// Sort + filter (all optional) are bound server-side from the query string into
+// PhysicalMediaFilterParams. Unlike the cached entities, this one has no
+// ReadCache: with NO filter the backend runs its original DB-paged query, and
+// only a non-empty filter triggers the load-all + in-memory filter/sort path.
+// So keeping empty values out of `params` isn't cosmetic — it decides which
+// code path runs. Every builder below drops blanks for that reason.
+//
+//   - sortBy          pmCode | inventoryNumber | rowNumber | physicalMediaType |
+//                     mediaCategory | title | physicalLabel | owner | year |
+//                     duration | trackNumbers | digitization | digitizeDate |
+//                     createdAt | updatedAt   (plus the backend's synonyms)
+//   - sortDirection   'asc' | 'desc'
+//   - exact           physicalMediaType, mediaCategory, physicalSize,
+//                     extension, formatCodec, source
+//   - enum/boolean    digitization (NOT_DIGITIZED|DIGITIZED|DUPLICATED),
+//                     needToClear (true|false)
+//   - contains        pmCode, title, physicalLabel, content, archiveDepNote,
+//                     owner, tags, trackName, captureDepNote, sizeGB,
+//                     playbackModel, captureInterface, signalInterface,
+//                     ingestSoftware, bitOrColorDepth, sampleOrFrameRate,
+//                     channelsOrResolution, createdBy, updatedBy
+//   - ranges          year, durationMinutes, trackNumbers, inventoryNumber,
+//                     rowNumber (Min/Max) · digitizeDate, created, updated
+//                     (From/To)
+const PHYSICAL_MEDIA_FILTER_KEYS = [
+  'sortBy', 'sortDirection',
+  'physicalMediaType', 'mediaCategory', 'physicalSize', 'extension', 'formatCodec', 'source',
+  'digitization', 'digitizationCode', 'needToClear', 'needToClearCode',
+  'pmCode', 'title', 'physicalLabel', 'content', 'archiveDepNote', 'owner', 'tags',
+  'trackName', 'captureDepNote', 'sizeGB', 'playbackModel', 'captureInterface',
+  'signalInterface', 'ingestSoftware', 'bitOrColorDepth', 'sampleOrFrameRate',
+  'channelsOrResolution', 'createdBy', 'updatedBy',
+  'yearMin', 'yearMax', 'durationMinutesMin', 'durationMinutesMax',
+  'trackNumbersMin', 'trackNumbersMax', 'inventoryNumberMin', 'inventoryNumberMax',
+  'rowNumberMin', 'rowNumberMax',
+  'digitizeDateFrom', 'digitizeDateTo', 'createdFrom', 'createdTo', 'updatedFrom', 'updatedTo',
+]
+
+export async function getPhysicalMediaPage({ page = 0, size = 50, sort, signal, ...filters } = {}) {
   const params = { page, size }
   if (sort) params.sort = sort
+  for (const key of PHYSICAL_MEDIA_FILTER_KEYS) {
+    const value = filters[key]
+    if (value === undefined || value === null || value === '') continue
+    params[key] = value
+  }
   const { data } = await apiClient.get('/physical-media', { params, signal })
   return data
 }

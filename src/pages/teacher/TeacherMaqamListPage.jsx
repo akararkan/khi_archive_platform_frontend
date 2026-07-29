@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -11,6 +11,7 @@ import {
   Loader2,
   Music4,
   RefreshCw,
+  RotateCcw,
   Search,
   Send,
   Users,
@@ -21,10 +22,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { DataPagination } from '@/components/ui/pagination'
 import { SearchClearButton } from '@/components/ui/search-clear-button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useToast } from '@/hooks/use-toast'
 import { useCurrentProfile } from '@/hooks/use-current-profile'
@@ -35,6 +34,7 @@ import { cn } from '@/lib/utils'
 import { castMaqamVote, getMaqam, getMaqamsPage } from '@/services/maqam'
 
 const PAGE_SIZE = 10
+const NOTE_MAX = 10000
 
 function votesOf(record) {
   return Array.isArray(record?.teacherVotes) ? record.teacherVotes : []
@@ -67,19 +67,29 @@ function TeacherMaqamListPage() {
   const [error, setError] = useState('')
   const [query, setQuery] = usePersistentState('teacher.maqam.query', '')
 
-  // ── Active record (the one shown in the detail panel) ────────────────────
+  // ── Active record (the one shown in the work surface) ─────────────────────
   const [activeCode, setActiveCode] = useState(null)
   const [activeRecord, setActiveRecord] = useState(null) // full record from getMaqam
   const [detailLoading, setDetailLoading] = useState(false)
   const activeCodeRef = useRef(null)
   // 'first' | 'last' | null — which row to focus once the next page lands.
   const selectAfterLoad = useRef('first')
+  // Full records already fetched this session. Revisiting a record via
+  // Prev/Next then renders instantly instead of flashing a loading bar while
+  // the same payload is fetched again; we still revalidate in the background.
+  const detailCache = useRef(new Map())
 
   // ── Vote form state ──────────────────────────────────────────────────────
   const [maqamType, setMaqamType] = useState('')
   const [teacherNote, setTeacherNote] = useState('')
   const [alreadyVoted, setAlreadyVoted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  // Which record the form was seeded from, and whether the teacher has touched
+  // it since. The listen tracker refreshes the active record every ~15s while
+  // audio plays — without this guard that refresh re-seeded the form and wiped
+  // whatever was being typed mid-sentence.
+  const seededCode = useRef(null)
+  const formDirty = useRef(false)
 
   const load = useCallback(async (nextPage = 0) => {
     setLoading(true)
@@ -106,7 +116,7 @@ function TeacherMaqamListPage() {
 
   // Open the console focused on a specific record (used when arriving from the
   // "My recent" page via `/teacher?code=…`). Walks pages in the same order the
-  // table uses (createdAt,asc) until the record is found, so it lands on the
+  // queue uses (createdAt,asc) until the record is found, so it lands on the
   // right page with the row highlighted, the counter/next-prev all correct, and
   // the vote form + other teachers populated. Falls back to page 0 if not found.
   const openByCode = useCallback(async (code) => {
@@ -205,7 +215,8 @@ function TeacherMaqamListPage() {
     activeCodeRef.current = activeCode
   }, [activeCode])
 
-  // Fetch the full record (archive note + fresh teacher votes) for the active row.
+  // Fetch the full record (archive note + fresh teacher votes) for the active
+  // row. A cached copy renders immediately and is revalidated silently.
   useEffect(() => {
     if (!activeCode) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -213,9 +224,12 @@ function TeacherMaqamListPage() {
       return undefined
     }
     let cancelled = false
-    setDetailLoading(true)
+    const cached = detailCache.current.get(activeCode)
+    setActiveRecord(cached ?? null)
+    setDetailLoading(!cached)
     getMaqam(activeCode)
       .then((data) => {
+        detailCache.current.set(activeCode, data)
         if (!cancelled) setActiveRecord(data)
       })
       .catch(() => {
@@ -237,16 +251,32 @@ function TeacherMaqamListPage() {
   )
   const record = activeRecord && activeRecord.maqamCode === activeCode ? activeRecord : activeRow
 
-  // Seed the vote form from my existing vote whenever the active record changes.
+  // Seed the vote form from my existing vote — on record change, or when the
+  // full record arrives for a record the teacher hasn't typed into yet.
   useEffect(() => {
     if (myId == null || !record) return
+    const codeChanged = seededCode.current !== activeCode
+    if (codeChanged) formDirty.current = false
+    else if (formDirty.current) return
     const mine = findMyVote(record, myId)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMaqamType(mine?.maqamType || '')
     setTeacherNote(mine?.teacherNote || '')
     setAlreadyVoted(hasVoted(mine))
+    seededCode.current = activeCode
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCode, activeRecord, myId])
+
+  const savedVote = findMyVote(record, myId)
+  const isDirty =
+    maqamType !== (savedVote?.maqamType || '') || teacherNote !== (savedVote?.teacherNote || '')
+
+  const touchForm = () => { formDirty.current = true }
+
+  const revertForm = () => {
+    formDirty.current = false
+    setMaqamType(savedVote?.maqamType || '')
+    setTeacherNote(savedVote?.teacherNote || '')
+  }
 
   // ── Navigation ───────────────────────────────────────────────────────────
   const activeIndex = displayed.findIndex((r) => r.maqamCode === activeCode)
@@ -275,6 +305,13 @@ function TeacherMaqamListPage() {
     }
   }, [activeIndex, displayed, hasPrevPage, loading, load, page])
 
+  // Jumping a whole page always lands on that page's first record.
+  const goToPage = useCallback((next) => {
+    if (loading) return
+    selectAfterLoad.current = 'first'
+    load(next)
+  }, [loading, load])
+
   // Arrow-key navigation (RTL: ← advances, → goes back). Only fires when nothing
   // is focused, so it never hijacks the audio player's seek or form inputs.
   useEffect(() => {
@@ -302,8 +339,17 @@ function TeacherMaqamListPage() {
     }
   }, [record, query, activeIndex, displayed.length, records, meta, page, activeCode])
 
+  // How much of THIS page the teacher has already classified — the question the
+  // position counter never answered ("how much is left for me to do?").
+  const pageProgress = useMemo(() => {
+    const rows = Array.isArray(records) ? records : []
+    const done = rows.filter((r) => hasVoted(findMyVote(r, myId))).length
+    return { done, total: rows.length, pct: rows.length ? Math.round((done / rows.length) * 100) : 0 }
+  }, [records, myId])
+
   // ── Voting (the teacher's own row stays editable) ────────────────────────
   const applyUpdatedRecord = useCallback((updated) => {
+    detailCache.current.set(updated.maqamCode, updated)
     setActiveRecord(updated)
     setRecords((prev) =>
       Array.isArray(prev)
@@ -340,6 +386,7 @@ function TeacherMaqamListPage() {
       })
       applyUpdatedRecord(updated)
       setAlreadyVoted(true)
+      formDirty.current = false
       toast.success(wasVoted ? ku.voteUpdatedTitle : ku.voteSavedTitle, ku.voteSavedDesc)
     } catch (err) {
       toast.apiError(err, ku.genericError)
@@ -348,43 +395,82 @@ function TeacherMaqamListPage() {
     }
   }
 
+  // Ctrl/⌘ + Enter submits from anywhere inside the vote form.
+  const handleFormKeyDown = (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault()
+      handleSubmit(e)
+    }
+  }
+
   // ── Derived display data for the active record ───────────────────────────
-  const myActiveVote = findMyVote(record, myId)
+  const myActiveVote = savedVote
   const otherVotes = votesOf(record).filter((v) => v.teacherUserId !== myId)
   const hasFullDetail = Boolean(activeRecord && activeRecord.maqamCode === activeCode)
-  const progressPct = counter && counter.total > 0 ? Math.round((counter.pos / counter.total) * 100) : 0
-
   const firstLoad = loading && !records
 
   return (
-    <section className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0 space-y-1.5">
+    <section className="space-y-5">
+      {/* ── Page header: identity, workload, refresh ───────────────────────── */}
+      <header className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               {ku.listTitle}
             </h1>
             {meta?.totalElements != null ? (
-              <span className="inline-flex items-center rounded-full border bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+              <span className="inline-flex items-center rounded-full border border-border bg-muted px-3 py-1 text-[13px] font-semibold text-foreground">
                 {meta.totalElements} {ku.records}
               </span>
             ) : null}
           </div>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{ku.consoleSubtitle}</p>
+          <p className="max-w-prose text-[15px] leading-7 text-muted-foreground">{ku.consoleSubtitle}</p>
         </div>
-        <Button type="button" variant="outline" className="shrink-0 gap-2" onClick={() => load(page)} disabled={loading}>
-          <RefreshCw className={cn('size-4', loading && 'animate-spin')} />
-          {ku.refresh}
-        </Button>
-      </div>
+
+        <div className="flex items-center gap-3">
+          {records?.length ? (
+            <div className="min-w-[9.5rem] rounded-2xl border border-border bg-card px-4 py-2.5 shadow-sm shadow-black/5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[13px] font-medium text-muted-foreground">{ku.progressDone}</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">
+                  {pageProgress.done}<span className="text-muted-foreground">/{pageProgress.total}</span>
+                </span>
+              </div>
+              <div
+                role="progressbar"
+                aria-valuenow={pageProgress.done}
+                aria-valuemin={0}
+                aria-valuemax={pageProgress.total}
+                aria-label={ku.progressAria}
+                className="mt-2 h-2 overflow-hidden rounded-full bg-muted"
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out motion-reduce:transition-none"
+                  style={{ width: `${pageProgress.pct}%` }}
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] font-medium text-muted-foreground">{ku.progressOnPage}</p>
+            </div>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 shrink-0 gap-2 px-4 text-sm"
+            onClick={() => load(page)}
+            disabled={loading}
+          >
+            <RefreshCw className={cn('size-4', loading && 'animate-spin motion-reduce:animate-none')} />
+            {ku.refresh}
+          </Button>
+        </div>
+      </header>
 
       {error ? (
         <Card className="border-destructive/40 bg-destructive/5">
-          <CardContent className="flex items-center gap-3 px-4 py-3">
-            <AlertTriangle className="size-4 shrink-0 text-destructive" />
-            <p className="flex-1 text-sm text-destructive">{error}</p>
-            <Button type="button" variant="outline" size="sm" onClick={() => load(page)}>
+          <CardContent className="flex flex-wrap items-center gap-3 px-4 py-3">
+            <AlertTriangle className="size-5 shrink-0 text-destructive" />
+            <p className="flex-1 text-sm font-medium text-destructive">{error}</p>
+            <Button type="button" variant="outline" className="h-9 px-3" onClick={() => load(page)}>
               {ku.retry}
             </Button>
           </CardContent>
@@ -392,108 +478,107 @@ function TeacherMaqamListPage() {
       ) : null}
 
       {firstLoad ? (
-        <div className="space-y-6">
-          <Skeleton className="h-[30rem] w-full rounded-3xl" />
-          <Skeleton className="h-72 w-full rounded-3xl" />
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(20rem,1fr)]">
+          <div className="space-y-5">
+            <Skeleton className="h-32 w-full rounded-3xl" />
+            <Skeleton className="h-40 w-full rounded-3xl" />
+            <Skeleton className="h-64 w-full rounded-3xl" />
+          </div>
+          <Skeleton className="h-[32rem] w-full rounded-3xl" />
         </div>
       ) : !displayed.length && !records?.length ? (
-        <Card className="border-border">
-          <CardContent className="py-12">
-            <EmptyState icon={Music4} title={ku.emptyTitle} description={ku.emptyDescription} />
-          </CardContent>
-        </Card>
+        <EmptyState icon={Music4} title={ku.emptyTitle} description={ku.emptyDescription} />
       ) : (
-        <>
-          {/* ── Detail panel (auto-shows the active record) ──────────────── */}
-          {record ? (
-            <div className="relative overflow-hidden rounded-3xl border border-border bg-card shadow-lg shadow-black/[0.04]">
-              {/* ── Sticky nav bar: identity + پێشوو / داهاتوو ─────────────── */}
-              <div className="relative border-b border-border bg-gradient-to-b from-primary/[0.06] to-transparent">
-                {detailLoading && !hasFullDetail ? (
-                  <div className="absolute inset-x-0 top-0 h-0.5 animate-pulse bg-primary/50" />
-                ) : null}
-                <div className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex min-w-0 items-start gap-4">
-                    <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-sm shadow-primary/30">
-                      <Music4 className="size-7" />
-                    </div>
-                    <div className="min-w-0">
-                      <h2 className="truncate font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                        {record.songName}
-                      </h2>
-                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                        <span className="text-muted-foreground/70">{ku.byProducer}: </span>
-                        {record.producer}
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        {record.audioDurationSeconds ? (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-[11px] tabular-nums text-muted-foreground">
-                            <Clock3 className="size-3" />
-                            {formatClock(record.audioDurationSeconds)}
-                          </span>
-                        ) : null}
-                        <StatusPill voted={hasVoted(myActiveVote)} />
-                      </div>
-                    </div>
-                  </div>
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(20rem,1fr)]">
+          {/* ── Work surface ────────────────────────────────────────────── */}
+          <div className="min-w-0 space-y-5">
+            {record ? (
+              <>
+                {/* Announce record changes to assistive tech without stealing focus. */}
+                <p className="sr-only" role="status" aria-live="polite">
+                  {ku.viewingNow} {record.songName}
+                </p>
 
-                  {/* Navigation cluster */}
-                  <div className="flex shrink-0 flex-col items-stretch gap-2 lg:items-end">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="flex-1 gap-1.5 lg:flex-none"
-                        onClick={goPrev}
-                        disabled={!canPrev || loading}
-                      >
-                        <ChevronRight className="size-4" />
-                        {ku.previous}
-                      </Button>
-                      <Button
-                        type="button"
-                        className="flex-1 gap-1.5 shadow-sm lg:flex-none"
-                        onClick={goNext}
-                        disabled={!canNext || loading}
-                      >
-                        {loading ? <Loader2 className="size-4 animate-spin" /> : null}
-                        {ku.next}
-                        <ChevronLeft className="size-4" />
-                      </Button>
-                    </div>
-                    {counter ? (
-                      <div className="flex items-center gap-2.5">
-                        <span className="whitespace-nowrap text-xs font-medium tabular-nums text-muted-foreground">
-                          {ku.records} {counter.pos} {ku.of} {counter.total}
-                        </span>
-                        <div className="h-1.5 w-28 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
-                            style={{ width: `${progressPct}%` }}
-                          />
+                {/* Record identity + prev/next */}
+                <div className="relative overflow-hidden rounded-3xl border border-border bg-card shadow-sm shadow-black/5">
+                  {detailLoading && !hasFullDetail ? (
+                    <div className="absolute inset-x-0 top-0 h-0.5 animate-pulse bg-primary/60 motion-reduce:animate-none" />
+                  ) : null}
+                  <div className="flex flex-col gap-5 bg-gradient-to-b from-primary/[0.07] to-transparent p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex min-w-0 items-start gap-4">
+                      <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-sm shadow-primary/30">
+                        <Music4 className="size-7" />
+                      </span>
+                      <div className="min-w-0">
+                        <h2 className="break-words text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-2xl">
+                          {record.songName}
+                        </h2>
+                        <p className="mt-1 truncate text-[15px] text-muted-foreground">
+                          {ku.byProducer}: <span className="font-medium text-foreground">{record.producer}</span>
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {record.audioDurationSeconds ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-[13px] font-medium tabular-nums text-foreground">
+                              <Clock3 className="size-3.5" />
+                              {formatClock(record.audioDurationSeconds)}
+                            </span>
+                          ) : null}
+                          <StatusPill voted={hasVoted(myActiveVote)} />
                         </div>
                       </div>
-                    ) : null}
+                    </div>
+
+                    <div className="flex shrink-0 flex-col gap-2.5 lg:items-end">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-11 flex-1 gap-1.5 px-4 text-sm lg:flex-none"
+                          onClick={goPrev}
+                          disabled={!canPrev || loading}
+                        >
+                          <ChevronRight className="size-4" />
+                          {ku.previous}
+                        </Button>
+                        <Button
+                          type="button"
+                          className="h-11 flex-1 gap-1.5 px-4 text-sm shadow-sm lg:flex-none"
+                          onClick={goNext}
+                          disabled={!canNext || loading}
+                        >
+                          {loading ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : null}
+                          {ku.next}
+                          <ChevronLeft className="size-4" />
+                        </Button>
+                      </div>
+                      {counter ? (
+                        <p className="text-[13px] font-medium tabular-nums text-muted-foreground">
+                          {ku.records} <span className="text-foreground">{counter.pos}</span> {ku.of} {counter.total}
+                        </p>
+                      ) : null}
+                      <p className="hidden items-center gap-1.5 text-[11px] text-muted-foreground lg:flex">
+                        <kbd className="rounded border border-border bg-muted px-1.5 py-px font-sans">←</kbd>
+                        <kbd className="rounded border border-border bg-muted px-1.5 py-px font-sans">→</kbd>
+                        {ku.keyboardHint}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* ── Body — keyed so each record fades/slides in smoothly ──── */}
-              <div
-                key={activeCode}
-                className="space-y-6 p-5 duration-500 animate-in fade-in slide-in-from-bottom-3 sm:p-6"
-              >
                 {/* Player */}
-                <section className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                <section
+                  aria-labelledby="listen-title"
+                  className="rounded-3xl border border-border bg-card p-5 shadow-sm shadow-black/5 sm:p-6"
+                >
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 id="listen-title" className="inline-flex items-center gap-2 text-[15px] font-semibold text-foreground">
                       <Headphones className="size-4 text-primary" />
                       {ku.detailListenTitle}
                     </h3>
-                    <span className="text-[11px] text-muted-foreground">{ku.detailListenHint}</span>
+                    <span className="text-xs text-muted-foreground">{ku.detailListenHint}</span>
                   </div>
                   {/* Player stays LTR (timeline/seek/controls are built for it);
-                      only the surrounding text + tables are RTL Kurdish. */}
+                      only the surrounding text + queue are RTL Kurdish. */}
                   <div dir="ltr">
                     <MaqamPlayer
                       maqamCode={activeCode}
@@ -511,233 +596,237 @@ function TeacherMaqamListPage() {
                   </div>
                 </section>
 
-                {/* My vote — the only editable part */}
-                <section className="rounded-2xl border border-primary/25 bg-primary/[0.03] p-5 shadow-sm shadow-primary/5">
-                  <div className="mb-1 flex items-center gap-2">
-                    <Music4 className="size-4 text-primary" />
-                    <h3 className="text-sm font-semibold text-foreground">{ku.yourVote}</h3>
+                {/* My vote — the primary task on this page */}
+                <section
+                  aria-labelledby="vote-title"
+                  className="rounded-3xl border-2 border-primary/30 bg-primary/[0.04] p-5 shadow-sm shadow-primary/10 sm:p-6"
+                >
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <Music4 className="size-[18px] text-primary" />
+                    <h3 id="vote-title" className="text-base font-semibold text-foreground">{ku.yourVote}</h3>
                     {hasVoted(myActiveVote) ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold text-green-600 dark:text-green-400">
-                        <CheckCircle2 className="size-3" />
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-600/15 px-2.5 py-0.5 text-xs font-semibold text-green-800 dark:text-green-300">
+                        <CheckCircle2 className="size-3.5" />
                         {ku.voted}
                       </span>
                     ) : null}
                   </div>
-                  <p className="mb-4 text-xs text-muted-foreground">{ku.yourVoteHint}</p>
+                  <p className="mb-5 text-[13px] leading-6 text-muted-foreground">{ku.yourVoteHint}</p>
 
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="maqam-type">
-                        {ku.maqamTypeLabel} <span className="text-destructive">*</span>
+                  <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="space-y-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="maqam-type" className="text-sm font-semibold">
+                        {ku.maqamTypeLabel} <span aria-hidden="true" className="text-destructive">*</span>
                       </Label>
                       <Input
                         id="maqam-type"
                         value={maqamType}
-                        onChange={(e) => setMaqamType(e.target.value)}
+                        onChange={(e) => { touchForm(); setMaqamType(e.target.value) }}
                         placeholder={ku.maqamTypePlaceholder}
                         maxLength={1000}
+                        required
+                        aria-required="true"
+                        className="h-11 text-[15px]"
                       />
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {COMMON_MAQAM_TYPES.map((t) => (
-                          <button
-                            key={t}
-                            type="button"
-                            onClick={() => setMaqamType(t)}
-                            className={cn(
-                              'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
-                              maqamType.trim() === t
-                                ? 'border-primary/40 bg-primary/10 text-primary'
-                                : 'border-border bg-background text-foreground/70 hover:bg-muted/60',
-                            )}
-                          >
-                            {t}
-                          </button>
-                        ))}
+                      <div className="pt-1">
+                        <p className="mb-2 text-xs font-medium text-muted-foreground">{ku.quickPick}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {COMMON_MAQAM_TYPES.map((t) => {
+                            const on = maqamType.trim() === t
+                            return (
+                              <button
+                                key={t}
+                                type="button"
+                                aria-pressed={on}
+                                onClick={() => { touchForm(); setMaqamType(t) }}
+                                className={cn(
+                                  'inline-flex h-10 items-center rounded-full border px-4 text-sm font-medium transition-colors',
+                                  'focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+                                  on
+                                    ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                                    : 'border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted',
+                                )}
+                              >
+                                {t}
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <Label htmlFor="teacher-note">{ku.teacherNoteLabel}</Label>
+                    <div className="space-y-2">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <Label htmlFor="teacher-note" className="text-sm font-semibold">{ku.teacherNoteLabel}</Label>
+                        <span className="text-[11px] tabular-nums text-muted-foreground">
+                          {teacherNote.length} / {NOTE_MAX}
+                        </span>
+                      </div>
                       <textarea
                         id="teacher-note"
                         value={teacherNote}
-                        onChange={(e) => setTeacherNote(e.target.value)}
+                        onChange={(e) => { touchForm(); setTeacherNote(e.target.value) }}
                         placeholder={ku.teacherNotePlaceholder}
-                        rows={3}
-                        maxLength={10000}
-                        className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm leading-6 text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40"
+                        rows={4}
+                        maxLength={NOTE_MAX}
+                        className="w-full resize-y rounded-xl border border-input bg-background px-3.5 py-2.5 text-[15px] leading-7 text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40"
                       />
                     </div>
 
-                    <div className="flex items-center justify-end">
-                      <Button type="submit" disabled={submitting || !maqamType.trim()} className="gap-2">
-                        {submitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                    <div className="flex flex-wrap items-center gap-3 border-t border-primary/15 pt-4">
+                      <Button
+                        type="submit"
+                        disabled={submitting || !maqamType.trim()}
+                        className="h-11 gap-2 px-5 text-sm max-sm:w-full"
+                      >
+                        {submitting
+                          ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+                          : <Send className="size-4" />}
                         {submitting ? ku.saving : alreadyVoted ? ku.updateVote : ku.submitVote}
                       </Button>
+                      {isDirty && !submitting ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="h-11 gap-2 px-3 text-sm"
+                          onClick={revertForm}
+                        >
+                          <RotateCcw className="size-4" />
+                          {ku.revert}
+                        </Button>
+                      ) : null}
+                      <span className="ms-auto flex items-center gap-3">
+                        {isDirty ? (
+                          <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-amber-700 dark:text-amber-300">
+                            <span aria-hidden="true" className="size-2 rounded-full bg-amber-500" />
+                            {ku.unsavedChanges}
+                          </span>
+                        ) : null}
+                        <kbd className="hidden rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground sm:inline">
+                          {ku.submitShortcut}
+                        </kbd>
+                      </span>
                     </div>
                   </form>
                 </section>
 
-                {/* Other teachers' votes & notes — under my vote, read only */}
-                <section className="rounded-2xl border border-border bg-card p-5 shadow-sm shadow-black/5">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                {/* Other teachers' votes & notes — read only */}
+                <section
+                  aria-labelledby="others-title"
+                  className="rounded-3xl border border-border bg-card p-5 shadow-sm shadow-black/5 sm:p-6"
+                >
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <h3 id="others-title" className="inline-flex items-center gap-2 text-[15px] font-semibold text-foreground">
                       <Users className="size-4 text-primary" />
                       {ku.otherTeachersTitle}
                     </h3>
-                    <span className="inline-flex items-center rounded-full border border-border bg-muted/30 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
                       {ku.otherTeachersHint}
                     </span>
                   </div>
                   {detailLoading && !hasFullDetail && otherVotes.length === 0 ? (
-                    <div className="grid gap-2.5 sm:grid-cols-2">
-                      <Skeleton className="h-20 w-full rounded-2xl" />
-                      <Skeleton className="h-20 w-full rounded-2xl" />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Skeleton className="h-24 w-full rounded-2xl" />
+                      <Skeleton className="h-24 w-full rounded-2xl" />
                     </div>
                   ) : otherVotes.length === 0 ? (
-                    <p className="rounded-2xl border border-dashed border-border bg-muted/10 px-4 py-8 text-center text-sm text-muted-foreground">
+                    <p className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
                       {ku.noOtherVotes}
                     </p>
                   ) : (
-                    <div className="grid gap-2.5 sm:grid-cols-2">
+                    <ul className="grid gap-3 sm:grid-cols-2">
                       {otherVotes.map((v) => (
                         <OtherVoteRow key={v.voteId ?? v.teacherUserId} vote={v} />
                       ))}
-                    </div>
+                    </ul>
                   )}
                 </section>
-              </div>
-            </div>
-          ) : null}
+              </>
+            ) : null}
+          </div>
 
-          {/* ── Records table ────────────────────────────────────────────── */}
-          <Card className="overflow-hidden border-border shadow-sm shadow-black/5">
-            <CardContent className="space-y-4 p-4 sm:p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {/* ── Queue rail ──────────────────────────────────────────────── */}
+          <aside className="min-w-0 xl:sticky xl:top-6">
+            <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm shadow-black/5">
+              <div className="space-y-3 border-b border-border p-4">
                 <div className="flex items-center gap-2">
                   <ListMusic className="size-4 text-primary" />
-                  <h3 className="text-sm font-semibold text-foreground">{ku.tableTitle}</h3>
-                  <span className="hidden text-[11px] text-muted-foreground sm:inline">· {ku.tableHint}</span>
+                  <h2 className="text-[15px] font-semibold text-foreground">{ku.queueTitle}</h2>
+                  <span className="ms-auto text-[13px] tabular-nums text-muted-foreground">
+                    {displayed.length}
+                  </span>
                 </div>
-                <div className="relative w-full sm:max-w-xs">
-                  <Search className="pointer-events-none absolute end-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <div className="relative">
+                  <Search aria-hidden="true" className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder={ku.searchPlaceholder}
-                    className="pe-8 ps-8"
+                    aria-label={ku.searchPlaceholder}
+                    className="h-11 pe-10 ps-10 text-sm"
                   />
                   {query ? (
-                    <SearchClearButton className="left-1.5 right-auto" onClick={() => setQuery('')} />
+                    <SearchClearButton
+                      className="left-2 right-auto"
+                      label={ku.clearSearch}
+                      onClick={() => setQuery('')}
+                    />
                   ) : null}
                 </div>
               </div>
 
               {displayed.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-border bg-muted/10 px-4 py-10 text-center text-sm text-muted-foreground">
-                  {ku.emptyDescription}
-                </p>
+                <p className="px-4 py-12 text-center text-sm text-muted-foreground">{ku.queueEmptySearch}</p>
               ) : (
-                <div className="overflow-hidden rounded-2xl border border-border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/40 hover:bg-muted/40">
-                        <TableHead className="w-12 text-start text-muted-foreground">{ku.colNo}</TableHead>
-                        <TableHead className="text-start text-muted-foreground">{ku.colSong}</TableHead>
-                        <TableHead className="hidden text-start text-muted-foreground sm:table-cell">{ku.colProducer}</TableHead>
-                        <TableHead className="hidden text-start text-muted-foreground sm:table-cell">{ku.colDuration}</TableHead>
-                        <TableHead className="text-start text-muted-foreground">{ku.colStatus}</TableHead>
-                        <TableHead className="hidden text-start text-muted-foreground md:table-cell">{ku.colPanel}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {displayed.map((r, i) => {
-                        const isActive = r.maqamCode === activeCode
-                        const mine = findMyVote(r, myId)
-                        const progress = voteProgress(r.teacherVotes)
-                        const rowNo = (query.trim() ? 0 : page * (meta?.size ?? PAGE_SIZE)) + i + 1
-                        return (
-                          <TableRow
-                            key={r.maqamCode}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => setActiveCode(r.maqamCode)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault()
-                                setActiveCode(r.maqamCode)
-                              }
-                            }}
-                            data-state={isActive ? 'selected' : undefined}
-                            className={cn(
-                              'cursor-pointer outline-none transition-colors focus-visible:bg-muted/60',
-                              isActive && 'bg-primary/5 hover:bg-primary/5',
-                            )}
-                          >
-                            <TableCell className="relative font-mono text-xs tabular-nums text-muted-foreground">
-                              {isActive ? (
-                                <span
-                                  aria-hidden="true"
-                                  className="absolute inset-y-1 start-0 w-0.5 rounded-e-full bg-primary"
-                                />
-                              ) : null}
-                              {rowNo}
-                            </TableCell>
-                            <TableCell className="max-w-[12rem]">
-                              <span className={cn('block truncate font-medium', isActive ? 'text-primary' : 'text-foreground')}>
-                                {r.songName}
-                              </span>
-                              <span className="block truncate text-[11px] text-muted-foreground sm:hidden">{r.producer}</span>
-                            </TableCell>
-                            <TableCell className="hidden max-w-[10rem] truncate text-muted-foreground sm:table-cell">
-                              {r.producer}
-                            </TableCell>
-                            <TableCell className="hidden tabular-nums text-muted-foreground sm:table-cell">
-                              {r.audioDurationSeconds ? formatClock(r.audioDurationSeconds) : '—'}
-                            </TableCell>
-                            <TableCell>
-                              {isActive ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                                  {ku.nowViewing}
-                                </span>
-                              ) : hasVoted(mine) ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold text-green-600 dark:text-green-400">
-                                  <CheckCircle2 className="size-3" />
-                                  {ku.voted}
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-                                  <Clock3 className="size-3" />
-                                  {ku.notVoted}
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="hidden tabular-nums text-muted-foreground md:table-cell">
-                              {progress.cast}/{progress.total}
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
+                <ul
+                  className="max-h-[min(60vh,34rem)] divide-y divide-border overflow-y-auto xl:max-h-[calc(100dvh-22rem)]"
+                  aria-label={ku.queueTitle}
+                >
+                  {displayed.map((r, i) => (
+                    <QueueRow
+                      key={r.maqamCode}
+                      record={r}
+                      index={(query.trim() ? 0 : page * (meta?.size ?? PAGE_SIZE)) + i + 1}
+                      active={r.maqamCode === activeCode}
+                      voted={hasVoted(findMyVote(r, myId))}
+                      onSelect={setActiveCode}
+                    />
+                  ))}
+                </ul>
               )}
 
-              {meta ? (
-                <DataPagination
-                  page={meta.page}
-                  totalPages={meta.totalPages}
-                  totalElements={meta.totalElements}
-                  pageSize={meta.size}
-                  onPageChange={(p) => {
-                    selectAfterLoad.current = 'first'
-                    load(p)
-                  }}
-                />
+              {/* Compact, fully-Kurdish pager — the shared <DataPagination> ships
+                  English labels and a summary line that overflows this rail. */}
+              {meta && meta.totalPages > 1 ? (
+                <div className="flex items-center justify-between gap-2 border-t border-border p-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 gap-1.5 px-3 text-sm"
+                    disabled={!hasPrevPage || loading}
+                    onClick={() => goToPage(page - 1)}
+                  >
+                    <ChevronRight className="size-4" />
+                    {ku.previous}
+                  </Button>
+                  <p className="text-[13px] font-medium tabular-nums text-muted-foreground">
+                    {ku.pageLabel} <span className="text-foreground">{meta.page + 1}</span> {ku.of} {meta.totalPages}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 gap-1.5 px-3 text-sm"
+                    disabled={!hasNextPage || loading}
+                    onClick={() => goToPage(page + 1)}
+                  >
+                    {ku.next}
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                </div>
               ) : null}
-            </CardContent>
-          </Card>
-        </>
+            </div>
+          </aside>
+        </div>
       )}
     </section>
   )
@@ -745,52 +834,115 @@ function TeacherMaqamListPage() {
 
 function StatusPill({ voted }) {
   return voted ? (
-    <span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold text-green-600 dark:text-green-400">
-      <CheckCircle2 className="size-3" />
+    <span className="inline-flex items-center gap-1.5 rounded-lg bg-green-600/15 px-2.5 py-1 text-[13px] font-semibold text-green-800 dark:text-green-300">
+      <CheckCircle2 className="size-3.5" />
       {ku.voted}
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-      <Clock3 className="size-3" />
+    <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/20 px-2.5 py-1 text-[13px] font-semibold text-amber-800 dark:text-amber-200">
+      <Clock3 className="size-3.5" />
       {ku.notVoted}
     </span>
   )
 }
 
+// One row of the queue. Memoised because the rail re-renders on every keystroke
+// in the vote form; only the row whose props actually changed repaints.
+const QueueRow = memo(function QueueRow({ record, index, active, voted, onSelect }) {
+  const progress = voteProgress(record.teacherVotes)
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onSelect(record.maqamCode)}
+        aria-current={active ? 'true' : undefined}
+        className={cn(
+          'relative flex w-full items-center gap-3 px-4 py-3 text-start transition-colors',
+          'focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset',
+          active ? 'bg-primary/10' : 'hover:bg-muted',
+        )}
+      >
+        {active ? (
+          <span aria-hidden="true" className="absolute inset-y-2 start-0 w-1 rounded-e-full bg-primary" />
+        ) : null}
+        <span
+          className={cn(
+            'grid size-8 shrink-0 place-items-center rounded-lg text-xs font-semibold tabular-nums',
+            active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+          )}
+        >
+          {index}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className={cn('block truncate text-sm font-semibold', active ? 'text-primary' : 'text-foreground')}>
+            {record.songName}
+          </span>
+          <span className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="truncate">{record.producer}</span>
+            {record.audioDurationSeconds ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="shrink-0 tabular-nums">{formatClock(record.audioDurationSeconds)}</span>
+              </>
+            ) : null}
+          </span>
+        </span>
+        <span className="flex shrink-0 flex-col items-end gap-1">
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold',
+              voted
+                ? 'bg-green-600/15 text-green-800 dark:text-green-300'
+                : 'bg-amber-500/20 text-amber-800 dark:text-amber-200',
+            )}
+          >
+            {voted ? <CheckCircle2 className="size-3" /> : <Clock3 className="size-3" />}
+            {voted ? ku.voted : ku.notVoted}
+          </span>
+          <span className="text-[11px] tabular-nums text-muted-foreground" title={ku.colPanel}>
+            <span className="sr-only">{ku.panelVotesAria}: </span>
+            {progress.cast}/{progress.total}
+          </span>
+        </span>
+      </button>
+    </li>
+  )
+})
+
 function OtherVoteRow({ vote }) {
   const voted = hasVoted(vote)
   const label = teacherLabel(vote)
   return (
-    <div className="rounded-2xl border border-border bg-background px-4 py-3 transition-colors hover:border-primary/30">
+    <li className="rounded-2xl border border-border bg-background px-4 py-3.5 transition-colors hover:border-primary/30">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-[11px] font-semibold text-primary">
+          <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/12 text-xs font-semibold text-primary">
             {initialsOf(label)}
-          </div>
+          </span>
           <p className="truncate text-sm font-semibold text-foreground">{label}</p>
         </div>
         {voted ? (
-          <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+          <span className="shrink-0 rounded-full bg-primary/12 px-3 py-1 text-[13px] font-semibold text-primary">
             {vote.maqamType || '—'}
           </span>
         ) : (
-          <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+          <span className="shrink-0 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
             {ku.othersNoVote}
           </span>
         )}
       </div>
       {voted && vote.teacherNote ? (
         <p
-          className="mt-2.5 whitespace-pre-line break-words text-sm leading-6 text-foreground/80"
+          className="mt-3 whitespace-pre-line break-words text-sm leading-7 text-foreground"
           style={{ overflowWrap: 'anywhere' }}
         >
           {vote.teacherNote}
         </p>
       ) : null}
       {vote.votedAt ? (
-        <p className="mt-2 text-[11px] text-muted-foreground/80">{formatKuDate(vote.votedAt)}</p>
+        <p className="mt-2 text-[11px] text-muted-foreground">{formatKuDate(vote.votedAt)}</p>
       ) : null}
-    </div>
+    </li>
   )
 }
 

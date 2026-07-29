@@ -14,11 +14,41 @@ import { apiClient } from '@/lib/api-client'
 // ── Read (maqam:read) ──────────────────────────────────────────────────────────
 
 // Paginated list. ADMIN/EMPLOYEE get every active record; TEACHER callers get
-// only the records they're assigned to (enforced server-side). Returns the full
-// Spring Page<MaqamResponse> shape.
-export async function getMaqamsPage({ page = 0, size = 50, sort, signal } = {}) {
+// only the records they're assigned to (enforced server-side, on both the
+// filtered and unfiltered paths). Returns the full Spring Page<MaqamResponse>.
+//
+// Sort + filter (all optional) bind server-side into MaqamFilterParams. There
+// is no ReadCache here (streamUrl is per-request and votes mutate constantly),
+// so an EMPTY filter runs the original DB-paged query and only a non-empty one
+// loads the active set for in-memory filter/sort. Blank values are therefore
+// dropped rather than sent.
+//
+//   - sortBy          maqamCode | songName (song/title) | producer | duration |
+//                     createdAt | updatedAt
+//   - sortDirection   'asc' | 'desc'
+//   - contains        songName, producer, maqamCode, archiveNote,
+//                     audioFileName, createdBy, updatedBy
+//   - range           durationSecondsMin/Max, createdFrom/To, updatedFrom/To
+//   - teacher panel   teacherUserId (records that teacher is on),
+//                     teacherUsername (contains), maqamType (exact — any panel
+//                     member voted it), assignmentStatus (assigned|unassigned),
+//                     voteStatus (none|partial|full)
+const MAQAM_FILTER_KEYS = [
+  'sortBy', 'sortDirection',
+  'songName', 'producer', 'maqamCode', 'archiveNote', 'audioFileName', 'createdBy', 'updatedBy',
+  'durationSecondsMin', 'durationSecondsMax',
+  'createdFrom', 'createdTo', 'updatedFrom', 'updatedTo',
+  'teacherUserId', 'teacherUsername', 'maqamType', 'assignmentStatus', 'voteStatus',
+]
+
+export async function getMaqamsPage({ page = 0, size = 50, sort, signal, ...filters } = {}) {
   const params = { page, size }
   if (sort) params.sort = sort
+  for (const key of MAQAM_FILTER_KEYS) {
+    const value = filters[key]
+    if (value === undefined || value === null || value === '') continue
+    params[key] = value
+  }
   const { data } = await apiClient.get('/maqam', { params, signal })
   return data
 }

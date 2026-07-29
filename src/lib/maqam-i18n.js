@@ -10,6 +10,8 @@ export const ku = {
   brand: 'ئەرشیفی KHI',
   workspace: 'شوێنی کاری مامۆستا',
   signOut: 'چوونەدەرەوە',
+  home: 'سەرەتا',
+  skipToContent: 'بازدان بۆ ناوەڕۆک',
   myProfile: 'پرۆفایلی من',
   navMaqam: 'مقامەکان',
   navRecent: 'دوایین چالاکیم',
@@ -103,6 +105,24 @@ export const ku = {
   coverage: 'ڕێژەی گوێگرتن',
   lastListen: 'دوایین گوێگرتن',
   noEngagement: 'هێشتا گوێت لەم تۆمارە نەگرتووە.',
+
+  // Review console — queue rail, progress and form feedback
+  queueTitle: 'ڕیزی تۆمارەکان',
+  queueHint: 'کرتە لەسەر تۆمارێک بکە بۆ کردنەوەی',
+  queueEmptySearch: 'هیچ ئەنجامێک نەدۆزرایەوە.',
+  clearSearch: 'سڕینەوەی گەڕان',
+  pageLabel: 'پەڕە',
+  progressDone: 'پۆلێنکراو',
+  progressOnPage: 'لەم پەڕەیە',
+  progressAria: 'پێشکەوتنی پۆلێنکردن لەم پەڕەیە',
+  positionAria: 'شوێنی تۆمار لە کۆی گشتی',
+  keyboardHint: 'کلیلی ← و → بۆ گواستنەوە',
+  viewingNow: 'ئێستا کراوەیە:',
+  quickPick: 'هەڵبژاردنی خێرا',
+  unsavedChanges: 'گۆڕانکاری پاشەکەوت نەکراو',
+  revert: 'پاشگەزبوونەوە',
+  submitShortcut: 'Ctrl + Enter',
+  panelVotesAria: 'دەنگی دراوی پۆل',
 
   // Errors / generic
   genericError: 'هەڵەیەک ڕوویدا. تکایە دووبارە هەوڵبدەرەوە.',
