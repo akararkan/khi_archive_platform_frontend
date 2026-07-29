@@ -399,7 +399,7 @@ function buildArchiveSheet({ keys, columns, rows, template, title }) {
     rtl: true,
     archiveHeader: {
       masthead: {
-        brand: 'Kurdish Heritage Institute · ئینستیتیوتی کەلەپووری کوردی',
+        brand: 'Kurdish Heritage Institute · ئینستیتیوتی کەلەپووری کورد',
         subtitle: `${title || 'Archive'} · ${rows.length.toLocaleString()} records · Generated ${generated}`,
       },
       groups: groups.map(({ title: groupTitle, span, color, tint }) => ({
