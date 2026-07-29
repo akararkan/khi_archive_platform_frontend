@@ -17,11 +17,13 @@ import { apiClient } from '@/lib/api-client'
 // only the records they're assigned to (enforced server-side, on both the
 // filtered and unfiltered paths). Returns the full Spring Page<MaqamResponse>.
 //
-// Sort + filter (all optional) bind server-side into MaqamFilterParams. There
-// is no ReadCache here (streamUrl is per-request and votes mutate constantly),
-// so an EMPTY filter runs the original DB-paged query and only a non-empty one
-// loads the active set for in-memory filter/sort. Blank values are therefore
-// dropped rather than sent.
+// Sort + filter (all optional) bind server-side into MaqamFilterParams.
+//
+// Ordering is driven ONLY by sortBy/sortDirection — never Spring's
+// `sort=field,dir`. Maqam is DB-paged (no ReadCache), and the Pageable form can
+// 500 on a key the entity has no column for; sortBy is honoured on every path,
+// including the sort-only DB fast path. Blank values are dropped so a request
+// with no real filter stays on that fast path.
 //
 //   - sortBy          maqamCode | songName (song/title) | producer | duration |
 //                     createdAt | updatedAt
@@ -56,10 +58,11 @@ function withFilterParams(base, filters) {
   return params
 }
 
-export async function getMaqamsPage({ page = 0, size = 50, sort, signal, ...filters } = {}) {
-  const base = { page, size }
-  if (sort) base.sort = sort
-  const { data } = await apiClient.get('/maqam', { params: withFilterParams(base, filters), signal })
+export async function getMaqamsPage({ page = 0, size = 50, signal, ...filters } = {}) {
+  const { data } = await apiClient.get('/maqam', {
+    params: withFilterParams({ page, size }, filters),
+    signal,
+  })
   return data
 }
 
@@ -201,11 +204,9 @@ export async function replaceMaqamTeachers(code, teacherUserIds) {
 // Same filter/sort set as the active list — including the teacher/vote-panel
 // filters — plus `removedBy`. Admin-only (maqam:delete), so there is no
 // teacher-visibility branch here.
-export async function getMaqamTrashPage({ page = 0, size = 100, sort, signal, ...filters } = {}) {
-  const base = { page, size }
-  if (sort) base.sort = sort
+export async function getMaqamTrashPage({ page = 0, size = 100, signal, ...filters } = {}) {
   const { data } = await apiClient.get('/admin/maqam/trash', {
-    params: withFilterParams(base, filters),
+    params: withFilterParams({ page, size }, filters),
     signal,
   })
   return data

@@ -12,38 +12,34 @@
 // ─────────────────────────────────────────────────────────────────
 // Sort options — `sortBy` strings match the backend whitelist.
 //
-// `pageable` marks the options whose sortBy is also a real entity property, so
-// the page can additionally send Spring's `sort=field,dir`. That matters here:
-// with NO filter the backend serves the plain DB-paged query (which orders by
-// the Pageable), and only the in-memory path reads sortBy/sortDirection.
-// Sending both keeps the two paths in agreement. The `duration` options are
-// deliberately excluded — it's a synonym for `audioDurationSeconds`, and an
-// unknown Pageable property would blow up the JPA query.
+// Ordering rides on sortBy/sortDirection alone (see SORT_AND_FILTER_REFERENCE):
+// every key here maps to a real column, so a sort-only request takes the DB
+// fast path and lands one page; the same comparator runs in memory as soon as a
+// filter is present, so a row keeps its position on either path.
 // ─────────────────────────────────────────────────────────────────
 export const MAQAM_SORT_OPTIONS = [
-  { key: 'createdAt-desc', label: 'Newest first',           sortBy: 'createdAt', sortDirection: 'desc', pageable: true },
-  { key: 'createdAt-asc',  label: 'Oldest first',           sortBy: 'createdAt', sortDirection: 'asc',  pageable: true },
-  { key: 'maqamCode-asc',  label: 'Code (A → Z)',           sortBy: 'maqamCode', sortDirection: 'asc',  pageable: true },
-  { key: 'maqamCode-desc', label: 'Code (Z → A)',           sortBy: 'maqamCode', sortDirection: 'desc', pageable: true },
-  { key: 'songName-asc',   label: 'Song (A → Z)',           sortBy: 'songName',  sortDirection: 'asc',  pageable: true },
-  { key: 'songName-desc',  label: 'Song (Z → A)',           sortBy: 'songName',  sortDirection: 'desc', pageable: true },
-  { key: 'producer-asc',   label: 'Singer (A → Z)',         sortBy: 'producer',  sortDirection: 'asc',  pageable: true },
-  { key: 'producer-desc',  label: 'Singer (Z → A)',         sortBy: 'producer',  sortDirection: 'desc', pageable: true },
+  { key: 'createdAt-desc', label: 'Newest first',           sortBy: 'createdAt', sortDirection: 'desc' },
+  { key: 'createdAt-asc',  label: 'Oldest first',           sortBy: 'createdAt', sortDirection: 'asc'  },
+  { key: 'maqamCode-asc',  label: 'Code (A → Z)',           sortBy: 'maqamCode', sortDirection: 'asc'  },
+  { key: 'maqamCode-desc', label: 'Code (Z → A)',           sortBy: 'maqamCode', sortDirection: 'desc' },
+  { key: 'songName-asc',   label: 'Song (A → Z)',           sortBy: 'songName',  sortDirection: 'asc'  },
+  { key: 'songName-desc',  label: 'Song (Z → A)',           sortBy: 'songName',  sortDirection: 'desc' },
+  { key: 'producer-asc',   label: 'Singer (A → Z)',         sortBy: 'producer',  sortDirection: 'asc'  },
+  { key: 'producer-desc',  label: 'Singer (Z → A)',         sortBy: 'producer',  sortDirection: 'desc' },
   { key: 'duration-desc',  label: 'Longest first',          sortBy: 'duration',  sortDirection: 'desc' },
   { key: 'duration-asc',   label: 'Shortest first',         sortBy: 'duration',  sortDirection: 'asc'  },
-  { key: 'updatedAt-desc', label: 'Recently updated',       sortBy: 'updatedAt', sortDirection: 'desc', pageable: true },
-  { key: 'updatedAt-asc',  label: 'Least recently updated', sortBy: 'updatedAt', sortDirection: 'asc',  pageable: true },
+  { key: 'updatedAt-desc', label: 'Recently updated',       sortBy: 'updatedAt', sortDirection: 'desc' },
+  { key: 'updatedAt-asc',  label: 'Least recently updated', sortBy: 'updatedAt', sortDirection: 'asc'  },
 ]
 
 // Sort state → query params. Pairs with buildMaqamFilterParams at call sites.
 export function buildMaqamSortParams(option) {
   if (!option?.sortBy) return {}
-  const params = { sortBy: option.sortBy, sortDirection: option.sortDirection }
-  if (option.pageable) params.sort = `${option.sortBy},${option.sortDirection}`
-  return params
+  return { sortBy: option.sortBy, sortDirection: option.sortDirection }
 }
-// Matches the `sort: 'createdAt,desc'` both pages used before this toolbar
-// existed, so the default view is unchanged.
+
+// Matches the ordering both pages used before this toolbar existed, so the
+// default view is unchanged.
 export const DEFAULT_MAQAM_SORT_KEY = 'createdAt-desc'
 
 // Trash keeps the backend's id-ASC default until the admin picks a sort, so its

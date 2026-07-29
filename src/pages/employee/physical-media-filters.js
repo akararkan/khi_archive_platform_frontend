@@ -17,40 +17,43 @@
 // ─────────────────────────────────────────────────────────────────
 // Sort options
 //
-// `pageable` marks a sortBy that is also a real entity property, so the page
-// can send Spring's `sort=field,dir` alongside it — the unfiltered DB-paged
-// path orders by the Pageable, the filtered in-memory path by sortBy. The
-// duration options omit it (`duration` is a synonym for `durationMin`, and an
-// unknown Pageable property would blow up the JPA query).
+// Ordering rides on sortBy/sortDirection alone (see SORT_AND_FILTER_REFERENCE);
+// Spring's `sort=field,dir` is never sent — it can 500 on a key with no column.
+// Every key below is honoured on both the DB fast path and the in-memory one,
+// except `digitization`, which the backend always sorts in memory because it
+// orders by a derived 0/1/2 code.
 //
-// The default entry sends NOTHING, so the untouched list is byte-for-byte the
-// order this page showed before the toolbar existed.
+// The default entry sends NOTHING, so the untouched list keeps the backend's
+// own @PageableDefault order (id ASC) — exactly what this page showed before
+// the toolbar existed.
 // ─────────────────────────────────────────────────────────────────
 export const PHYSICAL_MEDIA_SORT_OPTIONS = [
-  { key: 'default',              label: 'Default order',          sortBy: '',                sortDirection: ''     },
-  { key: 'pmCode-asc',           label: 'Code (A → Z)',           sortBy: 'pmCode',          sortDirection: 'asc',  pageable: true },
-  { key: 'pmCode-desc',          label: 'Code (Z → A)',           sortBy: 'pmCode',          sortDirection: 'desc', pageable: true },
-  { key: 'inventoryNumber-asc',  label: 'Inventory № (low → high)', sortBy: 'inventoryNumber', sortDirection: 'asc',  pageable: true },
-  { key: 'inventoryNumber-desc', label: 'Inventory № (high → low)', sortBy: 'inventoryNumber', sortDirection: 'desc', pageable: true },
-  { key: 'title-asc',            label: 'Title (A → Z)',          sortBy: 'title',           sortDirection: 'asc',  pageable: true },
-  { key: 'title-desc',           label: 'Title (Z → A)',          sortBy: 'title',           sortDirection: 'desc', pageable: true },
-  { key: 'year-desc',            label: 'Year (newest)',          sortBy: 'year',            sortDirection: 'desc', pageable: true },
-  { key: 'year-asc',             label: 'Year (oldest)',          sortBy: 'year',            sortDirection: 'asc',  pageable: true },
-  { key: 'duration-desc',        label: 'Longest first',          sortBy: 'duration',        sortDirection: 'desc' },
-  { key: 'duration-asc',         label: 'Shortest first',         sortBy: 'duration',        sortDirection: 'asc'  },
-  { key: 'digitizeDate-desc',    label: 'Digitised (newest)',     sortBy: 'digitizeDate',    sortDirection: 'desc', pageable: true },
-  { key: 'digitizeDate-asc',     label: 'Digitised (oldest)',     sortBy: 'digitizeDate',    sortDirection: 'asc',  pageable: true },
-  { key: 'createdAt-desc',       label: 'Newest first',           sortBy: 'createdAt',       sortDirection: 'desc', pageable: true },
-  { key: 'createdAt-asc',        label: 'Oldest first',           sortBy: 'createdAt',       sortDirection: 'asc',  pageable: true },
-  { key: 'updatedAt-desc',       label: 'Recently updated',       sortBy: 'updatedAt',       sortDirection: 'desc', pageable: true },
+  { key: 'default',              label: 'Default order',            sortBy: '',                  sortDirection: ''     },
+  { key: 'pmCode-asc',           label: 'Code (A → Z)',             sortBy: 'pmCode',            sortDirection: 'asc'  },
+  { key: 'pmCode-desc',          label: 'Code (Z → A)',             sortBy: 'pmCode',            sortDirection: 'desc' },
+  { key: 'inventoryNumber-asc',  label: 'Inventory № (low → high)', sortBy: 'inventoryNumber',   sortDirection: 'asc'  },
+  { key: 'inventoryNumber-desc', label: 'Inventory № (high → low)', sortBy: 'inventoryNumber',   sortDirection: 'desc' },
+  { key: 'title-asc',            label: 'Title (A → Z)',            sortBy: 'title',             sortDirection: 'asc'  },
+  { key: 'title-desc',           label: 'Title (Z → A)',            sortBy: 'title',             sortDirection: 'desc' },
+  { key: 'physicalMediaType-asc', label: 'Type (A → Z)',            sortBy: 'physicalMediaType', sortDirection: 'asc'  },
+  { key: 'mediaCategory-asc',    label: 'Category (A → Z)',         sortBy: 'mediaCategory',     sortDirection: 'asc'  },
+  { key: 'digitization-asc',     label: 'Digitisation (least first)', sortBy: 'digitization',    sortDirection: 'asc'  },
+  { key: 'digitization-desc',    label: 'Digitisation (most first)',  sortBy: 'digitization',    sortDirection: 'desc' },
+  { key: 'year-desc',            label: 'Year (newest)',            sortBy: 'year',              sortDirection: 'desc' },
+  { key: 'year-asc',             label: 'Year (oldest)',            sortBy: 'year',              sortDirection: 'asc'  },
+  { key: 'duration-desc',        label: 'Longest first',            sortBy: 'duration',          sortDirection: 'desc' },
+  { key: 'duration-asc',         label: 'Shortest first',           sortBy: 'duration',          sortDirection: 'asc'  },
+  { key: 'digitizeDate-desc',    label: 'Digitised (newest)',       sortBy: 'digitizeDate',      sortDirection: 'desc' },
+  { key: 'digitizeDate-asc',     label: 'Digitised (oldest)',       sortBy: 'digitizeDate',      sortDirection: 'asc'  },
+  { key: 'createdAt-desc',       label: 'Newest first',             sortBy: 'createdAt',         sortDirection: 'desc' },
+  { key: 'createdAt-asc',        label: 'Oldest first',             sortBy: 'createdAt',         sortDirection: 'asc'  },
+  { key: 'updatedAt-desc',       label: 'Recently updated',         sortBy: 'updatedAt',         sortDirection: 'desc' },
 ]
 export const DEFAULT_PHYSICAL_MEDIA_SORT_KEY = 'default'
 
 export function buildPhysicalMediaSortParams(option) {
   if (!option?.sortBy) return {}
-  const params = { sortBy: option.sortBy, sortDirection: option.sortDirection }
-  if (option.pageable) params.sort = `${option.sortBy},${option.sortDirection}`
-  return params
+  return { sortBy: option.sortBy, sortDirection: option.sortDirection }
 }
 
 export const DIGITIZATION_OPTIONS = [

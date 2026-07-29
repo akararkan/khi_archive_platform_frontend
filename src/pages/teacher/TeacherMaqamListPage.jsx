@@ -97,7 +97,14 @@ function TeacherMaqamListPage() {
     try {
       // Oldest first, so record #1 is the genuine first record and «داهاتوو»
       // walks forward toward newer ones (newly-added records land at the end).
-      const data = await getMaqamsPage({ page: nextPage, size: PAGE_SIZE, sort: 'createdAt,asc' })
+      // Ordering goes through sortBy/sortDirection — never Spring's
+      // `sort=field,dir`, which this endpoint does not read.
+      const data = await getMaqamsPage({
+        page: nextPage,
+        size: PAGE_SIZE,
+        sortBy: 'createdAt',
+        sortDirection: 'asc',
+      })
       const rows = Array.isArray(data?.content) ? data.content : Array.isArray(data) ? data : []
       setRecords(rows)
       setMeta({
@@ -127,7 +134,12 @@ function TeacherMaqamListPage() {
       let totalPages = 1
       let found = false
       do {
-        const data = await getMaqamsPage({ page: p, size: PAGE_SIZE, sort: 'createdAt,asc' })
+        const data = await getMaqamsPage({
+          page: p,
+          size: PAGE_SIZE,
+          sortBy: 'createdAt',
+          sortDirection: 'asc',
+        })
         const rows = Array.isArray(data?.content) ? data.content : Array.isArray(data) ? data : []
         totalPages = data?.totalPages ?? (Math.ceil(rows.length / PAGE_SIZE) || 1)
         if (rows.some((r) => r.maqamCode === code)) {

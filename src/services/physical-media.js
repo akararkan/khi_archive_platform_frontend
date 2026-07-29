@@ -10,11 +10,14 @@ import { apiClient } from '@/lib/api-client'
 // Paginated list — returns the full Spring Page<PhysicalMediaResponseDTO> shape.
 //
 // Sort + filter (all optional) are bound server-side from the query string into
-// PhysicalMediaFilterParams. Unlike the cached entities, this one has no
-// ReadCache: with NO filter the backend runs its original DB-paged query, and
-// only a non-empty filter triggers the load-all + in-memory filter/sort path.
-// So keeping empty values out of `params` isn't cosmetic — it decides which
-// code path runs. Every builder below drops blanks for that reason.
+// PhysicalMediaFilterParams.
+//
+// Ordering is driven ONLY by sortBy/sortDirection — never Spring's
+// `sort=field,dir`. Physical Media is DB-paged (no ReadCache), and the Pageable
+// form can 500 on a key with no matching column; sortBy is honoured on every
+// path. Keeping empty values out of `params` isn't cosmetic either — a request
+// with no real filter stays on the cheap DB-paged path, so every builder below
+// drops blanks.
 //
 //   - sortBy          pmCode | inventoryNumber | rowNumber | physicalMediaType |
 //                     mediaCategory | title | physicalLabel | owner | year |
@@ -62,11 +65,9 @@ function withFilterParams(base, filters) {
   return params
 }
 
-export async function getPhysicalMediaPage({ page = 0, size = 50, sort, signal, ...filters } = {}) {
-  const base = { page, size }
-  if (sort) base.sort = sort
+export async function getPhysicalMediaPage({ page = 0, size = 50, signal, ...filters } = {}) {
   const { data } = await apiClient.get('/physical-media', {
-    params: withFilterParams(base, filters),
+    params: withFilterParams({ page, size }, filters),
     signal,
   })
   return data
@@ -176,11 +177,9 @@ export async function getPhysicalMediaImportSheets(file, { signal } = {}) {
 
 // Paginated trash listing (admin-only).
 // Same filter/sort set as the active list (plus `removedBy`); defaults to id ASC.
-export async function getPhysicalMediaTrashPage({ page = 0, size = 50, sort, signal, ...filters } = {}) {
-  const base = { page, size }
-  if (sort) base.sort = sort
+export async function getPhysicalMediaTrashPage({ page = 0, size = 50, signal, ...filters } = {}) {
   const { data } = await apiClient.get('/admin/physical-media/trash', {
-    params: withFilterParams(base, filters),
+    params: withFilterParams({ page, size }, filters),
     signal,
   })
   return data
