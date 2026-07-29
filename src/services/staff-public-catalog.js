@@ -83,14 +83,12 @@ function springPage(content, page, size, totalElements = content.length) {
   }
 }
 
-function dateStart(value) {
+// The items feed takes bare dates (YYYY-MM-DD) and resolves the day bounds in
+// the archive's own zone, so anything already date-shaped passes straight
+// through; a legacy instant is trimmed back to its date part.
+function dateParam(value) {
   if (!value) return undefined
-  return String(value).length === 10 ? `${value}T00:00:00Z` : value
-}
-
-function dateEnd(value) {
-  if (!value) return undefined
-  return String(value).length === 10 ? `${value}T23:59:59Z` : value
+  return String(value).slice(0, 10)
 }
 
 function staffSort(sortBy) {
@@ -108,8 +106,8 @@ function itemRequest(kinds, params = {}, page = params.page || 0, size = params.
     personCodes: asArray(params.personCode),
     categoryCodes: asArray(params.categoryCode),
     languages: asArray(params.language),
-    createdFrom: dateStart(params.dateFrom),
-    createdTo: dateEnd(params.dateTo),
+    createdFrom: dateParam(params.dateFrom),
+    createdTo: dateParam(params.dateTo),
     sortBy: staffSort(params.sortBy),
     sortDirection: params.sortDirection || 'desc',
     page,
@@ -181,9 +179,20 @@ function rowDate(row) {
   return row?.dateCreated || row?.datePublished || row?.printDate || row?.createdAt || null
 }
 
+// Local day bounds for the in-memory comparison below. Deliberately parsed
+// WITHOUT a `Z` so the day spans the viewer's own zone — for staff in the
+// archive's timezone that matches how the backend resolves the wire params.
+function dayStartMs(value) {
+  return new Date(`${String(value).slice(0, 10)}T00:00:00`).getTime()
+}
+
+function dayEndMs(value) {
+  return new Date(`${String(value).slice(0, 10)}T23:59:59.999`).getTime()
+}
+
 function matchesMediaFilters(row, params) {
-  const from = params.dateFrom ? new Date(dateStart(params.dateFrom)).getTime() : null
-  const to = params.dateTo ? new Date(dateEnd(params.dateTo)).getTime() : null
+  const from = params.dateFrom ? dayStartMs(params.dateFrom) : null
+  const to = params.dateTo ? dayEndMs(params.dateTo) : null
   if (from || to) {
     const time = new Date(rowDate(row)).getTime()
     if (!Number.isFinite(time)) return false

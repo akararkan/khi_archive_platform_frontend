@@ -21,7 +21,8 @@ export const ITEM_TYPES = ['AUDIO', 'VIDEO', 'IMAGE', 'TEXT']
 // All filter/sort fields are optional; omitted ones are simply not sent so a
 // bare call is a pure cache pass-through. Array fields serialise as repeated
 // query params (?types=AUDIO&types=VIDEO) which matches the controller's
-// List<String> signature. Date fields are ISO-8601 instants.
+// List<String> signature. Date fields are bare dates (YYYY-MM-DD) — the
+// backend resolves them to day bounds in the archive's own zone.
 export async function getItemsPage({
   q,
   types,                    // string[]  AUDIO | VIDEO | IMAGE | TEXT

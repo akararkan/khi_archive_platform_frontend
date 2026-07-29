@@ -130,16 +130,18 @@ function buildPersonFilterParams(filters) {
   if (filters.region.trim()) params.region = filters.region.trim()
   if (filters.placeOfBirth.trim()) params.placeOfBirth = filters.placeOfBirth.trim()
   if (filters.placeOfDeath.trim()) params.placeOfDeath = filters.placeOfDeath.trim()
-  // Date-of-* are LocalDate on the backend (no time component).
-  // Created/Updated are Instant (snap to start/end of day in UTC).
+  // Every date param is a BARE DATE (YYYY-MM-DD). Date-of-* are plain date
+  // columns; the audit ranges are Instants that the backend resolves to
+  // Asia/Baghdad day bounds itself — sending a UTC instant here would drop
+  // records created before 03:00 local time.
   if (filters.dobFrom) params.dobFrom = filters.dobFrom
   if (filters.dobTo) params.dobTo = filters.dobTo
   if (filters.dodFrom) params.dodFrom = filters.dodFrom
   if (filters.dodTo) params.dodTo = filters.dodTo
-  if (filters.createdFrom) params.createdFrom = `${filters.createdFrom}T00:00:00Z`
-  if (filters.createdTo)   params.createdTo   = `${filters.createdTo}T23:59:59.999Z`
-  if (filters.updatedFrom) params.updatedFrom = `${filters.updatedFrom}T00:00:00Z`
-  if (filters.updatedTo)   params.updatedTo   = `${filters.updatedTo}T23:59:59.999Z`
+  if (filters.createdFrom) params.createdFrom = filters.createdFrom
+  if (filters.createdTo)   params.createdTo   = filters.createdTo
+  if (filters.updatedFrom) params.updatedFrom = filters.updatedFrom
+  if (filters.updatedTo)   params.updatedTo   = filters.updatedTo
   if (filters.tags.length > 0) {
     params.tags = filters.tags
     if (filters.tagMatch === 'all') params.tagMatch = 'all'

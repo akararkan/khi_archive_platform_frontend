@@ -84,8 +84,9 @@ const INITIAL_FILTER = {
 }
 
 // `type="date"` gives YYYY-MM-DD; the API wants an ISO-8601 instant.
-const startInstant = (d) => (d ? `${d}T00:00:00Z` : undefined)
-const endInstant = (d) => (d ? `${d}T23:59:59Z` : undefined)
+// Date filters go over the wire as BARE DATES (YYYY-MM-DD); the backend
+// resolves them to Asia/Baghdad day bounds, so there is no client zone math.
+const dateParam = (d) => d || undefined
 
 const boolToSeg = (v) => (v === true ? 'yes' : v === false ? 'no' : 'any')
 const segToBool = (s) => (s === 'yes' ? true : s === 'no' ? false : undefined)
@@ -321,10 +322,10 @@ function EmployeeItemsPage() {
       languages: filter.languages,
       isPublic: filter.isPublic,
       projectVisibleToPublic: filter.projectVisibleToPublic,
-      createdFrom: startInstant(filter.createdFrom),
-      createdTo: endInstant(filter.createdTo),
-      updatedFrom: startInstant(filter.updatedFrom),
-      updatedTo: endInstant(filter.updatedTo),
+      createdFrom: dateParam(filter.createdFrom),
+      createdTo: dateParam(filter.createdTo),
+      updatedFrom: dateParam(filter.updatedFrom),
+      updatedTo: dateParam(filter.updatedTo),
       sortBy: sortOpt.sortBy,
       sortDirection: sortOpt.sortDirection,
       page,

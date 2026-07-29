@@ -24,10 +24,10 @@ export async function getPersons() {
 //   - region               case-insensitive contains
 //   - placeOfBirth         case-insensitive contains
 //   - placeOfDeath         case-insensitive contains
-//   - dobFrom / dobTo      ISO-8601 date range over dateOfBirth
-//   - dodFrom / dodTo      ISO-8601 date range over dateOfDeath
-//   - createdFrom / To     ISO-8601 instant range over createdAt
-//   - updatedFrom / To     ISO-8601 instant range over updatedAt
+//   - dobFrom / dobTo      inclusive date range (YYYY-MM-DD) over dateOfBirth
+//   - dodFrom / dodTo      inclusive date range (YYYY-MM-DD) over dateOfDeath
+//   - createdFrom / To     inclusive date range (YYYY-MM-DD) over createdAt
+//   - updatedFrom / To     inclusive date range (YYYY-MM-DD) over updatedAt
 //   - tags                 string[]; pair with tagMatch
 //   - tagMatch             'any' (default) | 'all'
 //   - keywords             string[]; pair with keywordMatch

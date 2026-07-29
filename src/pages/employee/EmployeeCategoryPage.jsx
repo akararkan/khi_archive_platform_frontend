@@ -103,13 +103,12 @@ function buildFilterParams(filters) {
     params.tags = filters.tags
     if (filters.tagMatch === 'all') params.tagMatch = 'all'
   }
-  // Date inputs emit YYYY-MM-DD. Backend expects ISO-8601, so we snap
-  // `from` to start-of-day and `to` to end-of-day to make the range
-  // inclusive of the selected calendar day.
-  if (filters.createdFrom) params.createdFrom = `${filters.createdFrom}T00:00:00Z`
-  if (filters.createdTo)   params.createdTo   = `${filters.createdTo}T23:59:59.999Z`
-  if (filters.updatedFrom) params.updatedFrom = `${filters.updatedFrom}T00:00:00Z`
-  if (filters.updatedTo)   params.updatedTo   = `${filters.updatedTo}T23:59:59.999Z`
+  // Bare dates (YYYY-MM-DD) — the backend resolves the audit ranges to
+  // Asia/Baghdad day bounds, so no client-side zone math.
+  if (filters.createdFrom) params.createdFrom = filters.createdFrom
+  if (filters.createdTo)   params.createdTo   = filters.createdTo
+  if (filters.updatedFrom) params.updatedFrom = filters.updatedFrom
+  if (filters.updatedTo)   params.updatedTo   = filters.updatedTo
   return params
 }
 

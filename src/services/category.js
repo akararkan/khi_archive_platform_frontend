@@ -14,8 +14,8 @@ export async function getCategories() {
 //                      (synonyms: 'added'/'dateAdded' = createdAt;
 //                       'modified'/'dateModified' = updatedAt)
 //   - sortDirection    'asc' | 'desc'
-//   - createdFrom/To   inclusive ISO-8601 range over createdAt
-//   - updatedFrom/To   inclusive ISO-8601 range over updatedAt
+//   - createdFrom/To   inclusive date range (YYYY-MM-DD) over createdAt
+//   - updatedFrom/To   inclusive date range (YYYY-MM-DD) over updatedAt
 //   - tags             string[] of tag/keyword values
 //   - tagMatch         'any' (default) | 'all'
 //
