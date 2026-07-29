@@ -15,7 +15,9 @@ import { ASSIGNMENT_OPTIONS, VOTE_STATUS_OPTIONS } from '@/pages/employee/maqam-
 // reads as one of the family rather than a bespoke screen. State, params and
 // chips all live in pages/employee/maqam-filters.js; this is presentation only.
 // Both the employee and admin Maqam pages render it. `showRemoval` adds the
-// trash-only "Removed by" field — the same panel serves both tabs.
+// trash-only removal fields — the same panel serves both tabs. `maqamTypeOptions`
+// comes from /maqam/maqam-types so the exact-match type filter offers the values
+// panels have actually voted instead of asking staff to retype a Kurdish name.
 export function MaqamFilterPanel({
   open,
   filters,
@@ -25,6 +27,7 @@ export function MaqamFilterPanel({
   isAnyActive,
   activeCount,
   showRemoval = false,
+  maqamTypeOptions = [],
 }) {
   return (
     <FilterPanel
@@ -86,6 +89,7 @@ export function MaqamFilterPanel({
             id="maqam-filter-type"
             value={filters.maqamType}
             onCommit={(v) => onChange('maqamType', v)}
+            options={maqamTypeOptions}
             placeholder="e.g. Hoseyni"
           />
         </FilterField>
@@ -131,7 +135,7 @@ export function MaqamFilterPanel({
       </FilterSection>
 
       {showRemoval ? (
-        <FilterSection icon={Trash2} label="Removal" columns={1}>
+        <FilterSection icon={Trash2} label="Removal" columns={2}>
           <FilterField label="Removed by" htmlFor="maqam-filter-removedby">
             <TextFilter
               id="maqam-filter-removedby"
@@ -140,6 +144,13 @@ export function MaqamFilterPanel({
               placeholder="Username contains…"
             />
           </FilterField>
+          <DateRangeField
+            label="Trashed"
+            from={filters.removedFrom}
+            to={filters.removedTo}
+            onFromChange={(v) => onChange('removedFrom', v)}
+            onToChange={(v) => onChange('removedTo', v)}
+          />
         </FilterSection>
       ) : null}
 

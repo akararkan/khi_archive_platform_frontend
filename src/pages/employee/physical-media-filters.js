@@ -67,6 +67,13 @@ export const NEED_TO_CLEAR_OPTIONS = [
   { value: 'true', label: 'Needs clearing' },
   { value: 'false', label: 'Cleared' },
 ]
+// How the row entered the archive — the post-import QA filter
+// ("everything that came from the last spreadsheet").
+export const SOURCE_OPTIONS = [
+  { value: '', label: 'Any' },
+  { value: 'MANUAL', label: 'Added by hand' },
+  { value: 'IMPORT', label: 'Imported' },
+]
 
 export function createInitialPhysicalMediaFilters() {
   return {
@@ -79,6 +86,7 @@ export function createInitialPhysicalMediaFilters() {
     // enum / boolean
     digitization: '',
     needToClear: '',
+    source: '',
     // contains
     pmCode: '',
     title: '',
@@ -100,8 +108,10 @@ export function createInitialPhysicalMediaFilters() {
     createdTo: '',
     updatedFrom: '',
     updatedTo: '',
-    // trash-only; stays blank (and unsent) on the active list
+    // trash-only; stay blank (and unsent) on the active list
     removedBy: '',
+    removedFrom: '',
+    removedTo: '',
   }
 }
 
@@ -119,6 +129,9 @@ const TEXT_KEYS = [
   'content',
   'removedBy',
 ]
+// Audit ranges — plain calendar dates, resolved server-side in the archive zone.
+const DATE_RANGE_KEYS = ['createdFrom', 'createdTo', 'updatedFrom', 'updatedTo', 'removedFrom', 'removedTo']
+
 const NUMBER_RANGES = [
   ['yearMin', 'yearMax'],
   ['durationMinutesMin', 'durationMinutesMax'],
@@ -133,18 +146,20 @@ export function buildPhysicalMediaFilterParams(filters) {
   }
   if (filters.digitization) params.digitization = filters.digitization
   if (filters.needToClear) params.needToClear = filters.needToClear
+  if (filters.source) params.source = filters.source
   for (const [minKey, maxKey] of NUMBER_RANGES) {
     if (filters[minKey] !== '') params[minKey] = filters[minKey]
     if (filters[maxKey] !== '') params[maxKey] = filters[maxKey]
   }
-  // digitizeDate is a plain calendar date on the entity; created/updated are
-  // Instants, so their day bounds are snapped to UTC.
+  // Every date param on this entity is now a BARE DATE (YYYY-MM-DD).
+  // digitizeDate is a plain date column; the audit ranges are Instants that the
+  // backend resolves to Asia/Baghdad day bounds itself — so no client-side zone
+  // math, and no UTC-midnight edge dropping records made before 03:00 local.
   if (filters.digitizeDateFrom) params.digitizeDateFrom = filters.digitizeDateFrom
   if (filters.digitizeDateTo) params.digitizeDateTo = filters.digitizeDateTo
-  if (filters.createdFrom) params.createdFrom = `${filters.createdFrom}T00:00:00Z`
-  if (filters.createdTo) params.createdTo = `${filters.createdTo}T23:59:59.999Z`
-  if (filters.updatedFrom) params.updatedFrom = `${filters.updatedFrom}T00:00:00Z`
-  if (filters.updatedTo) params.updatedTo = `${filters.updatedTo}T23:59:59.999Z`
+  for (const key of DATE_RANGE_KEYS) {
+    if (filters[key]) params[key] = filters[key]
+  }
   return params
 }
 
@@ -157,6 +172,7 @@ export function countPhysicalMediaFilters(filters) {
   for (const key of TEXT_KEYS) if ((filters[key] ?? '').trim()) n += 1
   if (filters.digitization) n += 1
   if (filters.needToClear) n += 1
+  if (filters.source) n += 1
   for (const [minKey, maxKey] of NUMBER_RANGES) {
     if (filters[minKey] !== '' || filters[maxKey] !== '') n += 1
   }
@@ -245,10 +261,20 @@ export function buildPhysicalMediaChips({ sortLabel, onClearSort, filters, updat
       },
     })
   }
+  if (filters.source) {
+    chips.push({
+      key: 'source',
+      tone: 'choice',
+      label: 'Source',
+      value: SOURCE_OPTIONS.find((o) => o.value === filters.source)?.label ?? filters.source,
+      onRemove: () => updateFilter('source', ''),
+    })
+  }
   const dates = [
     ['digitizeDate', 'Digitised', 'digitizeDateFrom', 'digitizeDateTo'],
     ['created', 'Created', 'createdFrom', 'createdTo'],
     ['updated', 'Updated', 'updatedFrom', 'updatedTo'],
+    ['removed', 'Trashed', 'removedFrom', 'removedTo'],
   ]
   for (const [key, label, fromKey, toKey] of dates) {
     if (!filters[fromKey] && !filters[toKey]) continue

@@ -28,16 +28,22 @@ import { apiClient } from '@/lib/api-client'
 //                     extension, formatCodec, source
 //   - enum/boolean    digitization (NOT_DIGITIZED|DIGITIZED|DUPLICATED),
 //                     needToClear (true|false)
+//   - q               one case-insensitive substring OR'd across code, label,
+//                     type, category, title, size, content, owner, tags and
+//                     track name. Composes with every filter and sort — unlike
+//                     /physical-media/search, which is ranked and ignores them.
 //   - contains        pmCode, title, physicalLabel, content, archiveDepNote,
 //                     owner, tags, trackName, captureDepNote, sizeGB,
 //                     playbackModel, captureInterface, signalInterface,
 //                     ingestSoftware, bitOrColorDepth, sampleOrFrameRate,
 //                     channelsOrResolution, createdBy, updatedBy
 //   - ranges          year, durationMinutes, trackNumbers, inventoryNumber,
-//                     rowNumber (Min/Max) · digitizeDate, created, updated
-//                     (From/To)
+//                     rowNumber (Min/Max) · digitizeDate, created, updated,
+//                     removed (From/To) — every date param is a BARE DATE
+//                     (YYYY-MM-DD); the backend resolves the audit ones to
+//                     Asia/Baghdad day bounds, so never send instants
 const PHYSICAL_MEDIA_FILTER_KEYS = [
-  'sortBy', 'sortDirection',
+  'sortBy', 'sortDirection', 'q',
   'physicalMediaType', 'mediaCategory', 'physicalSize', 'extension', 'formatCodec', 'source',
   'digitization', 'digitizationCode', 'needToClear', 'needToClearCode',
   'pmCode', 'title', 'physicalLabel', 'content', 'archiveDepNote', 'owner', 'tags',
@@ -48,8 +54,8 @@ const PHYSICAL_MEDIA_FILTER_KEYS = [
   'trackNumbersMin', 'trackNumbersMax', 'inventoryNumberMin', 'inventoryNumberMax',
   'rowNumberMin', 'rowNumberMax',
   'digitizeDateFrom', 'digitizeDateTo', 'createdFrom', 'createdTo', 'updatedFrom', 'updatedTo',
-  // trash only — who soft-deleted the row
-  'removedBy',
+  // trash-shaped (inert on the active list, where removedAt/By are null)
+  'removedBy', 'removedFrom', 'removedTo',
 ]
 
 // Both list endpoints bind the same PhysicalMediaFilterParams, so they share
@@ -73,8 +79,9 @@ export async function getPhysicalMediaPage({ page = 0, size = 50, signal, ...fil
   return data
 }
 
-// Free-text search across type / category / label / title / content / tags.
-// Returns a plain array (not paged). `limit` is clamped 1–100 server-side.
+// Ranked typeahead search across type / category / label / title / content /
+// tags. Returns a plain array (not paged); `limit` is clamped 1–100 server-side.
+// Ignores filters — for combined search + filter use `q` on getPhysicalMediaPage.
 export async function searchPhysicalMedia(q, { limit, signal } = {}) {
   const params = { q }
   if (typeof limit === 'number' && limit > 0) params.limit = limit

@@ -79,10 +79,22 @@ export function createInitialMaqamFilters() {
     createdTo: '',
     updatedFrom: '',
     updatedTo: '',
-    // trash-only; stays blank (and unsent) on the active list
+    // trash-only; stay blank (and unsent) on the active list
     removedBy: '',
+    removedFrom: '',
+    removedTo: '',
   }
 }
+
+// Audit ranges — plain calendar dates, resolved server-side in the archive zone.
+const DATE_RANGE_KEYS = [
+  'createdFrom',
+  'createdTo',
+  'updatedFrom',
+  'updatedTo',
+  'removedFrom',
+  'removedTo',
+]
 
 const TEXT_KEYS = [
   'songName',
@@ -107,11 +119,14 @@ export function buildMaqamFilterParams(filters) {
   if (filters.voteStatus) params.voteStatus = filters.voteStatus
   if (filters.durationSecondsMin !== '') params.durationSecondsMin = filters.durationSecondsMin
   if (filters.durationSecondsMax !== '') params.durationSecondsMax = filters.durationSecondsMax
-  // createdAt/updatedAt are Instants server-side — snap the day to UTC bounds.
-  if (filters.createdFrom) params.createdFrom = `${filters.createdFrom}T00:00:00Z`
-  if (filters.createdTo) params.createdTo = `${filters.createdTo}T23:59:59.999Z`
-  if (filters.updatedFrom) params.updatedFrom = `${filters.updatedFrom}T00:00:00Z`
-  if (filters.updatedTo) params.updatedTo = `${filters.updatedTo}T23:59:59.999Z`
+  // Audit ranges are BARE DATES (YYYY-MM-DD). The backend owns the zone: it
+  // resolves from → start-of-day and to → inclusive end-of-day in
+  // Asia/Baghdad before comparing against the Instant column. Sending an
+  // instant here (as we did while these were Instant params) would reintroduce
+  // the UTC-midnight edge that dropped records made before 03:00 local.
+  for (const key of DATE_RANGE_KEYS) {
+    if (filters[key]) params[key] = filters[key]
+  }
   return params
 }
 
@@ -129,6 +144,7 @@ export function countMaqamFilters(filters) {
   if (filters.durationSecondsMin !== '' || filters.durationSecondsMax !== '') n += 1
   if (filters.createdFrom || filters.createdTo) n += 1
   if (filters.updatedFrom || filters.updatedTo) n += 1
+  if (filters.removedFrom || filters.removedTo) n += 1
   return n
 }
 
@@ -221,6 +237,18 @@ export function buildMaqamChips({ sortLabel, onClearSort, filters, updateFilter 
       onRemove: () => {
         updateFilter('updatedFrom', '')
         updateFilter('updatedTo', '')
+      },
+    })
+  }
+  if (filters.removedFrom || filters.removedTo) {
+    chips.push({
+      key: 'removed',
+      tone: 'date',
+      label: 'Trashed',
+      value: dateChipValue(filters.removedFrom, filters.removedTo),
+      onRemove: () => {
+        updateFilter('removedFrom', '')
+        updateFilter('removedTo', '')
       },
     })
   }

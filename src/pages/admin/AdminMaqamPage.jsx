@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useMaqamTypeOptions } from '@/hooks/use-maqam-types'
 import { useReportExport } from '@/hooks/use-report-export'
 import { useToast } from '@/hooks/use-toast'
 import { fetchAllPageRecords } from '@/lib/fetch-all-pages'
@@ -48,7 +49,6 @@ import {
   getMaqamTrashPage,
   purgeMaqam,
   restoreMaqam,
-  searchMaqams,
 } from '@/services/maqam'
 import {
   DEFAULT_MAQAM_SORT_KEY,
@@ -107,8 +107,10 @@ function AdminMaqamPage() {
   const [trashLoading, setTrashLoading] = useState(false)
 
   const [search, setSearch] = useState('')
-  const [searchResults, setSearchResults] = useState(null)
-  const [searching, setSearching] = useState(false)
+  // The box drives the list endpoint's `q` (debounced) rather than the ranked
+  // /maqam/search endpoint: `q` composes with the filters and the sort, is paged,
+  // and is uncapped — so searching no longer disables the toolbar or stops at 50.
+  const [debouncedSearch, setDebouncedSearch] = useState('')
 
   // Sort + filter state. These flow through to GET /api/maqam as query params;
   // the backend applies them in-memory over the active set (and keeps its
@@ -124,9 +126,15 @@ function AdminMaqamPage() {
     [sortKey],
   )
   const listQuery = useMemo(
-    () => ({ ...buildMaqamSortParams(activeSort), ...buildMaqamFilterParams(filters) }),
-    [activeSort, filters],
+    () => ({
+      ...buildMaqamSortParams(activeSort),
+      ...buildMaqamFilterParams(filters),
+      ...(debouncedSearch ? { q: debouncedSearch } : {}),
+    }),
+    [activeSort, filters, debouncedSearch],
   )
+
+  const maqamTypeOptions = useMaqamTypeOptions()
 
   const clearFilters = () => setFilters(createInitialMaqamFilters())
   const updateFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }))
@@ -244,29 +252,8 @@ function AdminMaqamPage() {
 
   // Debounced search over active records.
   useEffect(() => {
-    const q = search.trim()
-    if (!q) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSearchResults(null)
-      setSearching(false)
-      return undefined
-    }
-    const ctrl = new AbortController()
-    setSearching(true)
-    const timer = setTimeout(async () => {
-      try {
-        const data = await searchMaqams(q, { limit: 50, signal: ctrl.signal })
-        if (!ctrl.signal.aborted) setSearchResults(Array.isArray(data) ? data : [])
-      } catch (err) {
-        if (err?.code !== 'ERR_CANCELED') setSearchResults([])
-      } finally {
-        if (!ctrl.signal.aborted) setSearching(false)
-      }
-    }, 280)
-    return () => {
-      clearTimeout(timer)
-      ctrl.abort()
-    }
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 280)
+    return () => clearTimeout(timer)
   }, [search])
 
   const refreshAfterMutation = useCallback(() => {
@@ -343,12 +330,11 @@ function AdminMaqamPage() {
     })
   }
 
-  const isSearchMode = Boolean(search.trim())
-  const activeRows = isSearchMode ? searchResults : records
+  const isSearchMode = Boolean(debouncedSearch)
+  const activeRows = records
 
-  // Excel export (report toolbar): full DTOs for whichever view is open —
-  // trash walks the trash pages, search re-runs uncapped (the on-screen list
-  // stops at 50 hits), browse walks every active page.
+  // Excel export (report toolbar): full DTOs for whichever view is open, using
+  // that view's sort, filters and `q` — walked page by page.
   useReportExport(async () => {
     if (view === 'trash') {
       const { records: trashRecords, truncated } = await fetchAllPageRecords(
@@ -356,17 +342,13 @@ function AdminMaqamPage() {
       )
       return { sections: [{ title: 'Maqam List · Trash', records: trashRecords }], truncated }
     }
-    if (isSearchMode) {
-      const found = await searchMaqams(search.trim(), {})
-      return { sections: [{ title: 'Maqam List', records: found || [] }] }
-    }
     const { records: allRecords, truncated } = await fetchAllPageRecords(
       ({ page: exportPage, size }) =>
         getMaqamsPage({ page: exportPage, size, ...listQuery }),
     )
     return { sections: [{ title: 'Maqam List', records: allRecords }], truncated }
-  }, [view, isSearchMode, search, listQuery, trashListQuery])
-  const activeBusy = isSearchMode ? searching : loading
+  }, [view, listQuery, trashListQuery])
+  const activeBusy = loading
 
   const totalActive = meta?.totalElements ?? 0
   const totalTrash = trashMeta?.totalElements
@@ -425,7 +407,7 @@ function AdminMaqamPage() {
           {/* Search + sort + filters */}
           <EntityToolbar
             filteredCount={activeRows?.length ?? 0}
-            totalCount={isSearchMode ? (activeRows?.length ?? 0) : totalActive}
+            totalCount={totalActive}
             searchValue={search}
             onSearchChange={setSearch}
             searchPlaceholder="Search by song, singer, or code…"
@@ -433,8 +415,8 @@ function AdminMaqamPage() {
             onRefresh={() => loadActive(page)}
             isRefreshing={activeBusy}
             trailing={
-              // Sort + filter are disabled during a text search: /maqam/search
-              // has its own ranking and bypasses both server-side.
+              // Nothing is disabled while searching any more — `q` composes with
+              // both the sort and the filters server-side.
               <div className="flex flex-wrap items-center gap-2">
                 <SortSelect
                   value={sortKey}
@@ -442,7 +424,6 @@ function AdminMaqamPage() {
                   options={MAQAM_SORT_OPTIONS}
                   ascIcon={ArrowUpAZ}
                   descIcon={ArrowDownAZ}
-                  disabled={isSearchMode}
                   title="Sort maqam records"
                   width="sm:w-[15rem]"
                 />
@@ -451,15 +432,12 @@ function AdminMaqamPage() {
                   count={filterCount}
                   open={isFilterPanelOpen}
                   onClick={() => setIsFilterPanelOpen((v) => !v)}
-                  disabled={isSearchMode}
-                  disabledReason="Clear search to use filters"
                 />
               </div>
             }
           />
 
-          {!isSearchMode ? (
-            <MaqamFilterPanel
+          <MaqamFilterPanel
               open={isFilterPanelOpen}
               filters={filters}
               onChange={updateFilter}
@@ -467,8 +445,8 @@ function AdminMaqamPage() {
               onClose={() => setIsFilterPanelOpen(false)}
               isAnyActive={filtersActive}
               activeCount={filterCount}
+              maqamTypeOptions={maqamTypeOptions}
             />
-          ) : null}
 
           <FilterChips
             chips={buildMaqamChips({
@@ -587,7 +565,7 @@ function AdminMaqamPage() {
             </CardContent>
           </Card>
 
-          {!isSearchMode && meta ? (
+          {meta ? (
             <DataPagination
               page={meta.page}
               totalPages={meta.totalPages}
@@ -748,11 +726,6 @@ function AdminMaqamPage() {
           if (updated) {
             setManageRecord(updated)
             setRecords((prev) =>
-              Array.isArray(prev)
-                ? prev.map((r) => (r.maqamCode === updated.maqamCode ? updated : r))
-                : prev,
-            )
-            setSearchResults((prev) =>
               Array.isArray(prev)
                 ? prev.map((r) => (r.maqamCode === updated.maqamCode ? updated : r))
                 : prev,

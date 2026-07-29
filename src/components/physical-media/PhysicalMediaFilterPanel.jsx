@@ -13,6 +13,7 @@ import { getVocabularyOptions } from '@/lib/controlled-vocabulary'
 import {
   DIGITIZATION_OPTIONS,
   NEED_TO_CLEAR_OPTIONS,
+  SOURCE_OPTIONS,
 } from '@/pages/employee/physical-media-filters'
 
 // `typeOptions` comes from the page's already-loaded type catalog, so the Type
@@ -80,6 +81,15 @@ export function PhysicalMediaFilterPanel({
             onChange={(v) => onChange('needToClear', v)}
             options={NEED_TO_CLEAR_OPTIONS}
             ariaLabel="Needs clearing"
+            fullWidth
+          />
+        </FilterField>
+        <FilterField label="Source" hint="how the row got here" span="wide">
+          <SegmentedControl
+            value={filters.source}
+            onChange={(v) => onChange('source', v)}
+            options={SOURCE_OPTIONS}
+            ariaLabel="Record source"
             fullWidth
           />
         </FilterField>
@@ -183,7 +193,7 @@ export function PhysicalMediaFilterPanel({
       </FilterSection>
 
       {showRemoval ? (
-        <FilterSection icon={Trash2} label="Removal" columns={1}>
+        <FilterSection icon={Trash2} label="Removal" columns={2}>
           <FilterField label="Removed by" htmlFor="pm-filter-removedby">
             <TextFilter
               id="pm-filter-removedby"
@@ -192,6 +202,13 @@ export function PhysicalMediaFilterPanel({
               placeholder="Username contains…"
             />
           </FilterField>
+          <DateRangeField
+            label="Trashed"
+            from={filters.removedFrom}
+            to={filters.removedTo}
+            onFromChange={(v) => onChange('removedFrom', v)}
+            onToChange={(v) => onChange('removedTo', v)}
+          />
         </FilterSection>
       ) : null}
 

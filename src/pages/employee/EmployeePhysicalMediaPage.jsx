@@ -66,7 +66,6 @@ import {
   getPhysicalMediaTypes,
   purgePhysicalMedia,
   restorePhysicalMedia,
-  searchPhysicalMedia,
   updatePhysicalMedia,
 } from '@/services/physical-media'
 
@@ -133,10 +132,12 @@ function EmployeePhysicalMediaPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Search
+  // Search — the box drives the list endpoint's `q` (debounced) rather than the
+  // ranked /physical-media/search endpoint: `q` composes with the filters and the
+  // sort, is paged, and is uncapped, so searching no longer disables the toolbar
+  // or stops at the first 50 hits.
   const [search, setSearch] = usePersistentState('employee.physicalMedia.search', '')
-  const [searchResults, setSearchResults] = useState(null)
-  const [searching, setSearching] = useState(false)
+  const [debouncedSearch, setDebouncedSearch] = useState(search.trim())
 
   // Sort + filter state. These flow through to GET /api/physical-media as query
   // params; the backend applies them in-memory over the active set, and keeps
@@ -158,8 +159,12 @@ function EmployeePhysicalMediaPage() {
     [sortKey],
   )
   const listQuery = useMemo(
-    () => ({ ...buildPhysicalMediaSortParams(activeSort), ...buildPhysicalMediaFilterParams(filters) }),
-    [activeSort, filters],
+    () => ({
+      ...buildPhysicalMediaSortParams(activeSort),
+      ...buildPhysicalMediaFilterParams(filters),
+      ...(debouncedSearch ? { q: debouncedSearch } : {}),
+    }),
+    [activeSort, filters, debouncedSearch],
   )
 
   const clearFilters = () => setFilters(createInitialPhysicalMediaFilters())
@@ -383,40 +388,19 @@ function EmployeePhysicalMediaPage() {
   }, [trashListQuery])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Debounced backend search over the active set.
+  // Debounce the box into `q`; the loader effect reloads from page 0 whenever
+  // listQuery changes.
   useEffect(() => {
-    const q = search.trim()
-    if (!q) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSearchResults(null)
-      setSearching(false)
-      return undefined
-    }
-    const ctrl = new AbortController()
-    setSearching(true)
-    const timer = setTimeout(async () => {
-      try {
-        const data = await searchPhysicalMedia(q, { limit: 50, signal: ctrl.signal })
-        if (!ctrl.signal.aborted) setSearchResults(Array.isArray(data) ? data : [])
-      } catch (err) {
-        if (err?.code !== 'ERR_CANCELED') setSearchResults([])
-      } finally {
-        if (!ctrl.signal.aborted) setSearching(false)
-      }
-    }, 280)
-    return () => {
-      clearTimeout(timer)
-      ctrl.abort()
-    }
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 280)
+    return () => clearTimeout(timer)
   }, [search])
 
-  const isSearchMode = Boolean(search.trim())
-  const activeRows = isSearchMode ? searchResults : records
-  const activeBusy = isSearchMode ? searching : loading
+  const isSearchMode = Boolean(debouncedSearch)
+  const activeRows = records
+  const activeBusy = loading
 
   // Excel export (report toolbar): full 29-field DTOs for whichever tab is
-  // open — trash walks the trash pages (admin only), search re-runs uncapped
-  // (the on-screen list stops at 50 hits), browse walks every active page.
+  // open, using that tab's sort, filters and `q` — walked page by page.
   useReportExport(async () => {
     if (tab === 'trash') {
       const { records: trashRecords, truncated } = await fetchAllPageRecords(
@@ -424,15 +408,11 @@ function EmployeePhysicalMediaPage() {
       )
       return { sections: [{ title: 'Physical Media · Trash', records: trashRecords }], truncated }
     }
-    if (isSearchMode) {
-      const found = await searchPhysicalMedia(search.trim(), {})
-      return { sections: [{ title: 'Physical Media', records: found || [] }] }
-    }
     const { records: allRecords, truncated } = await fetchAllPageRecords(
       ({ page: exportPage, size }) => getPhysicalMediaPage({ page: exportPage, size, ...listQuery }),
     )
     return { sections: [{ title: 'Physical Media', records: allRecords }], truncated }
-  }, [tab, isSearchMode, search, listQuery, trashListQuery])
+  }, [tab, listQuery, trashListQuery])
 
   // ── Form handlers ─────────────────────────────────────────────────────────
   const openCreate = () => {
@@ -708,7 +688,7 @@ function EmployeePhysicalMediaPage() {
           {/* Search + sort + filters */}
           <EntityToolbar
             filteredCount={activeRows?.length ?? 0}
-            totalCount={isSearchMode ? (activeRows?.length ?? 0) : (meta?.totalElements ?? 0)}
+            totalCount={meta?.totalElements ?? 0}
             searchValue={search}
             onSearchChange={setSearch}
             searchPlaceholder="Search by type, title, label, category…"
@@ -716,8 +696,8 @@ function EmployeePhysicalMediaPage() {
             onRefresh={() => loadActive(page)}
             isRefreshing={activeBusy}
             trailing={
-              // Sort + filter are disabled during a text search:
-              // /physical-media/search has its own ranking and bypasses both.
+              // Nothing is disabled while searching any more — `q` composes with
+              // both the sort and the filters server-side.
               <div className="flex flex-wrap items-center gap-2">
                 <SortSelect
                   value={sortKey}
@@ -725,7 +705,6 @@ function EmployeePhysicalMediaPage() {
                   options={PHYSICAL_MEDIA_SORT_OPTIONS}
                   ascIcon={ArrowUpAZ}
                   descIcon={ArrowDownAZ}
-                  disabled={isSearchMode}
                   title="Sort physical media"
                   width="sm:w-[16rem]"
                 />
@@ -734,15 +713,12 @@ function EmployeePhysicalMediaPage() {
                   count={filterCount}
                   open={isFilterPanelOpen}
                   onClick={() => setIsFilterPanelOpen((v) => !v)}
-                  disabled={isSearchMode}
-                  disabledReason="Clear search to use filters"
                 />
               </div>
             }
           />
 
-          {!isSearchMode ? (
-            <PhysicalMediaFilterPanel
+          <PhysicalMediaFilterPanel
               open={isFilterPanelOpen}
               filters={filters}
               onChange={updateFilter}
@@ -752,7 +728,6 @@ function EmployeePhysicalMediaPage() {
               activeCount={filterCount}
               typeOptions={typeFilterOptions}
             />
-          ) : null}
 
           <FilterChips
             chips={buildPhysicalMediaChips({
@@ -875,7 +850,7 @@ function EmployeePhysicalMediaPage() {
             </CardContent>
           </Card>
 
-          {!isSearchMode && meta ? (
+          {meta ? (
             <DataPagination
               page={meta.page}
               totalPages={meta.totalPages}

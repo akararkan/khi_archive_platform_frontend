@@ -28,21 +28,28 @@ import { apiClient } from '@/lib/api-client'
 //   - sortBy          maqamCode | songName (song/title) | producer | duration |
 //                     createdAt | updatedAt
 //   - sortDirection   'asc' | 'desc'
+//   - q               one case-insensitive substring OR'd across code, song,
+//                     producer, archive note, audio file name and the vote
+//                     panel (voted types, teacher names). Composes with every
+//                     filter and sort — unlike /maqam/search, which is ranked
+//                     and ignores filters.
 //   - contains        songName, producer, maqamCode, archiveNote,
-//                     audioFileName, createdBy, updatedBy
-//   - range           durationSecondsMin/Max, createdFrom/To, updatedFrom/To
+//                     audioFileName, createdBy, updatedBy, removedBy
+//   - range           durationSecondsMin/Max · created/updated/removedFrom+To
+//                     as BARE DATES (YYYY-MM-DD) — the backend resolves them to
+//                     Asia/Baghdad day bounds itself, so never send instants
 //   - teacher panel   teacherUserId (records that teacher is on),
 //                     teacherUsername (contains), maqamType (exact — any panel
 //                     member voted it), assignmentStatus (assigned|unassigned),
 //                     voteStatus (none|partial|full)
 const MAQAM_FILTER_KEYS = [
-  'sortBy', 'sortDirection',
+  'sortBy', 'sortDirection', 'q',
   'songName', 'producer', 'maqamCode', 'archiveNote', 'audioFileName', 'createdBy', 'updatedBy',
   'durationSecondsMin', 'durationSecondsMax',
   'createdFrom', 'createdTo', 'updatedFrom', 'updatedTo',
   'teacherUserId', 'teacherUsername', 'maqamType', 'assignmentStatus', 'voteStatus',
-  // trash only — who soft-deleted the record
-  'removedBy',
+  // trash-shaped (inert on the active list, where removedAt/By are null)
+  'removedBy', 'removedFrom', 'removedTo',
 ]
 
 // Both list endpoints bind the same MaqamFilterParams, so they share one
@@ -66,7 +73,16 @@ export async function getMaqamsPage({ page = 0, size = 50, signal, ...filters } 
   return data
 }
 
-// Free-text search by song name / producer / maqam code. Returns a plain array.
+// Distinct maqam types that panels have actually voted, most-common first.
+// Feeds the exact-match `maqamType` filter as a dropdown so the filter can't
+// silently miss a spelling variant of a Kurdish name.
+export async function getMaqamTypes({ signal } = {}) {
+  const { data } = await apiClient.get('/maqam/maqam-types', { signal })
+  return Array.isArray(data) ? data : []
+}
+
+// Ranked typeahead search (pg_trgm). Ignores filters — for combined
+// search + filter use the `q` param on getMaqamsPage instead.
 export async function searchMaqams(q, { limit, signal } = {}) {
   const params = { q }
   if (typeof limit === 'number' && limit > 0) params.limit = limit

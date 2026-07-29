@@ -29,6 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useMaqamTypeOptions } from '@/hooks/use-maqam-types'
 import { usePersistentState } from '@/hooks/use-persistent-state'
 import { useReportExport } from '@/hooks/use-report-export'
 import { useToast } from '@/hooks/use-toast'
@@ -43,7 +44,7 @@ import {
   teacherLabel,
   voteProgress,
 } from '@/components/maqam/maqam-helpers'
-import { getMaqam, getMaqamsPage, searchMaqams } from '@/services/maqam'
+import { getMaqam, getMaqamsPage } from '@/services/maqam'
 import { MaqamFilterPanel } from '@/components/maqam/MaqamFilterPanel'
 import {
   DEFAULT_MAQAM_SORT_KEY,
@@ -91,8 +92,11 @@ function EmployeeMaqamPage() {
   const [error, setError] = useState('')
 
   const [search, setSearch] = usePersistentState('employee.maqam.search', '')
-  const [searchResults, setSearchResults] = useState(null)
-  const [searching, setSearching] = useState(false)
+  // The box now drives the list endpoint's `q` (debounced) instead of the ranked
+  // /maqam/search endpoint. `q` composes with the filters and the sort, is paged
+  // like everything else, and is uncapped — so search no longer disables the
+  // toolbar or stops at the first 50 hits.
+  const [debouncedSearch, setDebouncedSearch] = useState(search.trim())
 
   // Sort + filter state. These flow through to GET /api/maqam as query params;
   // the backend applies them in-memory over the active set (and keeps its
@@ -108,9 +112,15 @@ function EmployeeMaqamPage() {
     [sortKey],
   )
   const listQuery = useMemo(
-    () => ({ ...buildMaqamSortParams(activeSort), ...buildMaqamFilterParams(filters) }),
-    [activeSort, filters],
+    () => ({
+      ...buildMaqamSortParams(activeSort),
+      ...buildMaqamFilterParams(filters),
+      ...(debouncedSearch ? { q: debouncedSearch } : {}),
+    }),
+    [activeSort, filters, debouncedSearch],
   )
+
+  const maqamTypeOptions = useMaqamTypeOptions()
 
   const clearFilters = () => setFilters(createInitialMaqamFilters())
   const updateFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }))
@@ -124,7 +134,7 @@ function EmployeeMaqamPage() {
   // record's panel — enough to move a teacher onto another record.
   const teacherOptions = useMemo(() => {
     const map = new Map()
-    for (const list of [records, searchResults]) {
+    for (const list of [records]) {
       for (const rec of Array.isArray(list) ? list : []) {
         for (const v of Array.isArray(rec.teacherVotes) ? rec.teacherVotes : []) {
           if (v.teacherUserId != null && !map.has(v.teacherUserId)) {
@@ -138,7 +148,7 @@ function EmployeeMaqamPage() {
       }
     }
     return Array.from(map.values())
-  }, [records, searchResults])
+  }, [records])
 
   const loadActive = useCallback(async (nextPage = 0) => {
     setLoading(true)
@@ -169,50 +179,26 @@ function EmployeeMaqamPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listQuery])
 
+  // Debounce the box into `q`; the loader effect below reloads from page 0
+  // whenever listQuery changes.
   useEffect(() => {
-    const q = search.trim()
-    if (!q) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSearchResults(null)
-      setSearching(false)
-      return undefined
-    }
-    const ctrl = new AbortController()
-    setSearching(true)
-    const timer = setTimeout(async () => {
-      try {
-        const data = await searchMaqams(q, { limit: 50, signal: ctrl.signal })
-        if (!ctrl.signal.aborted) setSearchResults(Array.isArray(data) ? data : [])
-      } catch (err) {
-        if (err?.code !== 'ERR_CANCELED') setSearchResults([])
-      } finally {
-        if (!ctrl.signal.aborted) setSearching(false)
-      }
-    }, 280)
-    return () => {
-      clearTimeout(timer)
-      ctrl.abort()
-    }
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 280)
+    return () => clearTimeout(timer)
   }, [search])
 
-  const isSearchMode = Boolean(search.trim())
-  const rows = isSearchMode ? searchResults : records
-  const busy = isSearchMode ? searching : loading
+  const isSearchMode = Boolean(debouncedSearch)
+  const rows = records
+  const busy = loading
 
-  // Excel export (report toolbar): full DTOs across the whole matching set —
-  // search re-runs uncapped (the on-screen list stops at 50 hits), browse
-  // walks every page.
+  // Excel export (report toolbar): full DTOs for the whole matching set — the
+  // same sort, filters and `q` the table is showing, walked page by page.
   useReportExport(async () => {
-    if (isSearchMode) {
-      const found = await searchMaqams(search.trim(), {})
-      return { sections: [{ title: 'Maqam List', records: found || [] }] }
-    }
     const { records: allRecords, truncated } = await fetchAllPageRecords(
       ({ page: exportPage, size }) =>
         getMaqamsPage({ page: exportPage, size, ...listQuery }),
     )
     return { sections: [{ title: 'Maqam List', records: allRecords }], truncated }
-  }, [isSearchMode, search, listQuery])
+  }, [listQuery])
 
   return (
     <EmployeeEntityPage
@@ -244,7 +230,7 @@ function EmployeeMaqamPage() {
     >
       <EntityToolbar
         filteredCount={rows?.length ?? 0}
-        totalCount={isSearchMode ? (rows?.length ?? 0) : (meta?.totalElements ?? 0)}
+        totalCount={meta?.totalElements ?? 0}
         searchValue={search}
         onSearchChange={setSearch}
         searchPlaceholder="Search by song, singer, or code…"
@@ -252,8 +238,8 @@ function EmployeeMaqamPage() {
         onRefresh={() => loadActive(page)}
         isRefreshing={busy}
         trailing={
-          // Sort + filter are disabled during a text search: /maqam/search has
-          // its own ranking and bypasses both server-side.
+          // Nothing is disabled while searching any more — `q` composes with
+          // both the sort and the filters server-side.
           <div className="flex flex-wrap items-center gap-2">
             <SortSelect
               value={sortKey}
@@ -261,7 +247,6 @@ function EmployeeMaqamPage() {
               options={MAQAM_SORT_OPTIONS}
               ascIcon={ArrowUpAZ}
               descIcon={ArrowDownAZ}
-              disabled={isSearchMode}
               title="Sort maqam records"
               width="sm:w-[15rem]"
             />
@@ -270,15 +255,12 @@ function EmployeeMaqamPage() {
               count={filterCount}
               open={isFilterPanelOpen}
               onClick={() => setIsFilterPanelOpen((v) => !v)}
-              disabled={isSearchMode}
-              disabledReason="Clear search to use filters"
             />
           </div>
         }
       />
 
-      {!isSearchMode ? (
-        <MaqamFilterPanel
+      <MaqamFilterPanel
           open={isFilterPanelOpen}
           filters={filters}
           onChange={updateFilter}
@@ -286,8 +268,8 @@ function EmployeeMaqamPage() {
           onClose={() => setIsFilterPanelOpen(false)}
           isAnyActive={filtersActive}
           activeCount={filterCount}
+          maqamTypeOptions={maqamTypeOptions}
         />
-      ) : null}
 
       <FilterChips
         chips={buildMaqamChips({
@@ -414,7 +396,7 @@ function EmployeeMaqamPage() {
         </CardContent>
       </Card>
 
-      {!isSearchMode && meta ? (
+      {meta ? (
         <DataPagination
           page={meta.page}
           totalPages={meta.totalPages}
