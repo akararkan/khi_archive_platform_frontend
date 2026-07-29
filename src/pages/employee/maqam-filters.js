@@ -46,6 +46,14 @@ export function buildMaqamSortParams(option) {
 // existed, so the default view is unchanged.
 export const DEFAULT_MAQAM_SORT_KEY = 'createdAt-desc'
 
+// Trash keeps the backend's id-ASC default until the admin picks a sort, so its
+// list gets a leading "send nothing" entry rather than createdAt-desc.
+export const MAQAM_TRASH_SORT_OPTIONS = [
+  { key: 'default', label: 'Default order', sortBy: '', sortDirection: '' },
+  ...MAQAM_SORT_OPTIONS,
+]
+export const DEFAULT_MAQAM_TRASH_SORT_KEY = 'default'
+
 export const ASSIGNMENT_OPTIONS = [
   { value: '', label: 'Any' },
   { value: 'assigned', label: 'Assigned' },
@@ -75,6 +83,8 @@ export function createInitialMaqamFilters() {
     createdTo: '',
     updatedFrom: '',
     updatedTo: '',
+    // trash-only; stays blank (and unsent) on the active list
+    removedBy: '',
   }
 }
 
@@ -86,6 +96,7 @@ const TEXT_KEYS = [
   'audioFileName',
   'maqamType',
   'teacherUsername',
+  'removedBy',
 ]
 
 // Filter state → query params. Blanks are dropped so an untouched panel
@@ -133,6 +144,7 @@ const TEXT_CHIP_LABELS = {
   audioFileName: 'Audio file',
   maqamType: 'Maqam type',
   teacherUsername: 'Teacher',
+  removedBy: 'Removed by',
 }
 
 function rangeChipValue(min, max, suffix = '') {

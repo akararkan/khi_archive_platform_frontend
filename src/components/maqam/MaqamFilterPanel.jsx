@@ -1,4 +1,4 @@
-import { CalendarClock, FileText, Headphones, Music4, Users } from 'lucide-react'
+import { CalendarClock, FileText, Headphones, Music4, Trash2, Users } from 'lucide-react'
 
 import {
   DateRangeField,
@@ -14,8 +14,18 @@ import { ASSIGNMENT_OPTIONS, VOTE_STATUS_OPTIONS } from '@/pages/employee/maqam-
 // The Maqam filter panel — same scaffolding as PersonFilterPanel so the entity
 // reads as one of the family rather than a bespoke screen. State, params and
 // chips all live in pages/employee/maqam-filters.js; this is presentation only.
-// Both the employee and admin Maqam pages render it.
-export function MaqamFilterPanel({ open, filters, onChange, onClear, onClose, isAnyActive, activeCount }) {
+// Both the employee and admin Maqam pages render it. `showRemoval` adds the
+// trash-only "Removed by" field — the same panel serves both tabs.
+export function MaqamFilterPanel({
+  open,
+  filters,
+  onChange,
+  onClear,
+  onClose,
+  isAnyActive,
+  activeCount,
+  showRemoval = false,
+}) {
   return (
     <FilterPanel
       open={open}
@@ -119,6 +129,19 @@ export function MaqamFilterPanel({ open, filters, onChange, onClear, onClose, is
           />
         </FilterField>
       </FilterSection>
+
+      {showRemoval ? (
+        <FilterSection icon={Trash2} label="Removal" columns={1}>
+          <FilterField label="Removed by" htmlFor="maqam-filter-removedby">
+            <TextFilter
+              id="maqam-filter-removedby"
+              value={filters.removedBy}
+              onCommit={(v) => onChange('removedBy', v)}
+              placeholder="Username contains…"
+            />
+          </FilterField>
+        </FilterSection>
+      ) : null}
 
       <FilterSection icon={CalendarClock} label="Activity" columns={2}>
         <DateRangeField

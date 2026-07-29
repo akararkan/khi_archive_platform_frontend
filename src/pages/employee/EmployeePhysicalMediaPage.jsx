@@ -165,6 +165,36 @@ function EmployeePhysicalMediaPage() {
   const clearFilters = () => setFilters(createInitialPhysicalMediaFilters())
   const updateFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }))
 
+  // Trash carries its own sort + filter state: the same atom set (plus
+  // "Removed by"), its own default (the endpoint stays id-ASC until an admin
+  // picks a sort), and no bleed between the two tabs.
+  const [trashSortKey, setTrashSortKey] = usePersistentState(
+    'employee.physicalMedia.trashSort',
+    DEFAULT_PHYSICAL_MEDIA_SORT_KEY,
+  )
+  const [trashFilters, setTrashFilters] = usePersistentState(
+    'employee.physicalMedia.trashFilters',
+    createInitialPhysicalMediaFilters,
+  )
+  const [isTrashFilterPanelOpen, setIsTrashFilterPanelOpen] = useState(false)
+  const trashFiltersActive = !isPhysicalMediaFilterEmpty(trashFilters)
+  const trashSortActive = trashSortKey !== DEFAULT_PHYSICAL_MEDIA_SORT_KEY
+  const trashFilterCount = useMemo(() => countPhysicalMediaFilters(trashFilters), [trashFilters])
+  const activeTrashSort = useMemo(
+    () => PHYSICAL_MEDIA_SORT_OPTIONS.find((opt) => opt.key === trashSortKey) ?? PHYSICAL_MEDIA_SORT_OPTIONS[0],
+    [trashSortKey],
+  )
+  const trashListQuery = useMemo(
+    () => ({
+      ...buildPhysicalMediaSortParams(activeTrashSort),
+      ...buildPhysicalMediaFilterParams(trashFilters),
+    }),
+    [activeTrashSort, trashFilters],
+  )
+
+  const clearTrashFilters = () => setTrashFilters(createInitialPhysicalMediaFilters())
+  const updateTrashFilter = (key, value) => setTrashFilters((prev) => ({ ...prev, [key]: value }))
+
   // Trash (admin)
   const [trashRecords, setTrashRecords] = useState(null)
   const [trashMeta, setTrashMeta] = useState(null)
@@ -313,7 +343,7 @@ function EmployeePhysicalMediaPage() {
   const loadTrash = useCallback(async (nextPage = 0) => {
     setTrashLoading(true)
     try {
-      const data = await getPhysicalMediaTrashPage({ page: nextPage, size: PAGE_SIZE })
+      const data = await getPhysicalMediaTrashPage({ page: nextPage, size: PAGE_SIZE, ...trashListQuery })
       const rows = Array.isArray(data?.content) ? data.content : Array.isArray(data) ? data : []
       setTrashRecords(rows)
       setTrashMeta({
@@ -328,7 +358,7 @@ function EmployeePhysicalMediaPage() {
     } finally {
       setTrashLoading(false)
     }
-  }, [toast])
+  }, [toast, trashListQuery])
 
   // Reload on mount and whenever sort/filters change — a changed result set
   // invalidates the current page index, so both reset to page 0.
@@ -344,6 +374,13 @@ function EmployeePhysicalMediaPage() {
     if (tab === 'trash' && isAdmin && trashRecords == null) loadTrash(0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, isAdmin])
+
+  // Trash sort/filter changes reload from page 0 — but only once the tab has
+  // actually been opened, so the lazy first load above stays lazy.
+  useEffect(() => {
+    if (trashRecords != null) loadTrash(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trashListQuery])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Debounced backend search over the active set.
@@ -383,7 +420,7 @@ function EmployeePhysicalMediaPage() {
   useReportExport(async () => {
     if (tab === 'trash') {
       const { records: trashRecords, truncated } = await fetchAllPageRecords(
-        ({ page: exportPage, size }) => getPhysicalMediaTrashPage({ page: exportPage, size }),
+        ({ page: exportPage, size }) => getPhysicalMediaTrashPage({ page: exportPage, size, ...trashListQuery }),
       )
       return { sections: [{ title: 'Physical Media · Trash', records: trashRecords }], truncated }
     }
@@ -395,7 +432,7 @@ function EmployeePhysicalMediaPage() {
       ({ page: exportPage, size }) => getPhysicalMediaPage({ page: exportPage, size, ...listQuery }),
     )
     return { sections: [{ title: 'Physical Media', records: allRecords }], truncated }
-  }, [tab, isSearchMode, search, listQuery])
+  }, [tab, isSearchMode, search, listQuery, trashListQuery])
 
   // ── Form handlers ─────────────────────────────────────────────────────────
   const openCreate = () => {
@@ -851,6 +888,61 @@ function EmployeePhysicalMediaPage() {
       ) : (
         /* Trash tab (admin) */
         <>
+          <EntityToolbar
+            filteredCount={trashRecords?.length ?? 0}
+            totalCount={trashMeta?.totalElements ?? 0}
+            onRefresh={() => loadTrash(trashPage)}
+            isRefreshing={trashLoading}
+            trailing={
+              <div className="flex flex-wrap items-center gap-2">
+                <SortSelect
+                  value={trashSortKey}
+                  onChange={setTrashSortKey}
+                  options={PHYSICAL_MEDIA_SORT_OPTIONS}
+                  ascIcon={ArrowUpAZ}
+                  descIcon={ArrowDownAZ}
+                  title="Sort trashed records"
+                  width="sm:w-[16rem]"
+                />
+                <FilterTriggerButton
+                  active={trashFiltersActive}
+                  count={trashFilterCount}
+                  open={isTrashFilterPanelOpen}
+                  onClick={() => setIsTrashFilterPanelOpen((v) => !v)}
+                />
+              </div>
+            }
+          />
+
+          <PhysicalMediaFilterPanel
+            open={isTrashFilterPanelOpen}
+            filters={trashFilters}
+            onChange={updateTrashFilter}
+            onClear={clearTrashFilters}
+            onClose={() => setIsTrashFilterPanelOpen(false)}
+            isAnyActive={trashFiltersActive}
+            activeCount={trashFilterCount}
+            typeOptions={typeFilterOptions}
+            showRemoval
+          />
+
+          <FilterChips
+            chips={buildPhysicalMediaChips({
+              sortLabel: trashSortActive ? activeTrashSort.label : null,
+              onClearSort: () => setTrashSortKey(DEFAULT_PHYSICAL_MEDIA_SORT_KEY),
+              filters: trashFilters,
+              updateFilter: updateTrashFilter,
+            })}
+            onClearAll={
+              trashFiltersActive || trashSortActive
+                ? () => {
+                    clearTrashFilters()
+                    setTrashSortKey(DEFAULT_PHYSICAL_MEDIA_SORT_KEY)
+                  }
+                : null
+            }
+          />
+
           <Card className="overflow-hidden border-border shadow-sm shadow-black/5">
             <CardContent className="p-0">
               {trashLoading && !trashRecords ? (

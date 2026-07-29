@@ -73,16 +73,21 @@ function EntityToolbar({
           </div>
 
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-            <div className={`relative w-full ${searchWidthClassName}`}>
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchValue}
-                onChange={(event) => onSearchChange(event.target.value)}
-                placeholder={searchPlaceholder}
-                className="pl-8 pr-8"
-              />
-            </div>
-            {searchValue ? (
+            {/* Omitting `onSearchChange` drops the box entirely — some lists
+                (e.g. the trash tabs) have no search endpoint but still want the
+                count / refresh / sort + filter row. */}
+            {onSearchChange ? (
+              <div className={`relative w-full ${searchWidthClassName}`}>
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchValue}
+                  onChange={(event) => onSearchChange(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="pl-8 pr-8"
+                />
+              </div>
+            ) : null}
+            {onSearchChange && searchValue ? (
               <Button
                 type="button"
                 variant="outline"

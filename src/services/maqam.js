@@ -39,17 +39,27 @@ const MAQAM_FILTER_KEYS = [
   'durationSecondsMin', 'durationSecondsMax',
   'createdFrom', 'createdTo', 'updatedFrom', 'updatedTo',
   'teacherUserId', 'teacherUsername', 'maqamType', 'assignmentStatus', 'voteStatus',
+  // trash only — who soft-deleted the record
+  'removedBy',
 ]
 
-export async function getMaqamsPage({ page = 0, size = 50, sort, signal, ...filters } = {}) {
-  const params = { page, size }
-  if (sort) params.sort = sort
+// Both list endpoints bind the same MaqamFilterParams, so they share one
+// whitelist. Blank values are dropped: an empty filter is what keeps the
+// backend on its DB-paged fast path.
+function withFilterParams(base, filters) {
+  const params = { ...base }
   for (const key of MAQAM_FILTER_KEYS) {
     const value = filters[key]
     if (value === undefined || value === null || value === '') continue
     params[key] = value
   }
-  const { data } = await apiClient.get('/maqam', { params, signal })
+  return params
+}
+
+export async function getMaqamsPage({ page = 0, size = 50, sort, signal, ...filters } = {}) {
+  const base = { page, size }
+  if (sort) base.sort = sort
+  const { data } = await apiClient.get('/maqam', { params: withFilterParams(base, filters), signal })
   return data
 }
 
@@ -188,8 +198,16 @@ export async function replaceMaqamTeachers(code, teacherUserIds) {
 }
 
 // Paginated trash listing (admin-only).
-export async function getMaqamTrashPage({ page = 0, size = 100, signal } = {}) {
-  const { data } = await apiClient.get('/admin/maqam/trash', { params: { page, size }, signal })
+// Same filter/sort set as the active list — including the teacher/vote-panel
+// filters — plus `removedBy`. Admin-only (maqam:delete), so there is no
+// teacher-visibility branch here.
+export async function getMaqamTrashPage({ page = 0, size = 100, sort, signal, ...filters } = {}) {
+  const base = { page, size }
+  if (sort) base.sort = sort
+  const { data } = await apiClient.get('/admin/maqam/trash', {
+    params: withFilterParams(base, filters),
+    signal,
+  })
   return data
 }
 

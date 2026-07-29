@@ -97,6 +97,8 @@ export function createInitialPhysicalMediaFilters() {
     createdTo: '',
     updatedFrom: '',
     updatedTo: '',
+    // trash-only; stays blank (and unsent) on the active list
+    removedBy: '',
   }
 }
 
@@ -112,6 +114,7 @@ const TEXT_KEYS = [
   'owner',
   'tags',
   'content',
+  'removedBy',
 ]
 const NUMBER_RANGES = [
   ['yearMin', 'yearMax'],
@@ -172,6 +175,7 @@ const TEXT_CHIP_LABELS = {
   owner: 'Owner',
   tags: 'Tags',
   content: 'Content',
+  removedBy: 'Removed by',
 }
 const EXACT_KEYS = new Set(['physicalMediaType', 'mediaCategory', 'physicalSize', 'extension', 'formatCodec'])
 

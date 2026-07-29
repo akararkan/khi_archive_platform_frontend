@@ -1,4 +1,4 @@
-import { Boxes, CalendarClock, HardDrive, Ruler, Tag } from 'lucide-react'
+import { Boxes, CalendarClock, HardDrive, Ruler, Tag, Trash2 } from 'lucide-react'
 
 import {
   DateRangeField,
@@ -27,6 +27,7 @@ export function PhysicalMediaFilterPanel({
   isAnyActive,
   activeCount,
   typeOptions = [],
+  showRemoval = false,
 }) {
   return (
     <FilterPanel
@@ -180,6 +181,19 @@ export function PhysicalMediaFilterPanel({
           />
         </FilterField>
       </FilterSection>
+
+      {showRemoval ? (
+        <FilterSection icon={Trash2} label="Removal" columns={1}>
+          <FilterField label="Removed by" htmlFor="pm-filter-removedby">
+            <TextFilter
+              id="pm-filter-removedby"
+              value={filters.removedBy}
+              onCommit={(v) => onChange('removedBy', v)}
+              placeholder="Username contains…"
+            />
+          </FilterField>
+        </FilterSection>
+      ) : null}
 
       <FilterSection icon={CalendarClock} label="Activity" columns={3}>
         <DateRangeField

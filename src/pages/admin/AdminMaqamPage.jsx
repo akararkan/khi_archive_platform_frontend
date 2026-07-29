@@ -52,7 +52,9 @@ import {
 } from '@/services/maqam'
 import {
   DEFAULT_MAQAM_SORT_KEY,
+  DEFAULT_MAQAM_TRASH_SORT_KEY,
   MAQAM_SORT_OPTIONS,
+  MAQAM_TRASH_SORT_OPTIONS,
   buildMaqamChips,
   buildMaqamFilterParams,
   buildMaqamSortParams,
@@ -129,6 +131,27 @@ function AdminMaqamPage() {
   const clearFilters = () => setFilters(createInitialMaqamFilters())
   const updateFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }))
 
+  // Trash carries its own sort + filter state: the same atom set (plus
+  // "Removed by"), but its own defaults — the endpoint stays id-ASC until an
+  // admin picks a sort — and no bleed between the two tabs.
+  const [trashSortKey, setTrashSortKey] = useState(DEFAULT_MAQAM_TRASH_SORT_KEY)
+  const [trashFilters, setTrashFilters] = useState(createInitialMaqamFilters)
+  const [isTrashFilterPanelOpen, setIsTrashFilterPanelOpen] = useState(false)
+  const trashFiltersActive = !isMaqamFilterEmpty(trashFilters)
+  const trashSortActive = trashSortKey !== DEFAULT_MAQAM_TRASH_SORT_KEY
+  const trashFilterCount = useMemo(() => countMaqamFilters(trashFilters), [trashFilters])
+  const activeTrashSort = useMemo(
+    () => MAQAM_TRASH_SORT_OPTIONS.find((opt) => opt.key === trashSortKey) ?? MAQAM_TRASH_SORT_OPTIONS[0],
+    [trashSortKey],
+  )
+  const trashListQuery = useMemo(
+    () => ({ ...buildMaqamSortParams(activeTrashSort), ...buildMaqamFilterParams(trashFilters) }),
+    [activeTrashSort, trashFilters],
+  )
+
+  const clearTrashFilters = () => setTrashFilters(createInitialMaqamFilters())
+  const updateTrashFilter = (key, value) => setTrashFilters((prev) => ({ ...prev, [key]: value }))
+
   const [teacherOptions, setTeacherOptions] = useState([])
 
   const [formState, setFormState] = useState({ open: false, mode: 'create', record: null })
@@ -162,7 +185,7 @@ function AdminMaqamPage() {
   const loadTrash = useCallback(async (nextPage = 0) => {
     setTrashLoading(true)
     try {
-      const data = await getMaqamTrashPage({ page: nextPage, size: PAGE_SIZE })
+      const data = await getMaqamTrashPage({ page: nextPage, size: PAGE_SIZE, ...trashListQuery })
       const rows = Array.isArray(data?.content) ? data.content : Array.isArray(data) ? data : []
       setTrashRecords(rows)
       setTrashMeta({
@@ -177,7 +200,7 @@ function AdminMaqamPage() {
     } finally {
       setTrashLoading(false)
     }
-  }, [toast])
+  }, [toast, trashListQuery])
 
   const loadTeachers = useCallback(async () => {
     try {
@@ -210,6 +233,14 @@ function AdminMaqamPage() {
     if (view === 'trash' && trashRecords == null) loadTrash(0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view])
+
+  // Trash sort/filter changes reload from page 0 — but only once the tab has
+  // actually been opened, so the lazy first load above stays lazy.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (trashRecords != null) loadTrash(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trashListQuery])
 
   // Debounced search over active records.
   useEffect(() => {
@@ -321,7 +352,7 @@ function AdminMaqamPage() {
   useReportExport(async () => {
     if (view === 'trash') {
       const { records: trashRecords, truncated } = await fetchAllPageRecords(
-        ({ page: exportPage, size }) => getMaqamTrashPage({ page: exportPage, size }),
+        ({ page: exportPage, size }) => getMaqamTrashPage({ page: exportPage, size, ...trashListQuery }),
       )
       return { sections: [{ title: 'Maqam List · Trash', records: trashRecords }], truncated }
     }
@@ -334,7 +365,7 @@ function AdminMaqamPage() {
         getMaqamsPage({ page: exportPage, size, ...listQuery }),
     )
     return { sections: [{ title: 'Maqam List', records: allRecords }], truncated }
-  }, [view, isSearchMode, search, listQuery])
+  }, [view, isSearchMode, search, listQuery, trashListQuery])
   const activeBusy = isSearchMode ? searching : loading
 
   const totalActive = meta?.totalElements ?? 0
@@ -568,6 +599,60 @@ function AdminMaqamPage() {
         </>
       ) : (
         <>
+          <EntityToolbar
+            filteredCount={trashRecords?.length ?? 0}
+            totalCount={totalTrash ?? 0}
+            onRefresh={() => loadTrash(trashPage)}
+            isRefreshing={trashLoading}
+            trailing={
+              <div className="flex flex-wrap items-center gap-2">
+                <SortSelect
+                  value={trashSortKey}
+                  onChange={setTrashSortKey}
+                  options={MAQAM_TRASH_SORT_OPTIONS}
+                  ascIcon={ArrowUpAZ}
+                  descIcon={ArrowDownAZ}
+                  title="Sort trashed records"
+                  width="sm:w-[15rem]"
+                />
+                <FilterTriggerButton
+                  active={trashFiltersActive}
+                  count={trashFilterCount}
+                  open={isTrashFilterPanelOpen}
+                  onClick={() => setIsTrashFilterPanelOpen((v) => !v)}
+                />
+              </div>
+            }
+          />
+
+          <MaqamFilterPanel
+            open={isTrashFilterPanelOpen}
+            filters={trashFilters}
+            onChange={updateTrashFilter}
+            onClear={clearTrashFilters}
+            onClose={() => setIsTrashFilterPanelOpen(false)}
+            isAnyActive={trashFiltersActive}
+            activeCount={trashFilterCount}
+            showRemoval
+          />
+
+          <FilterChips
+            chips={buildMaqamChips({
+              sortLabel: trashSortActive ? activeTrashSort.label : null,
+              onClearSort: () => setTrashSortKey(DEFAULT_MAQAM_TRASH_SORT_KEY),
+              filters: trashFilters,
+              updateFilter: updateTrashFilter,
+            })}
+            onClearAll={
+              trashFiltersActive || trashSortActive
+                ? () => {
+                    clearTrashFilters()
+                    setTrashSortKey(DEFAULT_MAQAM_TRASH_SORT_KEY)
+                  }
+                : null
+            }
+          />
+
           <Card className="border-border shadow-sm shadow-black/5">
             <CardContent className="px-0 py-0">
               {trashLoading && !trashRecords ? (

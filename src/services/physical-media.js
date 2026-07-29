@@ -45,17 +45,30 @@ const PHYSICAL_MEDIA_FILTER_KEYS = [
   'trackNumbersMin', 'trackNumbersMax', 'inventoryNumberMin', 'inventoryNumberMax',
   'rowNumberMin', 'rowNumberMax',
   'digitizeDateFrom', 'digitizeDateTo', 'createdFrom', 'createdTo', 'updatedFrom', 'updatedTo',
+  // trash only — who soft-deleted the row
+  'removedBy',
 ]
 
-export async function getPhysicalMediaPage({ page = 0, size = 50, sort, signal, ...filters } = {}) {
-  const params = { page, size }
-  if (sort) params.sort = sort
+// Both list endpoints bind the same PhysicalMediaFilterParams, so they share
+// one whitelist. Blank values are dropped: an empty filter is what keeps the
+// backend on its DB-paged fast path.
+function withFilterParams(base, filters) {
+  const params = { ...base }
   for (const key of PHYSICAL_MEDIA_FILTER_KEYS) {
     const value = filters[key]
     if (value === undefined || value === null || value === '') continue
     params[key] = value
   }
-  const { data } = await apiClient.get('/physical-media', { params, signal })
+  return params
+}
+
+export async function getPhysicalMediaPage({ page = 0, size = 50, sort, signal, ...filters } = {}) {
+  const base = { page, size }
+  if (sort) base.sort = sort
+  const { data } = await apiClient.get('/physical-media', {
+    params: withFilterParams(base, filters),
+    signal,
+  })
   return data
 }
 
@@ -162,9 +175,12 @@ export async function getPhysicalMediaImportSheets(file, { signal } = {}) {
 // ── Admin trash surface (physical_media:delete) ─────────────────────────────────
 
 // Paginated trash listing (admin-only).
-export async function getPhysicalMediaTrashPage({ page = 0, size = 50, signal } = {}) {
+// Same filter/sort set as the active list (plus `removedBy`); defaults to id ASC.
+export async function getPhysicalMediaTrashPage({ page = 0, size = 50, sort, signal, ...filters } = {}) {
+  const base = { page, size }
+  if (sort) base.sort = sort
   const { data } = await apiClient.get('/admin/physical-media/trash', {
-    params: { page, size },
+    params: withFilterParams(base, filters),
     signal,
   })
   return data
