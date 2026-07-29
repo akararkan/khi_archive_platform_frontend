@@ -3,6 +3,7 @@ import { Eye, EyeOff } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { scorePassword } from '@/lib/password-strength'
 import { cn } from '@/lib/utils'
 
 // A labelled input with an optional leading icon. Forwards every native input
@@ -58,18 +59,6 @@ function PasswordField({ id, label, icon, hint, className, ...props }) {
       {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   )
-}
-
-// Crude-but-helpful password score: length + character variety, 0–4.
-function scorePassword(pw) {
-  if (!pw) return 0
-  let s = 0
-  if (pw.length >= 6) s += 1
-  if (pw.length >= 10) s += 1
-  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) s += 1
-  if (/\d/.test(pw)) s += 1
-  if (/[^A-Za-z0-9]/.test(pw)) s += 1
-  return Math.min(s, 4)
 }
 
 // A conventional red → amber → green traffic-light scale (theme-independent on
