@@ -21,16 +21,24 @@ const ZERO_WIDTH = /[\u200B-\u200D\u2060\uFEFF]/g
 // value silently collides with an unrelated one. Returns '' for anything to
 // drop so callers can `.filter(Boolean)`.
 function canonicalizeText(raw, maxLength) {
+  const collapsed = collapseVocabularyText(raw)
+  if (!collapsed) return ''
+  if (collapsed.length > maxLength) return ''
+  return collapsed
+}
+
+// Every canonicalisation step EXCEPT the length cap. Exported so the admin
+// vocabulary editor can tell "blank" apart from "too long" (both of which
+// canonicalise to '') and show a live preview + character counter of the exact
+// value the server will store.
+export function collapseVocabularyText(raw) {
   if (raw == null) return ''
-  const collapsed = String(raw)
+  return String(raw)
     .normalize('NFKC')
     .replace(ZERO_WIDTH, '')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase()
-  if (!collapsed) return ''
-  if (collapsed.length > maxLength) return ''
-  return collapsed
 }
 
 // Short labels (<= 64 chars).

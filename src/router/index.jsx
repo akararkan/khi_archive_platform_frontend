@@ -26,6 +26,7 @@ import { AdminProjectPage } from '@/pages/admin/AdminProjectPage'
 import { AdminRolesPage } from '@/pages/admin/AdminRolesPage'
 import { AdminSettingsPage } from '@/pages/admin/AdminSettingsPage'
 import { AdminTrashPage } from '@/pages/admin/AdminTrashPage'
+import { AdminVocabularyPage } from '@/pages/admin/AdminVocabularyPage'
 import { AdminCorrectionsPage } from '@/pages/admin/AdminCorrectionsPage'
 import { AdminWarningsPage } from '@/pages/admin/AdminWarningsPage'
 import { AdminUserActivityPage } from '@/pages/admin/AdminUserActivityPage'
@@ -226,6 +227,10 @@ const router = createBrowserRouter([
                   {
                     path: 'physical-media',
                     element: <AdminPhysicalMediaPage />,
+                  },
+                  {
+                    path: 'vocabulary',
+                    element: <AdminVocabularyPage />,
                   },
                   {
                     path: 'trash',
